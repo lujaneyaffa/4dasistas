@@ -2,7 +2,7 @@
   "id": "deen-journeys-orlando-retreat-2026",
   "title": "Deen Journeys Orlando Retreat",
   "tag": "Trip",
-  "date": "Dates TBA · $100 flash-sale discount ends August 26, 2026",
+  "date": "December 10–14, 2026",
   "location": "Orlando, Florida",
   "organizer": "Deen Journeys",
   "registration": "Secure a spot through the link in the Deen Journeys Instagram bio; use code ORLANDO before August 26 to save $100.",
@@ -14,5 +14,7 @@
   "lat": 28.538336,
   "lng": -81.379234,
   "tripType": "international",
-  "section": "trips"
+  "section": "trips",
+  "eventDate": "2026-12-10",
+  "endDate": "2026-12-14"
 }
