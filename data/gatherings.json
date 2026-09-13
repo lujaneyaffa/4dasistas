@@ -68,18 +68,14 @@
       "eventDate": "2026-10-24",
       "date": "Friday–Saturday, October 24–25, 2026",
       "organizer": "Being Me Toronto",
-      "desc": "Being ME Toronto's 13th Annual Conference Weekend. Oct 24: Building ME Women's Retreat — a day of Islamic knowledge, reflection, renewal, and wellness. Oct 25: Being ME Conference — a full day of Islamic knowledge, inspiration, and empowerment for ages 12+.",
+      "desc": "Women’s retreat and conference weekend; registration opens via attendbm.com and exact location/time/price are still pending.",
       "instagram": "https://www.instagram.com/beingmetoronto/",
-      "location": "Toronto, ON (exact venue via registration)",
+      "location": "Location TBA",
       "title": "Being ME Toronto",
       "tag": "Function",
       "website": "https://attendbm.com/",
       "id": "beingme-toronto-2026",
-      "section": "functions",
-      "audienceType": [
-        "Muslim Women",
-        "Family Event"
-      ]
+      "section": "functions"
     },
     {
       "section": "functions",
@@ -851,159 +847,6 @@
       "allDay": false,
       "id": "🧺sister’s-picnic-potluck",
       "tag": "🧺Sister’s Picnic & Potluck"
-    },
-    {
-      "id": "sourdough-workshop-nov14-2026",
-      "title": "Sourdough Workshop",
-      "tag": "Function",
-      "category": "functions",
-      "eventDate": "2026-11-14",
-      "time": "14:00",
-      "endTime": "17:00",
-      "location": "Mississauga, ON",
-      "audienceType": [
-        "Girls / Multi-Faith Audience"
-      ],
-      "desc": "A cozy, hands-on sourdough workshop — learn the sourdough process from start to finish and leave with everything you need to continue baking at home. $180 per person. Rescheduled from an earlier October 4th date.",
-      "instagram": "https://www.instagram.com/p/DdEN5B8Ru1e/"
-    },
-    {
-      "id": "ladies-imaan-circle-sept11-2026",
-      "title": "Ladies Imaan Circle: Sisters Gathering",
-      "tag": "Function",
-      "category": "functions",
-      "eventDate": "2026-09-11",
-      "date": "Friday, September 11, 2026",
-      "location": "Masjid Khadijah",
-      "audienceType": [
-        "Muslim Women"
-      ],
-      "desc": "Free sisters gathering, ages 16+.",
-      "instagram": "https://www.instagram.com/p/DdJZLaZtEVB/",
-      "registration": "https://forms.cloud.microsoft/e/WSgZ2NxThh?origin=lprLink"
-    },
-    {
-      "id": "being-me-nourished-heart-retreat-2026",
-      "title": "Being ME: The Nourished Heart Retreat",
-      "tag": "Function",
-      "category": "functions",
-      "eventDate": "2026-10-24",
-      "time": "10:00",
-      "endTime": "18:00",
-      "location": "Toronto, ON (via attendbm.com)",
-      "audienceType": [
-        "Muslim Women"
-      ],
-      "desc": "Faith, Balance, and Inner Renewal — a sister-only retreat to recharge and reconnect with Allah, yourself, and your life. Sisters ages 12+. Interactive sessions, wellness, sisterhood, breakfast & lunch provided. Part of the Being ME Toronto 13th Annual Conference Weekend. Registration deadline: October 16, 2026.",
-      "website": "https://attendbm.com",
-      "instagram": "https://www.instagram.com/p/DdFluWQtP2V/"
-    },
-    {
-      "id": "sip-and-paint-sidequest-sept26-2026",
-      "title": "Sip & Paint (Side Quest)",
-      "tag": "Function",
-      "category": "functions",
-      "eventDate": "2026-09-26",
-      "time": "13:00",
-      "endTime": "15:00",
-      "location": "Cafe Daily, North York, ON",
-      "audienceType": [
-        "Girls / Multi-Faith Audience"
-      ],
-      "desc": "Paint your own 20x20 canvas, sip on matcha, and hang out. $20 early bird / $25 regular, all supplies + drink included. No painting skills needed, come solo or bring a friend.",
-      "instagram": "https://www.instagram.com/p/DdJ5lbKjtJ8/"
-    },
-    {
-      "id": "ccmw-self-advocacy-workplace-sept24-2026",
-      "title": "Self-Advocacy & Cultural Safety at Work",
-      "tag": "Function",
-      "category": "functions",
-      "eventDate": "2026-09-24",
-      "time": "19:00",
-      "location": "Online",
-      "virtual": true,
-      "organizer": "CCMW (Canadian Council of Muslim Women)",
-      "audienceType": [
-        "Muslim Women"
-      ],
-      "desc": "A free webinar on feeling safe at work as a Muslim or racialized woman — recognizing bias, advocating for yourself, and navigating cultural safety and accommodations. Part of CCMW's free Leadership & Mentorship Pilot Program webinar series.",
-      "registration": "https://www.ccmw.com/event/self-advocacy-and-cultural-safety-at-work/",
-      "instagram": "https://www.instagram.com/p/Dc3xB6clBp_/"
-    },
-    {
-      "id": "ccmw-red-flag-gbv-sept17-2026",
-      "title": "CCMW Red Flag Laws: Is It Gender-Based Violence?",
-      "tag": "Function",
-      "category": "functions",
-      "eventDate": "2026-09-17",
-      "time": "19:00",
-      "location": "Online",
-      "virtual": true,
-      "organizer": "CCMW",
-      "audienceType": [
-        "Girls / Multi-Faith Audience"
-      ],
-      "desc": "First workshop in CCMW's Red Flag Laws Workshop Series. A free, supportive, trauma-informed space exploring different forms of gender-based violence, warning signs, coercive control, and safety. This is a sensitive topic; if you or someone you know may be affected, support resources can be found through CCMW directly.",
-      "registration": "https://www.ccmw.com/calendar",
-      "instagram": "https://www.instagram.com/p/Dc_fZOYGpGz/"
-    },
-    {
-      "id": "ccmw-red-flag-safety-planning-nov19-2026",
-      "title": "CCMW Red Flag Laws: Exploring Safety Planning",
-      "tag": "Function",
-      "category": "functions",
-      "eventDate": "2026-11-19",
-      "location": "Online",
-      "virtual": true,
-      "organizer": "CCMW",
-      "audienceType": [
-        "Girls / Multi-Faith Audience"
-      ],
-      "desc": "Second session in CCMW's Red Flag Laws Workshop Series, focused on safety planning.",
-      "registration": "https://www.ccmw.com/calendar",
-      "instagram": "https://www.instagram.com/p/Dc1W1CMmipE/"
-    },
-    {
-      "id": "ccmw-red-flag-community-resources-dec10-2026",
-      "title": "CCMW Red Flag Laws: Identifying Community Resources",
-      "tag": "Function",
-      "category": "functions",
-      "eventDate": "2026-12-10",
-      "location": "Online",
-      "virtual": true,
-      "organizer": "CCMW",
-      "audienceType": [
-        "Girls / Multi-Faith Audience"
-      ],
-      "desc": "Third session in CCMW's Red Flag Laws Workshop Series, focused on identifying community resources.",
-      "registration": "https://www.ccmw.com/calendar",
-      "instagram": "https://www.instagram.com/p/Dc1W1CMmipE/"
-    },
-    {
-      "id": "muslimah-dining-sept26-2026",
-      "title": "Muslimah Dining: Match Date",
-      "tag": "Function",
-      "category": "functions",
-      "eventDate": "2026-09-26",
-      "location": "See Instagram for details",
-      "audienceType": [
-        "Muslim Women"
-      ],
-      "desc": "A Muslimah matchmaking dining event.",
-      "instagram": "https://www.instagram.com/p/Dc9llXsJj2Q/"
-    },
-    {
-      "id": "muslimah-mixer-sept27-2026",
-      "title": "Muslimah Mixer: Mixer Date",
-      "tag": "Function",
-      "category": "functions",
-      "eventDate": "2026-09-27",
-      "location": "See Instagram for details",
-      "audienceType": [
-        "Muslim Women"
-      ],
-      "desc": "A Muslimah matchmaking mixer event.",
-      "instagram": "https://www.instagram.com/p/Dc9llXsJj2Q/"
     }
   ]
 }
