@@ -79,6 +79,13 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-12 (large trip/function batch)
+
+**2026-09-12 (large trip/function batch) — Claude (chat) — `data/trips.json`, `data/gatherings.json`, `data/dayactivities.json`** — Processed 28-item batch from Lujane. Checked for duplicates first, found real overlaps: Macedonia&Kosovo and Japan trips already existed with matching dates (skipped), OnePath Kyrgyzstan existed but was missing its date (updated in place rather than duplicating), Being ME Toronto existed with vague placeholder info (enriched with real details from 2 more detailed captions rather than creating a duplicate/competing entry). Added 14 new trips (Suhba Umrah, Ocean Within Her scuba trip, Sisters Umrah Getaway, Ma'wa Jordan, Patagonia, Muslim Hikers Kilimanjaro 2027, 6 OnePath trips), 10 new Functions (Sourdough Workshop, Ladies Imaan Circle, Being ME Nourished Heart Retreat, Sip and Paint, 4-part CCMW workshop series including one sensitive GBV-awareness session handled factually/non-alarmingly, 2 Muslimah matchmaking events), 1 new Day Activity (Krispy Kreme Walk, explicitly tagged interfaith girls by Lujane). Applied audienceType to all new entries based on explicit signals in the captions.
+
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-12 (audience classification pass)
 
 **2026-09-12 (audience classification pass) — Claude (chat) — `data/sports.json`, `data/gatherings.json`, `data/dayactivities.json`, `data/trips.json`, `data/mosquegatherings.json`** — Ran an automated keyword-based classification of audienceType across all 147 existing events. Caught and fixed my own first-pass bugs (missed standalone 'muslim'/'hijabi' as signals, causing things like MuslimFest itself to be misclassified) before pushing - went from 55 to 36 genuinely uncertain after the fix. Pushed confident classifications for ~111 events. 36 remain unclassified (empty or defaulted, flagged to Lujane directly) since I lack context a keyword search can't surface (e.g. knowing OnePath Travel or Ma'wa Collective are Muslim-focused despite their names not saying so) - asked Lujane to confirm these rather than guess. Also noticed 3 near-duplicate 'Boxing Program Launch' entries in sports.json (boxing-program-launch, -1, -2) - flagged as a possible separate duplicate issue, not yet resolved.
