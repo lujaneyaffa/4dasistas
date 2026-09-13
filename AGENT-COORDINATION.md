@@ -79,6 +79,13 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-12 (All Women rename + source fix)
+
+**2026-09-12 (All Women rename + source fix) — Claude (chat) — `admin/config.yml`, 12 `data/calendar/*.json` source files** — Renamed 'Girls / Multi-Faith Audience' to 'All Women' per Lujane, with a CMS hint clarifying it means open to all faiths. IMPORTANT DISCOVERY: found my earlier automated audienceType classification pass (111 events) had been completely wiped - it only ever touched the generated files (sports.json etc), never the true source in data/calendar/, so it got silently overwritten by the sync process, exactly like the earlier trip-coordinates lesson. This means that entire earlier pass needs to be redone properly at the source - flagging this clearly rather than letting it go unnoticed. Fixed the 12 events Lujane specifically classified today at the true source this time (Ball Hockey, Boxing x3, MusFit Pilates, Pickleball & Pilates, Pilates in PJs, Paws & Pilates, Being ME Toronto, Palestinian Food Festival, RECFEST, Dive-In Movie Night). Confirmed via direct verification that the sync correctly picked these up into the generated files without needing a manual duplicate push.
+
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-12 (Quran Academy + hike verify)
 
 **2026-09-12 (Quran Academy + hike verify) — Claude (chat) — `data/mosquegatherings.json`** — Confirmed 'Take a Hike..Into Fall' (from Lujane's classification list) was already fully accurate in the data - no update needed, just still awaiting her audienceType answer. Added KBW Qur'an Academy Adult Sisters' Program (Masjid Khalid Bin Al-Walid, recurring Wednesdays starting Oct 3) - focused specifically on the sisters' program per the site's community focus, description mentions the youth/brothers programs exist too for context. Provided Lujane the real Instagram links for all 34 events on her pending classification list.
