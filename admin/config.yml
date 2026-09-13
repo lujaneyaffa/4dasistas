@@ -99,7 +99,7 @@ collections:
     - label: Intro line - Trips
       name: introTrips
       widget: text
-    - label: Intro line - Mosque Programs
+    - label: Intro line - Knowledge
       name: introMosquePrograms
       widget: text
     - label: Intro line - CLUBS
@@ -716,7 +716,7 @@ collections:
       to its home calendar above. E.g. a hike could live in 'activities' but also
       be checked here for 'sports'.
 - name: mosquegatherings
-  label: Mosque Programs
+  label: Knowledge
   folder: data/calendar
   extension: json
   format: json
