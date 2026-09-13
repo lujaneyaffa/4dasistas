@@ -1,17 +1,6 @@
 {
   "items": [
     {
-      "tag": "Function",
-      "hijabOff": "Not specified",
-      "title": "Muslimah Dining",
-      "instagram": "https://www.instagram.com/p/Db4Tsi3u4yy/?utm_source=ig_web_copy_link&igsh=MzRlODBiNWFlZA==&igsi=MzRlODBiNWFlZA==",
-      "date": "August 22 and August 30th!",
-      "id": "MuslimahDining",
-      "desc": "Muslimah's Dining gets it. That's why we've launched this community building initiative, where you get to be matched up with three to five other amazing Muslimah women, just like you, once a month. \n\nMeeting inspiring Muslimahs working on their deen and dunya, shouldn't be rare. Muslimah's Dining will be matching you up based on the information you provide below and a matching approach that places importance on group compatibility. Register by filling out the form below for our next match-up and meet three to five new Muslimahs over dinner InshaAllah. \n",
-      "location": "Toronto and Mississauga",
-      "section": "functions"
-    },
-    {
       "hijabOff": "No",
       "date": "July 26th, 2026",
       "desc": "Our Muslimah Farmers Market 💕 \n\nTake a stroll through our beautiful vendor market and discover amazing local businesses offering handcrafted goods, stationery, wellness products, sweet treats, home décor, gifts, and so much more! 🤍\n\nTreat yourself to something special 🤭\n\n📍 Erin Hill Acres\n🗓️ This Sunday | 9:00 AM – 5:00 PM\n\nSee you at the market! 🌸",
@@ -187,7 +176,7 @@
     },
     {
       "hijabOff": "No",
-      "date": "Tuesday, September 1st · 2:30–4:00 PM",
+      "date": "September 1, 2026 · 2:00–4:00 PM",
       "desc": "Assalamu Alaikum, YM Sisters Mississauga invites you!\n\nJoin us on September 1st for an inspiring Sisters’ Halaqah all about balancing Deen and academics throughout high school and university! We’ll share practical advice and learn how to stay connected to our faith while succeeding in our studies.\n\nAfterward, stick around for badminton, friendly competition, and an opportunity to meet and connect with other sisters. We hope to see you there, In Shaa Allah!",
       "instagram": "https://www.instagram.com/p/DcZTBTmByQk/?utm_source=ig_web_copy_link&igsi=NTc4MTIwNjQ2YQ==",
       "location": "6635 Kitimat Rd, Mississauga, ON L5N 6J2, Canada",
@@ -195,7 +184,10 @@
       "tag": "Function",
       "id": "deennstudy",
       "calDate": "",
-      "section": "functions"
+      "section": "functions",
+      "eventDate": "2026-09-01",
+      "time": "14:00",
+      "endTime": "16:00"
     },
     {
       "id": "hdm-sewing-workshop-aug29-30-2026",
