@@ -12,5 +12,8 @@
   "tag": "Ball Hockey",
   "website": "https://linktr.ee/MuslimahAthleticClub",
   "id": "ballhockey-open-practice",
-  "section": "sports"
+  "section": "sports",
+  "audienceType": [
+    "All Women"
+  ]
 }
