@@ -79,6 +79,13 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-12 (date fixes + duplicate cleanup)
+
+**2026-09-12 (date fixes + duplicate cleanup) — Claude (chat) — 18 `data/calendar/*.json` source files, deleted 1 duplicate** — Applied Lujane's provided dates at the true source (learned lesson from earlier today, went straight to data/calendar this time): all 15 Masjid Halton programs -> Sept 3 2026 (Sisters Fire Pit), Balancing Deen & Study -> Sept 1 2-4pm, Deen Journeys Orlando Retreat -> Dec 10-14 2026 (interpreted 'Orpanda' as 'Orlando', flagged to Lujane in case wrong). Found and fixed a genuine duplicate while touching Muslimah Dining: two separate source files existed for the same event, one complete with proper dates, one incomplete - deleted the incomplete one rather than fix both. Verified all fixes synced to generated files correctly before reporting done.
+
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-12 (All Women rename + source fix)
 
 **2026-09-12 (All Women rename + source fix) — Claude (chat) — `admin/config.yml`, 12 `data/calendar/*.json` source files** — Renamed 'Girls / Multi-Faith Audience' to 'All Women' per Lujane, with a CMS hint clarifying it means open to all faiths. IMPORTANT DISCOVERY: found my earlier automated audienceType classification pass (111 events) had been completely wiped - it only ever touched the generated files (sports.json etc), never the true source in data/calendar/, so it got silently overwritten by the sync process, exactly like the earlier trip-coordinates lesson. This means that entire earlier pass needs to be redone properly at the source - flagging this clearly rather than letting it go unnoticed. Fixed the 12 events Lujane specifically classified today at the true source this time (Ball Hockey, Boxing x3, MusFit Pilates, Pickleball & Pilates, Pilates in PJs, Paws & Pilates, Being ME Toronto, Palestinian Food Festival, RECFEST, Dive-In Movie Night). Confirmed via direct verification that the sync correctly picked these up into the generated files without needing a manual duplicate push.
