@@ -79,6 +79,13 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-12 (CMS label fix + auth troubleshooting)
+
+**2026-09-12 (CMS label fix + auth troubleshooting) — Claude (chat) — `admin/config.yml`** — Found why Lujane still saw 'Mosque Programs' everywhere: the earlier rename only touched the website's index.html display labels, never the CMS's OWN internal labels (the collection name shown in DecapBridge's sidebar, and an intro-text field label) - fixed both to say Knowledge now. Also investigated a DecapBridge 'Requires authentication' error when trying to post an event - config.yml's backend settings look correctly updated to the new repo path (lujaneyaffa/4dasistas), so this is likely NOT a config issue on my end - probable cause is the recent GitHub username change (lugine->lujaneyaffa) breaking DecapBridge's cached OAuth connection. Advised Lujane to log out/back into DecapBridge, or revoke+reauthorize the OAuth app on GitHub if that doesn't resolve it. This is outside what I can fix via GitHub API access directly.
+
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-12 (date fixes + duplicate cleanup)
 
 **2026-09-12 (date fixes + duplicate cleanup) — Claude (chat) — 18 `data/calendar/*.json` source files, deleted 1 duplicate** — Applied Lujane's provided dates at the true source (learned lesson from earlier today, went straight to data/calendar this time): all 15 Masjid Halton programs -> Sept 3 2026 (Sisters Fire Pit), Balancing Deen & Study -> Sept 1 2-4pm, Deen Journeys Orlando Retreat -> Dec 10-14 2026 (interpreted 'Orpanda' as 'Orlando', flagged to Lujane in case wrong). Found and fixed a genuine duplicate while touching Muslimah Dining: two separate source files existed for the same event, one complete with proper dates, one incomplete - deleted the incomplete one rather than fix both. Verified all fixes synced to generated files correctly before reporting done.
