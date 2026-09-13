@@ -78,6 +78,7 @@
       "audienceType": [
         "All Women"
       ],
+      "desc": "Sisters Fitness Club Toronto x Atlas Boxing & Fitness Club — a beginner-friendly, women-only boxing program to learn boxing, build confidence, get stronger, and train together. All fitness levels welcome. Weekday schedule: Tue 7-8 AM (Technique/Bag Work), Thu 8-8:45 PM (Bag Work/Conditioning), Thu 8:45-9:30 PM (Technique/Drills). Weekend schedule: Sat 3-4 PM (Bag Work/Conditioning), Sun 12-1 PM (Technique/Bag Work).",
       "id": "boxing-program-launch"
     },
     {
@@ -90,6 +91,7 @@
       "audienceType": [
         "All Women"
       ],
+      "desc": "Sisters Fitness Club Toronto x Atlas Boxing & Fitness Club — a beginner-friendly, women-only boxing program to learn boxing, build confidence, get stronger, and train together. All fitness levels welcome. Weekday schedule: Tue 7-8 AM (Technique/Bag Work), Thu 8-8:45 PM (Bag Work/Conditioning), Thu 8:45-9:30 PM (Technique/Drills). Weekend schedule: Sat 3-4 PM (Bag Work/Conditioning), Sun 12-1 PM (Technique/Bag Work).",
       "id": "boxing-program-launch-1"
     },
     {
@@ -102,6 +104,7 @@
       "audienceType": [
         "All Women"
       ],
+      "desc": "Sisters Fitness Club Toronto x Atlas Boxing & Fitness Club — a beginner-friendly, women-only boxing program to learn boxing, build confidence, get stronger, and train together. All fitness levels welcome. Weekday schedule: Tue 7-8 AM (Technique/Bag Work), Thu 8-8:45 PM (Bag Work/Conditioning), Thu 8:45-9:30 PM (Technique/Drills). Weekend schedule: Sat 3-4 PM (Bag Work/Conditioning), Sun 12-1 PM (Technique/Bag Work).",
       "id": "boxing-program-launch-2"
     },
     {
@@ -117,6 +120,7 @@
       ],
       "title": "F-Series Strength Training | HijabiBallers",
       "link": "https://www.instagram.com/p/DcUbtA4xJIz/?igsi=MWxuNWExOXZ4NmJqcw==",
+      "desc": "A 4-week cohort of private, female-only strength training sessions at Sweat Society, hosted by HijabiBallers. $20 per cohort, certified female coaches, closed-door environment. Perfect for beginners and seasoned athletes alike. Free onsite parking. Financial support available on request (Programs@hijabiballers.com).",
       "id": "f-series-strength-training-hijabiballers"
     },
     {
@@ -500,6 +504,7 @@
       "organizedBy": "herhealingspaceto",
       "link": "https://www.instagram.com/p/DctabYRFqZ7/?igsi=MTdrZDZhZTdrbGxucQ==",
       "allDay": false,
+      "desc": "Her Healing Space TO's first hike — welcoming the new season of rest and reflection with a group hike into fall.",
       "id": "🍂take-a-hike-into-fall"
     },
     {
@@ -518,6 +523,7 @@
       "audienceType": [
         "Muslim Women"
       ],
+      "desc": "A pilates session with dogs, hosted by Wijhah Initiative — combining movement and connection with furry friends.",
       "id": "🐾paws-pilates"
     },
     {
@@ -533,6 +539,7 @@
       "title": "🌲Hike",
       "organizedBy": "She Travels",
       "link": "https://www.instagram.com/reel/Dcbu84BRs05/?igsi=djRheGN6c28xb3My",
+      "desc": "A group hike hosted by She Travels.",
       "id": "🥾she-travels-hike"
     }
   ]
