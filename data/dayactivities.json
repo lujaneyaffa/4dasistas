@@ -288,6 +288,19 @@
       "allDay": false,
       "id": "✂️sisters-craft-chill",
       "tag": "✂️Sister's Craft & Chill"
+    },
+    {
+      "id": "krispy-kreme-walk-sept19-2026",
+      "title": "Krispy Kreme Walk",
+      "tag": "Day Activity",
+      "city": "Toronto",
+      "eventDate": "2026-09-19",
+      "location": "105 Dundas St E, Toronto (Krispy Kreme)",
+      "audienceType": [
+        "Girls / Multi-Faith Audience"
+      ],
+      "desc": "Meet at Krispy Kreme, enjoy a complimentary beverage, walk to Sugar Beach and back for post-walk donuts. Registration required, opens September 13 at 12 PM. Explicitly an interfaith girls' event.",
+      "instagram": "https://www.instagram.com/p/Dc14OWySmNd/"
     }
   ]
 }
