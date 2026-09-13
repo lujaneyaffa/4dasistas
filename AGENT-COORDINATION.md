@@ -79,6 +79,13 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-12 (Quran Academy + hike verify)
+
+**2026-09-12 (Quran Academy + hike verify) — Claude (chat) — `data/mosquegatherings.json`** — Confirmed 'Take a Hike..Into Fall' (from Lujane's classification list) was already fully accurate in the data - no update needed, just still awaiting her audienceType answer. Added KBW Qur'an Academy Adult Sisters' Program (Masjid Khalid Bin Al-Walid, recurring Wednesdays starting Oct 3) - focused specifically on the sisters' program per the site's community focus, description mentions the youth/brothers programs exist too for context. Provided Lujane the real Instagram links for all 34 events on her pending classification list.
+
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-12 (large trip/function batch)
 
 **2026-09-12 (large trip/function batch) — Claude (chat) — `data/trips.json`, `data/gatherings.json`, `data/dayactivities.json`** — Processed 28-item batch from Lujane. Checked for duplicates first, found real overlaps: Macedonia&Kosovo and Japan trips already existed with matching dates (skipped), OnePath Kyrgyzstan existed but was missing its date (updated in place rather than duplicating), Being ME Toronto existed with vague placeholder info (enriched with real details from 2 more detailed captions rather than creating a duplicate/competing entry). Added 14 new trips (Suhba Umrah, Ocean Within Her scuba trip, Sisters Umrah Getaway, Ma'wa Jordan, Patagonia, Muslim Hikers Kilimanjaro 2027, 6 OnePath trips), 10 new Functions (Sourdough Workshop, Ladies Imaan Circle, Being ME Nourished Heart Retreat, Sip and Paint, 4-part CCMW workshop series including one sensitive GBV-awareness session handled factually/non-alarmingly, 2 Muslimah matchmaking events), 1 new Day Activity (Krispy Kreme Walk, explicitly tagged interfaith girls by Lujane). Applied audienceType to all new entries based on explicit signals in the captions.
