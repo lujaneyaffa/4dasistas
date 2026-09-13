@@ -79,6 +79,13 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-13 (GALS CLUBS: Join a Club tile + panel cleanup)
+
+**2026-09-13 (GALS CLUBS: Join a Club tile + panel cleanup) — Claude (chat) — `index.html`** — Two changes to the GALS CLUBS tab: (1) "🍂 Join the Fall Season" full-width banner button replaced with a square "JOIN A CLUB" tile (`.fall-cta-btn` now `aspect-ratio:1`, fixed 96px, flex item) sitting directly next to the Log In button inside a new `.clubs-top-actions` flex row — same click target/handler (`data-hometab="fallsignup"`), just restyled+repositioned. (2) Removed the "Sign Up" and "Club Members Schedule" buttons from every club card's `panel-links` — the whole card was already clickable (data-club-id → opens that club's Calendar filter) and stays that way; Club Members Schedule remains reachable via the top Log In flow, which already routes signed-in members straight to their club(s) without needing a per-card button. Validated by loading the page in a local static server and clicking through: JOIN A CLUB tile renders square and adjacent to Log In, club cards have no buttons and still navigate to their Calendar filter on click.
+
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-12 (descriptions added, Halton dates reverted)
 
 **2026-09-12 (descriptions added, Halton dates reverted) — Claude (chat) — 24 `data/calendar/*.json` source files** — Reverted the incorrect Sept 3 date I wrongly applied to all 15 'mg-hia-*' events (Lujane clarified they are NOT all the same Masjid Halton event, only one - Sisters Fire Pit - actually is; the rest need individual org/date clarification from her, resent the list with links). Confirmed via direct data check that 7 of the 16 'missing description' events Lujane called out already had correct dates/locations - the ONLY thing missing was description text, which is what I'd actually flagged, but the framing apparently read as if date/location were missing too, causing understandable frustration. Added real descriptions for Boxing Program Launch (x3), F-Series/HijabiBallers (full verbatim details from Lujane), and reasonable synthesized descriptions for Take a Hike, Paws & Pilates, She Travels Hike, Muslim Film Fest, Palestinian Food Festival (these 5 were NOT verbatim captions, just built from title+organizer+known context since Lujane only gave time/location confirmations for these, not full descriptions - flagged this distinction to her). Still waiting on: individual org/date clarification for the 15 mg-hia-* events, and clarification on the '4 Muslimah Dining events' question.
@@ -356,6 +363,7 @@ npx wrangler deploy
 
 _(most recent first — add new entries to the top, trim past ~15)_
 
+- 2026-09-13 — Claude (chat) — `index.html` — GALS CLUBS: "Join the Fall Season" banner became a square "JOIN A CLUB" tile next to the Log In button; removed the Sign Up/Club Members Schedule buttons from each club card (card itself stays clickable). See Current Status entry above for full detail.
 - 2026-09-12 — Claude (chat) — `workers/src/worker.js`, `index.html` — Security audit found and fixed a real stored-XSS vulnerability in the member profile-photo field (unescaped `<img src>` in the public roster and admin panel); tightened server-side photo validation and escaped all render sites. See Current Status entry above for full detail.
 - 2026-08-30 — Claude (chat) — `workers/src/worker.js`, `index.html` — Admin can now add/remove a member's club memberships from the Edit panel; event grid shows weekday names; "Who's free" shows an automatic best-time line; members in multiple clubs get a dismissible suggestion to reuse their weekday/time pattern from another event; the general Log In button shows "You're signed in as {name}" once authenticated. See Current Status entry above for full detail.
 - 2026-08-29 — Claude (chat) — production KV data (no code change) — Migrated a real member stuck in the pre-rearchitecture data format (roster was showing empty) and cleared two junk test entries from club-adhd, one of which was my own accidental production deploy-check probe. See Current Status entry above for full detail.
