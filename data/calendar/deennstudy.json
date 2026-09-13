@@ -1,6 +1,6 @@
 {
   "hijabOff": "No",
-  "date": "Tuesday, September 1st · 2:30–4:00 PM",
+  "date": "September 1, 2026 · 2:00–4:00 PM",
   "desc": "Assalamu Alaikum, YM Sisters Mississauga invites you!\n\nJoin us on September 1st for an inspiring Sisters’ Halaqah all about balancing Deen and academics throughout high school and university! We’ll share practical advice and learn how to stay connected to our faith while succeeding in our studies.\n\nAfterward, stick around for badminton, friendly competition, and an opportunity to meet and connect with other sisters. We hope to see you there, In Shaa Allah!",
   "instagram": "https://www.instagram.com/p/DcZTBTmByQk/?utm_source=ig_web_copy_link&igsi=NTc4MTIwNjQ2YQ==",
   "location": "6635 Kitimat Rd, Mississauga, ON L5N 6J2, Canada",
@@ -8,5 +8,8 @@
   "tag": "Function",
   "id": "deennstudy",
   "calDate": "",
-  "section": "functions"
+  "section": "functions",
+  "eventDate": "2026-09-01",
+  "time": "14:00",
+  "endTime": "16:00"
 }
