@@ -75,7 +75,11 @@
       "tag": "Function",
       "website": "https://attendbm.com/",
       "id": "beingme-toronto-2026",
-      "section": "functions"
+      "section": "functions",
+      "audienceType": [
+        "Muslim Women",
+        "Family Event"
+      ]
     },
     {
       "section": "functions",
@@ -558,6 +562,9 @@
       "location": "830 Paisley Blvd W, Mississauga, ON L5C 3P5, Canada",
       "link": "https://www.instagram.com/p/DceUtP0tsfq/?igsi=MWVwdW9pcjMwamVuMA==",
       "organizedBy": "palestinehousetoronto",
+      "audienceType": [
+        "Family Event"
+      ],
       "id": "palestinian-food-festival",
       "tag": "🇵🇸Palestinian Food Festival"
     },
@@ -586,7 +593,10 @@
       "website": "https://smilecan.org/recfest",
       "id": "recfest-2026",
       "category": "functions",
-      "section": "functions"
+      "section": "functions",
+      "audienceType": [
+        "Family Event"
+      ]
     },
     {
       "eventDate": "2026-09-20",
@@ -734,6 +744,9 @@
       "organizedBy": "@maawomen",
       "link": "https://www.instagram.com/p/DcuOf0aFoB5/?igsi=ZnljanJ2NTh0b3Uz",
       "allDay": false,
+      "audienceType": [
+        "Hijabi Friendly"
+      ],
       "id": "🍿dive-in-movie-night",
       "tag": "🍿Dive-In Movie Night "
     },

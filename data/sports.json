@@ -63,7 +63,10 @@
       "tag": "Ball Hockey",
       "website": "https://linktr.ee/MuslimahAthleticClub",
       "id": "ballhockey-open-practice",
-      "section": "sports"
+      "section": "sports",
+      "audienceType": [
+        "All Women"
+      ]
     },
     {
       "section": "sports",
@@ -72,6 +75,9 @@
       "time": "12:00",
       "location": "1230 Sheppard Ave W Unit 2, North York, ON M3J 1Z4, Canada",
       "link": "https://www.instagram.com/p/DcJzINglkbh/?img_index=2&igsi=MXd3Z3Izb21pZXRveg==",
+      "audienceType": [
+        "All Women"
+      ],
       "id": "boxing-program-launch"
     },
     {
@@ -81,6 +87,9 @@
       "time": "20:00",
       "location": "1230 Sheppard Ave W Unit 2, North York, ON M3J 1Z4, Canada",
       "link": "https://www.instagram.com/p/DcJzINglkbh/?img_index=2&igsi=MXd3Z3Izb21pZXRveg==",
+      "audienceType": [
+        "All Women"
+      ],
       "id": "boxing-program-launch-1"
     },
     {
@@ -90,6 +99,9 @@
       "time": "12:00",
       "location": "1230 Sheppard Ave W Unit 2, North York, ON M3J 1Z4, Canada",
       "link": "https://www.instagram.com/p/DcJzINglkbh/?img_index=2&igsi=MXd3Z3Izb21pZXRveg==",
+      "audienceType": [
+        "All Women"
+      ],
       "id": "boxing-program-launch-2"
     },
     {
@@ -235,7 +247,10 @@
       "tag": "Pilates",
       "website": "https://www.wellnessliving.com/rs/schedule/musfit?k_business=423258&k_class_tab=52270&uid=0&id_class_tab=1",
       "id": "musfit-womens-reformer-pilates-2026",
-      "section": "sports"
+      "section": "sports",
+      "audienceType": [
+        "Muslim Women"
+      ]
     },
     {
       "eventDate": "2026-08-28",
@@ -268,6 +283,9 @@
       "title": "🎀Pickleball & Pilates",
       "organizedBy": "thesidequestsclub.to",
       "link": "https://www.instagram.com/p/DcebiPWxJC7/?igsi=MWdraXF6bWd6Y2VraA==",
+      "audienceType": [
+        "All Women"
+      ],
       "id": "pickleball-pilates"
     },
     {
@@ -494,6 +512,9 @@
       "organizedBy": "wijhah initiative ",
       "link": "https://www.instagram.com/p/DcuHPBlxDwz/?igsi=MTR0bHNyNjlhZjRsMw==",
       "allDay": false,
+      "audienceType": [
+        "Muslim Women"
+      ],
       "id": "🐾paws-pilates"
     },
     {
