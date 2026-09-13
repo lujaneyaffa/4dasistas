@@ -10,5 +10,8 @@
   "website": "https://smilecan.org/recfest",
   "id": "recfest-2026",
   "category": "functions",
-  "section": "functions"
+  "section": "functions",
+  "audienceType": [
+    "Family Event"
+  ]
 }
