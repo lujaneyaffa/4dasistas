@@ -162,9 +162,12 @@ collections:
     - Muslim Women
     - Hijabi Friendly
     - Family Event
-    - Girls / Multi-Faith Audience
+    - All Women
     required: true
     multiple: true
+    hint: '''All Women'' means open to all women regardless of faith - not exclusively
+      Muslim. Most general events fall here. ''Muslim Women'' and ''Hijabi Friendly''
+      are independently assessed - an event can be both.'
   - label: Emoji override (optional - leave blank to auto-pick one based on the event,
       e.g. sport/hike/country)
     name: emoji
@@ -317,9 +320,12 @@ collections:
     - Muslim Women
     - Hijabi Friendly
     - Family Event
-    - Girls / Multi-Faith Audience
+    - All Women
     required: true
     multiple: true
+    hint: '''All Women'' means open to all women regardless of faith - not exclusively
+      Muslim. Most general events fall here. ''Muslim Women'' and ''Hijabi Friendly''
+      are independently assessed - an event can be both.'
   - label: Emoji override (optional - leave blank to auto-pick one based on the event,
       e.g. sport/hike/country)
     name: emoji
@@ -457,9 +463,12 @@ collections:
     - Muslim Women
     - Hijabi Friendly
     - Family Event
-    - Girls / Multi-Faith Audience
+    - All Women
     required: true
     multiple: true
+    hint: '''All Women'' means open to all women regardless of faith - not exclusively
+      Muslim. Most general events fall here. ''Muslim Women'' and ''Hijabi Friendly''
+      are independently assessed - an event can be both.'
   - label: Emoji override (optional - leave blank to auto-pick one based on the event,
       e.g. sport/hike/country)
     name: emoji
@@ -597,9 +606,12 @@ collections:
     - Muslim Women
     - Hijabi Friendly
     - Family Event
-    - Girls / Multi-Faith Audience
+    - All Women
     required: true
     multiple: true
+    hint: '''All Women'' means open to all women regardless of faith - not exclusively
+      Muslim. Most general events fall here. ''Muslim Women'' and ''Hijabi Friendly''
+      are independently assessed - an event can be both.'
   - label: Emoji override (optional - leave blank to auto-pick one based on the event,
       e.g. sport/hike/country)
     name: emoji
@@ -736,9 +748,12 @@ collections:
     - Muslim Women
     - Hijabi Friendly
     - Family Event
-    - Girls / Multi-Faith Audience
+    - All Women
     required: true
     multiple: true
+    hint: '''All Women'' means open to all women regardless of faith - not exclusively
+      Muslim. Most general events fall here. ''Muslim Women'' and ''Hijabi Friendly''
+      are independently assessed - an event can be both.'
   - label: Emoji override (optional - leave blank to auto-pick one based on the event,
       e.g. sport/hike/country)
     name: emoji
@@ -876,9 +891,12 @@ collections:
     - Muslim Women
     - Hijabi Friendly
     - Family Event
-    - Girls / Multi-Faith Audience
+    - All Women
     required: true
     multiple: true
+    hint: '''All Women'' means open to all women regardless of faith - not exclusively
+      Muslim. Most general events fall here. ''Muslim Women'' and ''Hijabi Friendly''
+      are independently assessed - an event can be both.'
   - label: Emoji override (optional - leave blank to auto-pick one based on the event,
       e.g. sport/hike/country)
     name: emoji
