@@ -1,4 +1,4 @@
-name = "4dasistas-editor"
+name = "4dasistas"
 main = "src/worker.js"
 compatibility_date = "2024-01-01"
 

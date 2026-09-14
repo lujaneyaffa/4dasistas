@@ -77,7 +77,14 @@ npx wrangler deploy
 
 ## Current Status
 
-**Status:** IDLE — DecapBridge "error verification" needs Lujane to re-auth (see below), not yet confirmed fixed
+**Status:** IN PROGRESS — GITHUB_TOKEN now on the correct live script; still needs a fresh ADMIN_PASSWORD from Lujane
+**Last updated by:** Claude (chat)
+**Last updated:** 2026-09-14 (found root cause: every `wrangler secret put` this session hit the wrong Worker script)
+
+**2026-09-14 (found root cause: every `wrangler secret put` this session hit the wrong Worker script) — Claude (chat) — `workers/wrangler.toml`** — Lujane reported two things back to back: the footer admin password "wrong" even though she typed the exact one given earlier, and the new calendar-event editor still saying "GITHUB_TOKEN is not set" despite it being set live. Root cause, found via `workers_list`/`workers_get_worker`/`wrangler secret list --name <x>`: there are TWO separate Cloudflare Worker scripts on this account — `4dasistas` (the one actually bound to the `4dasistas.ca/api/*` routes and serving real traffic) and `4dasistas-editor` (an unused leftover, apparently the original script name from before some earlier rename that `workers/wrangler.toml` was never updated to match — its `name` field still said `4dasistas-editor`). Every `wrangler secret put`/`wrangler deploy` run from this repo's `workers/` folder this session — the 2026-08-29 `ADMIN_PASSWORD` reset AND today's `GITHUB_TOKEN` — silently landed on the dead `4dasistas-editor` script instead of live `4dasistas`, which is why the "122139" password never actually worked and why GITHUB_TOKEN kept showing as unset in production even after I set it (and even after I'd independently verified the raw PAT worked directly against GitHub's API — that check bypassed the Worker entirely and never would have caught a wrong-script mismatch). **This does NOT mean the deployed CODE was ever wrong** — the actual worker.js source has been correctly deployed to live `4dasistas` this whole session via Cloudflare's own git-triggered build on every push (confirmed repeatedly via `workers_get_worker_code`); only secrets set via my local `wrangler` CLI were misdirected. Fixed: (1) re-set `GITHUB_TOKEN` on `4dasistas` directly via `--name 4dasistas` override — confirmed via `wrangler secret list` it's now present there; (2) deleted the stray `ADMIN_PASSWORD`/`GITHUB_TOKEN` secrets left on `4dasistas-editor` to prevent future confusion; (3) fixed `workers/wrangler.toml`'s `name` field from `4dasistas-editor` to `4dasistas` so this can't recur. **Still outstanding**: the live `4dasistas` script's actual current `ADMIN_PASSWORD` is unknown (it has SOME value set from before this whole mix-up, not "122139") — asked Lujane for a fresh password to set correctly this time now that the script-name bug is fixed. Also separately investigating (not yet resolved): Lujane reported search-suggestion results "covered" on her phone — reproduced the search dropdown live on a 375px mobile viewport and it rendered correctly (fixed position, z-index 9998, right below the search bar, nothing covering it), so this may be specific to real iOS Safari/standalone-mode behavior I can't fully reproduce headlessly; needs more detail from her (which page/tab, does it happen in the home-screen app or regular Safari too) to pin down.
+
+
+**Status:** IDLE
 **Last updated by:** Claude (chat)
 **Last updated:** 2026-09-14 (lock pinch/double-tap zoom + service-worker cache gap on /admin, /api)
 
@@ -390,6 +397,8 @@ npx wrangler deploy
 ## Recent Activity Log
 
 _(most recent first — add new entries to the top, trim past ~15)_
+
+- 2026-09-14 — Claude (chat) — `workers/wrangler.toml` — Found and fixed a config bug that's been silently sending every `wrangler secret put` this session to a dead, unused Worker script (`4dasistas-editor`) instead of the live one (`4dasistas`) — explains both the "wrong" admin password and the persistent GITHUB_TOKEN-not-set error. Corrected `wrangler.toml`'s name field and re-set GITHUB_TOKEN on the right script; still need a fresh ADMIN_PASSWORD from Lujane. See Current Status entry above for full detail.
 
 - 2026-09-14 — Claude (chat) — `index.html`, `service-worker.js` — Locked pinch/double-tap zoom for the home-screen app feel; found and fixed the service worker caching `/admin/*` despite existing no-store headers (browser cache rules don't stop the SW's own cache). DecapBridge "error verification" likely needs a GitHub OAuth re-auth after the username change — not yet confirmed fixed. See Current Status entry above for full detail.
 
