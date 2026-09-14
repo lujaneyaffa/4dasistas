@@ -171,12 +171,12 @@
   .calendar-day-event .event-organizer{ font-size:12px; margin:2px 0 0; }
 
   .tag{ display:inline-block; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; padding:3px 9px; border-radius:999px; color:var(--charcoal); }
-  .cat-sports{ background:var(--coral); }
+  .cat-sports{ background:#e1f1ea; }
   .cat-gathering{ background:var(--pink); color:white; }
-  .cat-function{ background:#fae1e4; color:var(--charcoal); }
+  .cat-function{ background:#fdf0f2; color:var(--charcoal); }
   .cat-dayactivity{ background:var(--blue); }
   .cat-trip{ background:var(--purple); }
-  .cat-mosque{ background:#c3e2d4; }
+  .cat-mosque{ background:#fad8c1; }
   .cat-club{ background:var(--pink); }
   .cat-resource{ background:#A9D6B8; }
 
@@ -374,13 +374,13 @@
     .week-hint{ display:block; }
   }
   .today-event{ display:grid; grid-template-columns:72px minmax(0,1fr); align-items:stretch; gap:12px; padding:0; background:var(--card); border:2px solid var(--charcoal); border-radius:14px; box-shadow:3px 3px 0 var(--charcoal); text-align:left; cursor:pointer; overflow:hidden; }
-  .today-event.cat-sports{ background:#fbd9bb; }
+  .today-event.cat-sports{ background:#e1f1ea; }
   .today-event.cat-gathering{ background:#e8cfe2; color:var(--charcoal); }
-  .today-event.cat-function{ background:#fae1e4; color:var(--charcoal); }
+  .today-event.cat-function{ background:#fdf0f2; color:var(--charcoal); }
   .today-event.cat-gathering .today-event-time{ color:var(--rose-deep); }
   .today-event.cat-dayactivity{ background:#dce8ef; }
   .today-event.cat-trip{ background:#ded5f0; }
-  .today-event.cat-mosque{ background:#d9eee4; }
+  .today-event.cat-mosque{ background:#fad8c1; }
   .today-event-time{ background:rgba(255,255,255,0.34); }
   .today-event-time{ display:flex; align-items:center; justify-content:center; padding:14px 7px; background:rgba(255,255,255,0.34); border-right:1px solid rgba(33,30,28,0.12); color:var(--rose-deep); font-family:'Space Grotesk',sans-serif; font-size:12px; font-weight:700; text-align:center; }
   .today-event-info{ min-width:0; padding:13px 15px 13px 0; }
@@ -659,12 +659,12 @@
   <div class="type-multi-wrap" id="typeMultiWrap">
     <button type="button" class="type-multi-btn" id="typeMultiBtn">Event types <span id="typeMultiCount"></span> ▾</button>
     <div class="type-multi-panel" id="typeMultiPanel">
-      <label class="type-multi-row"><input type="checkbox" value="sports"><span class="type-dot" style="background:#f4b183"></span>Sports</label>
-      <label class="type-multi-row"><input type="checkbox" value="activities"><span class="type-dot" style="background:#c3d5e2"></span>Activities</label>
-      <label class="type-multi-row"><input type="checkbox" value="functions"><span class="type-dot" style="background:#fae1e4"></span>Functions</label>
-      <label class="type-multi-row"><input type="checkbox" value="trips"><span class="type-dot" style="background:#ddb862"></span>Trips</label>
-      <label class="type-multi-row"><input type="checkbox" value="mosqueprograms"><span class="type-dot" style="background:#c3e2d4"></span>Knowledge</label>
-      <label class="type-multi-row"><input type="checkbox" value="supportgroups"><span class="type-dot" style="background:#d6c2e8"></span>Support Groups</label>
+      <label class="type-multi-row"><input type="checkbox" value="sports"><span class="type-dot" style="background:#e1f1ea"></span>Sports</label>
+      <label class="type-multi-row"><input type="checkbox" value="activities"><span class="type-dot" style="background:#e1eaf1"></span>Activities</label>
+      <label class="type-multi-row"><input type="checkbox" value="functions"><span class="type-dot" style="background:#fdf0f2"></span>Functions</label>
+      <label class="type-multi-row"><input type="checkbox" value="trips"><span class="type-dot" style="background:#eedcb1"></span>Trips</label>
+      <label class="type-multi-row"><input type="checkbox" value="mosqueprograms"><span class="type-dot" style="background:#fad8c1"></span>Knowledge</label>
+      <label class="type-multi-row"><input type="checkbox" value="supportgroups"><span class="type-dot" style="background:#ebe1f4"></span>Support Groups</label>
       <div class="type-multi-actions">
         <button type="button" data-typemulti-action="all">All types</button>
         <button type="button" data-typemulti-action="clear">Clear</button>
@@ -1027,8 +1027,8 @@ function eventTypeLabel(item){
 
 function eventColor(item){
   const colors = {
-    'cat-sports':'var(--coral)', 'cat-trip':'var(--purple)', 'cat-club':'var(--pink)',
-    'cat-gathering':'var(--pink)', 'cat-function':'var(--pink)', 'cat-dayactivity':'var(--blue)', 'cat-mosque':'#c3e2d4',
+    'cat-sports':'#e1f1ea', 'cat-trip':'var(--purple)', 'cat-club':'var(--pink)',
+    'cat-gathering':'var(--pink)', 'cat-function':'var(--pink)', 'cat-dayactivity':'var(--blue)', 'cat-mosque':'#fad8c1',
     'cat-resource':'#A9D6B8'
   };
   return colors[tagClass(item)] || 'var(--card)';
@@ -1788,11 +1788,11 @@ const cityFilterList = [
 
 const categoryList = [
   {key:'all', label:'All Events', bg:'#373d3b', fg:'#fff7e6'},
-  {key:'sports', label:'Sports', bg:'#f4b183', fg:'#373d3b'},
-  {key:'activities', label:'Activities', bg:'#c3d5e2', fg:'#373d3b'},
-  {key:'functions', label:'Functions', bg:'#fae1e4', fg:'#373d3b'},
-  {key:'trips', label:'Trips', bg:'#ddb862', fg:'#373d3b'},
-  {key:'mosqueprograms', label:'Knowledge', bg:'#c3e2d4', fg:'#373d3b'},
+  {key:'sports', label:'Sports', bg:'#e1f1ea', fg:'#373d3b'},
+  {key:'activities', label:'Activities', bg:'#e1eaf1', fg:'#373d3b'},
+  {key:'functions', label:'Functions', bg:'#fdf0f2', fg:'#373d3b'},
+  {key:'trips', label:'Trips', bg:'#eedcb1', fg:'#373d3b'},
+  {key:'mosqueprograms', label:'Knowledge', bg:'#fad8c1', fg:'#373d3b'},
 ];
 
 const resourceFilterList = [
@@ -2032,9 +2032,9 @@ function renderResourceMap(){
 }
 
 const clubColors = {
-  'club-activegaming':{bg:'#c3d5e2', fg:'#373d3b'}, 'club-adrenaline':{bg:'#ddb862', fg:'#373d3b'}, 'club-theater':{bg:'#caaacd', fg:'#373d3b'},
-  'club-cuisine':{bg:'#ecc7d2', fg:'#373d3b'}, 'club-artscrafts':{bg:'#fae1e4', fg:'#373d3b'}, 'club-retreats':{bg:'#f1dfb6', fg:'#373d3b'},
-  'club-badminton':{bg:'#aabecf', fg:'#373d3b'}, 'club-adhd':{bg:'#776867', fg:'#fff7e6'}
+  'club-activegaming':{bg:'#e1eaf1', fg:'#373d3b'}, 'club-adrenaline':{bg:'#eedcb1', fg:'#373d3b'}, 'club-theater':{bg:'#e5d5e6', fg:'#373d3b'},
+  'club-cuisine':{bg:'#f6e3e9', fg:'#373d3b'}, 'club-artscrafts':{bg:'#fdf0f2', fg:'#373d3b'}, 'club-retreats':{bg:'#f8efdb', fg:'#373d3b'},
+  'club-badminton':{bg:'#d5dfe7', fg:'#373d3b'}, 'club-adhd':{bg:'#776867', fg:'#fff7e6'}
 };
 
 const FALL_SIGNUP_ENDPOINT = 'https://formspree.io/f/mgawqqgk';
@@ -2432,10 +2432,10 @@ el.innerHTML = `<div class="clubs-top-actions">
   } else if(state.tab === 'home'){
     document.getElementById('resourcePagination').innerHTML = '';
     const tiles = [
-      {tab:'events', title: siteText.homeTileEventsTitle || 'Calendar', bg:'#f4b183', fg:'#373d3b', desc: siteText.homeTileEventsDesc || 'Sports, gatherings, day activities & trips — see what\'s coming up.'},
-      {tab:'travel', title: siteText.homeTileTravelTitle || 'Travel', bg:'#ddb862', fg:'#373d3b', desc: siteText.homeTileTravelDesc || 'Explore women-friendly trips, retreats, and group travel.'},
-      {tab:'clubs', title: siteText.homeTileClubsTitle || 'GALS CLUBS', bg:'#caaacd', fg:'#373d3b', desc: siteText.homeTileClubsDesc || 'Join a standing-interest club, from gaming to ADHD support.'},
-      {tab:'resources', title: siteText.homeTileResourcesTitle || 'Directory', bg:'#c3d5e2', fg:'#373d3b', desc: siteText.homeTileResourcesDesc || 'Mosques, cafes, shops & restaurants the community supports.'},
+      {tab:'events', title: siteText.homeTileEventsTitle || 'Calendar', bg:'#fad8c1', fg:'#373d3b', desc: siteText.homeTileEventsDesc || 'Sports, gatherings, day activities & trips — see what\'s coming up.'},
+      {tab:'travel', title: siteText.homeTileTravelTitle || 'Travel', bg:'#eedcb1', fg:'#373d3b', desc: siteText.homeTileTravelDesc || 'Explore women-friendly trips, retreats, and group travel.'},
+      {tab:'clubs', title: siteText.homeTileClubsTitle || 'GALS CLUBS', bg:'#e5d5e6', fg:'#373d3b', desc: siteText.homeTileClubsDesc || 'Join a standing-interest club, from gaming to ADHD support.'},
+      {tab:'resources', title: siteText.homeTileResourcesTitle || 'Directory', bg:'#e1eaf1', fg:'#373d3b', desc: siteText.homeTileResourcesDesc || 'Mosques, cafes, shops & restaurants the community supports.'},
     ];
     const homescreenTile = {tab:'homescreen', title: siteText.homeTileHomescreenTitle || 'Add this to your Home Screen', bg:'#F1F6F2', fg:'#373d3b', desc: siteText.homeTileHomescreenDesc || 'Install 4DASISTAS like an app for quick access.'};
     const selectedToday = new Date(today);
