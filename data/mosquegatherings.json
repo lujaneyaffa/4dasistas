@@ -1,6 +1,32 @@
 {
   "items": [
     {
+      "id": "isna-thrive-2026",
+      "tag": "Mosque Program",
+      "title": "ISNA Thrive",
+      "eventDate": "2026-08-24",
+      "days": [
+        "mon"
+      ],
+      "date": "Mondays · 7:00 PM",
+      "location": "ICC Prayer Hall, 2200 S Sheridan Way, Mississauga",
+      "organizer": "ISNA Canada",
+      "desc": "Weekly sisters’ community gathering and support circle at ICC.",
+      "instagram": "https://www.instagram.com/isna_canada/",
+      "section": "mosqueprograms",
+      "audienceType": [],
+      "emoji": "",
+      "organizedBy": "",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "recurStart": "",
+      "recurEnd": "",
+      "virtual": false,
+      "link": ""
+    },
+    {
       "id": "mg-almukhlisin-fiqh-of-salah",
       "tag": "Mosque Program",
       "title": "Fiqh of Salah",
