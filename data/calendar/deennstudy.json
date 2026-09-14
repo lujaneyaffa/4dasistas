@@ -8,8 +8,20 @@
   "tag": "Function",
   "id": "deennstudy",
   "calDate": "",
-  "section": "functions",
+  "section": "mosqueprograms",
   "eventDate": "2026-09-01",
   "time": "14:00",
-  "endTime": "16:00"
+  "endTime": "16:00",
+  "audienceType": [
+    "Muslim Women"
+  ],
+  "emoji": "",
+  "organizedBy": "",
+  "endDate": "",
+  "allDay": false,
+  "days": [],
+  "recurStart": "",
+  "recurEnd": "",
+  "virtual": true,
+  "link": ""
 }
