@@ -10,10 +10,17 @@ Writes:  data/sports.json, dayactivities.json, gatherings.json, trips.json,
 Also auto-fills `tag` with the event title for Activities/Functions items
 that have no tag, so editors never need to maintain tags manually.
 
+Fails the build (non-zero exit) if two files share the same "id" --
+that's what let "Taste of Mississauga" end up duplicated under both
+Functions and Knowledge (mnn-taste-of-mississauga-sept5-6-2026.json and
+...-2.json, filed under different sections) without anyone noticing
+until it was live. One canonical file per id, always.
+
 Run on every build:  python3 scripts/build_content.py
 """
 import json
 import os
+import sys
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, 'data')
@@ -34,9 +41,12 @@ AUTO_TAG_SECTIONS = {'activities', 'functions'}
 
 
 def load_folder(folder):
+    """Returns (items, id_to_filenames) -- the second dict is only used to
+    report exactly which files collide when ids clash."""
     if not os.path.isdir(folder):
-        return []
-    out = []
+        return [], {}
+    items = []
+    id_to_filenames = {}
     for name in sorted(os.listdir(folder)):
         if not name.endswith('.json'):
             continue
@@ -46,12 +56,29 @@ def load_folder(folder):
         # back to the filename stem so brand-new CMS entries get one.
         if not item.get('id'):
             item['id'] = os.path.splitext(name)[0]
-        out.append(item)
-    return out
+        id_to_filenames.setdefault(item['id'], []).append(name)
+        items.append(item)
+    return items, id_to_filenames
+
+
+def check_no_duplicate_ids(folder_label, id_to_filenames):
+    dupes = {i: files for i, files in id_to_filenames.items() if len(files) > 1}
+    if not dupes:
+        return
+    print(f'ERROR: duplicate ids found in {folder_label} -- each id must come '
+          f'from exactly one file, or the same event/resource can end up '
+          f'shown twice with conflicting data (this is how "Taste of '
+          f'Mississauga" got filed under both Functions and Knowledge):')
+    for item_id, files in dupes.items():
+        print(f'  {item_id!r} is defined in: {", ".join(files)}')
+    print('Delete or merge the extra file(s), then re-run the build.')
+    sys.exit(1)
 
 
 def main():
-    cal_items = load_folder(CAL_DIR)
+    cal_items, cal_ids = load_folder(CAL_DIR)
+    check_no_duplicate_ids('data/calendar/', cal_ids)
+
     buckets = {sec: [] for sec in SECTION_FILES}
     for item in cal_items:
         sec = item.get('section')
@@ -72,7 +99,8 @@ def main():
             fh.write('\n')
         print(f'{fname}: {len(items)} items')
 
-    res_items = load_folder(RES_DIR)
+    res_items, res_ids = load_folder(RES_DIR)
+    check_no_duplicate_ids('data/resources/', res_ids)
     res_items.sort(key=lambda i: str(i.get('id')))
     with open(os.path.join(DATA, 'resources.json'), 'w', encoding='utf-8') as fh:
         json.dump({'items': res_items}, fh, indent=2, ensure_ascii=False)

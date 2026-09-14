@@ -146,7 +146,11 @@
   .mental-health-grid .panel-links{ margin-top:auto; padding-top:8px; }
 
   .small-business-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; align-items:stretch; }
-  .small-business-grid .panel-card{ margin:0; padding:14px; display:flex; flex-direction:column; }
+  .small-business-grid .panel-card{ margin:0; padding:14px; display:flex; flex-direction:column; min-width:0; overflow:hidden; }
+  /* Instagram's embed widget sets its own min-width (326px) on .instagram-media,
+     which blows out narrow grid/flex cells (2-col small-business grid, the detail
+     modal) into full-width overlapping bars until it's overridden here. */
+  .instagram-media{ max-width:100% !important; min-width:0 !important; width:100% !important; }
   .small-business-grid .panel-links{ margin-top:auto; padding-top:8px; }
   .filter-chip.active{ background:var(--charcoal); color:var(--cream); border-color:var(--charcoal); }
   .filter-select{ font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; padding:7px 12px; border-radius:999px; border:1.5px solid rgba(33,30,28,0.25); background:white; color:var(--charcoal); }
@@ -316,7 +320,7 @@
 
 .clubs-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
   .clubs-grid .club-card{ width:100%; }
-  .panel-card{ background:var(--card); border:2px solid var(--charcoal); border-radius:16px; padding:18px; margin-bottom:16px; box-shadow:3px 3px 0 var(--charcoal); text-align:left; }
+  .panel-card{ background:var(--card); border:2px solid var(--charcoal); border-radius:16px; padding:18px; margin-bottom:16px; box-shadow:3px 3px 0 var(--charcoal); text-align:left; position:relative; }
   .resource-photo{ width:100%; height:180px; object-fit:cover; display:block; margin:-2px 0 14px; border-radius:10px; background:var(--lightblue); }
 
   .home-tiles{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
@@ -398,10 +402,10 @@
   .club-guide-btn{ border:2px solid var(--charcoal); border-radius:14px; padding:15px 16px; background:var(--blush); color:var(--charcoal); box-shadow:3px 3px 0 var(--charcoal); cursor:pointer; font-family:'Space Grotesk',sans-serif; font-size:14px; font-weight:700; text-align:left; }
   .club-guide-btn:last-child{ background:var(--lightblue); }
   .club-guide-btn:hover{ transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--charcoal); }
-  .fall-cta-btn{ display:flex; align-items:center; justify-content:center; text-align:center; aspect-ratio:1; width:96px; flex:0 0 96px; border:none; border-radius:16px; padding:8px; background:linear-gradient(135deg,var(--gold),var(--pink)); color:var(--charcoal); font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14px; line-height:1.2; cursor:pointer; box-shadow:0 4px 14px rgba(221,184,98,0.35); transition:transform 0.12s ease, box-shadow 0.12s ease; }
+  .fall-cta-btn{ display:flex; align-items:center; justify-content:center; text-align:center; border:none; border-radius:16px; padding:8px; background:linear-gradient(135deg,var(--gold),var(--pink)); color:var(--charcoal); font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14px; line-height:1.2; cursor:pointer; box-shadow:0 4px 14px rgba(221,184,98,0.35); transition:transform 0.12s ease, box-shadow 0.12s ease; }
   .fall-cta-btn:hover{ transform:translate(0,-2px); box-shadow:0 6px 18px rgba(221,184,98,0.45); }
   .clubs-top-actions{ display:flex; align-items:stretch; gap:10px; margin-bottom:14px; }
-  .clubs-top-actions .club-guide-btn{ flex:1; margin-bottom:0; text-align:center; }
+  .clubs-top-actions .club-guide-btn, .clubs-top-actions .fall-cta-btn{ flex:0 0 110px; width:110px; aspect-ratio:1; margin-bottom:0; text-align:center; padding:8px; font-size:13px; display:flex; align-items:center; justify-content:center; }
   .fall-signup{ max-width:640px; margin:0 auto; }
   .fall-hero{ text-align:center; margin:18px 0 24px; }
   .fall-hero h2{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:24px; margin-bottom:10px; }
@@ -465,9 +469,9 @@
   .resource-map-wrapper .resource-map{ flex:1; }
   .travel-earth-layout{ display:grid; grid-template-columns:minmax(300px,340px) minmax(0,1fr); gap:16px; align-items:stretch; width:100%; }
 
-  .sg-split-layout{ display:grid; grid-template-columns:minmax(280px,360px) minmax(0,1fr); gap:24px; align-items:start; width:100%; }
+  .sg-split-layout{ display:flex; flex-direction:column; gap:16px; width:100%; }
   .sg-calendar-column{ min-width:0; display:flex; flex-direction:column; gap:12px; }
-  .sg-calendar-actions{ display:flex; justify-content:flex-end; }
+  .sg-calendar-actions{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
   .sg-list-pane{ display:flex; flex-direction:column; gap:12px; }
   .sg-calendar-pane{ border:2px solid var(--charcoal); border-radius:14px; padding:14px; background:var(--card); }
   .travel-trip-list{ width:100%; min-width:0; max-height:65vh; overflow-y:auto; border:2px solid var(--charcoal); border-radius:14px; background:var(--card); padding:16px; order:0; }
@@ -501,7 +505,6 @@
     .resource-map-wrapper{ flex-direction:column; }
     .resource-side-list{ width:100%; max-height:300px; order:2; }
     .travel-earth-layout{ grid-template-columns:1fr; }
-    .sg-split-layout{ grid-template-columns:1fr; }
     .travel-trip-list{ width:100%; max-height:260px; order:2; }
   }
 
@@ -628,7 +631,7 @@
   <button class="tab-btn active" data-tab="home">Home</button>
   <button class="tab-btn" data-tab="events">Calendar</button>
   <button class="tab-btn" data-tab="clubs">GALS CLUBS</button>
-  <button class="tab-btn" data-tab="resources">Resources</button>
+  <button class="tab-btn" data-tab="resources">Directory</button>
   <button class="tab-btn" data-tab="travel">Travel</button>
   <button class="tab-btn" data-tab="rules">About</button>
   <div class="top-search-wrap" id="globalSearchShell" style="display:none;">
@@ -732,6 +735,7 @@
     </a>
   </div>
   <img class="footer-logo" src="assets/OFFICIAL%20LOGO.png" alt="Not a cult (Yet)">
+  <button type="button" class="suggest-btn" id="footerLogoutBtn" style="display:none;margin-top:14px;">Log Out</button>
 </footer>
 
 <script>
@@ -908,7 +912,7 @@ let state = {
   tab:'home', categoryFilter:'all', view:'list',
   sportFilter:'all', dayCity:'all', clubFilter:'all',
   gatherSort:'hijab', gatherDir:'asc',
-  sgCalYear: today.getFullYear(), sgCalMonth: today.getMonth(),
+  sgCalYear: today.getFullYear(), sgCalMonth: today.getMonth(), sgCalendarHidden:false,
   tripType:'all', tripView:'list', tripShowPast:false, resourceFilter:'all', resourceView:'map', resourcePage:1,
   timeFilter:'upcoming', eventSort:'soonest', todayOffset:0, todayViewMode:'day', page:1,
   calViewMode:'month', calDayOffset:0,
@@ -1359,7 +1363,7 @@ function renderList(){
     const msg = state.categoryFilter === 'clubs' && state.clubFilter !== 'all'
       ? 'No events have been added to this club calendar yet. Add them in Decap CMS.'
       : state.categoryFilter === 'activities' && state.timeFilter === 'upcoming'
-      ? 'Nothing dated yet — check back soon, or see Resources for ongoing spots.'
+      ? 'Nothing dated yet — check back soon, or see Directory for ongoing spots.'
       : 'Nothing here yet.';
     el.innerHTML = `<div class="empty">${msg}</div>`;
     pagEl.innerHTML = '';
@@ -2142,6 +2146,13 @@ function renderDirectory(){
     const sgItems = allResourceItems.filter(r => r.isSupportGroup === true);
     el.innerHTML = `
       <div class="sg-split-layout">
+        <div class="sg-calendar-column" style="display:${state.sgCalendarHidden ? 'none' : 'flex'}">
+          <div class="sg-calendar-pane" id="sgCalendarPane"></div>
+        </div>
+        <div class="sg-calendar-actions">
+          <button class="link-btn secondary" id="sgToggleCalendarBtn">${state.sgCalendarHidden ? '📅 Show Calendar' : '🙈 Hide Calendar'}</button>
+          <button class="link-btn secondary" id="sgToMentalHealthBtn">Mental Health Resources →</button>
+        </div>
         <div class="sg-list-pane" id="sgListPane" style="display:block">
           ${sgItems.length ? sgItems.map(r => `
             <div class="panel-card">
@@ -2156,12 +2167,12 @@ function renderDirectory(){
               </div>
             </div>`).join('') : '<div class="empty">No support groups listed yet.</div>'}
         </div>
-        <div class="sg-calendar-column" style="display:flex">
-          <div class="sg-calendar-pane" id="sgCalendarPane"></div>
-          <div class="sg-calendar-actions"><button class="link-btn secondary" id="sgToMentalHealthBtn">Mental Health Resources →</button></div>
-        </div>
       </div>`;
     renderSupportGroupCalendar();
+    document.getElementById('sgToggleCalendarBtn').addEventListener('click', () => {
+      state.sgCalendarHidden = !state.sgCalendarHidden;
+      renderDirectory();
+    });
     document.getElementById('sgToMentalHealthBtn').addEventListener('click', () => {
       state.resourceFilter = 'mentalhealth';
       state.resourcePage = 1;
@@ -2424,7 +2435,7 @@ el.innerHTML = `<div class="clubs-top-actions">
       {tab:'events', title: siteText.homeTileEventsTitle || 'Calendar', bg:'#f4b183', fg:'#373d3b', desc: siteText.homeTileEventsDesc || 'Sports, gatherings, day activities & trips — see what\'s coming up.'},
       {tab:'travel', title: siteText.homeTileTravelTitle || 'Travel', bg:'#ddb862', fg:'#373d3b', desc: siteText.homeTileTravelDesc || 'Explore women-friendly trips, retreats, and group travel.'},
       {tab:'clubs', title: siteText.homeTileClubsTitle || 'GALS CLUBS', bg:'#caaacd', fg:'#373d3b', desc: siteText.homeTileClubsDesc || 'Join a standing-interest club, from gaming to ADHD support.'},
-      {tab:'resources', title: siteText.homeTileResourcesTitle || 'Resources', bg:'#c3d5e2', fg:'#373d3b', desc: siteText.homeTileResourcesDesc || 'Mosques, cafes, shops & restaurants the community supports.'},
+      {tab:'resources', title: siteText.homeTileResourcesTitle || 'Directory', bg:'#c3d5e2', fg:'#373d3b', desc: siteText.homeTileResourcesDesc || 'Mosques, cafes, shops & restaurants the community supports.'},
     ];
     const homescreenTile = {tab:'homescreen', title: siteText.homeTileHomescreenTitle || 'Add this to your Home Screen', bg:'#F1F6F2', fg:'#373d3b', desc: siteText.homeTileHomescreenDesc || 'Install 4DASISTAS like an app for quick access.'};
     const selectedToday = new Date(today);
@@ -2884,6 +2895,11 @@ function renderDetail(id){
     }
   }
 
+  // Instagram's embed widget only renders individual posts/reels, not profile
+  // links, so only embed when the URL is actually shaped like one.
+  const igPostUrl = [e.instagramPost, e.instagram, e.link].find(u => u && /instagram\.com\/(?:[^/?#]+\/)?(p|reel)\//.test(u));
+  const igEmbed = igPostUrl ? `<blockquote class="instagram-media" data-instgrm-permalink="${igPostUrl}" data-instgrm-version="14" style="margin:0 0 14px;width:100%;"></blockquote>` : '';
+
   document.getElementById('detailCard').innerHTML = `
     ${(Array.isArray(e.audienceType) ? e.audienceType : (e.audienceType ? [e.audienceType] : [])).length ? `<div class="audience-pill-group">${(Array.isArray(e.audienceType) ? e.audienceType : [e.audienceType]).map(a => `<span class="audience-pill">${a}</span>`).join('')}</div>` : ''}
     <span class="tag ${tagClass(e)}">${eventTypeLabel(e)}</span>
@@ -2891,10 +2907,18 @@ function renderDetail(id){
     ${e.organizedBy ? `<div class="event-organizer">${e.organizedBy}</div>` : ''}
     <div class="detail-date">${e.date}</div>
     <div class="detail-desc">${e.desc || ''}</div>
+    ${igEmbed}
     <div class="detail-facts">${facts}</div>
     ${mapEmbed}
     <div class="detail-links">${links}</div>
   `;
+
+  if(igPostUrl){
+    if(window.instgrm && window.instgrm.Embeds) window.instgrm.Embeds.process();
+    else document.querySelector('script[src*="instagram.com/embed.js"]')?.addEventListener('load', () => {
+      if(window.instgrm && window.instgrm.Embeds) window.instgrm.Embeds.process();
+    }, {once:true});
+  }
 
   document.getElementById('detail-view').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -3678,7 +3702,14 @@ function wireClubAdminPanel(){
 }
 
 
+function renderFooterLogout(){
+  const btn = document.getElementById('footerLogoutBtn');
+  if(!btn) return;
+  btn.style.display = (getCmSession() || state.cmAdminLoggedIn === true) ? '' : 'none';
+}
+
 function render(){
+  renderFooterLogout();
   const contextBack = document.getElementById('contextBack');
   if(contextBack) contextBack.classList.toggle('visible', (state.tab === 'resources' && state.returnTab === 'events') || state.tab === 'supportgroups');
   syncToggleButtonClasses();
@@ -3872,7 +3903,7 @@ document.getElementById('categoryRow').addEventListener('click', e => {
     return;
   }
   if(btn.dataset.catfilter === 'trips'){
-    state.tripType = 'domestic';
+    state.tripType = 'all';
     state.tripView = 'list';
     goToTab('travel');
     return;
@@ -3986,6 +4017,13 @@ typePanel.querySelectorAll('[data-typemulti-action]').forEach(btn => btn.addEven
 updateTypeMultiUI();
 
 document.getElementById('detailCloseBtn').addEventListener('click', closeDetail);
+document.getElementById('footerLogoutBtn').addEventListener('click', async () => {
+  const wasAdmin = state.cmAdminLoggedIn === true;
+  if(getCmSession()) clearCmSession();
+  if(wasAdmin) await cmAdminLogout();
+  state.cmView = 'auth'; state.cmMe = null;
+  render();
+});
 document.getElementById('detail-view').addEventListener('click', e => {
   if(e.target.id === 'detail-view') closeDetail();
 });
