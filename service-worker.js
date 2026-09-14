@@ -1,4 +1,4 @@
-const CACHE_NAME = '4dasistas-v5';
+const CACHE_NAME = '4dasistas-v6';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/app-icon.svg', '/assets/apple-touch-icon.png', '/assets/icon-192.png', '/assets/icon-512.png'];
 
 self.addEventListener('install', event => {
@@ -17,6 +17,13 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+
+  // Never cache the CMS admin app, its config, or any API call — these must
+  // always be fresh. The Cache-Control: no-store rules in _headers only stop
+  // the browser's own HTTP cache; this service worker's cache.put() below
+  // ignores Cache-Control entirely, so it needs its own explicit exclusion.
+  const path = new URL(event.request.url).pathname;
+  if (path.startsWith('/admin') || path.startsWith('/api') || path === '/editor') return;
 
   event.respondWith(
     fetch(event.request)

@@ -77,7 +77,14 @@ npx wrangler deploy
 
 ## Current Status
 
-**Status:** IDLE — GITHUB_TOKEN secret is now set; login modal fixed for iOS home-screen mode
+**Status:** IDLE — DecapBridge "error verification" needs Lujane to re-auth (see below), not yet confirmed fixed
+**Last updated by:** Claude (chat)
+**Last updated:** 2026-09-14 (lock pinch/double-tap zoom + service-worker cache gap on /admin, /api)
+
+**2026-09-14 (lock pinch/double-tap zoom + service-worker cache gap on /admin, /api) — Claude (chat) — `index.html`, `service-worker.js`** — Two requests. (1) Lujane wants the home-screen app to feel native, not zoomable: added `maximum-scale=1.0, minimum-scale=1.0, user-scalable=no` to the viewport meta (blocks pinch-zoom) plus `touch-action:manipulation` on html/body (blocks double-tap-zoom as a fallback, since some iOS versions ignore `user-scalable=no` for accessibility in full Safari — less of a concern in true standalone/home-screen mode, which is closer to a native WebView). (2) Lujane reported "error verification" repeatedly when trying to Publish a new Knowledge program via DecapBridge. Most likely cause, given the earlier 2026-09-12 log entry: DecapBridge's GitHub OAuth connection is probably still tied to the old `lugine` username from before the 2026-09-12 rename to `lujaneyaffa`, and this is a continuation of that unresolved issue rather than something new — told Lujane to try logging out of DecapBridge and back in, or revoking + reauthorizing its GitHub OAuth App from https://github.com/settings/applications. While investigating I found and fixed a real, separate, compounding bug: `service-worker.js`'s fetch handler cached (and could serve stale) EVERY same-origin GET including `/admin/*`, completely ignoring the `Cache-Control: no-store` rules already set in `_headers` for exactly this reason back on 2026-08-25 — those `_headers` rules only stop the *browser's* HTTP cache, the service worker's own `cache.put()` doesn't check Cache-Control at all. Added an explicit early-return in the fetch handler for `/admin`, `/api`, and `/editor` so those paths are always network-only (never cached, never served from cache), and bumped `CACHE_NAME` to v6 so the fix takes effect promptly (skipWaiting+clients.claim were already in place, so no double-refresh needed). This may or may not be the actual cause of "error verification" specifically (that string reads more like an OAuth/identity-token verification failure at DecapBridge's gateway than a stale-page symptom) — flagging both possibilities to Lujane rather than claiming certainty, and asking her to report back the exact behavior after both reauthorizing AND getting this deploy. Validated: `node --check` on both files; viewport meta tag confirmed present via grep.
+
+
+**Status:** IDLE
 **Last updated by:** Claude (chat)
 **Last updated:** 2026-09-14 (footer admin login fixed for iOS standalone mode + safe-area insets)
 
@@ -383,6 +390,8 @@ npx wrangler deploy
 ## Recent Activity Log
 
 _(most recent first — add new entries to the top, trim past ~15)_
+
+- 2026-09-14 — Claude (chat) — `index.html`, `service-worker.js` — Locked pinch/double-tap zoom for the home-screen app feel; found and fixed the service worker caching `/admin/*` despite existing no-store headers (browser cache rules don't stop the SW's own cache). DecapBridge "error verification" likely needs a GitHub OAuth re-auth after the username change — not yet confirmed fixed. See Current Status entry above for full detail.
 
 - 2026-09-14 — Claude (chat) — `index.html` — Fixed the footer admin login for iOS home-screen mode: replaced the anchored popover with a proper centered `<form>` modal (fixes "won't let me try again"), and added `env(safe-area-inset-top/bottom)` padding to header/footer (fixes standalone-mode status-bar overlap). GITHUB_TOKEN secret is now set in production. See Current Status entry above for full detail.
 
