@@ -3997,7 +3997,13 @@ function render(){
 
 /* ============================================================
    STATE <-> URL HASH (so refresh keeps you where you were)
+   Also mirrored to localStorage: a home-screen app relaunch always
+   opens the bare start_url with no hash at all (that's how the OS
+   launches PWAs), so the hash alone can't survive that — the saved
+   copy is what lets a fresh launch reopen on the same tab.
    ============================================================ */
+const LAST_TAB_STORAGE_KEY = 'lastAppState';
+
 function syncStateToHash(){
   if(location.hash.startsWith('#/event/')) return; // don't clobber an open detail page
 
@@ -4011,6 +4017,7 @@ function syncStateToHash(){
   if(isDefaultHomeState){
     const cleanUrl = location.pathname + location.search;
     if(location.hash) history.replaceState(null, '', cleanUrl);
+    try { localStorage.removeItem(LAST_TAB_STORAGE_KEY); } catch {}
     return;
   }
 
@@ -4022,12 +4029,21 @@ function syncStateToHash(){
   params.set('rfilter', state.resourceFilter);
   params.set('rview', state.resourceView);
   if(Array.isArray(state.typeSel) && state.typeSel.length) params.set('types', state.typeSel.join(','));
-  history.replaceState(null, '', location.pathname + location.search + '#' + params.toString());
+  const paramString = params.toString();
+  history.replaceState(null, '', location.pathname + location.search + '#' + paramString);
+  try { localStorage.setItem(LAST_TAB_STORAGE_KEY, paramString); } catch {}
 }
 
 function restoreStateFromHash(){
-  const hash = location.hash;
-  if(!hash || hash.startsWith('#/event/') || hash.length < 2) return;
+  let hash = location.hash;
+  if(hash.startsWith('#/event/')) return; // let the event-detail flow handle this
+  if(!hash || hash.length < 2){
+    try {
+      const saved = localStorage.getItem(LAST_TAB_STORAGE_KEY);
+      if(saved) hash = '#' + saved;
+    } catch {}
+  }
+  if(!hash || hash.length < 2) return;
   const params = new URLSearchParams(hash.slice(1));
   if(params.has('tab')) state.tab = params.get('tab');
   if(params.has('cat')) state.categoryFilter = params.get('cat');

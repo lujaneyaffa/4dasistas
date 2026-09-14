@@ -77,7 +77,14 @@ npx wrangler deploy
 
 ## Current Status
 
-**Status:** IN PROGRESS — GITHUB_TOKEN now on the correct live script; still needs a fresh ADMIN_PASSWORD from Lujane
+**Status:** IDLE — event editor confirmed working in production (3 real edits landed); still needs a fresh ADMIN_PASSWORD from Lujane
+**Last updated by:** Claude (chat)
+**Last updated:** 2026-09-14 (persist current tab across a home-screen app relaunch)
+
+**2026-09-14 (persist current tab across a home-screen app relaunch) — Claude (chat) — `index.html`** — Lujane: "when I'm on a specific tab and I refresh it takes me to the original, I want it to stay where I was." The site already round-trips tab/filter state through the URL hash on a normal reload (verified this still works fine on its own) — the actual gap is that relaunching a home-screen PWA always opens the bare `start_url` ("/") with no hash at all, by how iOS launches installed web apps, which a hash-only mechanism can never survive. Mirrored `syncStateToHash()`'s params to `localStorage` (`lastAppState`) on every change and cleared on default Home state, and made `restoreStateFromHash()` fall back to the saved copy when the URL has no hash at all. Also confirms in passing: the calendar-event editor from 2026-09-14 (GITHUB_TOKEN root-cause fix) is now genuinely working in production — 3 real edits (ISNA Thrive, Balancing Deen & Study, ISNA Youth Book Club) landed as real commits from "4DASISTAS Site Admin" and synced through to the aggregates correctly, including one that changed an event's calendar tab (functions → Knowledge) and correctly moved it between the generated files. Validated: JS syntax check; in-browser test navigating to a tab then reloading with a hash-stripped URL (simulating a fresh app relaunch) correctly restored the tab from localStorage, and returning to Home correctly cleared the saved state so it doesn't get "stuck".
+
+
+**Status:** IDLE
 **Last updated by:** Claude (chat)
 **Last updated:** 2026-09-14 (found root cause: every `wrangler secret put` this session hit the wrong Worker script)
 
@@ -397,6 +404,8 @@ npx wrangler deploy
 ## Recent Activity Log
 
 _(most recent first — add new entries to the top, trim past ~15)_
+
+- 2026-09-14 — Claude (chat) — `index.html` — Home-screen app relaunches always open with no URL hash, so tab state saved only in the hash couldn't survive it; now also mirrored to localStorage as a fallback. Bonus confirmation: the calendar-event editor is genuinely working live (3 real edits landed as commits from Lujane). See Current Status entry above for full detail.
 
 - 2026-09-14 — Claude (chat) — `workers/wrangler.toml` — Found and fixed a config bug that's been silently sending every `wrangler secret put` this session to a dead, unused Worker script (`4dasistas-editor`) instead of the live one (`4dasistas`) — explains both the "wrong" admin password and the persistent GITHUB_TOKEN-not-set error. Corrected `wrangler.toml`'s name field and re-set GITHUB_TOKEN on the right script; still need a fresh ADMIN_PASSWORD from Lujane. See Current Status entry above for full detail.
 
