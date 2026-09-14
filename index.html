@@ -57,7 +57,7 @@
   button{ font-family:inherit; }
   a{ color:inherit; }
 
-  header{ padding:24px 20px 20px; text-align:center; }
+  header{ padding:calc(24px + env(safe-area-inset-top)) 20px 20px; text-align:center; }
   .wordmark{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:clamp(32px,7vw,52px); letter-spacing:-0.01em; }
   .wordmark-link{ text-decoration:none; color:inherit; display:inline-block; }
   .wordmark-link:hover .wordmark span{ color:var(--charcoal); }
@@ -539,13 +539,17 @@
   .link-btn.primary{ background:var(--charcoal); color:var(--cream); }
   .link-btn.secondary{ background:white; color:var(--charcoal); }
 
-  footer{ position:relative; text-align:center; padding:32px 20px 40px; border-top:1px solid rgba(33,30,28,0.12); margin-top:16px; background:#ce8491; }
+  footer{ position:relative; text-align:center; padding:32px 20px calc(40px + env(safe-area-inset-bottom)); border-top:1px solid rgba(33,30,28,0.12); margin-top:16px; background:#ce8491; }
   .footer-admin-corner{ position:absolute; top:14px; right:14px; text-align:right; z-index:5; }
   .footer-admin-btn{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:11px; padding:7px 12px; border-radius:999px; border:2px solid var(--charcoal); background:rgba(255,255,255,0.85); color:var(--charcoal); cursor:pointer; box-shadow:2px 2px 0 var(--charcoal); }
   .footer-admin-btn:hover{ transform:translate(-1px,-1px); box-shadow:3px 3px 0 var(--charcoal); }
-  .footer-admin-popover{ position:absolute; top:36px; right:0; width:190px; background:white; border:2px solid var(--charcoal); border-radius:10px; padding:10px; box-shadow:3px 3px 0 var(--charcoal); text-align:left; }
-  .footer-admin-popover input{ width:100%; padding:8px; border-radius:8px; border:1.5px solid var(--charcoal); box-sizing:border-box; margin-bottom:8px; font-size:13px; }
-  .footer-admin-popover button{ width:100%; padding:8px; border-radius:8px; border:none; background:var(--charcoal); color:var(--cream); font-weight:700; cursor:pointer; font-size:12px; }
+  .footer-admin-modal-overlay{ position:fixed; inset:0; background:rgba(33,30,28,0.5); z-index:6000; display:none; align-items:center; justify-content:center; padding:20px; padding-bottom:calc(20px + env(safe-area-inset-bottom)); }
+  .footer-admin-modal-overlay.open{ display:flex; }
+  .footer-admin-modal{ background:white; border:2px solid var(--charcoal); border-radius:14px; padding:20px; width:100%; max-width:280px; box-shadow:4px 4px 0 var(--charcoal); text-align:left; }
+  .footer-admin-modal h3{ margin:0 0 12px; font-size:16px; font-family:'Space Grotesk',sans-serif; }
+  .footer-admin-modal input{ width:100%; padding:10px; border-radius:8px; border:1.5px solid var(--charcoal); box-sizing:border-box; margin-bottom:10px; font-size:15px; }
+  .footer-admin-modal button[type="submit"]{ width:100%; padding:10px; border-radius:8px; border:none; background:var(--charcoal); color:var(--cream); font-weight:700; cursor:pointer; font-size:13px; }
+  .footer-admin-modal .footer-admin-cancel{ width:100%; padding:8px; border-radius:8px; border:none; background:transparent; color:var(--charcoal); cursor:pointer; font-size:12px; margin-top:6px; }
   @media (max-width:520px){
     .footer-admin-corner{ top:8px; right:8px; }
     .footer-admin-btn{ font-size:10px; padding:6px 10px; }
@@ -731,11 +735,6 @@
 <footer>
   <div class="footer-admin-corner">
     <button type="button" class="footer-admin-btn" id="footerAdminBtn">🔒 Admin Login</button>
-    <div class="footer-admin-popover" id="footerAdminPopover" style="display:none;">
-      <input type="password" id="footerAdminPassword" placeholder="Admin password">
-      <button type="button" id="footerAdminSubmitBtn">Sign In</button>
-      <div id="footerAdminError" style="color:#c00;font-size:11px;margin-top:6px;"></div>
-    </div>
   </div>
   <a class="suggest-btn" href="mailto:lujanealdimasi@gmail.com?subject=4DASISTAS%20Suggestion">✎ Suggest a change</a>
   <div class="footer-btns">
@@ -755,6 +754,16 @@
   <img class="footer-logo" src="assets/OFFICIAL%20LOGO.png" alt="Not a cult (Yet)">
   <button type="button" class="suggest-btn" id="footerLogoutBtn" style="display:none;margin-top:14px;">Log Out</button>
 </footer>
+
+<div class="footer-admin-modal-overlay" id="footerAdminModalOverlay">
+  <form class="footer-admin-modal" id="footerAdminForm">
+    <h3>Admin Login</h3>
+    <input type="password" id="footerAdminPassword" placeholder="Admin password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go">
+    <button type="submit" id="footerAdminSubmitBtn">Sign In</button>
+    <button type="button" class="footer-admin-cancel" id="footerAdminCancelBtn">Cancel</button>
+    <div id="footerAdminError" style="color:#c00;font-size:12px;margin-top:6px;"></div>
+  </form>
+</div>
 
 <script>
 /* ============================================================
@@ -4254,26 +4263,35 @@ document.getElementById('footerAdminBtn').addEventListener('click', async () => 
     render();
     return;
   }
-  const pop = document.getElementById('footerAdminPopover');
-  pop.style.display = pop.style.display === 'none' ? 'block' : 'none';
-  if(pop.style.display === 'block') document.getElementById('footerAdminPassword').focus();
+  document.getElementById('footerAdminError').textContent = '';
+  document.getElementById('footerAdminModalOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('footerAdminPassword').focus(), 50);
 });
-document.getElementById('footerAdminSubmitBtn').addEventListener('click', async () => {
+document.getElementById('footerAdminCancelBtn').addEventListener('click', () => {
+  document.getElementById('footerAdminModalOverlay').classList.remove('open');
+  document.getElementById('footerAdminPassword').value = '';
+  document.getElementById('footerAdminError').textContent = '';
+});
+document.getElementById('footerAdminModalOverlay').addEventListener('click', e => {
+  if(e.target.id === 'footerAdminModalOverlay') document.getElementById('footerAdminCancelBtn').click();
+});
+document.getElementById('footerAdminForm').addEventListener('submit', async e => {
+  e.preventDefault();
   const password = document.getElementById('footerAdminPassword').value;
   const errEl = document.getElementById('footerAdminError');
+  const submitBtn = document.getElementById('footerAdminSubmitBtn');
+  submitBtn.disabled = true;
   try {
     const res = await fetch('/api/admin/login', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ password }) });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Login failed');
     state.cmAdminLoggedIn = true;
-    document.getElementById('footerAdminPopover').style.display = 'none';
+    document.getElementById('footerAdminModalOverlay').classList.remove('open');
     document.getElementById('footerAdminPassword').value = '';
     errEl.textContent = '';
     render();
   } catch(err){ errEl.textContent = err.message; }
-});
-document.getElementById('footerAdminPassword').addEventListener('keydown', e => {
-  if(e.key === 'Enter') document.getElementById('footerAdminSubmitBtn').click();
+  submitBtn.disabled = false;
 });
 document.getElementById('detail-view').addEventListener('click', e => {
   if(e.target.id === 'detail-view') closeDetail();

@@ -77,7 +77,14 @@ npx wrangler deploy
 
 ## Current Status
 
-**Status:** IN PROGRESS — needs a GITHUB_TOKEN secret from Lujane before it actually works
+**Status:** IDLE — GITHUB_TOKEN secret is now set; login modal fixed for iOS home-screen mode
+**Last updated by:** Claude (chat)
+**Last updated:** 2026-09-14 (footer admin login fixed for iOS standalone mode + safe-area insets)
+
+**2026-09-14 (footer admin login fixed for iOS standalone mode + safe-area insets) — Claude (chat) — `index.html`** — Lujane set GITHUB_TOKEN live (`wrangler secret put`, verified the PAT can read the repo directly via GitHub's API), then reported two problems testing the new footer admin login as her iPhone's home-screen app: "incorrect password, won't let me try again" and "view is messed up." Root cause of the login issue: the login UI was a small popover anchored under the footer button (`position:absolute` near the bottom of a long scrolling page) with a plain `<button>` (not `type=submit`) — in an iOS standalone PWA, the on-screen keyboard covering the bottom of the viewport plus the popover's anchor position made it easy for the Sign In button to be pushed off-screen/unreachable after the first attempt, and there was no real `<form>` so the iOS keyboard's "Go" action had no native submit to hook into. Replaced it with a fixed, viewport-centered modal (a real `<form>` with `type="submit"`, `enterkeyhint="go"`, and `autocomplete="current-password" autocapitalize="none" autocorrect="off"` to stop iOS from mangling the typed password) that stays visible and reachable regardless of scroll position or keyboard state; confirmed via direct event-dispatch testing that a failed login now correctly keeps the modal open with a visible error, ready to retry immediately (an earlier coordinate-based click/type test appeared to show it silently closing, but that was purely a browser-automation targeting quirk, not a real bug in the shipped code — dispatching the actual submit event confirmed correct behavior). Separately, and likely the actual cause of "view is messed up": the site has `viewport-fit=cover` + `apple-mobile-web-app-status-bar-style: black-translucent` (has for a while, not something I added) but NO safe-area-inset handling anywhere, meaning in standalone/home-screen mode the page renders edge-to-edge under the iPhone's status bar/notch with nothing pushing content clear of it — added `env(safe-area-inset-top)` to the header's top padding and `env(safe-area-inset-bottom)` to the footer's bottom padding and the new admin modal's padding, a real pre-existing gap, not a regression from this session's footer changes (verified no visual regression on a normal 375px mobile viewport before this fix). Validated: JS syntax check, in-browser modal open/cancel/backdrop-click/failed-submit-retry all confirmed working via direct DOM/event testing.
+
+
+**Status:** IDLE
 **Last updated by:** Claude (chat)
 **Last updated:** 2026-09-13 (in-site calendar event editor — DecapBridge-alike)
 
@@ -376,6 +383,8 @@ npx wrangler deploy
 ## Recent Activity Log
 
 _(most recent first — add new entries to the top, trim past ~15)_
+
+- 2026-09-14 — Claude (chat) — `index.html` — Fixed the footer admin login for iOS home-screen mode: replaced the anchored popover with a proper centered `<form>` modal (fixes "won't let me try again"), and added `env(safe-area-inset-top/bottom)` padding to header/footer (fixes standalone-mode status-bar overlap). GITHUB_TOKEN secret is now set in production. See Current Status entry above for full detail.
 
 - 2026-09-13 — Claude (chat) — `workers/src/worker.js`, `index.html` — Built an in-site calendar event editor (footer Admin Login + edit button on event details) that commits straight to GitHub via the Contents API, same pipeline as Decap/DecapBridge. NOT yet live — needs a GITHUB_TOKEN secret from Lujane first. See Current Status entry above for full detail.
 
