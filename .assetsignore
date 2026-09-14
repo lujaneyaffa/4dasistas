@@ -3,6 +3,8 @@
 
 .github
 .git
+.kilo
+.claude
 workers
 scripts
 node_modules
