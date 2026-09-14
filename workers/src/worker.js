@@ -38,8 +38,17 @@
  *   POST   /api/admin/club-events/:clubId                    - Create an event (title, desc, startDate, endDate, startHour, endHour)
  *   DELETE /api/admin/club-events/:clubId/:eventId            - Remove an event and its responses
  *
+ *   -- In-site calendar event editor (session-cookie gated, commits straight to GitHub like Decap CMS) --
+ *   GET    /api/admin/calendar-event/:id                     - Read one event's full source JSON from data/calendar/:id.json
+ *   PUT    /api/admin/calendar-event/:id                     - Merge { fields:{...} } into that source file and commit to GitHub (main),
+ *                                                                which triggers the existing regenerate-calendar.yml Action to rebuild
+ *                                                                the aggregate data/*.json files and calendar.ics, then Cloudflare
+ *                                                                auto-deploys — same pipeline Decap/DecapBridge already use.
+ *
  * Required secrets (wrangler secret put <name>):
- *   ADMIN_PASSWORD    - admin login for /editor and the in-site Club Events admin panel
+ *   ADMIN_PASSWORD    - admin login for /editor and the in-site Club Events / calendar-event admin panels
+ *   GITHUB_TOKEN      - fine-grained GitHub PAT, Contents: Read and write, scoped to just this repo —
+ *                       used only by the calendar-event editor above to commit edits
  *
  * Deploy:
  *   wrangler deploy
@@ -195,6 +204,50 @@ const sanitizeEventSlots = (input, event) => {
     out.add(`${date}|${halfHour}`);
   }
   return [...out];
+};
+
+// ---- In-site calendar event editor: commits straight to GitHub, same as Decap CMS ----
+const GITHUB_OWNER = "lujaneyaffa";
+const GITHUB_REPO = "4dasistas";
+const GITHUB_API = "https://api.github.com";
+
+// Blocks path-traversal (no "/" or "\" means an id can never introduce extra path
+// segments) and control chars, rather than allowlisting characters — real event ids
+// contain all sorts of emoji, curly apostrophes, etc. that a narrow allowlist would reject.
+const CALENDAR_ID_RE = /^[^/\\\x00-\x1f]{1,150}$/;
+const calendarFilePath = (id) => `data/calendar/${id}.json`;
+
+const b64EncodeUnicode = (str) => btoa(unescape(encodeURIComponent(str)));
+const b64DecodeUnicode = (str) => decodeURIComponent(escape(atob(str.replace(/\n/g, ""))));
+
+const githubHeaders = (env) => ({
+  Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+  "User-Agent": "4dasistas-admin-editor",
+  Accept: "application/vnd.github+json",
+});
+
+const githubGetFile = async (env, path) => {
+  const res = await fetch(
+    `${GITHUB_API}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`,
+    { headers: githubHeaders(env) }
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  return { sha: data.sha, content: JSON.parse(b64DecodeUnicode(data.content)) };
+};
+
+const githubPutFile = async (env, path, content, sha, message) => {
+  return fetch(`${GITHUB_API}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`, {
+    method: "PUT",
+    headers: { ...githubHeaders(env), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      content: b64EncodeUnicode(JSON.stringify(content, null, 2) + "\n"),
+      sha,
+      branch: "main",
+      committer: { name: "4DASISTAS Site Admin", email: "admin@4dasistas.ca" },
+    }),
+  });
 };
 
 const jsonResponse = (body, status = 200, corsHeaders = {}) => new Response(JSON.stringify(body), {
@@ -490,7 +543,7 @@ export default {
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/calendar-event");
 
     if (requiresAuth) {
       const token = getSessionToken(request);
@@ -703,6 +756,35 @@ export default {
       await writeClubEvents(env, clubId, events.filter(e => e.id !== eventId));
       await env.SITE_DATA.delete(clubEventResponsesKey(clubId, eventId)).catch(() => {});
       return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+
+    // Admin: read/edit a calendar event's real source file — commits straight to GitHub
+    const adminCalEventMatch = path.match(/^\/api\/admin\/calendar-event\/([^/]+)\/?$/);
+    if (adminCalEventMatch && (request.method === "GET" || request.method === "PUT")) {
+      if (!env.GITHUB_TOKEN) return jsonResponse({ error: "Server misconfigured: GITHUB_TOKEN is not set" }, 500, corsHeaders);
+      const id = decodeURIComponent(adminCalEventMatch[1]);
+      if (!CALENDAR_ID_RE.test(id)) return jsonResponse({ error: "Invalid event id" }, 400, corsHeaders);
+      const filePath = calendarFilePath(id);
+
+      if (request.method === "GET") {
+        const file = await githubGetFile(env, filePath);
+        if (!file) return jsonResponse({ error: "Event source file not found" }, 404, corsHeaders);
+        return jsonResponse(file.content, 200, corsHeaders);
+      }
+
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      if (!body.fields || typeof body.fields !== "object") return jsonResponse({ error: "fields object is required" }, 400, corsHeaders);
+      const file = await githubGetFile(env, filePath);
+      if (!file) return jsonResponse({ error: "Event source file not found" }, 404, corsHeaders);
+      const updated = { ...file.content, ...body.fields };
+      const commitMessage = `Edit "${updated.title || id}" via site admin editor`;
+      const res = await githubPutFile(env, filePath, updated, file.sha, commitMessage);
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
+      }
+      return jsonResponse({ ok: true, content: updated }, 200, corsHeaders);
     }
 
     if (path.startsWith("/api/data/")) {

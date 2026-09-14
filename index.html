@@ -539,7 +539,17 @@
   .link-btn.primary{ background:var(--charcoal); color:var(--cream); }
   .link-btn.secondary{ background:white; color:var(--charcoal); }
 
-  footer{ text-align:center; padding:32px 20px 40px; border-top:1px solid rgba(33,30,28,0.12); margin-top:16px; background:#ce8491; }
+  footer{ position:relative; text-align:center; padding:32px 20px 40px; border-top:1px solid rgba(33,30,28,0.12); margin-top:16px; background:#ce8491; }
+  .footer-admin-corner{ position:absolute; top:14px; right:14px; text-align:right; z-index:5; }
+  .footer-admin-btn{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:11px; padding:7px 12px; border-radius:999px; border:2px solid var(--charcoal); background:rgba(255,255,255,0.85); color:var(--charcoal); cursor:pointer; box-shadow:2px 2px 0 var(--charcoal); }
+  .footer-admin-btn:hover{ transform:translate(-1px,-1px); box-shadow:3px 3px 0 var(--charcoal); }
+  .footer-admin-popover{ position:absolute; top:36px; right:0; width:190px; background:white; border:2px solid var(--charcoal); border-radius:10px; padding:10px; box-shadow:3px 3px 0 var(--charcoal); text-align:left; }
+  .footer-admin-popover input{ width:100%; padding:8px; border-radius:8px; border:1.5px solid var(--charcoal); box-sizing:border-box; margin-bottom:8px; font-size:13px; }
+  .footer-admin-popover button{ width:100%; padding:8px; border-radius:8px; border:none; background:var(--charcoal); color:var(--cream); font-weight:700; cursor:pointer; font-size:12px; }
+  @media (max-width:520px){
+    .footer-admin-corner{ top:8px; right:8px; }
+    .footer-admin-btn{ font-size:10px; padding:6px 10px; }
+  }
   .footer-btns{ display:flex; justify-content:center; flex-wrap:nowrap; gap:10px; margin:14px 0; }
   .wa-btn{ display:inline-flex; align-items:center; gap:9px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14px; line-height:1; background:var(--wa-green); color:white; padding:12px 22px; border-radius:999px; text-decoration:none; }
   .wa-btn svg{ width:18px; height:18px; flex-shrink:0; display:block; }
@@ -719,6 +729,14 @@
 <p class="page-disclaimer" id="pageDisclaimer">Details change often, so always confirm dates, prices, locations, and any "hijab-off"/private-space claims directly with the organizer before attending.</p>
 
 <footer>
+  <div class="footer-admin-corner">
+    <button type="button" class="footer-admin-btn" id="footerAdminBtn">🔒 Admin Login</button>
+    <div class="footer-admin-popover" id="footerAdminPopover" style="display:none;">
+      <input type="password" id="footerAdminPassword" placeholder="Admin password">
+      <button type="button" id="footerAdminSubmitBtn">Sign In</button>
+      <div id="footerAdminError" style="color:#c00;font-size:11px;margin-top:6px;"></div>
+    </div>
+  </div>
   <a class="suggest-btn" href="mailto:lujanealdimasi@gmail.com?subject=4DASISTAS%20Suggestion">✎ Suggest a change</a>
   <div class="footer-btns">
     <a class="wa-btn" href="https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS" target="_blank" rel="noopener">
@@ -924,6 +942,7 @@ let state = {
   cmAdminOpen:false, cmAdminLoggedIn:null, cmAdminError:'', cmAdminClub:null, cmAdminEvents:null,
   cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
+  eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false,
 };
 
 const introText = {
@@ -2857,9 +2876,18 @@ function firstUrl(value){
   return match ? match[0] : '';
 }
 
+const EDITABLE_SECTIONS = ['sports','activities','functions','trips','mosqueprograms','supportprograms'];
+function isEditableCalendarItem(e){ return !!e && EDITABLE_SECTIONS.includes(e.section); }
+
 function renderDetail(id){
   const e = findItem(id);
   if(!e) return;
+  if(state.eventEditOpen && state.eventEditId === id){
+    document.getElementById('detail-view').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    renderEventEditView();
+    return;
+  }
   const isResource = resourcesData.includes(e);
 
   let facts = '';
@@ -2911,6 +2939,7 @@ function renderDetail(id){
     <div class="detail-facts">${facts}</div>
     ${mapEmbed}
     <div class="detail-links">${links}</div>
+    ${(state.cmAdminLoggedIn && isEditableCalendarItem(e)) ? `<button type="button" class="link-btn secondary" id="detailEditBtn" style="margin-top:10px;">✏️ Edit event</button>` : ''}
   `;
 
   if(igPostUrl){
@@ -2920,6 +2949,9 @@ function renderDetail(id){
     }, {once:true});
   }
 
+  const detailEditBtn = document.getElementById('detailEditBtn');
+  if(detailEditBtn) detailEditBtn.addEventListener('click', () => openEventEdit(e.id));
+
   document.getElementById('detail-view').classList.add('open');
   document.body.style.overflow = 'hidden';
 }
@@ -2928,6 +2960,182 @@ function closeDetail(){
   document.getElementById('detail-view').classList.remove('open');
   document.body.style.overflow = '';
   history.replaceState(null, '', location.pathname + location.search);
+  state.eventEditOpen = false;
+  state.eventEditId = null;
+  state.eventEditData = null;
+  state.eventEditError = '';
+  state.eventEditSaved = false;
+}
+
+const EVENT_EDIT_WEEKDAYS = [['sun','Sun'],['mon','Mon'],['tue','Tue'],['wed','Wed'],['thu','Thu'],['fri','Fri'],['sat','Sat']];
+const EVENT_EDIT_AUDIENCE = ['Muslim Women','Hijabi Friendly','Family Event','All Women'];
+const EVENT_EDIT_SECTIONS = [['sports','Sports'],['activities','Activities'],['functions','Functions'],['trips','Trips'],['mosqueprograms','Knowledge'],['supportprograms','Support Groups']];
+
+async function openEventEdit(id){
+  state.eventEditOpen = true;
+  state.eventEditId = id;
+  state.eventEditError = '';
+  state.eventEditSaved = false;
+  state.eventEditData = null;
+  renderEventEditView();
+  try {
+    const res = await fetch('/api/admin/calendar-event/' + encodeURIComponent(id), { credentials:'include' });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Could not load event');
+    state.eventEditData = data;
+  } catch(err){
+    state.eventEditError = err.message;
+  }
+  renderEventEditView();
+}
+
+function closeEventEdit(){
+  const id = state.eventEditId;
+  state.eventEditOpen = false;
+  state.eventEditId = null;
+  state.eventEditData = null;
+  state.eventEditError = '';
+  state.eventEditSaved = false;
+  if(id) renderDetail(id);
+}
+
+function renderEventEditView(){
+  const card = document.getElementById('detailCard');
+  if(!card) return;
+  const d = state.eventEditData;
+
+  if(!d){
+    card.innerHTML = `<button class="back-btn" id="eventEditCancelBtn" type="button">← Cancel</button>
+      ${state.eventEditError ? `<p style="color:#c00;">Error: ${escapeCm(state.eventEditError)}</p>` : '<p>Loading event…</p>'}`;
+    document.getElementById('eventEditCancelBtn').addEventListener('click', closeEventEdit);
+    return;
+  }
+
+  const audience = Array.isArray(d.audienceType) ? d.audienceType : (d.audienceType ? [d.audienceType] : []);
+  const days = Array.isArray(d.days) ? d.days : [];
+  const fieldStyle = 'width:100%;padding:8px;border-radius:8px;border:1.5px solid var(--charcoal);margin-top:4px;box-sizing:border-box;';
+  const labelStyle = 'font-size:12px;font-weight:700;flex:1;';
+
+  card.innerHTML = `
+    <button class="back-btn" id="eventEditCancelBtn" type="button">← Cancel</button>
+    <h2 style="margin-bottom:14px;">Edit Event</h2>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <label style="${labelStyle}">Calendar tab
+        <select id="editSection" style="${fieldStyle}">
+          ${EVENT_EDIT_SECTIONS.map(([v,l]) => `<option value="${v}" ${d.section===v?'selected':''}>${l}</option>`).join('')}
+        </select>
+      </label>
+      <label style="${labelStyle}">Title
+        <input id="editTitle" type="text" value="${escapeCm(d.title||'')}" style="${fieldStyle}">
+      </label>
+      <div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Audience Type</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          ${EVENT_EDIT_AUDIENCE.map(a => `<label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="editAudience" value="${escapeCm(a)}" ${audience.includes(a)?'checked':''}>${a}</label>`).join('')}
+        </div>
+      </div>
+      <label style="${labelStyle}">Emoji override
+        <input id="editEmoji" type="text" maxlength="8" value="${escapeCm(d.emoji||'')}" style="${fieldStyle}">
+      </label>
+      <label style="${labelStyle}">Organized by
+        <input id="editOrganizedBy" type="text" value="${escapeCm(d.organizedBy||'')}" style="${fieldStyle}">
+      </label>
+      <div style="display:flex;gap:10px;">
+        <label style="${labelStyle}">Event date
+          <input id="editEventDate" type="date" value="${d.eventDate||''}" style="${fieldStyle}">
+        </label>
+        <label style="${labelStyle}">End date
+          <input id="editEndDate" type="date" value="${d.endDate||''}" style="${fieldStyle}">
+        </label>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-end;">
+        <label style="${labelStyle}">Time
+          <input id="editTime" type="time" value="${d.time||''}" style="${fieldStyle}">
+        </label>
+        <label style="${labelStyle}">End time
+          <input id="editEndTime" type="time" value="${d.endTime||''}" style="${fieldStyle}">
+        </label>
+        <label style="font-size:12px;display:flex;align-items:center;gap:4px;white-space:nowrap;padding-bottom:9px;"><input type="checkbox" id="editAllDay" ${d.allDay?'checked':''}>All day</label>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Recurring weekdays</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          ${EVENT_EDIT_WEEKDAYS.map(([v,l]) => `<label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="editDay" value="${v}" ${days.includes(v)?'checked':''}>${l}</label>`).join('')}
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <label style="${labelStyle}">Recurring starts
+          <input id="editRecurStart" type="date" value="${d.recurStart||''}" style="${fieldStyle}">
+        </label>
+        <label style="${labelStyle}">Recurring ends
+          <input id="editRecurEnd" type="date" value="${d.recurEnd||''}" style="${fieldStyle}">
+        </label>
+      </div>
+      <label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="editVirtual" ${d.virtual?'checked':''}>Virtual/online event (no physical location)</label>
+      <label style="${labelStyle}">Location
+        <input id="editLocation" type="text" value="${escapeCm(d.location||'')}" style="${fieldStyle}">
+      </label>
+      <label style="${labelStyle}">Link (Instagram or WhatsApp)
+        <input id="editLink" type="text" value="${escapeCm(d.link||'')}" style="${fieldStyle}">
+      </label>
+      <label style="${labelStyle}">Description
+        <textarea id="editDesc" rows="4" style="${fieldStyle}font-family:inherit;">${escapeCm(d.desc||'')}</textarea>
+      </label>
+      <p style="font-size:11px;color:#776867;">Some advanced fields (extra one-off dates, sport-key tagging, "also show in other calendars") aren't editable here yet — use DecapBridge for those; saving here won't touch or lose them.</p>
+      ${state.eventEditError ? `<p style="color:#c00;font-size:13px;">${escapeCm(state.eventEditError)}</p>` : ''}
+      ${state.eventEditSaved ? `<p style="color:#2a7a4a;font-size:13px;">Saved! The site rebuilds automatically — this can take a minute or two to appear live.</p>` : ''}
+      <div style="display:flex;gap:10px;margin-top:6px;">
+        <button type="button" class="link-btn primary" id="eventEditSaveBtn" style="flex:1;text-align:center;" ${state.eventEditSaving?'disabled':''}>${state.eventEditSaving?'Saving…':'Save changes'}</button>
+        <button type="button" class="link-btn secondary" id="eventEditCancelBtn2" style="flex:1;text-align:center;">Cancel</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('eventEditCancelBtn').addEventListener('click', closeEventEdit);
+  document.getElementById('eventEditCancelBtn2').addEventListener('click', closeEventEdit);
+  document.getElementById('eventEditSaveBtn').addEventListener('click', saveEventEdit);
+}
+
+async function saveEventEdit(){
+  const id = state.eventEditId;
+  const audience = [...document.querySelectorAll('.editAudience:checked')].map(cb => cb.value);
+  const days = [...document.querySelectorAll('.editDay:checked')].map(cb => cb.value);
+  const fields = {
+    section: document.getElementById('editSection').value,
+    title: document.getElementById('editTitle').value.trim(),
+    audienceType: audience,
+    emoji: document.getElementById('editEmoji').value.trim(),
+    organizedBy: document.getElementById('editOrganizedBy').value.trim(),
+    eventDate: document.getElementById('editEventDate').value,
+    endDate: document.getElementById('editEndDate').value,
+    time: document.getElementById('editTime').value,
+    endTime: document.getElementById('editEndTime').value,
+    allDay: document.getElementById('editAllDay').checked,
+    days,
+    recurStart: document.getElementById('editRecurStart').value,
+    recurEnd: document.getElementById('editRecurEnd').value,
+    virtual: document.getElementById('editVirtual').checked,
+    location: document.getElementById('editLocation').value.trim(),
+    link: document.getElementById('editLink').value.trim(),
+    desc: document.getElementById('editDesc').value.trim(),
+  };
+  state.eventEditSaving = true;
+  state.eventEditError = '';
+  state.eventEditSaved = false;
+  renderEventEditView();
+  try {
+    const res = await fetch('/api/admin/calendar-event/' + encodeURIComponent(id), {
+      method:'PUT', headers:{'Content-Type':'application/json'}, credentials:'include',
+      body: JSON.stringify({ fields })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Save failed');
+    state.eventEditData = data.content;
+    state.eventEditSaved = true;
+  } catch(err){
+    state.eventEditError = err.message;
+  }
+  state.eventEditSaving = false;
+  renderEventEditView();
 }
 
 /* ============================================================
@@ -3708,8 +3916,24 @@ function renderFooterLogout(){
   btn.style.display = (getCmSession() || state.cmAdminLoggedIn === true) ? '' : 'none';
 }
 
+function renderFooterAdmin(){
+  const btn = document.getElementById('footerAdminBtn');
+  if(!btn) return;
+  btn.textContent = state.cmAdminLoggedIn ? '🔒 Admin: Log Out' : '🔒 Admin Login';
+}
+
+async function checkAdminSession(){
+  try {
+    const res = await fetch('/api/admin/session', { credentials:'include' });
+    const data = await res.json();
+    state.cmAdminLoggedIn = !!data.loggedIn;
+  } catch { state.cmAdminLoggedIn = false; }
+  render();
+}
+
 function render(){
   renderFooterLogout();
+  renderFooterAdmin();
   const contextBack = document.getElementById('contextBack');
   if(contextBack) contextBack.classList.toggle('visible', (state.tab === 'resources' && state.returnTab === 'events') || state.tab === 'supportgroups');
   syncToggleButtonClasses();
@@ -4024,6 +4248,33 @@ document.getElementById('footerLogoutBtn').addEventListener('click', async () =>
   state.cmView = 'auth'; state.cmMe = null;
   render();
 });
+document.getElementById('footerAdminBtn').addEventListener('click', async () => {
+  if(state.cmAdminLoggedIn){
+    await cmAdminLogout();
+    render();
+    return;
+  }
+  const pop = document.getElementById('footerAdminPopover');
+  pop.style.display = pop.style.display === 'none' ? 'block' : 'none';
+  if(pop.style.display === 'block') document.getElementById('footerAdminPassword').focus();
+});
+document.getElementById('footerAdminSubmitBtn').addEventListener('click', async () => {
+  const password = document.getElementById('footerAdminPassword').value;
+  const errEl = document.getElementById('footerAdminError');
+  try {
+    const res = await fetch('/api/admin/login', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ password }) });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Login failed');
+    state.cmAdminLoggedIn = true;
+    document.getElementById('footerAdminPopover').style.display = 'none';
+    document.getElementById('footerAdminPassword').value = '';
+    errEl.textContent = '';
+    render();
+  } catch(err){ errEl.textContent = err.message; }
+});
+document.getElementById('footerAdminPassword').addEventListener('keydown', e => {
+  if(e.key === 'Enter') document.getElementById('footerAdminSubmitBtn').click();
+});
 document.getElementById('detail-view').addEventListener('click', e => {
   if(e.target.id === 'detail-view') closeDetail();
 });
@@ -4081,6 +4332,7 @@ loadData().then(() => {
   syncToggleButtonClasses();
   render();
   showLoadWarning();
+  checkAdminSession();
   const initMatch = location.hash.match(/^#\/event\/(.+)$/);
   if(initMatch) renderDetail(initMatch[1]);
 }).catch(err => {
