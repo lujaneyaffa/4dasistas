@@ -54,6 +54,33 @@
       "link": ""
     },
     {
+      "eventDate": "2026-08-19",
+      "date": "Wednesdays at 7 PM, starting August 19, 2026",
+      "organizer": "ISNA Canada",
+      "desc": "A space for Muslim youth to reflect and engage in meaningful discussions through literature. Currently reading 'Perfect Victims & the Politics of Appeal' by Mohammed Elkurd. Book available from Sabiqoun Books — use promo code ISNABOOKCLUB for 20% off.",
+      "recurStart": "2026-08-19",
+      "location": "ISNA Canada (ICC) Education Centre, 2200 S Sheridan Way, Mississauga",
+      "days": [
+        "wed"
+      ],
+      "title": "ISNA Youth Book Club",
+      "registration": "https://isnacanada.com/youth",
+      "tag": "Function",
+      "id": "isna-youth-book-club-2026",
+      "category": "functions",
+      "section": "mosqueprograms",
+      "audienceType": [],
+      "emoji": "",
+      "organizedBy": "",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "recurEnd": "",
+      "virtual": false,
+      "link": ""
+    },
+    {
       "id": "mg-almukhlisin-fiqh-of-salah",
       "tag": "Mosque Program",
       "title": "Fiqh of Salah",
