@@ -77,7 +77,14 @@ npx wrangler deploy
 
 ## Current Status
 
-**Status:** IDLE — event editor confirmed working in production (3 real edits landed); still needs a fresh ADMIN_PASSWORD from Lujane
+**Status:** IDLE — Lujane already using the editor live (5+ real edits landed so far); still needs a fresh ADMIN_PASSWORD
+**Last updated by:** Claude (chat)
+**Last updated:** 2026-09-14 (missing-details review queue in the admin editor)
+
+**2026-09-14 (missing-details review queue in the admin editor) — Claude (chat) — `index.html`** — Lujane: give me a section in admin that finds events missing details (e.g. audience type) and prompts me to fill them in one by one. Built directly on top of the calendar-event editor from earlier today. `missingDetailsFor(e)` flags an event if it's missing Audience Type (empty array — matches the CMS's own `required: true` on this field), Description, or Location (skipped for virtual events). A new footer button "📋 N need details" appears next to Admin Login whenever logged in and the count is nonzero; clicking it starts a review queue — opens the same edit form used for a single event, but in review mode it shows a "Reviewing X of Y" banner, red-outlines the specific missing field(s) with a "— missing" label, and swaps the buttons to "Save & next" (saves then auto-advances after a beat) and "Skip this one" (advances without saving) instead of Save/Cancel; "Exit review" leaves the queue at any point. Also keeps the in-memory copy of each item in sync after a save (`Object.assign` onto the `findItem()` result) so the remaining-count badge ticks down live within the same session without needing a reload, and re-checks the queue fresh each time it's opened so already-fixed events don't reappear. Scope note (told to Lujane implicitly via the existing "some advanced fields aren't editable here" line already in the form): this only scans the 6 editable calendar sections, not Resources/Small Businesses. Validated end-to-end in-browser with a mocked fetch (real GITHUB_TOKEN writes not needed to verify the flow logic): confirmed the queue builds correctly (138 of ~200 test items flagged), Skip advances without saving, Save & Next saves + syncs the in-memory item + auto-advances, the footer badge count ticks down live after each save, and Exit cleanly closes and refreshes the badge.
+
+
+**Status:** IDLE
 **Last updated by:** Claude (chat)
 **Last updated:** 2026-09-14 (persist current tab across a home-screen app relaunch)
 
@@ -404,6 +411,8 @@ npx wrangler deploy
 ## Recent Activity Log
 
 _(most recent first — add new entries to the top, trim past ~15)_
+
+- 2026-09-14 — Claude (chat) — `index.html` — Added a "📋 N need details" review queue to the admin editor: finds every calendar event missing Audience Type/Description/Location and walks through them one at a time with Save & Next / Skip. See Current Status entry above for full detail.
 
 - 2026-09-14 — Claude (chat) — `index.html` — Home-screen app relaunches always open with no URL hash, so tab state saved only in the hash couldn't survive it; now also mirrored to localStorage as a fallback. Bonus confirmation: the calendar-event editor is genuinely working live (3 real edits landed as commits from Lujane). See Current Status entry above for full detail.
 

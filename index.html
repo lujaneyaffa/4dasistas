@@ -541,9 +541,10 @@
   .link-btn.secondary{ background:white; color:var(--charcoal); }
 
   footer{ position:relative; text-align:center; padding:32px 20px calc(40px + env(safe-area-inset-bottom)); border-top:1px solid rgba(33,30,28,0.12); margin-top:16px; background:#ce8491; }
-  .footer-admin-corner{ position:absolute; top:14px; right:14px; text-align:right; z-index:5; }
+  .footer-admin-corner{ position:absolute; top:14px; right:14px; text-align:right; z-index:5; display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
   .footer-admin-btn{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:11px; padding:7px 12px; border-radius:999px; border:2px solid var(--charcoal); background:rgba(255,255,255,0.85); color:var(--charcoal); cursor:pointer; box-shadow:2px 2px 0 var(--charcoal); }
   .footer-admin-btn:hover{ transform:translate(-1px,-1px); box-shadow:3px 3px 0 var(--charcoal); }
+  .footer-missing-btn{ background:var(--gold); }
   .footer-admin-modal-overlay{ position:fixed; inset:0; background:rgba(33,30,28,0.5); z-index:6000; display:none; align-items:center; justify-content:center; padding:20px; padding-bottom:calc(20px + env(safe-area-inset-bottom)); }
   .footer-admin-modal-overlay.open{ display:flex; }
   .footer-admin-modal{ background:white; border:2px solid var(--charcoal); border-radius:14px; padding:20px; width:100%; max-width:280px; box-shadow:4px 4px 0 var(--charcoal); text-align:left; }
@@ -735,6 +736,7 @@
 
 <footer>
   <div class="footer-admin-corner">
+    <button type="button" class="footer-admin-btn footer-missing-btn" id="footerMissingDetailsBtn" style="display:none;">📋 Needs details</button>
     <button type="button" class="footer-admin-btn" id="footerAdminBtn">🔒 Admin Login</button>
   </div>
   <a class="suggest-btn" href="mailto:lujanealdimasi@gmail.com?subject=4DASISTAS%20Suggestion">✎ Suggest a change</a>
@@ -953,6 +955,7 @@ let state = {
   cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false,
+  reviewMode:false, reviewQueue:[], reviewTotal:0,
 };
 
 const introText = {
@@ -2889,6 +2892,42 @@ function firstUrl(value){
 const EDITABLE_SECTIONS = ['sports','activities','functions','trips','mosqueprograms','supportprograms'];
 function isEditableCalendarItem(e){ return !!e && EDITABLE_SECTIONS.includes(e.section); }
 
+function missingDetailsFor(e){
+  const missing = [];
+  const audience = Array.isArray(e.audienceType) ? e.audienceType : (e.audienceType ? [e.audienceType] : []);
+  if(!audience.length) missing.push('Audience Type');
+  if(!e.desc || !String(e.desc).trim()) missing.push('Description');
+  if(!e.virtual && (!e.location || !String(e.location).trim())) missing.push('Location');
+  return missing;
+}
+
+function buildMissingDetailsQueue(){
+  return ALL_ITEMS.filter(e => isEditableCalendarItem(e) && missingDetailsFor(e).length > 0).map(e => e.id);
+}
+
+function startMissingDetailsReview(){
+  const queue = buildMissingDetailsQueue();
+  if(!queue.length){ alert('Nothing missing — every event has Audience Type, Description, and Location filled in!'); return; }
+  state.reviewMode = true;
+  state.reviewQueue = queue.slice(1);
+  state.reviewTotal = queue.length;
+  openEventEdit(queue[0]);
+}
+
+function advanceReviewQueue(){
+  if(!state.reviewQueue.length){ exitReviewMode(); return; }
+  const nextId = state.reviewQueue.shift();
+  openEventEdit(nextId);
+}
+
+function exitReviewMode(){
+  state.reviewMode = false;
+  state.reviewQueue = [];
+  state.reviewTotal = 0;
+  closeEventEdit(false);
+  renderFooterAdmin();
+}
+
 function renderDetail(id){
   const e = findItem(id);
   if(!e) return;
@@ -2987,6 +3026,8 @@ async function openEventEdit(id){
   state.eventEditError = '';
   state.eventEditSaved = false;
   state.eventEditData = null;
+  document.getElementById('detail-view').classList.add('open');
+  document.body.style.overflow = 'hidden';
   renderEventEditView();
   try {
     const res = await fetch('/api/admin/calendar-event/' + encodeURIComponent(id), { credentials:'include' });
@@ -2999,25 +3040,32 @@ async function openEventEdit(id){
   renderEventEditView();
 }
 
-function closeEventEdit(){
+function closeEventEdit(returnToDetail){
   const id = state.eventEditId;
   state.eventEditOpen = false;
   state.eventEditId = null;
   state.eventEditData = null;
   state.eventEditError = '';
   state.eventEditSaved = false;
-  if(id) renderDetail(id);
+  if(returnToDetail !== false && id){
+    renderDetail(id);
+  } else {
+    document.getElementById('detail-view').classList.remove('open');
+    document.body.style.overflow = '';
+  }
 }
 
 function renderEventEditView(){
   const card = document.getElementById('detailCard');
   if(!card) return;
   const d = state.eventEditData;
+  const reviewMode = state.reviewMode;
+  const reviewPos = reviewMode ? (state.reviewTotal - state.reviewQueue.length) : 0;
 
   if(!d){
-    card.innerHTML = `<button class="back-btn" id="eventEditCancelBtn" type="button">← Cancel</button>
+    card.innerHTML = `<button class="back-btn" id="eventEditCancelBtn" type="button">← ${reviewMode ? 'Exit review' : 'Cancel'}</button>
       ${state.eventEditError ? `<p style="color:#c00;">Error: ${escapeCm(state.eventEditError)}</p>` : '<p>Loading event…</p>'}`;
-    document.getElementById('eventEditCancelBtn').addEventListener('click', closeEventEdit);
+    document.getElementById('eventEditCancelBtn').addEventListener('click', () => reviewMode ? exitReviewMode() : closeEventEdit());
     return;
   }
 
@@ -3025,9 +3073,15 @@ function renderEventEditView(){
   const days = Array.isArray(d.days) ? d.days : [];
   const fieldStyle = 'width:100%;padding:8px;border-radius:8px;border:1.5px solid var(--charcoal);margin-top:4px;box-sizing:border-box;';
   const labelStyle = 'font-size:12px;font-weight:700;flex:1;';
+  const missing = reviewMode ? missingDetailsFor(d) : [];
+  const missingBorder = 'border-color:#c00;';
 
   card.innerHTML = `
-    <button class="back-btn" id="eventEditCancelBtn" type="button">← Cancel</button>
+    <button class="back-btn" id="eventEditCancelBtn" type="button">← ${reviewMode ? 'Exit review' : 'Cancel'}</button>
+    ${reviewMode ? `<div style="background:var(--blush);border:2px solid var(--charcoal);border-radius:10px;padding:10px;margin-bottom:12px;">
+      <strong style="font-size:13px;">Reviewing ${reviewPos} of ${state.reviewTotal}</strong>
+      <div style="font-size:12px;margin-top:4px;">Missing: ${missing.length ? missing.map(escapeCm).join(', ') : '<em>nothing left — safe to save</em>'}</div>
+    </div>` : ''}
     <h2 style="margin-bottom:14px;">Edit Event</h2>
     <div style="display:flex;flex-direction:column;gap:10px;">
       <label style="${labelStyle}">Calendar tab
@@ -3038,8 +3092,8 @@ function renderEventEditView(){
       <label style="${labelStyle}">Title
         <input id="editTitle" type="text" value="${escapeCm(d.title||'')}" style="${fieldStyle}">
       </label>
-      <div>
-        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Audience Type</div>
+      <div style="${missing.includes('Audience Type') ? `padding:8px;border-radius:8px;border:1.5px solid #c00;` : ''}">
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Audience Type${missing.includes('Audience Type') ? ' <span style="color:#c00;">— missing</span>' : ''}</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;">
           ${EVENT_EDIT_AUDIENCE.map(a => `<label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="editAudience" value="${escapeCm(a)}" ${audience.includes(a)?'checked':''}>${a}</label>`).join('')}
         </div>
@@ -3082,26 +3136,26 @@ function renderEventEditView(){
         </label>
       </div>
       <label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="editVirtual" ${d.virtual?'checked':''}>Virtual/online event (no physical location)</label>
-      <label style="${labelStyle}">Location
-        <input id="editLocation" type="text" value="${escapeCm(d.location||'')}" style="${fieldStyle}">
+      <label style="${labelStyle}">Location${missing.includes('Location') ? ' <span style="color:#c00;">— missing</span>' : ''}
+        <input id="editLocation" type="text" value="${escapeCm(d.location||'')}" style="${fieldStyle}${missing.includes('Location') ? missingBorder : ''}">
       </label>
       <label style="${labelStyle}">Link (Instagram or WhatsApp)
         <input id="editLink" type="text" value="${escapeCm(d.link||'')}" style="${fieldStyle}">
       </label>
-      <label style="${labelStyle}">Description
-        <textarea id="editDesc" rows="4" style="${fieldStyle}font-family:inherit;">${escapeCm(d.desc||'')}</textarea>
+      <label style="${labelStyle}">Description${missing.includes('Description') ? ' <span style="color:#c00;">— missing</span>' : ''}
+        <textarea id="editDesc" rows="4" style="${fieldStyle}font-family:inherit;${missing.includes('Description') ? missingBorder : ''}">${escapeCm(d.desc||'')}</textarea>
       </label>
       <p style="font-size:11px;color:#776867;">Some advanced fields (extra one-off dates, sport-key tagging, "also show in other calendars") aren't editable here yet — use DecapBridge for those; saving here won't touch or lose them.</p>
       ${state.eventEditError ? `<p style="color:#c00;font-size:13px;">${escapeCm(state.eventEditError)}</p>` : ''}
-      ${state.eventEditSaved ? `<p style="color:#2a7a4a;font-size:13px;">Saved! The site rebuilds automatically — this can take a minute or two to appear live.</p>` : ''}
+      ${state.eventEditSaved ? `<p style="color:#2a7a4a;font-size:13px;">Saved!${reviewMode ? ' Moving to the next one…' : ' The site rebuilds automatically — this can take a minute or two to appear live.'}</p>` : ''}
       <div style="display:flex;gap:10px;margin-top:6px;">
-        <button type="button" class="link-btn primary" id="eventEditSaveBtn" style="flex:1;text-align:center;" ${state.eventEditSaving?'disabled':''}>${state.eventEditSaving?'Saving…':'Save changes'}</button>
-        <button type="button" class="link-btn secondary" id="eventEditCancelBtn2" style="flex:1;text-align:center;">Cancel</button>
+        <button type="button" class="link-btn primary" id="eventEditSaveBtn" style="flex:1;text-align:center;" ${state.eventEditSaving?'disabled':''}>${state.eventEditSaving?'Saving…':(reviewMode ? 'Save & next' : 'Save changes')}</button>
+        <button type="button" class="link-btn secondary" id="eventEditCancelBtn2" style="flex:1;text-align:center;">${reviewMode ? 'Skip this one' : 'Cancel'}</button>
       </div>
     </div>
   `;
-  document.getElementById('eventEditCancelBtn').addEventListener('click', closeEventEdit);
-  document.getElementById('eventEditCancelBtn2').addEventListener('click', closeEventEdit);
+  document.getElementById('eventEditCancelBtn').addEventListener('click', () => reviewMode ? exitReviewMode() : closeEventEdit());
+  document.getElementById('eventEditCancelBtn2').addEventListener('click', () => reviewMode ? advanceReviewQueue() : closeEventEdit());
   document.getElementById('eventEditSaveBtn').addEventListener('click', saveEventEdit);
 }
 
@@ -3141,11 +3195,19 @@ async function saveEventEdit(){
     if(!res.ok) throw new Error(data.error || 'Save failed');
     state.eventEditData = data.content;
     state.eventEditSaved = true;
+    // Keep the in-memory copy (already loaded from the aggregate files) in sync so a
+    // review-queue count taken later this session doesn't still flag this item.
+    const liveItem = findItem(id);
+    if(liveItem) Object.assign(liveItem, data.content);
   } catch(err){
     state.eventEditError = err.message;
   }
   state.eventEditSaving = false;
   renderEventEditView();
+  if(state.eventEditSaved){
+    renderFooterAdmin();
+    if(state.reviewMode) setTimeout(advanceReviewQueue, 600);
+  }
 }
 
 /* ============================================================
@@ -3930,6 +3992,12 @@ function renderFooterAdmin(){
   const btn = document.getElementById('footerAdminBtn');
   if(!btn) return;
   btn.textContent = state.cmAdminLoggedIn ? '🔒 Admin: Log Out' : '🔒 Admin Login';
+  const missingBtn = document.getElementById('footerMissingDetailsBtn');
+  if(!missingBtn) return;
+  if(!state.cmAdminLoggedIn || !ALL_ITEMS.length){ missingBtn.style.display = 'none'; return; }
+  const count = buildMissingDetailsQueue().length;
+  missingBtn.style.display = count ? '' : 'none';
+  missingBtn.textContent = `📋 ${count} need${count === 1 ? 's' : ''} details`;
 }
 
 async function checkAdminSession(){
@@ -4284,6 +4352,7 @@ document.getElementById('footerAdminBtn').addEventListener('click', async () => 
   document.getElementById('footerAdminModalOverlay').classList.add('open');
   setTimeout(() => document.getElementById('footerAdminPassword').focus(), 50);
 });
+document.getElementById('footerMissingDetailsBtn').addEventListener('click', startMissingDetailsReview);
 document.getElementById('footerAdminCancelBtn').addEventListener('click', () => {
   document.getElementById('footerAdminModalOverlay').classList.remove('open');
   document.getElementById('footerAdminPassword').value = '';
