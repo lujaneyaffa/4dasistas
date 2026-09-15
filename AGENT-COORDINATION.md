@@ -79,6 +79,13 @@ npx wrangler deploy
 
 **Status:** IDLE — still needs a fresh ADMIN_PASSWORD from Lujane
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-15 (admin editor: create new events + full field parity with Decap)
+
+**2026-09-15 (admin editor: create new events + full field parity with Decap) — Claude (chat) — `workers/src/worker.js`, `index.html`** — DecapBridge is throwing "Failed to persist entry: API_ERROR: Requires authentication" on publish (still unresolved — GitHub OAuth/App re-auth needed on Lujane's end, see the previous entry), so as a workaround she asked for full event *creation* through the site's own admin login too, with nothing missing versus the real CMS form. Two changes: (1) New Worker route `POST /api/admin/calendar-event` creates a brand-new `data/calendar/:id.json` file via the GitHub Contents API (PUT with no `sha`, which is how you create rather than update) — derives a unique id/filename from the title the same way Decap's `slug: '{{title}}'` does (lowercase, strip punctuation, collapse to hyphens), auto-appending `-2`, `-3`, etc. on a collision (checked by probing GitHub before writing), validates Title/Calendar-tab/Event-date are present, and never writes an `id` key into the file itself (the filename IS the id, matching how every other source file already works). (2) The in-site form itself, which previously covered ~17 of the ~21 real CMS fields and explicitly said so, now has full parity: added Extra one-off dates (dynamic add/remove list of date pickers, stored as `[{date:...}]` matching Decap's list-widget shape), Sport key + "also list under these other sports" (dynamic list, sports-only — a small section that shows/hides itself when the Calendar-tab dropdown is switched to/from Sports), and "Also show in these other calendars" (checkboxes for the same 5 sections Decap itself offers there, correctly excluding Support Groups since Decap's own option list excludes it too). Root cause avoided proactively: the dynamic add/remove buttons for the two list fields call a new shared `collectEventFormFields()` (also now used by the normal Save path) to snapshot every current field's value into state BEFORE mutating the list and re-rendering the whole form — without this, clicking "+ Add another date" would have silently wiped out anything already typed into Title/Description/etc., since the form is rebuilt from state on every render. A single "New event" footer button next to Admin Login opens a blank form (sensible defaults, no fetch needed since there's nothing to load yet); saving switches it seamlessly into normal edit mode for the same event afterward. Validated: worker-side validation branches (missing title/section/date, invalid section, unauthenticated, bad-token-graceful-502) all tested via local `wrangler dev`; frontend tested end-to-end in-browser with a mocked fetch — form renders all new fields, section-change toggles the sports-only block, typed values survive an add/remove round-trip, a full create submission succeeds and correctly flips the form into edit mode with the new id, and Cancel-before-save closes cleanly with no id set yet.
+
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-14 (Join a Club / Log In centered + light pink)
 
 **2026-09-14 (Join a Club / Log In centered + light pink) — Claude (chat) — `index.html`** — Two quick GALS CLUBS tweaks: centered the "JOIN A CLUB"/"Log In" tile row (`.clubs-top-actions` gained `justify-content:center` — they were left-aligned by default since no justify-content had ever been set), and changed "JOIN A CLUB" from its gold/pink gradient to a flat light pink (`var(--blush)`, the same token used for the Functions/Cuisine/Arts-N-Crafts card colors), updating its shadow tint to match. Validated visually in a local static server.
@@ -418,6 +425,8 @@ npx wrangler deploy
 ## Recent Activity Log
 
 _(most recent first — add new entries to the top, trim past ~15)_
+
+- 2026-09-15 — Claude (chat) — `workers/src/worker.js`, `index.html` — Admin editor can now create brand-new calendar events (not just edit existing ones), with full field parity vs the real CMS form (extra dates, sport keys, also-show-in). Workaround for DecapBridge's still-unresolved "Requires authentication" error. See Current Status entry above for full detail.
 
 - 2026-09-14 — Claude (chat) — `index.html` — GALS CLUBS: centered the Join a Club/Log In tiles, changed Join a Club to light pink. See Current Status entry above for full detail.
 

@@ -736,6 +736,7 @@
 
 <footer>
   <div class="footer-admin-corner">
+    <button type="button" class="footer-admin-btn" id="footerNewEventBtn" style="display:none;">➕ New event</button>
     <button type="button" class="footer-admin-btn footer-missing-btn" id="footerMissingDetailsBtn" style="display:none;">📋 Needs details</button>
     <button type="button" class="footer-admin-btn" id="footerAdminBtn">🔒 Admin Login</button>
   </div>
@@ -955,7 +956,7 @@ let state = {
   cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false,
-  reviewMode:false, reviewQueue:[], reviewTotal:0,
+  reviewMode:false, reviewQueue:[], reviewTotal:0, eventCreateMode:false,
 };
 
 const introText = {
@@ -3019,9 +3020,12 @@ function closeDetail(){
 const EVENT_EDIT_WEEKDAYS = [['sun','Sun'],['mon','Mon'],['tue','Tue'],['wed','Wed'],['thu','Thu'],['fri','Fri'],['sat','Sat']];
 const EVENT_EDIT_AUDIENCE = ['Muslim Women','Hijabi Friendly','Family Event','All Women'];
 const EVENT_EDIT_SECTIONS = [['sports','Sports'],['activities','Activities'],['functions','Functions'],['trips','Trips'],['mosqueprograms','Knowledge'],['supportprograms','Support Groups']];
+const EVENT_EDIT_ALSOSHOWIN = [['sports','Sports'],['activities','Activities'],['functions','Functions'],['trips','Trips'],['mosqueprograms','Knowledge']];
+const EVENT_CREATE_DEFAULTS = { section:'functions', title:'', audienceType:[], emoji:'', organizedBy:'', eventDate:'', endDate:'', time:'', endTime:'', allDay:false, days:[], recurStart:'', recurEnd:'', extraDates:[], virtual:false, location:'', link:'', desc:'', sportKey:'', alsoSportKeys:[], alsoShowIn:[] };
 
 async function openEventEdit(id){
   state.eventEditOpen = true;
+  state.eventCreateMode = false;
   state.eventEditId = id;
   state.eventEditError = '';
   state.eventEditSaved = false;
@@ -3040,14 +3044,28 @@ async function openEventEdit(id){
   renderEventEditView();
 }
 
+function openEventCreate(){
+  state.eventEditOpen = true;
+  state.eventCreateMode = true;
+  state.eventEditId = null;
+  state.eventEditError = '';
+  state.eventEditSaved = false;
+  state.eventEditData = { ...EVENT_CREATE_DEFAULTS };
+  document.getElementById('detail-view').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderEventEditView();
+}
+
 function closeEventEdit(returnToDetail){
   const id = state.eventEditId;
+  const wasCreate = state.eventCreateMode;
   state.eventEditOpen = false;
+  state.eventCreateMode = false;
   state.eventEditId = null;
   state.eventEditData = null;
   state.eventEditError = '';
   state.eventEditSaved = false;
-  if(returnToDetail !== false && id){
+  if(returnToDetail !== false && id && !wasCreate){
     renderDetail(id);
   } else {
     document.getElementById('detail-view').classList.remove('open');
@@ -3060,6 +3078,7 @@ function renderEventEditView(){
   if(!card) return;
   const d = state.eventEditData;
   const reviewMode = state.reviewMode;
+  const createMode = state.eventCreateMode;
   const reviewPos = reviewMode ? (state.reviewTotal - state.reviewQueue.length) : 0;
 
   if(!d){
@@ -3071,6 +3090,9 @@ function renderEventEditView(){
 
   const audience = Array.isArray(d.audienceType) ? d.audienceType : (d.audienceType ? [d.audienceType] : []);
   const days = Array.isArray(d.days) ? d.days : [];
+  const alsoShowIn = Array.isArray(d.alsoShowIn) ? d.alsoShowIn : [];
+  const alsoSportKeys = Array.isArray(d.alsoSportKeys) ? d.alsoSportKeys : [];
+  const extraDates = Array.isArray(d.extraDates) ? d.extraDates : [];
   const fieldStyle = 'width:100%;padding:8px;border-radius:8px;border:1.5px solid var(--charcoal);margin-top:4px;box-sizing:border-box;';
   const labelStyle = 'font-size:12px;font-weight:700;flex:1;';
   const missing = reviewMode ? missingDetailsFor(d) : [];
@@ -3082,7 +3104,7 @@ function renderEventEditView(){
       <strong style="font-size:13px;">Reviewing ${reviewPos} of ${state.reviewTotal}</strong>
       <div style="font-size:12px;margin-top:4px;">Missing: ${missing.length ? missing.map(escapeCm).join(', ') : '<em>nothing left — safe to save</em>'}</div>
     </div>` : ''}
-    <h2 style="margin-bottom:14px;">Edit Event</h2>
+    <h2 style="margin-bottom:14px;">${createMode ? 'Create Event' : 'Edit Event'}</h2>
     <div style="display:flex;flex-direction:column;gap:10px;">
       <label style="${labelStyle}">Calendar tab
         <select id="editSection" style="${fieldStyle}">
@@ -3135,6 +3157,16 @@ function renderEventEditView(){
           <input id="editRecurEnd" type="date" value="${d.recurEnd||''}" style="${fieldStyle}">
         </label>
       </div>
+      <div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Extra one-off dates (e.g. a 3-part workshop on specific days)</div>
+        <div id="extraDatesRows" style="display:flex;flex-direction:column;gap:6px;">
+          ${extraDates.map((ed, i) => `<div style="display:flex;gap:6px;align-items:center;">
+            <input type="date" class="editExtraDate" value="${(ed && ed.date) || ''}" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--charcoal);box-sizing:border-box;">
+            <button type="button" class="removeExtraDateBtn link-btn secondary" data-idx="${i}" style="padding:6px 10px;font-size:11px;">Remove</button>
+          </div>`).join('')}
+        </div>
+        <button type="button" id="addExtraDateBtn" class="link-btn secondary" style="margin-top:6px;font-size:12px;padding:6px 12px;">+ Add another date</button>
+      </div>
       <label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="editVirtual" ${d.virtual?'checked':''}>Virtual/online event (no physical location)</label>
       <label style="${labelStyle}">Location${missing.includes('Location') ? ' <span style="color:#c00;">— missing</span>' : ''}
         <input id="editLocation" type="text" value="${escapeCm(d.location||'')}" style="${fieldStyle}${missing.includes('Location') ? missingBorder : ''}">
@@ -3145,11 +3177,32 @@ function renderEventEditView(){
       <label style="${labelStyle}">Description${missing.includes('Description') ? ' <span style="color:#c00;">— missing</span>' : ''}
         <textarea id="editDesc" rows="4" style="${fieldStyle}font-family:inherit;${missing.includes('Description') ? missingBorder : ''}">${escapeCm(d.desc||'')}</textarea>
       </label>
-      <p style="font-size:11px;color:#776867;">Some advanced fields (extra one-off dates, sport-key tagging, "also show in other calendars") aren't editable here yet — use DecapBridge for those; saving here won't touch or lose them.</p>
+      <div id="sportsOnlyFields" style="display:${d.section==='sports' ? '' : 'none'};flex-direction:column;gap:10px;border:1.5px dashed var(--charcoal);border-radius:10px;padding:10px;">
+        <div style="font-size:11px;color:#776867;">Sports-only fields</div>
+        <label style="${labelStyle}">Sport key (lowercase, one sport only — e.g. "badminton")
+          <input id="editSportKey" type="text" value="${escapeCm(d.sportKey||'')}" style="${fieldStyle}">
+        </label>
+        <div>
+          <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Also list under these other sports too</div>
+          <div id="alsoSportKeyRows" style="display:flex;flex-direction:column;gap:6px;">
+            ${alsoSportKeys.map((k, i) => `<div style="display:flex;gap:6px;align-items:center;">
+              <input type="text" class="editAlsoSportKey" value="${escapeCm(k)}" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--charcoal);box-sizing:border-box;">
+              <button type="button" class="removeAlsoSportKeyBtn link-btn secondary" data-idx="${i}" style="padding:6px 10px;font-size:11px;">Remove</button>
+            </div>`).join('')}
+          </div>
+          <button type="button" id="addAlsoSportKeyBtn" class="link-btn secondary" style="margin-top:6px;font-size:12px;padding:6px 12px;">+ Add another sport key</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Also show in these other calendars too</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          ${EVENT_EDIT_ALSOSHOWIN.map(([v,l]) => `<label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="editAlsoShowIn" value="${v}" ${alsoShowIn.includes(v)?'checked':''}>${l}</label>`).join('')}
+        </div>
+      </div>
       ${state.eventEditError ? `<p style="color:#c00;font-size:13px;">${escapeCm(state.eventEditError)}</p>` : ''}
-      ${state.eventEditSaved ? `<p style="color:#2a7a4a;font-size:13px;">Saved!${reviewMode ? ' Moving to the next one…' : ' The site rebuilds automatically — this can take a minute or two to appear live.'}</p>` : ''}
+      ${state.eventEditSaved ? `<p style="color:#2a7a4a;font-size:13px;">${createMode ? 'Created!' : 'Saved!'}${reviewMode ? ' Moving to the next one…' : ' The site rebuilds automatically — this can take a minute or two to appear live.'}</p>` : ''}
       <div style="display:flex;gap:10px;margin-top:6px;">
-        <button type="button" class="link-btn primary" id="eventEditSaveBtn" style="flex:1;text-align:center;" ${state.eventEditSaving?'disabled':''}>${state.eventEditSaving?'Saving…':(reviewMode ? 'Save & next' : 'Save changes')}</button>
+        <button type="button" class="link-btn primary" id="eventEditSaveBtn" style="flex:1;text-align:center;" ${state.eventEditSaving?'disabled':''}>${state.eventEditSaving?'Saving…':(createMode ? 'Create event' : (reviewMode ? 'Save & next' : 'Save changes'))}</button>
         <button type="button" class="link-btn secondary" id="eventEditCancelBtn2" style="flex:1;text-align:center;">${reviewMode ? 'Skip this one' : 'Cancel'}</button>
       </div>
     </div>
@@ -3157,13 +3210,38 @@ function renderEventEditView(){
   document.getElementById('eventEditCancelBtn').addEventListener('click', () => reviewMode ? exitReviewMode() : closeEventEdit());
   document.getElementById('eventEditCancelBtn2').addEventListener('click', () => reviewMode ? advanceReviewQueue() : closeEventEdit());
   document.getElementById('eventEditSaveBtn').addEventListener('click', saveEventEdit);
+  document.getElementById('editSection').addEventListener('change', e => {
+    document.getElementById('sportsOnlyFields').style.display = e.target.value === 'sports' ? 'flex' : 'none';
+  });
+  document.getElementById('addExtraDateBtn').addEventListener('click', () => {
+    Object.assign(state.eventEditData, collectEventFormFields());
+    state.eventEditData.extraDates.push({date:''});
+    renderEventEditView();
+  });
+  document.querySelectorAll('.removeExtraDateBtn').forEach(btn => btn.addEventListener('click', () => {
+    Object.assign(state.eventEditData, collectEventFormFields());
+    state.eventEditData.extraDates.splice(Number(btn.dataset.idx), 1);
+    renderEventEditView();
+  }));
+  document.getElementById('addAlsoSportKeyBtn').addEventListener('click', () => {
+    Object.assign(state.eventEditData, collectEventFormFields());
+    state.eventEditData.alsoSportKeys.push('');
+    renderEventEditView();
+  });
+  document.querySelectorAll('.removeAlsoSportKeyBtn').forEach(btn => btn.addEventListener('click', () => {
+    Object.assign(state.eventEditData, collectEventFormFields());
+    state.eventEditData.alsoSportKeys.splice(Number(btn.dataset.idx), 1);
+    renderEventEditView();
+  }));
 }
 
-async function saveEventEdit(){
-  const id = state.eventEditId;
+function collectEventFormFields(){
   const audience = [...document.querySelectorAll('.editAudience:checked')].map(cb => cb.value);
   const days = [...document.querySelectorAll('.editDay:checked')].map(cb => cb.value);
-  const fields = {
+  const alsoShowIn = [...document.querySelectorAll('.editAlsoShowIn:checked')].map(cb => cb.value);
+  const extraDates = [...document.querySelectorAll('.editExtraDate')].map(inp => inp.value).filter(Boolean).map(date => ({date}));
+  const alsoSportKeys = [...document.querySelectorAll('.editAlsoSportKey')].map(inp => inp.value.trim()).filter(Boolean);
+  return {
     section: document.getElementById('editSection').value,
     title: document.getElementById('editTitle').value.trim(),
     audienceType: audience,
@@ -3177,28 +3255,46 @@ async function saveEventEdit(){
     days,
     recurStart: document.getElementById('editRecurStart').value,
     recurEnd: document.getElementById('editRecurEnd').value,
+    extraDates,
     virtual: document.getElementById('editVirtual').checked,
     location: document.getElementById('editLocation').value.trim(),
     link: document.getElementById('editLink').value.trim(),
     desc: document.getElementById('editDesc').value.trim(),
+    sportKey: document.getElementById('editSportKey').value.trim(),
+    alsoSportKeys,
+    alsoShowIn,
   };
+}
+
+async function saveEventEdit(){
+  const id = state.eventEditId;
+  const createMode = state.eventCreateMode;
+  const fields = collectEventFormFields();
   state.eventEditSaving = true;
   state.eventEditError = '';
   state.eventEditSaved = false;
   renderEventEditView();
   try {
-    const res = await fetch('/api/admin/calendar-event/' + encodeURIComponent(id), {
-      method:'PUT', headers:{'Content-Type':'application/json'}, credentials:'include',
-      body: JSON.stringify({ fields })
-    });
+    const res = await fetch(
+      createMode ? '/api/admin/calendar-event' : '/api/admin/calendar-event/' + encodeURIComponent(id),
+      {
+        method: createMode ? 'POST' : 'PUT', headers:{'Content-Type':'application/json'}, credentials:'include',
+        body: JSON.stringify({ fields })
+      }
+    );
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Save failed');
     state.eventEditData = data.content;
     state.eventEditSaved = true;
-    // Keep the in-memory copy (already loaded from the aggregate files) in sync so a
-    // review-queue count taken later this session doesn't still flag this item.
-    const liveItem = findItem(id);
-    if(liveItem) Object.assign(liveItem, data.content);
+    if(createMode){
+      state.eventEditId = data.id;
+      state.eventCreateMode = false;
+    } else {
+      // Keep the in-memory copy (already loaded from the aggregate files) in sync so a
+      // review-queue count taken later this session doesn't still flag this item.
+      const liveItem = findItem(id);
+      if(liveItem) Object.assign(liveItem, data.content);
+    }
   } catch(err){
     state.eventEditError = err.message;
   }
@@ -3992,6 +4088,8 @@ function renderFooterAdmin(){
   const btn = document.getElementById('footerAdminBtn');
   if(!btn) return;
   btn.textContent = state.cmAdminLoggedIn ? '🔒 Admin: Log Out' : '🔒 Admin Login';
+  const newEventBtn = document.getElementById('footerNewEventBtn');
+  if(newEventBtn) newEventBtn.style.display = state.cmAdminLoggedIn ? '' : 'none';
   const missingBtn = document.getElementById('footerMissingDetailsBtn');
   if(!missingBtn) return;
   if(!state.cmAdminLoggedIn || !ALL_ITEMS.length){ missingBtn.style.display = 'none'; return; }
@@ -4353,6 +4451,7 @@ document.getElementById('footerAdminBtn').addEventListener('click', async () => 
   setTimeout(() => document.getElementById('footerAdminPassword').focus(), 50);
 });
 document.getElementById('footerMissingDetailsBtn').addEventListener('click', startMissingDetailsReview);
+document.getElementById('footerNewEventBtn').addEventListener('click', openEventCreate);
 document.getElementById('footerAdminCancelBtn').addEventListener('click', () => {
   document.getElementById('footerAdminModalOverlay').classList.remove('open');
   document.getElementById('footerAdminPassword').value = '';

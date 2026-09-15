@@ -39,6 +39,9 @@
  *   DELETE /api/admin/club-events/:clubId/:eventId            - Remove an event and its responses
  *
  *   -- In-site calendar event editor (session-cookie gated, commits straight to GitHub like Decap CMS) --
+ *   POST   /api/admin/calendar-event                        - Create a new event ({ fields:{...} }) — derives a unique id/filename
+ *                                                                from the title (mirrors Decap's slug: '{{title}}'), commits
+ *                                                                data/calendar/:id.json as a new file
  *   GET    /api/admin/calendar-event/:id                     - Read one event's full source JSON from data/calendar/:id.json
  *   PUT    /api/admin/calendar-event/:id                     - Merge { fields:{...} } into that source file and commit to GitHub (main),
  *                                                                which triggers the existing regenerate-calendar.yml Action to rebuild
@@ -216,6 +219,18 @@ const GITHUB_API = "https://api.github.com";
 // contain all sorts of emoji, curly apostrophes, etc. that a narrow allowlist would reject.
 const CALENDAR_ID_RE = /^[^/\\\x00-\x1f]{1,150}$/;
 const calendarFilePath = (id) => `data/calendar/${id}.json`;
+const CALENDAR_SECTIONS = ["sports", "activities", "functions", "trips", "mosqueprograms", "supportprograms"];
+
+const slugify = (title) => {
+  const slug = String(title || "")
+    .toLowerCase()
+    .trim()
+    .replace(/['’‘"“”]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return slug || "event";
+};
 
 const b64EncodeUnicode = (str) => btoa(unescape(encodeURIComponent(str)));
 const b64DecodeUnicode = (str) => decodeURIComponent(escape(atob(str.replace(/\n/g, ""))));
@@ -756,6 +771,36 @@ export default {
       await writeClubEvents(env, clubId, events.filter(e => e.id !== eventId));
       await env.SITE_DATA.delete(clubEventResponsesKey(clubId, eventId)).catch(() => {});
       return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+
+    // Admin: create a brand-new calendar event — commits a new source file straight to GitHub
+    if (path === "/api/admin/calendar-event" && request.method === "POST") {
+      if (!env.GITHUB_TOKEN) return jsonResponse({ error: "Server misconfigured: GITHUB_TOKEN is not set" }, 500, corsHeaders);
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const fields = body.fields;
+      if (!fields || typeof fields !== "object") return jsonResponse({ error: "fields object is required" }, 400, corsHeaders);
+      const title = String(fields.title || "").trim();
+      if (!title) return jsonResponse({ error: "Title is required" }, 400, corsHeaders);
+      if (!CALENDAR_SECTIONS.includes(fields.section)) return jsonResponse({ error: "A valid Calendar tab is required" }, 400, corsHeaders);
+      if (!isValidDateString(fields.eventDate)) return jsonResponse({ error: "A valid Event date is required" }, 400, corsHeaders);
+
+      const baseSlug = slugify(title);
+      if (!CALENDAR_ID_RE.test(baseSlug)) return jsonResponse({ error: "Could not derive a valid id from the title" }, 400, corsHeaders);
+      let finalSlug = baseSlug;
+      for (let n = 2; await githubGetFile(env, calendarFilePath(finalSlug)); n++) {
+        if (n > 50) return jsonResponse({ error: "Could not find a unique id for this title" }, 500, corsHeaders);
+        finalSlug = `${baseSlug}-${n}`;
+      }
+
+      const { id: _drop, ...content } = fields;
+      const commitMessage = `Create "${title}" via site admin editor`;
+      const res = await githubPutFile(env, calendarFilePath(finalSlug), content, undefined, commitMessage);
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
+      }
+      return jsonResponse({ ok: true, id: finalSlug, content }, 201, corsHeaders);
     }
 
     // Admin: read/edit a calendar event's real source file — commits straight to GitHub
