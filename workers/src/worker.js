@@ -47,6 +47,10 @@
  *                                                                which triggers the existing regenerate-calendar.yml Action to rebuild
  *                                                                the aggregate data/*.json files and calendar.ics, then Cloudflare
  *                                                                auto-deploys — same pipeline Decap/DecapBridge already use.
+ *   POST   /api/admin/resource                              - Create a new Resources/Small-Business listing, same pattern as above
+ *                                                                but writing data/resources/:id.json
+ *   GET    /api/admin/resource/:id                          - Read one listing's full source JSON
+ *   PUT    /api/admin/resource/:id                          - Merge fields and commit
  *
  * Required secrets (wrangler secret put <name>):
  *   ADMIN_PASSWORD    - admin login for /editor and the in-site Club Events / calendar-event admin panels
@@ -274,6 +278,20 @@ const resolveCalendarFile = async (env, id) => {
   let file = await githubGetFile(env, direct);
   if (file) return { file, path: direct };
   const slugPath = calendarFilePath(slugify(id));
+  if (slugPath === direct) return null;
+  file = await githubGetFile(env, slugPath);
+  return file ? { file, path: slugPath } : null;
+};
+
+// ---- In-site resources/small-business editor: same GitHub-backed pattern as calendar events ----
+const resourceFilePath = (id) => `data/resources/${id}.json`;
+const RESOURCE_CATEGORIES = ["cafes", "shops", "restaurants", "beautycare", "mentalhealth", "bakeries", "legal"];
+
+const resolveResourceFile = async (env, id) => {
+  const direct = resourceFilePath(id);
+  let file = await githubGetFile(env, direct);
+  if (file) return { file, path: direct };
+  const slugPath = resourceFilePath(slugify(id));
   if (slugPath === direct) return null;
   file = await githubGetFile(env, slugPath);
   return file ? { file, path: slugPath } : null;
@@ -572,7 +590,7 @@ export default {
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/calendar-event");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource");
 
     if (requiresAuth) {
       const token = getSessionToken(request);
@@ -837,6 +855,68 @@ export default {
       if (!resolved) return jsonResponse({ error: "Event source file not found" }, 404, corsHeaders);
       const { file, path: filePath } = resolved;
       const updated = { ...file.content, ...body.fields };
+      const commitMessage = `Edit "${updated.title || id}" via site admin editor`;
+      const res = await githubPutFile(env, filePath, updated, file.sha, commitMessage);
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
+      }
+      return jsonResponse({ ok: true, content: updated }, 200, corsHeaders);
+    }
+
+    // Admin: create a brand-new Resources/Small-Business listing — same GitHub pattern as calendar events
+    if (path === "/api/admin/resource" && request.method === "POST") {
+      if (!env.GITHUB_TOKEN) return jsonResponse({ error: "Server misconfigured: GITHUB_TOKEN is not set" }, 500, corsHeaders);
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const fields = body.fields;
+      if (!fields || typeof fields !== "object") return jsonResponse({ error: "fields object is required" }, 400, corsHeaders);
+      const title = String(fields.title || "").trim();
+      if (!title) return jsonResponse({ error: "Title is required" }, 400, corsHeaders);
+      if (!RESOURCE_CATEGORIES.includes(fields.category)) return jsonResponse({ error: "A valid category is required" }, 400, corsHeaders);
+      if (!String(fields.ownedBy || "").trim()) return jsonResponse({ error: "Ownership note is required" }, 400, corsHeaders);
+
+      const baseSlug = slugify(title);
+      if (!CALENDAR_ID_RE.test(baseSlug)) return jsonResponse({ error: "Could not derive a valid id from the title" }, 400, corsHeaders);
+      let finalSlug = baseSlug;
+      for (let n = 2; await githubGetFile(env, resourceFilePath(finalSlug)); n++) {
+        if (n > 50) return jsonResponse({ error: "Could not find a unique id for this title" }, 500, corsHeaders);
+        finalSlug = `${baseSlug}-${n}`;
+      }
+
+      const { id: _drop, ...content } = fields;
+      if (content.image !== undefined) content.image = sanitizePhoto(content.image);
+      const commitMessage = `Create "${title}" via site admin editor`;
+      const res = await githubPutFile(env, resourceFilePath(finalSlug), content, undefined, commitMessage);
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
+      }
+      return jsonResponse({ ok: true, id: finalSlug, content }, 201, corsHeaders);
+    }
+
+    // Admin: read/edit a Resources/Small-Business listing
+    const adminResourceMatch = path.match(/^\/api\/admin\/resource\/([^/]+)\/?$/);
+    if (adminResourceMatch && (request.method === "GET" || request.method === "PUT")) {
+      if (!env.GITHUB_TOKEN) return jsonResponse({ error: "Server misconfigured: GITHUB_TOKEN is not set" }, 500, corsHeaders);
+      const id = decodeURIComponent(adminResourceMatch[1]);
+      if (!CALENDAR_ID_RE.test(id)) return jsonResponse({ error: "Invalid resource id" }, 400, corsHeaders);
+
+      if (request.method === "GET") {
+        const resolved = await resolveResourceFile(env, id);
+        if (!resolved) return jsonResponse({ error: "Resource source file not found" }, 404, corsHeaders);
+        return jsonResponse(resolved.file.content, 200, corsHeaders);
+      }
+
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      if (!body.fields || typeof body.fields !== "object") return jsonResponse({ error: "fields object is required" }, 400, corsHeaders);
+      const resolved = await resolveResourceFile(env, id);
+      if (!resolved) return jsonResponse({ error: "Resource source file not found" }, 404, corsHeaders);
+      const { file, path: filePath } = resolved;
+      const fields = { ...body.fields };
+      if (fields.image !== undefined) fields.image = sanitizePhoto(fields.image);
+      const updated = { ...file.content, ...fields };
       const commitMessage = `Edit "${updated.title || id}" via site admin editor`;
       const res = await githubPutFile(env, filePath, updated, file.sha, commitMessage);
       if (!res.ok) {

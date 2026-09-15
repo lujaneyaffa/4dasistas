@@ -740,7 +740,6 @@
     <button type="button" class="footer-admin-btn footer-missing-btn" id="footerMissingDetailsBtn" style="display:none;">📋 Needs details</button>
     <button type="button" class="footer-admin-btn" id="footerAdminBtn">🔒 Admin Login</button>
   </div>
-  <a class="suggest-btn" href="mailto:lujanealdimasi@gmail.com?subject=4DASISTAS%20Suggestion">✎ Suggest a change</a>
   <div class="footer-btns">
     <a class="wa-btn" href="https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS" target="_blank" rel="noopener">
       <svg viewBox="0 0 32 32" fill="white"><path d="M16 5C9.4 5 4 9.9 4 16c0 3.2 1.5 6.1 3.9 8.1-.3 1.8-1.1 3.8-2.2 5.4 2.3-.4 4.6-1.3 6.4-2.6 1.2.3 2.5.5 3.9.5 6.6 0 12-4.9 12-11S22.6 5 16 5Z"/></svg>
@@ -957,6 +956,7 @@ let state = {
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false,
   reviewMode:false, reviewQueue:[], reviewTotal:0, eventCreateMode:false,
+  resourceEditOpen:false, resourceEditId:null, resourceEditData:null, resourceEditError:'', resourceEditSaving:false, resourceEditSaved:false, resourceCreateMode:false,
 };
 
 const introText = {
@@ -1957,10 +1957,10 @@ function renderResourceList(){
 
   const pageItems = filtered;
 
-  el.innerHTML = pageItems.map(r => `
+  el.innerHTML = (state.cmAdminLoggedIn ? `<button type="button" class="link-btn primary" id="resAddBtn" style="margin-bottom:14px;">➕ Add a business / resource</button>` : '') + pageItems.map(r => `
     <div class="panel-card">
-      ${r.image ? `<img class="resource-photo" src="${r.image}" alt="${r.title}">` : ''}
-      ${isSmallBiz && r.instagramPost ? `<blockquote class="instagram-media" data-instgrm-permalink="${r.instagramPost}" data-instgrm-version="14" style="margin:0 0 10px;width:100%;"></blockquote>` : ''}
+      ${r.image ? `<img class="resource-photo" src="${escapeCm(r.image)}" alt="${escapeCm(r.title)}">` : ''}
+      ${isSmallBiz && r.instagramPost ? `<blockquote class="instagram-media" data-instgrm-permalink="${escapeCm(r.instagramPost)}" data-instgrm-version="14" style="margin:0 0 10px;width:100%;"></blockquote>` : ''}
       <div class="panel-top">
         <div class="monogram" style="background:${categoryColors[r.category]||'#373d3b'}">${r.title.charAt(0)}</div>
         <div>
@@ -1977,6 +1977,7 @@ function renderResourceList(){
         ${r.website ? `<a class="link-btn secondary" href="${r.website}" target="_blank" rel="noopener">Visit Website</a>` : ''}
         ${r.email ? `<a class="link-btn secondary" href="mailto:${r.email}">Email</a>` : ''}
         ${r.phone ? `<a class="link-btn secondary" href="tel:${r.phone}">${r.phone}</a>` : ''}
+        ${state.cmAdminLoggedIn ? `<button type="button" class="link-btn secondary res-edit-btn" data-resource-id="${r.id}">✏️ Edit</button>` : ''}
       </div>
     </div>`).join('');
 
@@ -1994,13 +1995,17 @@ function renderResourceList(){
     window.instgrm.Embeds.process();
   }
 
+  const resAddBtn = document.getElementById('resAddBtn');
+  if(resAddBtn) resAddBtn.addEventListener('click', openResourceCreate);
+  el.querySelectorAll('.res-edit-btn').forEach(btn => btn.addEventListener('click', () => openResourceEdit(btn.dataset.resourceId)));
+
   pagEl.innerHTML = '';
 }
 
 function renderResourceMap(){
   const el = document.getElementById('directory-view');
   const legendItems = resourceFilterList.filter(f => f.key !== 'all');
-  el.innerHTML = `<div class="resource-map-wrapper">
+  el.innerHTML = `${state.cmAdminLoggedIn ? `<button type="button" class="link-btn primary" id="resAddBtn" style="margin-bottom:14px;">➕ Add a business / resource</button>` : ''}<div class="resource-map-wrapper">
     <div class="resource-side-list" id="resourceSideList">
       <h4 id="sideListTitle">Mapped resources</h4>
       <div id="sideListContent"></div>
@@ -2011,6 +2016,8 @@ function renderResourceMap(){
       ${legendItems.map(f => `<span><i style="background:${categoryColors[f.key]}"></i> ${f.label}</span>`).join('')}
     </div>
     </div>`;
+  const resAddBtn = document.getElementById('resAddBtn');
+  if(resAddBtn) resAddBtn.addEventListener('click', openResourceCreate);
 
   const filtered = filteredResourceItems();
   const withCoords = filtered.filter(r => typeof r.lat === 'number' && typeof r.lng === 'number');
@@ -2990,6 +2997,7 @@ function renderDetail(id){
     ${mapEmbed}
     <div class="detail-links">${links}</div>
     ${(state.cmAdminLoggedIn && isEditableCalendarItem(e)) ? `<button type="button" class="link-btn secondary" id="detailEditBtn" style="margin-top:10px;">✏️ Edit event</button>` : ''}
+    ${(state.cmAdminLoggedIn && isResource) ? `<button type="button" class="link-btn secondary" id="detailEditResourceBtn" style="margin-top:10px;">✏️ Edit listing</button>` : ''}
   `;
 
   if(igPostUrl){
@@ -3001,6 +3009,8 @@ function renderDetail(id){
 
   const detailEditBtn = document.getElementById('detailEditBtn');
   if(detailEditBtn) detailEditBtn.addEventListener('click', () => openEventEdit(e.id));
+  const detailEditResourceBtn = document.getElementById('detailEditResourceBtn');
+  if(detailEditResourceBtn) detailEditResourceBtn.addEventListener('click', () => openResourceEdit(e.id));
 
   document.getElementById('detail-view').classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -3304,6 +3314,239 @@ async function saveEventEdit(){
     renderFooterAdmin();
     if(state.reviewMode) setTimeout(advanceReviewQueue, 600);
   }
+}
+
+/* ============================================================
+   ADMIN: RESOURCES / SMALL BUSINESS EDITOR
+   Same GitHub-backed pattern as the calendar event editor above.
+   ============================================================ */
+const RESOURCE_CATEGORIES = [['cafes','Cafe & Dessert'],['shops','Shops'],['restaurants','Restaurants'],['beautycare','Health n Beauty'],['mentalhealth','Mental Health'],['bakeries','Small Businesses'],['legal','Legal']];
+const RESOURCE_CREATE_DEFAULTS = { category:'bakeries', title:'', type:'', location:'', date:'', ownedBy:'', desc:'', lat:'', lng:'', mapsUrl:'', instagramPost:'', phone:'', instagram:'', website:'', email:'', image:null };
+
+async function openResourceEdit(id){
+  state.resourceEditOpen = true;
+  state.resourceCreateMode = false;
+  state.resourceEditId = id;
+  state.resourceEditError = '';
+  state.resourceEditSaved = false;
+  state.resourceEditData = null;
+  document.getElementById('detail-view').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderResourceEditView();
+  try {
+    const res = await fetch('/api/admin/resource/' + encodeURIComponent(id), { credentials:'include' });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Could not load listing');
+    state.resourceEditData = data;
+  } catch(err){
+    state.resourceEditError = err.message;
+  }
+  renderResourceEditView();
+}
+
+function openResourceCreate(){
+  state.resourceEditOpen = true;
+  state.resourceCreateMode = true;
+  state.resourceEditId = null;
+  state.resourceEditError = '';
+  state.resourceEditSaved = false;
+  state.resourceEditData = { ...RESOURCE_CREATE_DEFAULTS };
+  document.getElementById('detail-view').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderResourceEditView();
+}
+
+function closeResourceEdit(returnToDetail){
+  const id = state.resourceEditId;
+  const wasCreate = state.resourceCreateMode;
+  state.resourceEditOpen = false;
+  state.resourceCreateMode = false;
+  state.resourceEditId = null;
+  state.resourceEditData = null;
+  state.resourceEditError = '';
+  state.resourceEditSaved = false;
+  if(returnToDetail !== false && id && !wasCreate){
+    renderDetail(id);
+  } else {
+    document.getElementById('detail-view').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+
+function collectResourceFormFields(){
+  return {
+    category: document.getElementById('resCategory').value,
+    title: document.getElementById('resTitle').value.trim(),
+    type: document.getElementById('resType').value.trim(),
+    location: document.getElementById('resLocation').value.trim(),
+    date: document.getElementById('resDate').value.trim(),
+    ownedBy: document.getElementById('resOwnedBy').value.trim(),
+    desc: document.getElementById('resDesc').value.trim(),
+    lat: document.getElementById('resLat').value.trim() === '' ? null : Number(document.getElementById('resLat').value.trim()),
+    lng: document.getElementById('resLng').value.trim() === '' ? null : Number(document.getElementById('resLng').value.trim()),
+    mapsUrl: document.getElementById('resMapsUrl').value.trim(),
+    instagramPost: document.getElementById('resInstagramPost').value.trim(),
+    phone: document.getElementById('resPhone').value.trim(),
+    instagram: document.getElementById('resInstagram').value.trim(),
+    website: document.getElementById('resWebsite').value.trim(),
+    email: document.getElementById('resEmail').value.trim(),
+    image: state.resourceEditData.image || null,
+  };
+}
+
+function resourceHandleImagePick(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const size = 400;
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const scale = Math.max(size / img.width, size / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      Object.assign(state.resourceEditData, collectResourceFormFieldsExceptImage());
+      state.resourceEditData.image = canvas.toDataURL('image/jpeg', 0.8);
+      renderResourceEditView();
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+// collectResourceFormFields() reads state.resourceEditData.image itself, so before
+// overwriting it with a freshly-picked photo we still need every OTHER typed field
+// preserved — reuse the same collector, just don't let it clobber the new image.
+function collectResourceFormFieldsExceptImage(){
+  const fields = collectResourceFormFields();
+  delete fields.image;
+  return fields;
+}
+
+function renderResourceEditView(){
+  const card = document.getElementById('detailCard');
+  if(!card) return;
+  const d = state.resourceEditData;
+  const createMode = state.resourceCreateMode;
+
+  if(!d){
+    card.innerHTML = `<button class="back-btn" id="resEditCancelBtn" type="button">← Cancel</button>
+      ${state.resourceEditError ? `<p style="color:#c00;">Error: ${escapeCm(state.resourceEditError)}</p>` : '<p>Loading…</p>'}`;
+    document.getElementById('resEditCancelBtn').addEventListener('click', () => closeResourceEdit());
+    return;
+  }
+
+  const fieldStyle = 'width:100%;padding:8px;border-radius:8px;border:1.5px solid var(--charcoal);margin-top:4px;box-sizing:border-box;';
+  const labelStyle = 'font-size:12px;font-weight:700;flex:1;';
+
+  card.innerHTML = `
+    <button class="back-btn" id="resEditCancelBtn" type="button">← Cancel</button>
+    <h2 style="margin-bottom:14px;">${createMode ? 'Add a Business / Resource' : 'Edit Resource'}</h2>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${d.image ? `<img src="${escapeCm(d.image)}" alt="" style="width:56px;height:56px;border-radius:12px;object-fit:cover;">` : `<div class="monogram" style="width:56px;height:56px;">${escapeCm((d.title||'?').charAt(0).toUpperCase())}</div>`}
+        <button type="button" class="link-btn secondary" id="resImageBtn" style="padding:8px 14px;font-size:12px;">📷 ${d.image ? 'Change' : 'Add'} photo</button>
+        <input type="file" id="resImageInput" accept="image/*" style="display:none;">
+      </div>
+      <label style="${labelStyle}">Category
+        <select id="resCategory" style="${fieldStyle}">
+          ${RESOURCE_CATEGORIES.map(([v,l]) => `<option value="${v}" ${d.category===v?'selected':''}>${l}</option>`).join('')}
+        </select>
+      </label>
+      <label style="${labelStyle}">Title
+        <input id="resTitle" type="text" value="${escapeCm(d.title||'')}" style="${fieldStyle}">
+      </label>
+      <label style="${labelStyle}">Type line on card (e.g. Bakery)
+        <input id="resType" type="text" value="${escapeCm(d.type||'')}" style="${fieldStyle}">
+      </label>
+      <label style="${labelStyle}">Location
+        <input id="resLocation" type="text" value="${escapeCm(d.location||'')}" style="${fieldStyle}">
+      </label>
+      <label style="${labelStyle}">Hours / date info
+        <input id="resDate" type="text" value="${escapeCm(d.date||'')}" style="${fieldStyle}">
+      </label>
+      <label style="${labelStyle}">Ownership note (required — every business needs a real owner name)
+        <input id="resOwnedBy" type="text" value="${escapeCm(d.ownedBy||'')}" style="${fieldStyle}">
+      </label>
+      <label style="${labelStyle}">Description
+        <textarea id="resDesc" rows="4" style="${fieldStyle}font-family:inherit;">${escapeCm(d.desc||'')}</textarea>
+      </label>
+      <div style="display:flex;gap:10px;">
+        <label style="${labelStyle}">Latitude
+          <input id="resLat" type="text" value="${d.lat!=null?d.lat:''}" style="${fieldStyle}">
+        </label>
+        <label style="${labelStyle}">Longitude
+          <input id="resLng" type="text" value="${d.lng!=null?d.lng:''}" style="${fieldStyle}">
+        </label>
+      </div>
+      <label style="${labelStyle}">Google Maps link
+        <input id="resMapsUrl" type="text" value="${escapeCm(d.mapsUrl||'')}" style="${fieldStyle}">
+      </label>
+      <label style="${labelStyle}">Featured Instagram post link (Small Businesses grid)
+        <input id="resInstagramPost" type="text" value="${escapeCm(d.instagramPost||'')}" style="${fieldStyle}">
+      </label>
+      <label style="${labelStyle}">Phone
+        <input id="resPhone" type="text" value="${escapeCm(d.phone||'')}" style="${fieldStyle}">
+      </label>
+      <label style="${labelStyle}">Instagram link
+        <input id="resInstagram" type="text" value="${escapeCm(d.instagram||'')}" style="${fieldStyle}">
+      </label>
+      <label style="${labelStyle}">Website
+        <input id="resWebsite" type="text" value="${escapeCm(d.website||'')}" style="${fieldStyle}">
+      </label>
+      <label style="${labelStyle}">Email
+        <input id="resEmail" type="text" value="${escapeCm(d.email||'')}" style="${fieldStyle}">
+      </label>
+      ${state.resourceEditError ? `<p style="color:#c00;font-size:13px;">${escapeCm(state.resourceEditError)}</p>` : ''}
+      ${state.resourceEditSaved ? `<p style="color:#2a7a4a;font-size:13px;">${createMode ? 'Created!' : 'Saved!'} The site rebuilds automatically — this can take a minute or two to appear live.</p>` : ''}
+      <div style="display:flex;gap:10px;margin-top:6px;">
+        <button type="button" class="link-btn primary" id="resEditSaveBtn" style="flex:1;text-align:center;" ${state.resourceEditSaving?'disabled':''}>${state.resourceEditSaving?'Saving…':(createMode ? 'Create listing' : 'Save changes')}</button>
+        <button type="button" class="link-btn secondary" id="resEditCancelBtn2" style="flex:1;text-align:center;">Cancel</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('resEditCancelBtn').addEventListener('click', () => closeResourceEdit());
+  document.getElementById('resEditCancelBtn2').addEventListener('click', () => closeResourceEdit());
+  document.getElementById('resEditSaveBtn').addEventListener('click', saveResourceEdit);
+  document.getElementById('resImageBtn').addEventListener('click', () => document.getElementById('resImageInput').click());
+  document.getElementById('resImageInput').addEventListener('change', e => resourceHandleImagePick(e.target));
+}
+
+async function saveResourceEdit(){
+  const id = state.resourceEditId;
+  const createMode = state.resourceCreateMode;
+  const fields = collectResourceFormFields();
+  state.resourceEditSaving = true;
+  state.resourceEditError = '';
+  state.resourceEditSaved = false;
+  renderResourceEditView();
+  try {
+    const res = await fetch(
+      createMode ? '/api/admin/resource' : '/api/admin/resource/' + encodeURIComponent(id),
+      {
+        method: createMode ? 'POST' : 'PUT', headers:{'Content-Type':'application/json'}, credentials:'include',
+        body: JSON.stringify({ fields })
+      }
+    );
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Save failed');
+    state.resourceEditData = data.content;
+    state.resourceEditSaved = true;
+    if(createMode){
+      state.resourceEditId = data.id;
+      state.resourceCreateMode = false;
+    } else {
+      const liveItem = findItem(id);
+      if(liveItem) Object.assign(liveItem, data.content);
+    }
+  } catch(err){
+    state.resourceEditError = err.message;
+  }
+  state.resourceEditSaving = false;
+  renderResourceEditView();
+  if(state.resourceEditSaved) renderFooterAdmin();
 }
 
 /* ============================================================
