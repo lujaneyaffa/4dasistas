@@ -187,13 +187,31 @@
       "desc": "Sisters soccer tournament for ages 16+. Teams of 7–10. Evening of soccer, sisterhood, and fun. Must be between 18–29 to register for Hidayah programs.",
       "instagram": "https://www.instagram.com/hidayah__icco/",
       "location": "ICCO, 2300 Speakman Dr., Mississauga",
-      "title": "Hidayah Sisters Soccer Tournament",
+      "title": "Sisters Soccer Tournament",
       "registration": "Mandatory registration required",
       "tag": "Soccer",
       "website": "https://centres.macnet.ca/icco/",
       "id": "hidayah-sisters-soccer-tournament-2026",
       "calDate": "2026-08-23",
-      "section": "sports"
+      "section": "sports",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "Hidayah",
+      "eventDate": "2026-08-23",
+      "endDate": "",
+      "time": "16:00",
+      "endTime": "20:00",
+      "allDay": false,
+      "days": [],
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "link": "https://www.instagram.com/p/Db6yGjHDsON/?stkn=MWtqY3BuMnpkdTBuMQ==",
+      "alsoSportKeys": [],
+      "alsoShowIn": []
     },
     {
       "eventDate": "2026-09-06",
