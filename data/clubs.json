@@ -41,20 +41,6 @@
       "desc": "Weekend getaways, cabin trips, and the occasional wellness retreat — for when the group chat needs to actually leave the city.",
       "signup": "https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS",
       "logo": "assets/FIELD.png"
-    },
-    {
-      "id": "club-badminton",
-      "logo": "assets/badminton.png",
-      "title": "Badminton",
-      "desc": "The badminton crew, gathered in one place — same weekly sessions as the Sports tab, just easier to find and join here too.",
-      "signup": "https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS"
-    },
-    {
-      "id": "club-adhd",
-      "logo": "assets/adhd.png",
-      "title": "ADHD / Neurodivergence",
-      "desc": "A low-pressure space for neurodivergent sisters to connect, vent, swap strategies, and just exist without masking.",
-      "signup": "https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS"
     }
   ]
 }
