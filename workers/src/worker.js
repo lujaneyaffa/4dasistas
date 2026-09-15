@@ -265,6 +265,20 @@ const githubPutFile = async (env, path, content, sha, message) => {
   });
 };
 
+// A handful of pre-migration events kept their original (non-slug) id inside
+// the file while the file itself was saved under a slugified name — e.g. id
+// "MuslimahFarmerMarket" lives in muslimahfarmermarket.json. New events always
+// have filename === id, so try that first and only fall back to the slug.
+const resolveCalendarFile = async (env, id) => {
+  const direct = calendarFilePath(id);
+  let file = await githubGetFile(env, direct);
+  if (file) return { file, path: direct };
+  const slugPath = calendarFilePath(slugify(id));
+  if (slugPath === direct) return null;
+  file = await githubGetFile(env, slugPath);
+  return file ? { file, path: slugPath } : null;
+};
+
 const jsonResponse = (body, status = 200, corsHeaders = {}) => new Response(JSON.stringify(body), {
   status,
   headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -809,19 +823,19 @@ export default {
       if (!env.GITHUB_TOKEN) return jsonResponse({ error: "Server misconfigured: GITHUB_TOKEN is not set" }, 500, corsHeaders);
       const id = decodeURIComponent(adminCalEventMatch[1]);
       if (!CALENDAR_ID_RE.test(id)) return jsonResponse({ error: "Invalid event id" }, 400, corsHeaders);
-      const filePath = calendarFilePath(id);
 
       if (request.method === "GET") {
-        const file = await githubGetFile(env, filePath);
-        if (!file) return jsonResponse({ error: "Event source file not found" }, 404, corsHeaders);
-        return jsonResponse(file.content, 200, corsHeaders);
+        const resolved = await resolveCalendarFile(env, id);
+        if (!resolved) return jsonResponse({ error: "Event source file not found" }, 404, corsHeaders);
+        return jsonResponse(resolved.file.content, 200, corsHeaders);
       }
 
       let body;
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       if (!body.fields || typeof body.fields !== "object") return jsonResponse({ error: "fields object is required" }, 400, corsHeaders);
-      const file = await githubGetFile(env, filePath);
-      if (!file) return jsonResponse({ error: "Event source file not found" }, 404, corsHeaders);
+      const resolved = await resolveCalendarFile(env, id);
+      if (!resolved) return jsonResponse({ error: "Event source file not found" }, 404, corsHeaders);
+      const { file, path: filePath } = resolved;
       const updated = { ...file.content, ...body.fields };
       const commitMessage = `Edit "${updated.title || id}" via site admin editor`;
       const res = await githubPutFile(env, filePath, updated, file.sha, commitMessage);
