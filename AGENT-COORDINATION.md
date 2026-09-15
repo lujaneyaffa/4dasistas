@@ -77,7 +77,14 @@ npx wrangler deploy
 
 ## Current Status
 
-**Status:** IDLE — Lujane already using the editor live (5+ real edits landed so far); still needs a fresh ADMIN_PASSWORD
+**Status:** IDLE — still needs a fresh ADMIN_PASSWORD from Lujane
+**Last updated by:** Claude (chat)
+**Last updated:** 2026-09-14 (Join a Club / Log In centered + light pink)
+
+**2026-09-14 (Join a Club / Log In centered + light pink) — Claude (chat) — `index.html`** — Two quick GALS CLUBS tweaks: centered the "JOIN A CLUB"/"Log In" tile row (`.clubs-top-actions` gained `justify-content:center` — they were left-aligned by default since no justify-content had ever been set), and changed "JOIN A CLUB" from its gold/pink gradient to a flat light pink (`var(--blush)`, the same token used for the Functions/Cuisine/Arts-N-Crafts card colors), updating its shadow tint to match. Validated visually in a local static server.
+
+
+**Status:** IDLE
 **Last updated by:** Claude (chat)
 **Last updated:** 2026-09-14 (missing-details review queue in the admin editor)
 
@@ -411,6 +418,8 @@ npx wrangler deploy
 ## Recent Activity Log
 
 _(most recent first — add new entries to the top, trim past ~15)_
+
+- 2026-09-14 — Claude (chat) — `index.html` — GALS CLUBS: centered the Join a Club/Log In tiles, changed Join a Club to light pink. See Current Status entry above for full detail.
 
 - 2026-09-14 — Claude (chat) — `index.html` — Added a "📋 N need details" review queue to the admin editor: finds every calendar event missing Audience Type/Description/Location and walks through them one at a time with Save & Next / Skip. See Current Status entry above for full detail.
 
