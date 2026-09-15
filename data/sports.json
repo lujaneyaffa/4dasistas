@@ -38,7 +38,25 @@
       "website": "https://www.sistersthroughfaith.ca/",
       "id": "Padel_SisterthroughFaith",
       "calDate": "2026-08-29",
-      "section": "sports"
+      "section": "sports",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "sisterthroughfaith x sais society",
+      "eventDate": "2026-08-09",
+      "endDate": "2026-08-09",
+      "time": "12:00",
+      "endTime": "15:00",
+      "allDay": false,
+      "days": [],
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "link": "https://www.instagram.com/p/DbbLBNIjrNJ/?stkn=YjVjcmkzNXF6bm1n",
+      "alsoSportKeys": [],
+      "alsoShowIn": []
     },
     {
       "contact": "647-292-4043",
