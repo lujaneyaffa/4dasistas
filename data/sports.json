@@ -69,7 +69,7 @@
       "recurEnd": "2026-09-24",
       "date": "Every Thursday · 6:00–8:00 PM",
       "organizer": "Lujane",
-      "desc": "Drop-in badminton at ISNA — last min just show-ups welcome. All levels. ",
+      "desc": "Drop-in badminton at ISNA — last min just show-ups welcome. All levels.",
       "whatsapp": "https://chat.whatsapp.com/JBbZDTEo45095qpNOwa9Fy?s=cl&p=i&ilr=2",
       "location": "2200 S Sheridan Way, Mississauga, ON L5J 2M4, Canada",
       "days": [
@@ -80,7 +80,18 @@
       "registration": "Drop-in",
       "tag": "Badminton",
       "link": "https://form.jotform.com/252165014748254",
-      "id": "bad-thu"
+      "id": "bad-thu",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "endDate": "",
+      "allDay": false,
+      "recurStart": "",
+      "extraDates": [],
+      "virtual": false,
+      "alsoSportKeys": [],
+      "alsoShowIn": []
     },
     {
       "sportKey": "ball-hockey",
