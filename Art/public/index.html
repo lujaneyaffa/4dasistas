@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lujane Art</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<header class="site">
+  <h1>Lujane Art</h1>
+  <p>Original paintings &mdash; place a bid to make one yours</p>
+</header>
+
+<main>
+  <div id="grid" class="grid"></div>
+  <div id="emptyState" class="empty-state" hidden>No paintings listed yet. Check back soon.</div>
+</main>
+
+<footer class="site"><a href="admin.html">admin</a></footer>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="modal">
+    <button class="close" id="closeModal">Close</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const grid = document.getElementById('grid');
+const emptyState = document.getElementById('emptyState');
+const overlay = document.getElementById('overlay');
+const modalBody = document.getElementById('modalBody');
+
+document.getElementById('closeModal').addEventListener('click', closeModal);
+overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+
+function closeModal() {
+  overlay.hidden = true;
+  modalBody.innerHTML = '';
+  history.replaceState(null, '', location.pathname);
+}
+
+function money(n) {
+  return '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function loadPaintings() {
+  const res = await fetch('/api/paintings');
+  const data = await res.json();
+  const paintings = data.paintings || [];
+  if (!paintings.length) {
+    emptyState.hidden = false;
+    return;
+  }
+  grid.innerHTML = paintings
+    .filter((p) => p.status !== 'archived')
+    .map((p) => {
+      const img = p.images && p.images[0] ? `<img src="/api/images/${p.images[0]}" alt="">` : '';
+      const statusLabel = p.status === 'sold' ? 'Sold' : `${p.bidCount || 0} bid${p.bidCount === 1 ? '' : 's'}`;
+      return `
+        <button class="card" data-id="${p.id}">
+          <div class="thumb ${img ? '' : 'empty'}">${img || 'No photo'}</div>
+          <h2>${escapeHtml(p.title)}</h2>
+          <p class="price">${money(p.currentBid)}</p>
+          <span class="status">${statusLabel}</span>
+        </button>`;
+    })
+    .join('');
+
+  grid.querySelectorAll('.card').forEach((card) => {
+    card.addEventListener('click', () => openPainting(card.dataset.id));
+  });
+
+  const initial = new URLSearchParams(location.search).get('painting');
+  if (initial) openPainting(initial);
+}
+
+async function openPainting(id) {
+  const res = await fetch(`/api/paintings/${id}`);
+  if (!res.ok) return;
+  const { painting, bids } = await res.json();
+  history.replaceState(null, '', `?painting=${id}`);
+
+  const images = (painting.images || [])
+    .map((imgId) => `<img src="/api/images/${imgId}" alt="">`)
+    .join('');
+
+  const soldOut = painting.status !== 'available';
+
+  const bidHistory = bids && bids.length
+    ? `<ul class="bid-history">${bids
+        .slice(0, 8)
+        .map((b) => `<li><span>${escapeHtml(b.name)}</span><span>${money(b.amount)}</span></li>`)
+        .join('')}</ul>`
+    : '';
+
+  modalBody.innerHTML = `
+    ${images || ''}
+    <h2>${escapeHtml(painting.title)}</h2>
+    <p class="desc">${escapeHtml(painting.description || '')}</p>
+    <div class="bid-box">
+      <div class="current">${money(painting.currentBid)}<small>${soldOut ? (painting.status === 'sold' ? 'Sold' : 'Not available') : `current bid · ${painting.bidCount || 0} bid${painting.bidCount === 1 ? '' : 's'}`}</small></div>
+      ${
+        soldOut
+          ? ''
+          : `<form class="bid-form" id="bidForm">
+              <input type="text" name="name" placeholder="Your name" required />
+              <input type="email" name="email" placeholder="Email (so we can reach you if you win)" required />
+              <input type="number" name="amount" min="${painting.currentBid + 1}" step="1" placeholder="Your bid (min ${money(painting.currentBid + 1)})" required />
+              <button class="primary" type="submit">Place bid</button>
+              <p class="msg" id="bidMsg"></p>
+            </form>`
+      }
+      ${bidHistory}
+    </div>
+  `;
+  overlay.hidden = false;
+
+  const form = document.getElementById('bidForm');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById('bidMsg');
+      const submitBtn = form.querySelector('button');
+      submitBtn.disabled = true;
+      msg.textContent = '';
+      msg.className = 'msg';
+      const fd = new FormData(form);
+      try {
+        const r = await fetch('/api/bids', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            paintingId: id,
+            name: fd.get('name'),
+            email: fd.get('email'),
+            amount: Number(fd.get('amount')),
+          }),
+        });
+        const out = await r.json();
+        if (!r.ok) throw new Error(out.error || 'Something went wrong');
+        msg.textContent = 'Bid placed! Reopening this piece with your bid recorded.';
+        msg.className = 'msg ok';
+        await loadPaintings();
+        setTimeout(() => openPainting(id), 600);
+      } catch (err) {
+        msg.textContent = err.message;
+        msg.className = 'msg error';
+        submitBtn.disabled = false;
+      }
+    });
+  }
+}
+
+loadPaintings();
+</script>
+</body>
+</html>

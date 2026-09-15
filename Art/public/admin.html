@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lujane Art &mdash; Admin</title>
+<link rel="stylesheet" href="style.css" />
+<style>
+  main.admin { max-width: 720px; }
+  .login-box { max-width: 320px; margin: 4rem auto; display: grid; gap: 0.75rem; }
+  .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+  .row a, .row button.link { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; background: none; border: none; cursor: pointer; color: var(--muted); }
+  .painting-form { display: grid; gap: 0.6rem; border: 1px solid var(--line); padding: 1.5rem; margin-bottom: 2.5rem; }
+  .painting-form label { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 0.2rem; }
+  .list-item { border: 1px solid var(--line); padding: 1rem 1.25rem; margin-bottom: 1rem; display: flex; gap: 1rem; align-items: flex-start; }
+  .list-item img { width: 72px; height: 90px; object-fit: cover; background: #f5f5f5; flex-shrink: 0; }
+  .list-item .meta { flex: 1; }
+  .list-item .meta h3 { margin: 0 0 0.2rem; font-size: 0.95rem; }
+  .list-item .meta p { margin: 0.15rem 0; font-size: 0.8rem; color: var(--muted); }
+  .list-item .actions { display: flex; gap: 0.5rem; flex-direction: column; }
+  .list-item .actions button { font: inherit; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; padding: 0.4rem 0.6rem; border: 1px solid var(--line); background: var(--paper); cursor: pointer; }
+  .list-item .actions button.danger { border-color: #b3261e; color: #b3261e; }
+  select { font: inherit; padding: 0.5rem; border: 1px solid var(--line); background: var(--paper); }
+</style>
+</head>
+<body>
+<header class="site">
+  <h1>Lujane Art</h1>
+  <p>Admin</p>
+</header>
+
+<main class="admin">
+  <div id="loginView" class="login-box" hidden>
+    <input type="password" id="passwordInput" placeholder="Admin password" />
+    <button class="primary" id="loginBtn">Log in</button>
+    <p class="msg error" id="loginMsg"></p>
+  </div>
+
+  <div id="dashboardView" hidden>
+    <div class="row">
+      <a href="index.html">&larr; view site</a>
+      <button class="link" id="logoutBtn">Log out</button>
+    </div>
+
+    <form class="painting-form" id="createForm">
+      <div>
+        <label>Title</label>
+        <input type="text" name="title" required />
+      </div>
+      <div>
+        <label>Description</label>
+        <textarea name="description" rows="3"></textarea>
+      </div>
+      <div>
+        <label>Starting price ($)</label>
+        <input type="number" name="startingBid" min="0" step="1" required />
+      </div>
+      <div>
+        <label>Photos</label>
+        <input type="file" name="images" accept="image/*" multiple />
+      </div>
+      <button class="primary" type="submit">Add painting</button>
+      <p class="msg" id="createMsg"></p>
+    </form>
+
+    <div id="list"></div>
+  </div>
+</main>
+
+<script>
+const TOKEN_KEY = 'art_admin_token';
+
+const loginView = document.getElementById('loginView');
+const dashboardView = document.getElementById('dashboardView');
+
+function getToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+function setToken(token) {
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+}
+
+function money(n) {
+  return '$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function showDashboard() {
+  loginView.hidden = true;
+  dashboardView.hidden = false;
+  loadList();
+}
+
+function showLogin() {
+  loginView.hidden = false;
+  dashboardView.hidden = true;
+}
+
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('loginMsg');
+  const password = document.getElementById('passwordInput').value;
+  msg.textContent = '';
+  try {
+    const r = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const out = await r.json();
+    if (!r.ok) throw new Error(out.error || 'Login failed');
+    setToken(out.token);
+    showDashboard();
+  } catch (err) {
+    msg.textContent = err.message;
+  }
+});
+
+document.getElementById('passwordInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('loginBtn').click();
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  setToken(null);
+  showLogin();
+});
+
+async function authFetch(url, options = {}) {
+  options.headers = options.headers || {};
+  options.headers['Authorization'] = `Bearer ${getToken()}`;
+  const res = await fetch(url, options);
+  if (res.status === 401) {
+    setToken(null);
+    showLogin();
+    throw new Error('Session expired');
+  }
+  return res;
+}
+
+document.getElementById('createForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('createMsg');
+  const form = e.target;
+  msg.textContent = '';
+  msg.className = 'msg';
+  try {
+    const fd = new FormData(form);
+    const r = await authFetch('/api/admin/paintings', { method: 'POST', body: fd });
+    const out = await r.json();
+    if (!r.ok) throw new Error(out.error || 'Could not add painting');
+    form.reset();
+    msg.textContent = 'Added.';
+    msg.className = 'msg ok';
+    loadList();
+  } catch (err) {
+    msg.textContent = err.message;
+    msg.className = 'msg error';
+  }
+});
+
+async function loadList() {
+  const res = await fetch('/api/paintings');
+  const { paintings } = await res.json();
+  const list = document.getElementById('list');
+
+  if (!paintings.length) {
+    list.innerHTML = '<p class="empty-state">No paintings yet.</p>';
+    return;
+  }
+
+  list.innerHTML = paintings
+    .map((p) => {
+      const img = p.images && p.images[0] ? `<img src="/api/images/${p.images[0]}" alt="">` : '';
+      return `
+        <div class="list-item" data-id="${p.id}">
+          ${img}
+          <div class="meta">
+            <h3>${escapeHtml(p.title)}</h3>
+            <p>${money(p.currentBid)} &middot; ${p.bidCount || 0} bid${p.bidCount === 1 ? '' : 's'}</p>
+            <label>Status
+              <select class="status-select">
+                <option value="available" ${p.status === 'available' ? 'selected' : ''}>Available</option>
+                <option value="sold" ${p.status === 'sold' ? 'selected' : ''}>Sold</option>
+                <option value="archived" ${p.status === 'archived' ? 'selected' : ''}>Archived (hidden)</option>
+              </select>
+            </label>
+          </div>
+          <div class="actions">
+            <button class="danger delete-btn">Delete</button>
+          </div>
+        </div>`;
+    })
+    .join('');
+
+  list.querySelectorAll('.list-item').forEach((item) => {
+    const id = item.dataset.id;
+    item.querySelector('.status-select').addEventListener('change', async (e) => {
+      const fd = new FormData();
+      fd.append('status', e.target.value);
+      await authFetch(`/api/admin/paintings/${id}`, { method: 'PUT', body: fd });
+    });
+    item.querySelector('.delete-btn').addEventListener('click', async () => {
+      if (!confirm('Delete this painting? This cannot be undone.')) return;
+      await authFetch(`/api/admin/paintings/${id}`, { method: 'DELETE' });
+      loadList();
+    });
+  });
+}
+
+if (getToken()) {
+  showDashboard();
+} else {
+  showLogin();
+}
+</script>
+</body>
+</html>
