@@ -1000,9 +1000,17 @@ function dedupeEvents(items){
   });
 }
 
+const SECTION_TO_TAG_CLASS = {sports:'cat-sports', activities:'cat-dayactivity', functions:'cat-function', trips:'cat-trip', mosqueprograms:'cat-mosque'};
 function tagClass(item){
   if(!item) return 'cat-resource';
   if(resourcesData.includes(item)) return 'cat-resource';
+
+  // `section` is the current, authoritative classification for any calendar-collection
+  // item (set via the CMS/admin editor) — check it before any legacy `category` field
+  // or array-membership fallback below, since a few older items still carry a stale
+  // `category` value from before the folder-collection migration (e.g. "functions")
+  // that would otherwise permanently override a later reclassification via `section`.
+  if(item.section && SECTION_TO_TAG_CLASS[item.section]) return SECTION_TO_TAG_CLASS[item.section];
 
   const title = String(item.title || '').toLowerCase();
   const tag = String(item.tag || item.category || '').toLowerCase();
@@ -1044,14 +1052,15 @@ function tripColor(item){
 function eventTypeLabel(item){
   if(resourcesData.includes(item)){
     const resourceLabels = {
-      cafes:'Cafe & Desserts', shops:'Shop', restaurants:'Restaurant', beautycare:'Health n Beauty',
-      mentalhealth:'Mental Health', bakeries:'Small Business', legal:'Legal Service', mosques:'Mosque'
+      cafes:'Cafe & Desserts', shops:'Shop', restaurants:'Restaurant', beautycare:'Pampering',
+      mentalhealth:'Mental Health', bakeries:'Small Business', legal:'Legal Service', mosques:'Mosque',
+      communityorg:'Community Organization', fitness:'Fitness & Health'
     };
     return resourceLabels[item.category] || item.type || 'Resource';
   }
   const labels = {
     'cat-sports':'Sports', 'cat-trip':'Trip', 'cat-club':'Club',
-    'cat-gathering':'Function', 'cat-function':'Function', 'cat-dayactivity':'Activity', 'cat-mosque':'Mosque Program',
+    'cat-gathering':'Function', 'cat-function':'Function', 'cat-dayactivity':'Activity', 'cat-mosque':'Knowledge',
     'cat-resource':'Resource'
   };
   return labels[tagClass(item)] || 'Event';
@@ -1832,14 +1841,16 @@ const resourceFilterList = [
   {key:'cafes', label:'Cafe & Desserts'},
   {key:'shops', label:'Shops'},
   {key:'restaurants', label:'Restaurants'},
-  {key:'beautycare', label:'Health n Beauty'},
+  {key:'beautycare', label:'Pampering'},
+  {key:'fitness', label:'Fitness & Health'},
   {key:'mentalhealth', label:'Mental Health'},
   {key:'bakeries', label:'Small Businesses'},
+  {key:'communityorg', label:'Community Organization'},
   {key:'legal', label:'Legal Services'},
 ];
 
 const categoryColors = {
-  mosques:'#c3e2d4', mosqueprograms:'#c3e2d4', cafes:'#ddb862', shops:'#caaacd', restaurants:'#f6c1a8', beautycare:'#ecc7d2', mentalhealth:'#a9d6b8', supportgroups:'#d6c2e8', bakeries:'#f1dfb6', legal:'#c8b6e8'
+  mosques:'#c3e2d4', mosqueprograms:'#c3e2d4', cafes:'#ddb862', shops:'#caaacd', restaurants:'#f6c1a8', beautycare:'#ecc7d2', mentalhealth:'#a9d6b8', supportgroups:'#d6c2e8', bakeries:'#f1dfb6', legal:'#c8b6e8', communityorg:'#b8cde8', fitness:'#c9e0b0'
 };
 
 function renderResourceFilters(){
@@ -3321,7 +3332,7 @@ async function saveEventEdit(){
    ADMIN: RESOURCES / SMALL BUSINESS EDITOR
    Same GitHub-backed pattern as the calendar event editor above.
    ============================================================ */
-const RESOURCE_CATEGORIES = [['cafes','Cafe & Dessert'],['shops','Shops'],['restaurants','Restaurants'],['beautycare','Health n Beauty'],['mentalhealth','Mental Health'],['bakeries','Small Businesses'],['legal','Legal']];
+const RESOURCE_CATEGORIES = [['cafes','Cafe & Dessert'],['shops','Shops'],['restaurants','Restaurants'],['beautycare','Pampering'],['mentalhealth','Mental Health'],['bakeries','Small Businesses'],['legal','Legal'],['communityorg','Community Organization'],['fitness','Fitness & Health']];
 const RESOURCE_CREATE_DEFAULTS = { category:'bakeries', title:'', type:'', location:'', date:'', ownedBy:'', desc:'', lat:'', lng:'', mapsUrl:'', instagramPost:'', phone:'', instagram:'', website:'', email:'', image:null };
 
 async function openResourceEdit(id){

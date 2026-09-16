@@ -1051,11 +1051,16 @@ collections:
     - cafes
     - shops
     - restaurants
-    - beautycare
+    - label: Pampering
+      value: beautycare
     - mentalhealth
     - label: Small Businesses
       value: bakeries
     - legal
+    - label: Community Organization
+      value: communityorg
+    - label: Fitness & Health
+      value: fitness
     hint: Changing this officially moves the listing to another Resources tab.
   - label: Title
     name: title
@@ -1271,7 +1276,7 @@ collections:
     widget: string
     required: false
 - name: res-beautycare
-  label: Resources - Health n Beauty
+  label: Resources - Pampering
   folder: data/resources
   extension: json
   format: json
@@ -1289,6 +1294,162 @@ collections:
     name: category
     widget: select
     default: beautycare
+    options: *id003
+    hint: Changing this officially moves the listing to another Resources tab.
+  - label: Title
+    name: title
+    widget: string
+  - label: Type line on card (e.g. Bakery)
+    name: type
+    widget: string
+    required: false
+  - label: Location
+    name: location
+    widget: location-autocomplete
+  - label: Hours / date info
+    name: date
+    widget: string
+    required: false
+  - label: Ownership note (required)
+    name: ownedBy
+    widget: string
+    required: true
+    hint: Every business needs a real owner name here.
+  - label: Description
+    name: desc
+    widget: text
+    required: false
+  - label: Latitude (for map)
+    name: lat
+    widget: number
+    value_type: float
+    required: false
+  - label: Longitude (for map)
+    name: lng
+    widget: number
+    value_type: float
+    required: false
+  - label: Google Maps link
+    name: mapsUrl
+    widget: string
+    required: false
+  - label: Featured Instagram post link (Small Businesses grid)
+    name: instagramPost
+    widget: string
+    required: false
+  - label: Phone
+    name: phone
+    widget: string
+    required: false
+  - label: Instagram link
+    name: instagram
+    widget: string
+    required: false
+  - label: Website link
+    name: website
+    widget: string
+    required: false
+  - label: Email
+    name: email
+    widget: string
+    required: false
+- name: res-communityorg
+  label: Resources - Community Organization
+  folder: data/resources
+  extension: json
+  format: json
+  filter:
+    field: category
+    value: communityorg
+  create: true
+  slug: '{{title}}'
+  identifier_field: title
+  sortable_fields:
+  - title
+  summary: '{{title}} - {{type}}'
+  fields:
+  - label: Type (changing this OFFICIALLY MOVES the listing)
+    name: category
+    widget: select
+    default: communityorg
+    options: *id003
+    hint: Changing this officially moves the listing to another Resources tab.
+  - label: Title
+    name: title
+    widget: string
+  - label: Type line on card (e.g. Bakery)
+    name: type
+    widget: string
+    required: false
+  - label: Location
+    name: location
+    widget: location-autocomplete
+  - label: Hours / date info
+    name: date
+    widget: string
+    required: false
+  - label: Ownership note (required)
+    name: ownedBy
+    widget: string
+    required: true
+    hint: Every business needs a real owner name here.
+  - label: Description
+    name: desc
+    widget: text
+    required: false
+  - label: Latitude (for map)
+    name: lat
+    widget: number
+    value_type: float
+    required: false
+  - label: Longitude (for map)
+    name: lng
+    widget: number
+    value_type: float
+    required: false
+  - label: Google Maps link
+    name: mapsUrl
+    widget: string
+    required: false
+  - label: Featured Instagram post link (Small Businesses grid)
+    name: instagramPost
+    widget: string
+    required: false
+  - label: Phone
+    name: phone
+    widget: string
+    required: false
+  - label: Instagram link
+    name: instagram
+    widget: string
+    required: false
+  - label: Website link
+    name: website
+    widget: string
+    required: false
+  - label: Email
+    name: email
+    widget: string
+    required: false
+- name: res-fitness
+  label: Resources - Fitness & Health
+  folder: data/resources
+  extension: json
+  format: json
+  filter:
+    field: category
+    value: fitness
+  create: true
+  slug: '{{title}}'
+  identifier_field: title
+  sortable_fields:
+  - title
+  summary: '{{title}} - {{type}}'
+  fields:
+  - label: Type (changing this OFFICIALLY MOVES the listing)
+    name: category
+    widget: select
+    default: fitness
     options: *id003
     hint: Changing this officially moves the listing to another Resources tab.
   - label: Title

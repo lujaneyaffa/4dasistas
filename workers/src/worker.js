@@ -285,7 +285,7 @@ const resolveCalendarFile = async (env, id) => {
 
 // ---- In-site resources/small-business editor: same GitHub-backed pattern as calendar events ----
 const resourceFilePath = (id) => `data/resources/${id}.json`;
-const RESOURCE_CATEGORIES = ["cafes", "shops", "restaurants", "beautycare", "mentalhealth", "bakeries", "legal"];
+const RESOURCE_CATEGORIES = ["cafes", "shops", "restaurants", "beautycare", "mentalhealth", "bakeries", "legal", "communityorg", "fitness"];
 
 const resolveResourceFile = async (env, id) => {
   const direct = resourceFilePath(id);
@@ -855,6 +855,11 @@ export default {
       if (!resolved) return jsonResponse({ error: "Event source file not found" }, 404, corsHeaders);
       const { file, path: filePath } = resolved;
       const updated = { ...file.content, ...body.fields };
+      // A few pre-migration files still carry a legacy `category` field (e.g.
+      // "functions") left over from before `section` became authoritative. If left
+      // in place it silently overrides any reclassification in the site's tagClass()
+      // logic, so strip it on every edit going through this endpoint.
+      delete updated.category;
       const commitMessage = `Edit "${updated.title || id}" via site admin editor`;
       const res = await githubPutFile(env, filePath, updated, file.sha, commitMessage);
       if (!res.ok) {
