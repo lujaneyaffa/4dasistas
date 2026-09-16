@@ -47,6 +47,7 @@
     --purple: #c8b6e8;
     --gold: #ddb862;
     --tan: #f1dfb6;
+    --beige: #f7ead0;
     --lightblue: #d6e8f7;
     --blush: #fae1e4;
     --muted: #776867;
@@ -215,7 +216,10 @@
   .day-cell{ min-height:78px; border:1.5px solid rgba(33,30,28,0.15); border-radius:8px; background:white; padding:4px; overflow:visible; }
   .day-cell.empty{ border:none; background:transparent; }
   .day-cell.today{ border:2px solid var(--pink); }
-  .day-cell.row-even{ background:#faf3e6; }
+  /* Calendar month-grid striping. The page background is --cream (#fff7e6), so the
+     even-row tint has to be a real (if light) beige — a tint that close to the page
+     background just disappears. Tune --beige in :root to taste. */
+  .day-cell.row-even{ background:var(--beige); }
   .day-cell.row-odd{ background:white; }
   .day-num{ font-family:'Space Grotesk',sans-serif; font-size:12px; font-weight:700; color:var(--charcoal); }
   .day-weekday{ display:none; font-size:10px; font-weight:700; color:var(--rose-deep); text-transform:uppercase; line-height:1.1; }
@@ -468,13 +472,17 @@
 
   /* Map view stacks: left panel list first, then the "Add a resource" pill
      underneath it, then the map centered below them. */
+  /* Map view stacks: left panel list first, then the map centered below it.
+     The contribution pill no longer lives here — it renders once at the bottom
+     of the page, directly above the footer (see .page-cta-slot). */
   .resource-map-wrapper{ display:flex; flex-direction:column; gap:16px; align-items:flex-start; }
   .resource-map-wrapper .resource-map{ flex:0 0 auto; width:100%; }
   .resource-map-wrapper .resource-side-list{ width:100%; max-height:280px; }
   .resource-map-side{ display:flex; flex-direction:column; gap:12px; width:100%; max-width:100%; }
-  .add-resource-pill-row{ display:flex; justify-content:center; margin-top:18px; grid-column:1 / -1; }
-  .resource-map-side .add-resource-pill-row{ margin-top:0; }
-  .add-resource-pill{ display:inline-flex; align-items:center; gap:8px; padding:11px 22px; border:2px solid var(--charcoal); border-radius:999px; background:var(--cream); color:var(--charcoal); font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px; text-decoration:none; box-shadow:3px 3px 0 var(--charcoal); transition:transform 0.12s ease, box-shadow 0.12s ease; }
+  /* Bottom-of-page contribution CTAs ("Add a resource" / "Add a trip"): always
+     the last thing above the footer, on every tab that offers one. */
+  .page-cta-slot{ display:flex; justify-content:center; padding:0 16px 22px; }
+  .add-resource-pill{ display:inline-flex; align-items:center; gap:8px; padding:11px 22px; border:2px solid var(--charcoal); border-radius:999px; background:#fff; color:var(--charcoal); font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px; text-decoration:none; box-shadow:3px 3px 0 var(--charcoal); transition:transform 0.12s ease, box-shadow 0.12s ease; }
   .add-resource-pill:hover{ transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--charcoal); }
   .travel-earth-layout{ display:grid; grid-template-columns:minmax(300px,340px) minmax(0,1fr); gap:16px; align-items:stretch; width:100%; }
 
@@ -743,6 +751,9 @@
 
 <p class="page-disclaimer" id="pageDisclaimer">Details change often, so always confirm dates, prices, locations, and any "hijab-off"/private-space claims directly with the organizer before attending.</p>
 
+<div class="page-cta-slot" id="pageCtaSlot" style="display:none;"></div>
+
+
 <footer>
   <div class="footer-admin-corner">
     <button type="button" class="footer-admin-btn" id="footerNewEventBtn" style="display:none;">➕ New event</button>
@@ -963,6 +974,7 @@ let state = {
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventEditDeleting:false,
   reviewMode:false, reviewQueue:[], reviewTotal:0, eventCreateMode:false,
   resourceEditOpen:false, resourceEditId:null, resourceEditData:null, resourceEditError:'', resourceEditSaving:false, resourceEditSaved:false, resourceCreateMode:false,
+  aboutEditOpen:false, aboutEditValue:null, aboutEditError:'', aboutEditSaving:false, aboutEditSaved:false,
 };
 
 const introText = {
@@ -1965,12 +1977,36 @@ function interleaveByCategory(items){
   return result;
 }
 
-// Public "Add a resource" pill. It opens a DM to the 4DASISTAS Instagram so
-// anyone can send in a business/organization that's missing from the Directory.
+// Bottom-of-page contribution CTAs. Both open a DM to the 4DASISTAS Instagram so
+// anyone can send in something that's missing. They render once, in the page-level
+// slot directly above the footer — never inside the list or beside the map.
 const IG_DM_URL = 'https://ig.me/m/4dasistas.ca';
 
-function addResourcePillHtml(){
-  return `<div class="add-resource-pill-row"><a class="add-resource-pill" href="${IG_DM_URL}" target="_blank" rel="noopener" title="Missing something? DM us on Instagram">➕ Add a resource</a></div>`;
+// An "admin viewer" in the footer sense: either the in-site admin session or an
+// already-cached club-member session. Kept in one place so the CTA and the footer
+// buttons can't disagree about who counts as staff.
+function isAdminViewer(){
+  return !!(getCmSession() || state.cmAdminLoggedIn === true);
+}
+
+function pageCtaForTab(){
+  if(state.tab === 'resources') return { label:'Add a resource', title:'Missing a business or organization? DM us on Instagram' };
+  // Trips are curated by the team, so this prompt is for visitors only.
+  if(state.tab === 'travel' && !isAdminViewer()) return { label:'Add a trip', title:'Know a trip we should add? DM us on Instagram' };
+  return null;
+}
+
+function renderPageCta(){
+  const slot = document.getElementById('pageCtaSlot');
+  if(!slot) return;
+  const cta = pageCtaForTab();
+  if(!cta){
+    slot.style.display = 'none';
+    slot.innerHTML = '';
+    return;
+  }
+  slot.style.display = 'flex';
+  slot.innerHTML = `<a class="add-resource-pill" href="${IG_DM_URL}" target="_blank" rel="noopener" title="${cta.title}">➕ ${cta.label}</a>`;
 }
 
 function renderResourceList(){
@@ -1982,7 +2018,7 @@ function renderResourceList(){
   el.className = isMentalHealth ? 'mental-health-grid' : isSmallBiz ? 'small-business-grid' : '';
   el.style.display = (isMentalHealth || isSmallBiz) ? 'grid' : 'block';
 
-  if(filtered.length === 0){ el.innerHTML = '<div class="empty">Nothing here yet.</div>' + addResourcePillHtml(); pagEl.innerHTML=''; return; }
+  if(filtered.length === 0){ el.innerHTML = '<div class="empty">Nothing here yet.</div>'; pagEl.innerHTML=''; return; }
 
   const pageItems = filtered;
 
@@ -2008,7 +2044,7 @@ function renderResourceList(){
         ${r.phone ? `<a class="link-btn secondary" href="tel:${r.phone}">${r.phone}</a>` : ''}
         ${state.cmAdminLoggedIn ? `<button type="button" class="link-btn secondary res-edit-btn" data-resource-id="${r.id}">✏️ Edit</button>` : ''}
       </div>
-    </div>`).join('') + addResourcePillHtml();
+    </div>`).join('');
 
   if(isMentalHealth){
     el.querySelectorAll('[data-reveal-resource]').forEach(button => button.addEventListener('click', () => {
@@ -2040,7 +2076,6 @@ function renderResourceMap(){
         <h4 id="sideListTitle">Mapped resources</h4>
         <div id="sideListContent"></div>
       </div>
-      ${addResourcePillHtml()}
     </div>
     <div id="resourceMapContainer" class="resource-map"></div>
   </div>
@@ -2717,26 +2752,8 @@ el.innerHTML = `<div class="clubs-top-actions">
     document.getElementById('resourcePagination').innerHTML = '';
     el.innerHTML = `
       <div class="rules-content">
-        <p class="rules-lead">This is a respectful community for Muslim women in the GTA.</p>
-        <ul>
-          <li>Be kind and assume good intent. No bullying, harassment, discrimination, gossip, public call-outs, or debates that make others feel unsafe or unwelcome.</li>
-          <li>Protect privacy. Do not screenshot, forward messages, share phone numbers, photos, locations, or personal stories without clear permission.</li>
-          <li>No spam, chain messages, unrelated promotions, recruitment, affiliate links, fundraising, business advertising, or repeated self-promotion without admin approval.</li>
-          <li>Events, venues, prices, and availability can change. Members must confirm details directly with the organizer before attending or paying.</li>
-          <li>4DASISTAS is a community connector, not the organizer, employer, insurer, transport provider, or safety guarantor for independent events and clubs.</li>
-          <li>Members are responsible for their own transportation, belongings, payments, safety decisions, and conduct at meetups.</li>
-          <li>Respect club leads' boundaries, time, venue rules, capacity limits, and registration requirements.</li>
-          <li>Admins may remove posts or members that break these rules, create repeated conflict, or put the community at risk.</li>
-        </ul>
-        <h3>Safety &amp; Conflict Process</h3>
-        <p>If there is a concern:</p>
-        <ol>
-          <li>For immediate danger or an emergency, contact local emergency services first.</li>
-          <li>For harassment, boundary issues, payment concerns, privacy breaches, or conflict, message a 4DASISTAS Admin privately with screenshots/details if appropriate.</li>
-          <li>Do not publicly litigate conflicts in club chats.</li>
-          <li>Admins may speak separately with those involved, pause participation, remove content, appoint a new lead, or remove a member where necessary.</li>
-          <li>Reports will be handled respectfully and as privately as practical, but confidentiality cannot be guaranteed where safety requires escalation.</li>
-        </ol>
+        ${siteText.aboutContent != null ? siteText.aboutContent : DEFAULT_ABOUT_HTML}
+        ${state.cmAdminLoggedIn ? `<button type="button" class="link-btn secondary" id="aboutEditBtn" style="margin-top:14px;">✏️ Edit this page</button>` : ''}
       </div>
       <div class="rules-content" style="margin-top:16px;">
         <button class="link-btn primary" id="volunteerToggleBtn" type="button" style="width:100%; text-align:center;">Want to Volunteer? →</button>
@@ -2769,6 +2786,8 @@ el.innerHTML = `<div class="clubs-top-actions">
       const form = document.getElementById('volunteerForm');
       form.style.display = form.style.display === 'none' ? 'flex' : 'none';
     });
+    const aboutEditBtn = document.getElementById('aboutEditBtn');
+    if(aboutEditBtn) aboutEditBtn.addEventListener('click', openAboutEdit);
     document.getElementById('volOtherCheck').addEventListener('change', (e) => {
       document.getElementById('volOtherText').style.display = e.target.checked ? 'block' : 'none';
     });
@@ -2978,7 +2997,12 @@ function renderDetail(id){
   let facts = '';
   if(e.virtual) facts += `<div class="detail-fact"><b>📍 Virtual event</b>${e.location ? ' · ' + e.location : ''}</div>`;
   else if(e.location) facts += `<div class="detail-fact"><b>Location:</b> ${e.location}</div>`;
-  if(e.organizer) facts += `<div class="detail-fact"><b>Organizer:</b> ${e.organizer}${e.contact ? ' · ' + e.contact : ''}</div>`;
+  // Only show this legacy fact line when there's no modern `organizedBy` value —
+  // items edited through the admin editor set organizedBy (already shown italicized
+  // under the title above), and a handful of older items still carry a stale,
+  // sometimes-wrong `organizer` field from before that existed (e.g. one event's
+  // legacy organizer was literally the site owner's name, not the real organizer).
+  if(e.organizer && !e.organizedBy) facts += `<div class="detail-fact"><b>Organizer:</b> ${e.organizer}${e.contact ? ' · ' + e.contact : ''}</div>`;
   if(e.price) facts += `<div class="detail-fact"><b>Price:</b> ${e.price}</div>`;
   const registrationUrl = firstUrl(e.registration);
   if(e.registration && !registrationUrl) facts += `<div class="detail-fact"><b>Registration:</b> ${e.registration}</div>`;
@@ -3632,6 +3656,112 @@ async function saveResourceEdit(){
   state.resourceEditSaving = false;
   renderResourceEditView();
   if(state.resourceEditSaved) renderFooterAdmin();
+}
+
+/* ============================================================
+   ADMIN: ABOUT / RULES PAGE EDITOR
+   The rules+safety-process content was pure hardcoded HTML with no
+   admin path to change it. Backed by a single new sitetext.json field
+   (aboutContent) — same GitHub-commit pattern, no slug/id needed since
+   it's always the same fixed file.
+   ============================================================ */
+const DEFAULT_ABOUT_HTML = `<p class="rules-lead">This is a respectful community for Muslim women in the GTA.</p>
+<ul>
+  <li>Be kind and assume good intent. No bullying, harassment, discrimination, gossip, public call-outs, or debates that make others feel unsafe or unwelcome.</li>
+  <li>Protect privacy. Do not screenshot, forward messages, share phone numbers, photos, locations, or personal stories without clear permission.</li>
+  <li>No spam, chain messages, unrelated promotions, recruitment, affiliate links, fundraising, business advertising, or repeated self-promotion without admin approval.</li>
+  <li>Events, venues, prices, and availability can change. Members must confirm details directly with the organizer before attending or paying.</li>
+  <li>4DASISTAS is a community connector, not the organizer, employer, insurer, transport provider, or safety guarantor for independent events and clubs.</li>
+  <li>Members are responsible for their own transportation, belongings, payments, safety decisions, and conduct at meetups.</li>
+  <li>Respect club leads' boundaries, time, venue rules, capacity limits, and registration requirements.</li>
+  <li>Admins may remove posts or members that break these rules, create repeated conflict, or put the community at risk.</li>
+</ul>
+<h3>Safety &amp; Conflict Process</h3>
+<p>If there is a concern:</p>
+<ol>
+  <li>For immediate danger or an emergency, contact local emergency services first.</li>
+  <li>For harassment, boundary issues, payment concerns, privacy breaches, or conflict, message a 4DASISTAS Admin privately with screenshots/details if appropriate.</li>
+  <li>Do not publicly litigate conflicts in club chats.</li>
+  <li>Admins may speak separately with those involved, pause participation, remove content, appoint a new lead, or remove a member where necessary.</li>
+  <li>Reports will be handled respectfully and as privately as practical, but confidentiality cannot be guaranteed where safety requires escalation.</li>
+</ol>`;
+
+async function openAboutEdit(){
+  state.aboutEditOpen = true;
+  state.aboutEditError = '';
+  state.aboutEditSaved = false;
+  state.aboutEditValue = null;
+  document.getElementById('detail-view').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  renderAboutEditView();
+  try {
+    const res = await fetch('/api/admin/sitetext', { credentials:'include' });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Could not load page text');
+    state.aboutEditValue = (data.aboutContent != null) ? data.aboutContent : DEFAULT_ABOUT_HTML;
+  } catch(err){
+    state.aboutEditError = err.message;
+  }
+  renderAboutEditView();
+}
+
+function closeAboutEdit(){
+  state.aboutEditOpen = false;
+  state.aboutEditValue = null;
+  state.aboutEditError = '';
+  state.aboutEditSaved = false;
+  document.getElementById('detail-view').classList.remove('open');
+  document.body.style.overflow = '';
+  render();
+}
+
+function renderAboutEditView(){
+  const card = document.getElementById('detailCard');
+  if(!card) return;
+  if(state.aboutEditValue === null){
+    card.innerHTML = `<button class="back-btn" id="aboutEditCancelBtn" type="button">← Cancel</button>
+      ${state.aboutEditError ? `<p style="color:#c00;">Error: ${escapeCm(state.aboutEditError)}</p>` : '<p>Loading…</p>'}`;
+    document.getElementById('aboutEditCancelBtn').addEventListener('click', closeAboutEdit);
+    return;
+  }
+  card.innerHTML = `
+    <button class="back-btn" id="aboutEditCancelBtn" type="button">← Cancel</button>
+    <h2 style="margin-bottom:10px;">Edit About Page</h2>
+    <p style="font-size:12px;color:#776867;margin-bottom:8px;">This is the raw HTML shown on the About tab (community rules + safety process). The "Want to Volunteer?" form below it isn't editable here.</p>
+    <textarea id="aboutEditTextarea" rows="20" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--charcoal);box-sizing:border-box;font-family:monospace;font-size:12px;">${escapeCm(state.aboutEditValue)}</textarea>
+    ${state.aboutEditError ? `<p style="color:#c00;font-size:13px;margin-top:8px;">${escapeCm(state.aboutEditError)}</p>` : ''}
+    ${state.aboutEditSaved ? `<p style="color:#2a7a4a;font-size:13px;margin-top:8px;">Saved! The site rebuilds automatically — this can take a minute or two to appear live.</p>` : ''}
+    <div style="display:flex;gap:10px;margin-top:10px;">
+      <button type="button" class="link-btn primary" id="aboutEditSaveBtn" style="flex:1;text-align:center;" ${state.aboutEditSaving?'disabled':''}>${state.aboutEditSaving?'Saving…':'Save changes'}</button>
+      <button type="button" class="link-btn secondary" id="aboutEditCancelBtn2" style="flex:1;text-align:center;">Cancel</button>
+    </div>
+  `;
+  document.getElementById('aboutEditCancelBtn').addEventListener('click', closeAboutEdit);
+  document.getElementById('aboutEditCancelBtn2').addEventListener('click', closeAboutEdit);
+  document.getElementById('aboutEditSaveBtn').addEventListener('click', saveAboutEdit);
+}
+
+async function saveAboutEdit(){
+  const value = document.getElementById('aboutEditTextarea').value;
+  state.aboutEditSaving = true;
+  state.aboutEditError = '';
+  state.aboutEditSaved = false;
+  renderAboutEditView();
+  try {
+    const res = await fetch('/api/admin/sitetext', {
+      method:'PUT', headers:{'Content-Type':'application/json'}, credentials:'include',
+      body: JSON.stringify({ fields: { aboutContent: value } })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Save failed');
+    siteText.aboutContent = data.content.aboutContent;
+    state.aboutEditValue = value;
+    state.aboutEditSaved = true;
+  } catch(err){
+    state.aboutEditError = err.message;
+  }
+  state.aboutEditSaving = false;
+  renderAboutEditView();
 }
 
 /* ============================================================
@@ -4446,6 +4576,7 @@ function render(){
   if(document.getElementById('globalSearch')) document.getElementById('globalSearch').value = state.searchQuery || '';
 
   renderCategoryRow();
+  renderPageCta();
 
   const isDirectory = DIRECTORY_TABS.includes(state.tab);
   const pageDisclaimer = document.getElementById('pageDisclaimer');

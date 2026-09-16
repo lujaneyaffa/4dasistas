@@ -54,6 +54,8 @@
  *                                                                but writing data/resources/:id.json
  *   GET    /api/admin/resource/:id                          - Read one listing's full source JSON
  *   PUT    /api/admin/resource/:id                          - Merge fields and commit
+ *   GET    /api/admin/sitetext                              - Read data/sitetext.json (page copy, home-tile text, About page content)
+ *   PUT    /api/admin/sitetext                               - Merge fields and commit
  *
  * Required secrets (wrangler secret put <name>):
  *   ADMIN_PASSWORD    - admin login for /editor and the in-site Club Events / calendar-event admin panels
@@ -606,7 +608,7 @@ export default {
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext");
 
     if (requiresAuth) {
       const token = getSessionToken(request);
@@ -953,6 +955,32 @@ export default {
       const updated = { ...file.content, ...fields };
       const commitMessage = `Edit "${updated.title || id}" via site admin editor`;
       const res = await githubPutFile(env, filePath, updated, file.sha, commitMessage);
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
+      }
+      return jsonResponse({ ok: true, content: updated }, 200, corsHeaders);
+    }
+
+    // Admin: edit sitetext.json (one fixed file — page copy, home-tile text, and now
+    // the About/Rules page content) — same GitHub-commit pattern, no slug/id needed.
+    if (path === "/api/admin/sitetext" && (request.method === "GET" || request.method === "PUT")) {
+      if (!env.GITHUB_TOKEN) return jsonResponse({ error: "Server misconfigured: GITHUB_TOKEN is not set" }, 500, corsHeaders);
+      const filePath = "data/sitetext.json";
+
+      if (request.method === "GET") {
+        const file = await githubGetFile(env, filePath);
+        if (!file) return jsonResponse({ error: "sitetext.json not found" }, 404, corsHeaders);
+        return jsonResponse(file.content, 200, corsHeaders);
+      }
+
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      if (!body.fields || typeof body.fields !== "object") return jsonResponse({ error: "fields object is required" }, 400, corsHeaders);
+      const file = await githubGetFile(env, filePath);
+      if (!file) return jsonResponse({ error: "sitetext.json not found" }, 404, corsHeaders);
+      const updated = { ...file.content, ...body.fields };
+      const res = await githubPutFile(env, filePath, updated, file.sha, "Edit page text via site admin editor");
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
         return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
