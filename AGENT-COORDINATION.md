@@ -77,6 +77,11 @@ npx wrangler deploy
 
 ## Current Status
 
+**Status:** IDLE
+**Last updated by:** Claude (chat)
+**Last updated:** 2026-09-16 (Tournaments tab; Resources categories completed)
+
+**2026-09-16 (Tournaments tab; Resources categories completed) — Claude (chat) — `index.html`, `admin/config.yml`, `workers/src/worker.js`, 2 `data/calendar/*.json`** — Two asks from Lujane. (1) New "Tournaments" nav tab (placeholder "Hmmm I see that you're interested! Stay tuned!") between Travel and About -- static content tab, added to DIRECTORY_TABS/introText, no data model needed. (2) Directory/Resources tab: added "Community Organization" and "Fitness & Health" as real filter chips with their own colors, renamed "Health n Beauty" to "Pampering". Found these had already been half-wired -- the CMS's shared category dropdown and the in-site resource editor's RESOURCE_CATEGORIES list already knew about communityorg/fitness and Pampering, but the site's own resourceFilterList/categoryColors never got updated, so admin could select a category the live site couldn't display or filter by. Completed it end-to-end: filter chips + colors on the site, plus two new res-communityorg/res-fitness collection entries in admin/config.yml (mirroring the existing Pampering one) so admin has a real "add new" view for each rather than only being able to reassign an existing item's category. Picked up an uncommitted fix along the way (legacy `category` field stripped on every admin resource edit, since a couple of pre-migration calendar files still carried it alongside the authoritative `section` field). Validated: node --check, YAML parse, build_content.py clean (no duplicate-id errors), live-browser click-through on the Directory tab confirming all chip labels and an empty-category click render correctly. Deployed via wrangler.
 **Status:** IDLE — still needs a fresh ADMIN_PASSWORD from Lujane
 **Last updated by:** Cline (VS Code)
 **Last updated:** 2026-09-15 (homepage/Clubs/footer visual pass)
@@ -441,6 +446,8 @@ npx wrangler deploy
 ## Recent Activity Log
 
 _(most recent first — add new entries to the top, trim past ~15)_
+
+- 2026-09-16 — Claude (chat) — `index.html`, `admin/config.yml`, `workers/src/worker.js`, 2 `data/calendar/*.json` — Added Tournaments nav tab (placeholder). Completed the half-wired Resources categories: Community Organization + Fitness & Health filter chips/colors, renamed Health n Beauty to Pampering, added matching CMS collection entries. Picked up an uncommitted legacy-`category`-field-stripping fix along the way. See Current Status entry above for full detail.
 
 - 2026-09-15 — Claude (chat) — `workers/src/worker.js`, `index.html` — Removed the footer "Suggest a change" link; admin editor now covers Resources/Small Businesses (create + edit, including photo upload) with the same GitHub-backed pattern as calendar events. See Current Status entry above for full detail.
 
