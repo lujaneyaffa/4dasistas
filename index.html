@@ -649,7 +649,6 @@
   <button class="tab-btn" data-tab="clubs">GALS CLUBS</button>
   <button class="tab-btn" data-tab="resources">Directory</button>
   <button class="tab-btn" data-tab="travel">Travel</button>
-  <button class="tab-btn" data-tab="tournaments">Tournaments</button>
   <button class="tab-btn" data-tab="rules">About</button>
   <div class="top-search-wrap" id="globalSearchShell" style="display:none;">
     <div class="top-search-shell">
@@ -969,7 +968,6 @@ const introText = {
   home: "",
   travel: "Women-friendly trips, retreats, and group travel beyond the GTA.",
   rules: "Answers about community guidelines, events, clubs, and safety.",
-  tournaments: "",
   homescreen: "Install 4DASISTAS on your device for fast, app-like access.",
   clubstart: "Everything you need to launch a welcoming, well-run club.",
   clubjoin: "A few simple expectations keep every club welcoming and easy to join.",
@@ -2691,12 +2689,6 @@ el.innerHTML = `<div class="clubs-top-actions">
         submit.disabled = false;
       }
     });
-  } else if(state.tab === 'tournaments'){
-    document.getElementById('resourcePagination').innerHTML = '';
-    el.innerHTML = `
-      <div class="rules-content" style="text-align:center;">
-        <p class="rules-lead">Hmmm I see that you're interested! Stay tuned! 👀</p>
-      </div>`;
   } else if(state.tab === 'rules'){
     document.getElementById('resourcePagination').innerHTML = '';
     el.innerHTML = `
@@ -3564,7 +3556,7 @@ async function saveResourceEdit(){
 /* ============================================================
    MAIN RENDER
    ============================================================ */
-const DIRECTORY_TABS = ['clubs','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','supportgroups','clubmembers','tournaments'];
+const DIRECTORY_TABS = ['clubs','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','supportgroups','clubmembers'];
 
 /* ============================================================
    CLUB MEMBERS SCHEDULE (private per-club sign-in + per-event availability)
