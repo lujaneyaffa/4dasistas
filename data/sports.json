@@ -262,7 +262,24 @@
       "tag": "Running",
       "website": "https://isnacanada.com/run",
       "id": "isna-run-against-hunger-2026",
-      "section": "sports"
+      "section": "sports",
+      "audienceType": [
+        "Family Event"
+      ],
+      "emoji": "",
+      "organizedBy": "",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "link": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": []
     },
     {
       "section": "sports",
