@@ -4424,6 +4424,12 @@ function render(){
    copy is what lets a fresh launch reopen on the same tab.
    ============================================================ */
 const LAST_TAB_STORAGE_KEY = 'lastAppState';
+// Short, shareable slugs for the visible address bar (e.g. #/calendar, #/clubs)
+// instead of the old #tab=events&cat=all&view=list&... query-string look. The full
+// state (filters, view mode, etc.) still round-trips through localStorage below —
+// only what's actually shown in the URL bar has been simplified.
+const TAB_SLUGS = { events:'calendar', clubs:'clubs', resources:'resources', travel:'travel', rules:'about' };
+const SLUG_TO_TAB = Object.fromEntries(Object.entries(TAB_SLUGS).map(([tab, slug]) => [slug, tab]));
 
 function syncStateToHash(){
   if(location.hash.startsWith('#/event/')) return; // don't clobber an open detail page
@@ -4442,6 +4448,8 @@ function syncStateToHash(){
     return;
   }
 
+  // Full state still saved to localStorage (used to restore after a home-screen
+  // app relaunch, which always opens with no hash at all — see note above).
   const params = new URLSearchParams();
   params.set('tab', state.tab);
   params.set('cat', state.categoryFilter);
@@ -4450,9 +4458,14 @@ function syncStateToHash(){
   params.set('rfilter', state.resourceFilter);
   params.set('rview', state.resourceView);
   if(Array.isArray(state.typeSel) && state.typeSel.length) params.set('types', state.typeSel.join(','));
-  const paramString = params.toString();
-  history.replaceState(null, '', location.pathname + location.search + '#' + paramString);
-  try { localStorage.setItem(LAST_TAB_STORAGE_KEY, paramString); } catch {}
+  try { localStorage.setItem(LAST_TAB_STORAGE_KEY, params.toString()); } catch {}
+
+  // The visible URL only shows the tab and, where meaningful, the one filter
+  // most worth bookmarking/sharing — not the full query-string of every toggle.
+  const slugParts = [TAB_SLUGS[state.tab] || state.tab];
+  if(state.tab === 'events' && state.categoryFilter !== 'all') slugParts.push(state.categoryFilter);
+  if(state.tab === 'resources' && state.resourceFilter !== 'all') slugParts.push(state.resourceFilter);
+  history.replaceState(null, '', location.pathname + location.search + '#/' + slugParts.join('/'));
 }
 
 function restoreStateFromHash(){
@@ -4465,6 +4478,18 @@ function restoreStateFromHash(){
     } catch {}
   }
   if(!hash || hash.length < 2) return;
+
+  if(hash.startsWith('#/')){
+    // New clean-path format: #/calendar, #/calendar/sports, #/resources/cafes, etc.
+    const [slug, sub] = hash.slice(2).split('/');
+    state.tab = SLUG_TO_TAB[slug] || slug;
+    if(state.tab === 'events' && sub) state.categoryFilter = sub;
+    if(state.tab === 'resources' && sub) state.resourceFilter = sub;
+    return;
+  }
+
+  // Old query-string format (still produced by the localStorage full-state save
+  // above, and kept here so any bookmark/share made before this change still works).
   const params = new URLSearchParams(hash.slice(1));
   if(params.has('tab')) state.tab = params.get('tab');
   if(params.has('cat')) state.categoryFilter = params.get('cat');
