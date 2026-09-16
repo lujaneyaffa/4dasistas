@@ -44,6 +44,9 @@
  *                                                                data/calendar/:id.json as a new file
  *   GET    /api/admin/calendar-event/:id                     - Read one event's full source JSON from data/calendar/:id.json
  *   PUT    /api/admin/calendar-event/:id                     - Merge { fields:{...} } into that source file and commit to GitHub (main),
+ *   DELETE /api/admin/calendar-event/:id                     - Delete that source JSON file from GitHub (main). The repo's rebuild
+ *                                                              workflow then regenerates the aggregate data + calendar.ics without it.
+ *                                                              Used by the "Needs details" review flow to drop a junk/duplicate event.
  *                                                                which triggers the existing regenerate-calendar.yml Action to rebuild
  *                                                                the aggregate data/*.json files and calendar.ics, then Cloudflare
  *                                                                auto-deploys — same pipeline Decap/DecapBridge already use.
@@ -262,6 +265,19 @@ const githubPutFile = async (env, path, content, sha, message) => {
     body: JSON.stringify({
       message,
       content: b64EncodeUnicode(JSON.stringify(content, null, 2) + "\n"),
+      sha,
+      branch: "main",
+      committer: { name: "4DASISTAS Site Admin", email: "admin@4dasistas.ca" },
+    }),
+  });
+};
+
+const githubDeleteFile = async (env, path, sha, message) => {
+  return fetch(`${GITHUB_API}/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${path}`, {
+    method: "DELETE",
+    headers: { ...githubHeaders(env), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
       sha,
       branch: "main",
       committer: { name: "4DASISTAS Site Admin", email: "admin@4dasistas.ca" },
@@ -837,7 +853,7 @@ export default {
 
     // Admin: read/edit a calendar event's real source file — commits straight to GitHub
     const adminCalEventMatch = path.match(/^\/api\/admin\/calendar-event\/([^/]+)\/?$/);
-    if (adminCalEventMatch && (request.method === "GET" || request.method === "PUT")) {
+    if (adminCalEventMatch && (request.method === "GET" || request.method === "PUT" || request.method === "DELETE")) {
       if (!env.GITHUB_TOKEN) return jsonResponse({ error: "Server misconfigured: GITHUB_TOKEN is not set" }, 500, corsHeaders);
       const id = decodeURIComponent(adminCalEventMatch[1]);
       if (!CALENDAR_ID_RE.test(id)) return jsonResponse({ error: "Invalid event id" }, 400, corsHeaders);
@@ -846,6 +862,19 @@ export default {
         const resolved = await resolveCalendarFile(env, id);
         if (!resolved) return jsonResponse({ error: "Event source file not found" }, 404, corsHeaders);
         return jsonResponse(resolved.file.content, 200, corsHeaders);
+      }
+
+      if (request.method === "DELETE") {
+        const resolved = await resolveCalendarFile(env, id);
+        if (!resolved) return jsonResponse({ error: "Event source file not found" }, 404, corsHeaders);
+        const { file, path: filePath } = resolved;
+        const commitMessage = `Delete "${file.content.title || id}" via site admin editor`;
+        const res = await githubDeleteFile(env, filePath, file.sha, commitMessage);
+        if (!res.ok) {
+          const detail = await res.text().catch(() => "");
+          return jsonResponse({ error: "GitHub delete failed", detail }, 502, corsHeaders);
+        }
+        return jsonResponse({ ok: true, deleted: id, path: filePath }, 200, corsHeaders);
       }
 
       let body;

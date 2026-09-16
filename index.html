@@ -960,7 +960,7 @@ let state = {
   cmAdminOpen:false, cmAdminLoggedIn:null, cmAdminError:'', cmAdminClub:null, cmAdminEvents:null,
   cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
-  eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false,
+  eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventEditDeleting:false,
   reviewMode:false, reviewQueue:[], reviewTotal:0, eventCreateMode:false,
   resourceEditOpen:false, resourceEditId:null, resourceEditData:null, resourceEditError:'', resourceEditSaving:false, resourceEditSaved:false, resourceCreateMode:false,
 };
@@ -3244,11 +3244,15 @@ function renderEventEditView(){
         <button type="button" class="link-btn primary" id="eventEditSaveBtn" style="flex:1;text-align:center;" ${state.eventEditSaving?'disabled':''}>${state.eventEditSaving?'Saving…':(createMode ? 'Create event' : (reviewMode ? 'Save & next' : 'Save changes'))}</button>
         <button type="button" class="link-btn secondary" id="eventEditCancelBtn2" style="flex:1;text-align:center;">${reviewMode ? 'Skip this one' : 'Cancel'}</button>
       </div>
+      ${createMode ? '' : `<button type="button" id="eventEditDeleteBtn" ${state.eventEditDeleting?'disabled':''} style="margin-top:10px;width:100%;padding:10px;border:2px solid #b3261e;border-radius:10px;background:#fff;color:#b3261e;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13.5px;cursor:pointer;">${state.eventEditDeleting?'Deleting…':'🗑 Delete this event entirely'}</button>
+      <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px;">Removes it from the site for good (the monthly calendar too). ${reviewMode ? "You'll move straight to the next one." : 'This cannot be undone.'}</p>`}
     </div>
   `;
   document.getElementById('eventEditCancelBtn').addEventListener('click', () => reviewMode ? exitReviewMode() : closeEventEdit());
   document.getElementById('eventEditCancelBtn2').addEventListener('click', () => reviewMode ? advanceReviewQueue() : closeEventEdit());
   document.getElementById('eventEditSaveBtn').addEventListener('click', saveEventEdit);
+  const deleteBtn = document.getElementById('eventEditDeleteBtn');
+  if(deleteBtn) deleteBtn.addEventListener('click', deleteEventEdit);
   document.getElementById('editSection').addEventListener('change', e => {
     document.getElementById('sportsOnlyFields').style.display = e.target.value === 'sports' ? 'flex' : 'none';
   });
@@ -3342,6 +3346,58 @@ async function saveEventEdit(){
   if(state.eventEditSaved){
     renderFooterAdmin();
     if(state.reviewMode) setTimeout(advanceReviewQueue, 600);
+  }
+}
+
+// Removes a calendar item from every in-memory collection so the site (and the
+// review queue / "Needs details" badge count) stops showing it immediately —
+// the source JSON is deleted from GitHub server-side at the same time.
+function purgeItemInMemory(id){
+  [sportsData, gatheringsData, dayActivitiesData, tripsData, mosqueGatheringsData, supportProgramsData, resourcesData, clubsData]
+    .forEach(arr => {
+      if(!Array.isArray(arr)) return;
+      for(let i = arr.length - 1; i >= 0; i--) if(arr[i] && arr[i].id === id) arr.splice(i, 1);
+    });
+  ALL_ITEMS = ALL_ITEMS.filter(e => e && e.id !== id);
+}
+
+async function deleteEventEdit(){
+  const id = state.eventEditId;
+  if(!id) return;
+  const d = state.eventEditData || findItem(id) || {};
+  const label = d.title ? `"${d.title}"` : 'this event';
+  const okToDelete = confirm(
+    `Delete ${label} entirely?\n\n` +
+    'This removes it from the site for good — the calendar, its month, and the downloadable feed.\n\n' +
+    'This cannot be undone.'
+  );
+  if(!okToDelete) return;
+  state.eventEditDeleting = true;
+  state.eventEditError = '';
+  renderEventEditView();
+  try {
+    const res = await fetch('/api/admin/calendar-event/' + encodeURIComponent(id), {
+      method:'DELETE', credentials:'include'
+    });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok) throw new Error(data.error || 'Delete failed');
+    const wasReview = state.reviewMode;
+    purgeItemInMemory(id);
+    state.eventEditDeleting = false;
+    state.eventEditSaved = false;
+    if(wasReview){
+      // It's gone, so it no longer counts toward the review total — then move on.
+      if(state.reviewTotal > 0) state.reviewTotal -= 1;
+      advanceReviewQueue();
+    } else {
+      closeEventEdit(false);
+    }
+    renderFooterAdmin();
+    if(!wasReview) render();
+  } catch(err){
+    state.eventEditDeleting = false;
+    state.eventEditError = err.message;
+    renderEventEditView();
   }
 }
 
