@@ -47,7 +47,7 @@
     --purple: #c8b6e8;
     --gold: #ddb862;
     --tan: #f1dfb6;
-    --beige: #f7ead0;
+    --beige: #fffdf7;
     --lightblue: #d6e8f7;
     --blush: #fae1e4;
     --muted: #776867;
@@ -216,11 +216,11 @@
   .day-cell{ min-height:78px; border:1.5px solid rgba(33,30,28,0.15); border-radius:8px; background:white; padding:4px; overflow:visible; }
   .day-cell.empty{ border:none; background:transparent; }
   .day-cell.today{ border:2px solid var(--pink); }
-  /* Calendar month-grid striping. The page background is --cream (#fff7e6), so the
-     even-row tint has to be a real (if light) beige — a tint that close to the page
-     background just disappears. Tune --beige in :root to taste. */
+  /* Calendar month-grid striping. Both tones sit close together and lighter than
+     the page background (--cream #fff7e6) so the grid reads as bright and subtle,
+     not a strong beige block. Tune --beige (row-even) and the row-odd hex to taste. */
   .day-cell.row-even{ background:var(--beige); }
-  .day-cell.row-odd{ background:white; }
+  .day-cell.row-odd{ background:#fdf9f0; }
   .day-num{ font-family:'Space Grotesk',sans-serif; font-size:12px; font-weight:700; color:var(--charcoal); }
   .day-weekday{ display:none; font-size:10px; font-weight:700; color:var(--rose-deep); text-transform:uppercase; line-height:1.1; }
   .day-pip{ display:block; font-size:9.5px; font-weight:600; padding:2px 4px; border-radius:4px; margin-top:2px; cursor:pointer; line-height:1.25; white-space:normal; overflow-wrap:anywhere; word-break:normal; color:var(--charcoal); }
@@ -4685,9 +4685,15 @@ function restoreStateFromHash(){
 
   if(hash.startsWith('#/')){
     // New clean-path format: #/calendar, #/calendar/sports, #/resources/cafes, etc.
+    // Matches the per-tab defaults goToTab() itself would set on a normal nav click,
+    // so landing on a clean link behaves the same as clicking the tab — e.g. Calendar
+    // always opens in its calendar-grid view, never the list view.
     const [slug, sub] = hash.slice(2).split('/');
     state.tab = SLUG_TO_TAB[slug] || slug;
-    if(state.tab === 'events' && sub) state.categoryFilter = sub;
+    if(state.tab === 'events'){
+      state.view = 'calendar';
+      if(sub) state.categoryFilter = sub;
+    }
     if(state.tab === 'resources' && sub) state.resourceFilter = sub;
     return;
   }
