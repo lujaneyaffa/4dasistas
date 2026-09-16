@@ -443,6 +443,34 @@
       "section": "sports"
     },
     {
+      "section": "sports",
+      "title": "Run Her",
+      "audienceType": [
+        "All Women"
+      ],
+      "emoji": "",
+      "organizedBy": "herwellnessxcollective",
+      "eventDate": "2026-09-27",
+      "endDate": "",
+      "time": "10:00",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "wet coffee",
+      "link": "https://www.instagram.com/p/DdMKdYFDk2m/",
+      "desc": "all Run and PSL??? 🍂☕️🤎🏃🏽‍♀️\n\nJoin us on September 27th at 10 am @wet_coffee_community for RUN’HER FALL EDIT - a fall women’s community run and coffee social pop-up 🤎\n\nYour experience:\n• A beginner-friendly scenic fall run through Downtown Oakville 🏃🏽‍♀️🍂\n• A post-run coffee social featuring @wet_coffee_community new FALL drink menu 🍁☕️\n• Post-run wellness goodies 🤎\n\nAll levels are welcome - bring your running shoes, your water bottle, and a friend (or come solo and meet new ones 🤎)!\n\nTickets will be live via the link in our bio on September 13th at 6:00 pm EST - spots are limited 🏃🏽‍♀️🍂",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [
+        "functions"
+      ],
+      "id": "run-her"
+    },
+    {
       "partner": "Arab Run Club",
       "partnerInstagram": "https://www.instagram.com/arab_runclub/",
       "sportKey": "running",
