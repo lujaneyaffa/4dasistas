@@ -1,0 +1,27 @@
+{
+  "section": "functions",
+  "title": "Harvest Fest",
+  "audienceType": [
+    "Family Event"
+  ],
+  "emoji": "",
+  "organizedBy": "muslimbusiness.expo and halalopeningsnorthamerica",
+  "eventDate": "2026-10-11",
+  "endDate": "",
+  "time": "11:00",
+  "endTime": "18:00",
+  "allDay": false,
+  "days": [],
+  "recurStart": "",
+  "recurEnd": "",
+  "extraDates": [],
+  "virtual": false,
+  "location": "islamic inst of toronto",
+  "link": "",
+  "desc": "",
+  "sportKey": "",
+  "alsoSportKeys": [],
+  "alsoShowIn": [
+    "activities"
+  ]
+}
