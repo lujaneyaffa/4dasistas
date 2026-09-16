@@ -215,7 +215,7 @@
   .day-cell{ min-height:78px; border:1.5px solid rgba(33,30,28,0.15); border-radius:8px; background:white; padding:4px; overflow:visible; }
   .day-cell.empty{ border:none; background:transparent; }
   .day-cell.today{ border:2px solid var(--pink); }
-  .day-cell.row-even{ background:#f4f7f6; }
+  .day-cell.row-even{ background:#faf3e6; }
   .day-cell.row-odd{ background:white; }
   .day-num{ font-family:'Space Grotesk',sans-serif; font-size:12px; font-weight:700; color:var(--charcoal); }
   .day-weekday{ display:none; font-size:10px; font-weight:700; color:var(--rose-deep); text-transform:uppercase; line-height:1.1; }
@@ -466,8 +466,16 @@
   .trip-preview-popup p{ font-size:13px; color:var(--muted); margin:2px 0; }
   .trip-preview-close{ position:absolute; top:10px; right:12px; background:none; border:none; font-size:20px; line-height:1; cursor:pointer; color:var(--charcoal); }
 
-  .resource-map-wrapper{ display:flex; gap:16px; align-items:flex-start; }
-  .resource-map-wrapper .resource-map{ flex:1; }
+  /* Map view stacks: left panel list first, then the "Add a resource" pill
+     underneath it, then the map centered below them. */
+  .resource-map-wrapper{ display:flex; flex-direction:column; gap:16px; align-items:flex-start; }
+  .resource-map-wrapper .resource-map{ flex:0 0 auto; width:100%; }
+  .resource-map-wrapper .resource-side-list{ width:100%; max-height:280px; }
+  .resource-map-side{ display:flex; flex-direction:column; gap:12px; width:100%; max-width:100%; }
+  .add-resource-pill-row{ display:flex; justify-content:center; margin-top:18px; grid-column:1 / -1; }
+  .resource-map-side .add-resource-pill-row{ margin-top:0; }
+  .add-resource-pill{ display:inline-flex; align-items:center; gap:8px; padding:11px 22px; border:2px solid var(--charcoal); border-radius:999px; background:var(--cream); color:var(--charcoal); font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px; text-decoration:none; box-shadow:3px 3px 0 var(--charcoal); transition:transform 0.12s ease, box-shadow 0.12s ease; }
+  .add-resource-pill:hover{ transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--charcoal); }
   .travel-earth-layout{ display:grid; grid-template-columns:minmax(300px,340px) minmax(0,1fr); gap:16px; align-items:stretch; width:100%; }
 
   .sg-split-layout{ display:flex; flex-direction:column; gap:16px; width:100%; }
@@ -504,7 +512,8 @@
 
   @media (max-width:860px){
     .resource-map-wrapper{ flex-direction:column; }
-    .resource-side-list{ width:100%; max-height:300px; order:2; }
+    .resource-map-side{ width:100%; order:2; }
+    .resource-side-list{ width:100%; max-height:300px; }
     .travel-earth-layout{ grid-template-columns:1fr; }
     .travel-trip-list{ width:100%; max-height:260px; order:2; }
   }
@@ -1834,6 +1843,10 @@ const categoryList = [
   {key:'mosqueprograms', label:'Knowledge', bg:'#fad8c1', fg:'#373d3b'},
 ];
 
+// Categories that have no physical storefront to plot, so the Directory hides the
+// List/Map toggle for them and always renders the list (no map embed at all).
+const NON_MAPPABLE_RESOURCES = ['mentalhealth', 'legal', 'bakeries', 'communityorg'];
+
 const resourceFilterList = [
   {key:'all', label:'All'},
   {key:'cafes', label:'Cafe & Desserts'},
@@ -1952,6 +1965,14 @@ function interleaveByCategory(items){
   return result;
 }
 
+// Public "Add a resource" pill. It opens a DM to the 4DASISTAS Instagram so
+// anyone can send in a business/organization that's missing from the Directory.
+const IG_DM_URL = 'https://ig.me/m/4dasistas.ca';
+
+function addResourcePillHtml(){
+  return `<div class="add-resource-pill-row"><a class="add-resource-pill" href="${IG_DM_URL}" target="_blank" rel="noopener" title="Missing something? DM us on Instagram">➕ Add a resource</a></div>`;
+}
+
 function renderResourceList(){
   const el = document.getElementById('directory-view');
   const pagEl = document.getElementById('resourcePagination');
@@ -1961,7 +1982,7 @@ function renderResourceList(){
   el.className = isMentalHealth ? 'mental-health-grid' : isSmallBiz ? 'small-business-grid' : '';
   el.style.display = (isMentalHealth || isSmallBiz) ? 'grid' : 'block';
 
-  if(filtered.length === 0){ el.innerHTML = '<div class="empty">Nothing here yet.</div>'; pagEl.innerHTML=''; return; }
+  if(filtered.length === 0){ el.innerHTML = '<div class="empty">Nothing here yet.</div>' + addResourcePillHtml(); pagEl.innerHTML=''; return; }
 
   const pageItems = filtered;
 
@@ -1987,7 +2008,7 @@ function renderResourceList(){
         ${r.phone ? `<a class="link-btn secondary" href="tel:${r.phone}">${r.phone}</a>` : ''}
         ${state.cmAdminLoggedIn ? `<button type="button" class="link-btn secondary res-edit-btn" data-resource-id="${r.id}">✏️ Edit</button>` : ''}
       </div>
-    </div>`).join('');
+    </div>`).join('') + addResourcePillHtml();
 
   if(isMentalHealth){
     el.querySelectorAll('[data-reveal-resource]').forEach(button => button.addEventListener('click', () => {
@@ -2014,9 +2035,12 @@ function renderResourceMap(){
   const el = document.getElementById('directory-view');
   const legendItems = resourceFilterList.filter(f => f.key !== 'all');
   el.innerHTML = `${state.cmAdminLoggedIn ? `<button type="button" class="link-btn primary" id="resAddBtn" style="margin-bottom:14px;">➕ Add a business / resource</button>` : ''}<div class="resource-map-wrapper">
-    <div class="resource-side-list" id="resourceSideList">
-      <h4 id="sideListTitle">Mapped resources</h4>
-      <div id="sideListContent"></div>
+    <div class="resource-map-side">
+      <div class="resource-side-list" id="resourceSideList">
+        <h4 id="sideListTitle">Mapped resources</h4>
+        <div id="sideListContent"></div>
+      </div>
+      ${addResourcePillHtml()}
     </div>
     <div id="resourceMapContainer" class="resource-map"></div>
   </div>
@@ -2467,7 +2491,7 @@ el.innerHTML = `<div class="clubs-top-actions">
       </div>`;
     setupFallSignupForm();
   } else if(state.tab === 'resources'){
-    if(state.resourceView === 'map' && !['mentalhealth','legal','bakeries'].includes(state.resourceFilter)){
+    if(state.resourceView === 'map' && !NON_MAPPABLE_RESOURCES.includes(state.resourceFilter)){
       document.getElementById('resourcePagination').innerHTML = '';
       renderResourceMap();
     } else {
@@ -2977,7 +3001,8 @@ function renderDetail(id){
   if(!e.virtual && resourceMapsUrl) links += `<a class="link-btn secondary" href="${resourceMapsUrl}" target="_blank" rel="noopener">View on Google Maps</a>`;
 
   let mapEmbed = '';
-  if(!e.virtual){
+  // Community Organizations have no storefront of their own — no Google Maps embed.
+  if(!e.virtual && !NON_MAPPABLE_RESOURCES.includes(e.category)){
     const mapQuery = (typeof e.lat === 'number' && typeof e.lng === 'number') ? `${e.lat},${e.lng}` : (e.location || (isResource ? e.title : ''));
     if(mapQuery && (isResource || !/tbd|see google maps|shared in|by appointment/i.test(mapQuery))){
       mapEmbed = `<iframe class="map-embed" loading="lazy" src="https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed"></iframe>`;
@@ -4387,7 +4412,7 @@ function render(){
   const calViewFilter = document.getElementById('calViewFilter');
   if(calViewFilter) calViewFilter.style.display = (!isDirectory && state.view === 'calendar') ? 'flex' : 'none';
   if(calViewFilter) calViewFilter.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.calview === state.calViewMode));
-  document.getElementById('resourceControlsRow').style.display = state.tab === 'resources' && !['mentalhealth','legal','bakeries'].includes(state.resourceFilter) ? 'flex' : 'none';
+  document.getElementById('resourceControlsRow').style.display = state.tab === 'resources' && !NON_MAPPABLE_RESOURCES.includes(state.resourceFilter) ? 'flex' : 'none';
   document.getElementById('list-view').style.display = 'none';
   document.getElementById('pagination').style.display = 'none';
   document.getElementById('calendar-view').style.display = 'none';
