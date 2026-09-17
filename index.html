@@ -75,7 +75,7 @@
   }
   .wa-fixed-btn svg{ width:18px; height:18px; flex-shrink:0; display:block; }
 
-  .tabs{ display:flex; justify-content:center; align-items:center; gap:6px; padding:10px 16px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; background:rgba(201,170,173,0.45); }
+  .tabs{ display:flex; justify-content:center; align-items:center; gap:10px; padding:14px 16px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; background:transparent; border-bottom:1.5px solid rgba(55,61,59,0.14); }
   .tabs::-webkit-scrollbar{ display:none; }
   .top-search-wrap{ position:relative; z-index:20; display:flex; justify-content:flex-end; flex:0 0 220px; width:220px; padding:0; }
   .top-search-shell{
@@ -95,11 +95,12 @@
   .search-suggestion strong{ display:block; font-family:'Space Grotesk',sans-serif; }
   .search-suggestion span{ display:block; color:var(--muted); font-size:11px; }
   .tab-btn{
-    flex-shrink:0; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px;
-    padding:9px 18px; border-radius:999px; border:2px solid var(--charcoal);
-    background:var(--cream); color:var(--charcoal); cursor:pointer; white-space:nowrap;
+    flex-shrink:0; font-family:'Space Grotesk',sans-serif; font-weight:500; font-size:14px;
+    padding:8px 20px; border-radius:999px; border:1.5px solid var(--charcoal);
+    background:transparent; color:var(--charcoal); cursor:pointer; white-space:nowrap;
+    letter-spacing:0.01em; transition:background 0.12s ease, color 0.12s ease;
   }
-  .tab-btn.active{ background:var(--charcoal); color:var(--cream); }
+  .tab-btn.active{ background:var(--charcoal); color:var(--cream); font-weight:600; }
   .tab-btn:focus-visible{ outline:3px solid var(--pink); outline-offset:2px; }
   .context-back{ display:none; max-width:760px; margin:12px auto 0; padding:0 20px; }
   .context-back.visible{ display:block; }
@@ -328,6 +329,8 @@
   .panel-card{ background:var(--card); border:2px solid var(--charcoal); border-radius:16px; padding:18px; margin-bottom:16px; box-shadow:3px 3px 0 var(--charcoal); text-align:left; position:relative; }
   .resource-photo{ width:100%; height:180px; object-fit:cover; display:block; margin:-2px 0 14px; border-radius:10px; background:var(--lightblue); }
 
+  .home-quicklinks{ display:flex; justify-content:center; flex-wrap:wrap; gap:12px; margin:20px 0; }
+  .home-quicklinks .club-guide-btn{ padding:10px 20px; }
   .home-tiles{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
   .home-tile{ display:block; width:100%; text-align:left; border:2px solid var(--charcoal); border-radius:18px; padding:24px 22px; cursor:pointer; box-shadow:4px 4px 0 var(--charcoal); transition:transform 0.12s ease, box-shadow 0.12s ease; font-family:'Inter',sans-serif; position:relative; }
   .home-tile[data-hometab="homescreen"]{ padding-top:8px; padding-bottom:8px; min-height:auto; align-self:center; justify-self:center; width:100%; grid-column:1 / -1; box-shadow:none; border-color:rgba(55,61,59,0.2); }
@@ -662,11 +665,9 @@
 
 <nav class="tabs" id="tabs">
   <button class="tab-btn active" data-tab="home">Home</button>
-  <button class="tab-btn" data-tab="events">Calendar</button>
-  <button class="tab-btn" data-tab="clubs">GALS CLUBS</button>
-  <button class="tab-btn" data-tab="resources">Directory</button>
-  <button class="tab-btn" data-tab="travel">Travel</button>
-  <button class="tab-btn" data-tab="rules">About</button>
+  <button class="tab-btn" data-tab="events">The Calendar</button>
+  <button class="tab-btn" data-tab="clubs">The Clubs</button>
+  <button class="tab-btn" data-tab="resources">The Directory</button>
   <div class="top-search-wrap" id="globalSearchShell" style="display:none;">
     <div class="top-search-shell">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M16 16L21 21"></path></svg>
@@ -2534,11 +2535,11 @@ el.innerHTML = `<div class="clubs-top-actions">
     }
   } else if(state.tab === 'home'){
     document.getElementById('resourcePagination').innerHTML = '';
-    const tiles = [
-      {tab:'events', title: siteText.homeTileEventsTitle || 'Calendar', bg:'#fad8c1', fg:'#373d3b', desc: siteText.homeTileEventsDesc || 'Sports, gatherings, day activities & trips — see what\'s coming up.'},
-      {tab:'travel', title: siteText.homeTileTravelTitle || 'Travel', bg:'#eedcb1', fg:'#373d3b', desc: siteText.homeTileTravelDesc || 'Explore women-friendly trips, retreats, and group travel.'},
-      {tab:'clubs', title: siteText.homeTileClubsTitle || 'GALS CLUBS', bg:'#e5d5e6', fg:'#373d3b', desc: siteText.homeTileClubsDesc || 'Join a standing-interest club, from gaming to ADHD support.'},
-      {tab:'resources', title: siteText.homeTileResourcesTitle || 'Directory', bg:'#e1eaf1', fg:'#373d3b', desc: siteText.homeTileResourcesDesc || 'Mosques, cafes, shops & restaurants the community supports.'},
+    // Calendar/Clubs/Directory moved into the persistent nav bar, so the home page
+    // only needs quick buttons for the two tabs that got demoted out of the nav.
+    const quickLinks = [
+      {tab:'travel', label: siteText.homeTileTravelTitle || 'Travel'},
+      {tab:'rules', label: 'About'},
     ];
     const homescreenTile = {tab:'homescreen', title: siteText.homeTileHomescreenTitle || 'Add this to your Home Screen', bg:'#F1F6F2', fg:'#373d3b', desc: siteText.homeTileHomescreenDesc || 'Install 4DASISTAS like an app for quick access.'};
     const selectedToday = new Date(today);
@@ -2598,12 +2599,8 @@ el.innerHTML = `<div class="clubs-top-actions">
         <p class="today-subscribe-status" id="todaySubscribeStatus"></p>
       </div></div>
     </section>`;
-    el.innerHTML = `${todaySection}<div class="home-tiles">${tiles.map(t => `
-      <button class="home-tile" style="background:${t.bg};color:${t.fg}" data-hometab="${t.tab}">
-        <div class="home-tile-title">${t.title}</div>
-        <div class="home-tile-desc">${t.desc}</div>
-        <div class="home-tile-arrow">→</div>
-      </button>`).join('')}</div>
+    el.innerHTML = `${todaySection}<div class="home-quicklinks">${quickLinks.map(q => `
+      <button type="button" class="club-guide-btn" data-hometab="${q.tab}">${q.label} →</button>`).join('')}</div>
       <div class="home-tiles bottom-row">
         <button class="home-tile" style="background:${homescreenTile.bg};color:${homescreenTile.fg};grid-column:1/-1;justify-self:center;max-width:560px;width:100%" data-hometab="${homescreenTile.tab}">
           <div class="home-tile-title">${homescreenTile.title}</div>
