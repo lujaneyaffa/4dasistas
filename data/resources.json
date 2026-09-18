@@ -484,6 +484,25 @@
       "id": "hello-leena"
     },
     {
+      "category": "mentalhealth",
+      "title": "Inner Voice Therapy",
+      "type": "Mental Health Service",
+      "location": "Mississauga & Virtual",
+      "date": "",
+      "ownedBy": "Muslim Woman-Owned",
+      "desc": "🪷Intergenerational Trauma | Mental Health | Relationships",
+      "lat": null,
+      "lng": null,
+      "mapsUrl": "",
+      "instagramPost": "https://www.instagram.com/p/DXw8hmWju-5/?utm_source=ig_web_copy_link&stkn=MzRlODBiNWFlZA==",
+      "phone": "",
+      "instagram": "https://www.instagram.com/inner.voicetherapy",
+      "website": "https://innervoicetherapy.ca/",
+      "email": "",
+      "image": null,
+      "id": "inner-voice-therapy"
+    },
+    {
       "category": "bakeries",
       "title": "Krafted Banners Co",
       "type": "hand painted banners",
