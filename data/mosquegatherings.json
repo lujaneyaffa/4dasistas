@@ -271,6 +271,34 @@
       "desc": "Launch night for the Stand FIRM program.",
       "instagram": "https://www.instagram.com/officialmnn/",
       "section": "mosqueprograms"
+    },
+    {
+      "section": "mosqueprograms",
+      "title": "The Women's Roundtable",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "MWJA",
+      "eventDate": "2026-09-26",
+      "endDate": "",
+      "time": "16:00",
+      "endTime": "18:00",
+      "allDay": false,
+      "days": [],
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": true,
+      "location": "d spot",
+      "link": "https://www.instagram.com/p/DdZKAE1NE-l/",
+      "desc": "When the hijab becomes a barrier to education, work, or public life, Muslim women and girls are being denied equal participation.\n\nHow’s that equality?\n\nLet’s unpack the uncomfortable truth.\n\n🗓 Sat, Sept 26\n⏰ 4-6 PM\n📍 D Spot Cafe, Scarborough",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [
+        "functions"
+      ],
+      "id": "the-womens-roundtable"
     }
   ]
 }
