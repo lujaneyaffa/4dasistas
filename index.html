@@ -3277,6 +3277,7 @@ function renderEventEditView(){
   document.getElementById('eventEditCancelBtn').addEventListener('click', () => reviewMode ? exitReviewMode() : closeEventEdit());
   document.getElementById('eventEditCancelBtn2').addEventListener('click', () => reviewMode ? advanceReviewQueue() : closeEventEdit());
   document.getElementById('eventEditSaveBtn').addEventListener('click', saveEventEdit);
+  attachLocationSearch('editLocation');
   const deleteBtn = document.getElementById('eventEditDeleteBtn');
   if(deleteBtn) deleteBtn.addEventListener('click', deleteEventEdit);
   document.getElementById('editSection').addEventListener('change', e => {
@@ -3335,10 +3336,65 @@ function collectEventFormFields(){
   };
 }
 
+
+/* Google Places address search for the admin forms (same key/behaviour as the old Decap
+   location-autocomplete widget). Falls back silently to the plain text input if Maps
+   can't load — the input stays the source of truth, the search just fills it in. */
+let googleMapsLoading = null;
+function loadGoogleMaps(){
+  const ready = () => !!(window.google && window.google.maps && typeof google.maps.importLibrary === 'function');
+  if(googleMapsLoading) return googleMapsLoading;
+  googleMapsLoading = new Promise((resolve, reject) => {
+    if(!ready() && !document.getElementById('gmapsScript')){
+      const sc = document.createElement('script');
+      sc.id = 'gmapsScript';
+      sc.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyCNNUYMc_ZfoPllM182cVMZ8tRs_EzUhoM&libraries=places&loading=async';
+      sc.async = true;
+      sc.onerror = () => { googleMapsLoading = null; sc.remove(); reject(new Error('Google Maps failed to load')); };
+      document.head.appendChild(sc);
+    }
+    let waited = 0;
+    const iv = setInterval(() => {
+      if(ready()){ clearInterval(iv); resolve(); }
+      else if((waited += 100) > 8000){ clearInterval(iv); googleMapsLoading = null; reject(new Error('Google Maps did not load in time')); }
+    }, 100);
+  });
+  return googleMapsLoading;
+}
+async function attachLocationSearch(inputId, onPlace){
+  const input = document.getElementById(inputId);
+  if(!input || input.dataset.locSearch) return;
+  input.dataset.locSearch = '1';
+  try {
+    await loadGoogleMaps();
+    const lib = await google.maps.importLibrary('places');
+    if(!input.isConnected) return;
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'margin-top:4px;';
+    wrap.innerHTML = '<div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Search for an address (fills the box below):</div>';
+    const el = new lib.PlaceAutocompleteElement();
+    wrap.appendChild(el);
+    input.parentNode.insertBefore(wrap, input);
+    el.addEventListener('gmp-select', async ev => {
+      const place = ev.placePrediction && ev.placePrediction.toPlace();
+      if(!place) return;
+      try {
+        await place.fetchFields({ fields: ['formattedAddress', 'location'] });
+        const cur = document.getElementById(inputId);
+        if(cur) cur.value = place.formattedAddress || cur.value;
+        if(onPlace) onPlace(place);
+      } catch(err){ console.error('Could not fetch place details', err); }
+    });
+  } catch(err){
+    console.error('Address search unavailable, using plain text:', err);
+  }
+}
+
 async function saveEventEdit(){
   const id = state.eventEditId;
   const createMode = state.eventCreateMode;
   const fields = collectEventFormFields();
+  Object.assign(state.eventEditData, fields);
   state.eventEditSaving = true;
   state.eventEditError = '';
   state.eventEditSaved = false;
@@ -3621,6 +3677,13 @@ function renderResourceEditView(){
   document.getElementById('resEditCancelBtn').addEventListener('click', () => closeResourceEdit());
   document.getElementById('resEditCancelBtn2').addEventListener('click', () => closeResourceEdit());
   document.getElementById('resEditSaveBtn').addEventListener('click', saveResourceEdit);
+  attachLocationSearch('resLocation', place => {
+    const loc = place.location;
+    if(!loc) return;
+    const lat = document.getElementById('resLat'), lng = document.getElementById('resLng');
+    if(lat) lat.value = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
+    if(lng) lng.value = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
+  });
   document.getElementById('resImageBtn').addEventListener('click', () => document.getElementById('resImageInput').click());
   document.getElementById('resImageInput').addEventListener('change', e => resourceHandleImagePick(e.target));
 }
@@ -3629,6 +3692,7 @@ async function saveResourceEdit(){
   const id = state.resourceEditId;
   const createMode = state.resourceCreateMode;
   const fields = collectResourceFormFields();
+  Object.assign(state.resourceEditData, fields);
   state.resourceEditSaving = true;
   state.resourceEditError = '';
   state.resourceEditSaved = false;
