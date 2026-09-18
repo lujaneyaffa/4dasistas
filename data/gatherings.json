@@ -654,6 +654,35 @@
     },
     {
       "section": "functions",
+      "title": "The Cozy Cowgirl Club",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "MAA Women",
+      "eventDate": "2026-10-17",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "Georgetown",
+      "link": "https://www.instagram.com/p/DdZmRfFFpUE/",
+      "desc": "Horses, Painting, & Pizza Making",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [
+        "activities"
+      ],
+      "id": "the-cozy-cowgirl-club",
+      "tag": "The Cozy Cowgirl Club"
+    },
+    {
+      "section": "functions",
       "eventDate": "2026-08-22",
       "date": "Saturday, August 22, 2026 · 8:00 PM",
       "organizer": "TMC",
