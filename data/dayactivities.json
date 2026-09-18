@@ -251,6 +251,33 @@
     },
     {
       "section": "activities",
+      "title": "Sip n Paint",
+      "audienceType": [
+        "All Women"
+      ],
+      "emoji": "",
+      "organizedBy": "the side quest",
+      "eventDate": "2026-09-26",
+      "endDate": "",
+      "time": "13:00",
+      "endTime": "15:00",
+      "allDay": false,
+      "days": [],
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "cafe daily",
+      "link": "https://www.instagram.com/p/DdSnjMSjkpz/",
+      "desc": "come paint your own 20x20 canvas, sip on some matcha, and hang out with us at our next Side Quest!\n\n📆september 26 1:00-3:00 pm\n📍cafe daily, north york\n🎟️$20 for early birds | $25 regular price\n🎨 all painting supplies\n🍵a drink of choice\n\ncome solo or bring your bestie — no painting skills needed!\n\nlimited spots | link in bio",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "sip-n-paint",
+      "tag": "Sip n Paint"
+    },
+    {
+      "section": "activities",
       "virtual": false,
       "title": "Sisters Sip & Paint",
       "eventDate": "2026-08-30",
