@@ -79,6 +79,12 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-18 (nav all caps + white pills restored; Add business button small + All-tab only)
+
+**2026-09-18 (nav all caps + white pills restored; Add business button small + All-tab only) — Claude (chat) — `index.html`** — Nav buttons now `text-transform:uppercase` with the light cream pill background restored (`background:var(--cream)`, wider letter-spacing). Admin "Add business" button moved into a `resAddBtnHtml()` helper: renders only when the Directory filter is `All` (not on Cafes/Bakeries/etc.), and is small (12px, tight padding) instead of the full-width-looking primary button. Syntax-checked; nav verified locally in browser.
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-17 (minimal nav bar: Home/Calendar/Clubs/Directory only, Travel+About moved to Home)
 
 **2026-09-17 (minimal nav bar: Home/Calendar/Clubs/Directory only, Travel+About moved to Home) — Claude (chat) — `index.html`** — Lujane wanted the nav bar simplified: fewer, cleaner labels ("The Calendar" / "The Clubs" / "The Directory"), with Travel and About no longer taking up nav-bar space — but not deleted, just relocated. Nav bar is now 4 buttons (Home, The Calendar, The Clubs, The Directory) instead of 6, with a lighter/thinner pill style (1.5px border instead of 2px, transparent background instead of a solid pink band, font-weight 500 instead of 600) for a sleeker look. The Home tab's old 2x2 tile grid (Calendar/Travel/GALS CLUBS/Directory) is gone — Calendar/Clubs/Directory don't need a duplicate home-page tile now that they're one tap away in the nav — replaced with two small `Travel →` / `About →` buttons directly under the "What's On Today" section, reusing the existing `.club-guide-btn` style and the same `data-hometab` click-delegation the old tiles used (so no new wiring needed, both routes still work exactly as before, URLs unaffected — `#/travel` and `#/about` still resolve correctly, just not reachable from the top nav anymore). The "Add to Home Screen" tile is untouched, still rendering below. Note: `sitetext.json`'s `homeTileEventsTitle/Desc`, `homeTileClubsTitle/Desc`, `homeTileResourcesTitle/Desc` fields are now unused (harmless leftover, not cleaned up — editing them via Decap will simply have no visible effect anymore). Validated: visually confirmed nav bar and new Home layout render correctly, confirmed clicking the About quick-link correctly sets `state.tab` and the clean `#/about` hash.
@@ -474,6 +480,7 @@ npx wrangler deploy
 
 _(most recent first — add new entries to the top, trim past ~15)_
 
+- 2026-09-18 — Claude (chat) — `index.html` — Nav bar all caps + light pill background restored; admin Add business button now small and only on the Directory All tab.
 - 2026-09-17 — Claude (chat) — `index.html` — Simplified the nav bar to 4 sleeker buttons (Home, The Calendar, The Clubs, The Directory); moved Travel/About out of the nav into two small quick-link buttons under "What's On Today" on the Home tab, replacing the old 2x2 tile grid. See Current Status entry above for full detail.
 
 - 2026-09-16 — Claude (chat) — `index.html` — Lightened the calendar row-striping (was darker than the page background, now lighter) and fixed `#/calendar` links to open in calendar-grid view instead of list view. See Current Status entry above for full detail.
