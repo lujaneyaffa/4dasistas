@@ -86,6 +86,35 @@
       "tag": "⛱️Biggest All-Girl Party"
     },
     {
+      "section": "functions",
+      "title": "Brewed for the Fall",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "MAA Women",
+      "eventDate": "2026-10-03",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "Mississauga",
+      "link": "https://www.instagram.com/p/DdZmRfFFpUE/",
+      "desc": "Barista Basics & Brunch Social",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [
+        "activities"
+      ],
+      "id": "brewed-for-the-fall",
+      "tag": "Brewed for the Fall"
+    },
+    {
       "eventDate": "2026-08-21",
       "price": "Members $10 · Non-members $20",
       "date": "Friday, August 21, 2026 · 6:30 PM",
