@@ -231,7 +231,21 @@
       "tag": "Basketball",
       "website": "https://www.hijabiballers.com/fseries",
       "id": "hijabiballers-fseries-2026",
-      "section": "sports"
+      "section": "sports",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "extraDates": [],
+      "virtual": false,
+      "link": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": []
     },
     {
       "sportKey": "badminton",
@@ -246,7 +260,25 @@
       "website": "https://bit.ly/sisterlybadminton",
       "id": "ism-sisterly-badminton-aug15-2026",
       "calDate": "2026-08-15",
-      "section": "sports"
+      "section": "sports",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "",
+      "eventDate": "",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "link": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": []
     },
     {
       "eventDate": "2026-09-13",
