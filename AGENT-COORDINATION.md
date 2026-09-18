@@ -79,6 +79,12 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-18 (Clubs tab: My availability + Suggest an activity tiles)
+
+**2026-09-18 (Clubs tab: My availability + Suggest an activity tiles) — Claude (chat) — `index.html`** — Lujane wanted an easier way for members to log availability and suggest activities, on the Clubs tab (not Home). The top row of square tiles was JOIN A CLUB + Log In. The Log In tile is now **MY AVAILABILITY** (subline: "Log in to add yours" or "Signed in as NAME"), same id/handler as before — signed out it opens the sign-in form, signed in it opens their club (or a picker if several). Added a third tile **SUGGEST AN ACTIVITY** linking to the Instagram DM (`IG_DM_URL`, same account/pattern as Travel's Add a trip), so no backend needed. Tested locally: three tiles render in a row, login form opens on click, DM link is correct.
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-18 (admin forms: keep typed values on failed save + Google address search)
 
 **2026-09-18 (admin forms: keep typed values on failed save + Google address search) — Claude (chat) — `index.html`** — Two bugs in the in-site admin editors. (1) Root cause of "form reset after validation error": `saveEventEdit`/`saveResourceEdit` collected the typed fields but then re-rendered from stale `eventEditData`/`resourceEditData`, so any server rejection (e.g. missing ownership note) wiped the form. Both now `Object.assign` the collected fields into the edit data before re-rendering. (2) Location fields had no address suggestions (Decap used a custom Google Places widget in `admin/index.html`). Added `loadGoogleMaps()`/`attachLocationSearch()` reusing the same Maps key and `PlaceAutocompleteElement`: a search box sits above the plain Location input and fills it on select (resource form also fills Latitude/Longitude). Plain input remains the source of truth, so if Maps fails to load nothing breaks. Tested locally with mocked fetch (values preserved, one search box per form); the Maps key is referrer-restricted so suggestions themselves can only be confirmed on the live domain.
@@ -486,6 +492,7 @@ npx wrangler deploy
 
 _(most recent first — add new entries to the top, trim past ~15)_
 
+- 2026-09-18 — Claude (chat) — `index.html` — Clubs tab: Log In tile became MY AVAILABILITY; added SUGGEST AN ACTIVITY tile (Instagram DM).
 - 2026-09-18 — Claude (chat) — `index.html` — Admin event/resource forms no longer wipe typed values on a failed save; added Google Places address search to their Location fields.
 - 2026-09-18 — Claude (chat) — `index.html` — Nav bar all caps + light pill background restored; admin Add business button now small and only on the Directory All tab.
 - 2026-09-17 — Claude (chat) — `index.html` — Simplified the nav bar to 4 sleeker buttons (Home, The Calendar, The Clubs, The Directory); moved Travel/About out of the nav into two small quick-link buttons under "What's On Today" on the Home tab, replacing the old 2x2 tile grid. See Current Status entry above for full detail.
