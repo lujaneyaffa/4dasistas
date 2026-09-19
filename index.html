@@ -412,42 +412,55 @@
   .club-guide-btn:hover{ transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--charcoal); }
   .fall-cta-btn{ display:flex; align-items:center; justify-content:center; text-align:center; border:none; border-radius:16px; padding:8px; background:var(--blush); color:var(--charcoal); font-family:'Inter',sans-serif; font-weight:700; font-size:14px; line-height:1.2; cursor:pointer; box-shadow:0 4px 14px rgba(202,170,173,0.35); transition:transform 0.12s ease, box-shadow 0.12s ease; }
   .fall-cta-btn:hover{ transform:translate(0,-2px); box-shadow:0 6px 18px rgba(202,170,173,0.45); }
-  .av-heading{ font-size:16px; margin:0 0 10px; }
-  .av-clubs{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
-  .av-club-chip{ border:1.5px solid var(--charcoal); border-radius:999px; padding:5px 12px; background:transparent; font-family:'Inter',sans-serif; font-size:12px; cursor:pointer; }
+  .av-heading{ font-size:17px; margin:0 0 12px; }
+  .av-clubs{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  .av-club-chip{ border:1.5px solid var(--charcoal); border-radius:999px; padding:8px 14px; background:transparent; font-family:'Inter',sans-serif; font-size:13px; cursor:pointer; }
   .av-club-chip.active{ background:var(--charcoal); color:var(--cream); }
-  .av-msg{ font-size:13px; margin:8px 0; }
-  .av-month-head{ display:flex; align-items:center; justify-content:space-between; margin:8px 0 4px; }
-  .av-month-title{ font-family:'Inter',sans-serif; font-weight:700; font-size:18px; }
-  .av-nav{ width:36px; height:36px; border:1.5px solid var(--charcoal); border-radius:50%; background:transparent; font-size:20px; line-height:1; cursor:pointer; }
-  .av-hint{ font-size:12px; color:var(--muted); margin:0 0 10px; text-align:center; }
+  .av-msg{ font-size:14px; margin:8px 0; }
+  .av-steps{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin:0 0 12px; }
+  .av-step{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:5px; font-size:12px; line-height:1.25; padding:8px 4px; border-radius:12px; background:rgba(201,170,173,0.25); }
+  .av-step b{ width:24px; height:24px; border-radius:50%; background:var(--charcoal); color:var(--cream); display:flex; align-items:center; justify-content:center; font-size:13px; }
+  .av-legend{ display:flex; justify-content:center; gap:16px; flex-wrap:wrap; font-size:12px; margin-bottom:10px; }
+  .av-legend span{ display:flex; align-items:center; gap:6px; }
+  .av-sw{ display:inline-block; width:16px; height:16px; border-radius:5px; border:1.5px solid rgba(55,61,59,0.35); }
+  .av-sw-free{ background:#b9dfc5; border-color:#5aa276; }
+  .av-sw-none{ background:#fff; }
+  .av-sw-past{ background:#fff; opacity:0.4; }
+  .av-month-head{ display:flex; align-items:center; justify-content:space-between; margin:6px 0 8px; }
+  .av-month-title{ font-family:'Inter',sans-serif; font-weight:700; font-size:20px; }
+  .av-nav{ width:44px; height:44px; border:1.5px solid var(--charcoal); border-radius:50%; background:transparent; font-size:24px; line-height:1; cursor:pointer; }
+  .av-nav[disabled]{ opacity:0.25; cursor:default; }
   .av-weekdays, .av-grid{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; }
-  .av-weekdays div{ text-align:center; font-size:11px; font-weight:700; color:var(--muted); padding-bottom:2px; }
-  .av-cell{ min-height:74px; border:1.5px solid rgba(55,61,59,0.25); border-radius:10px; background:#fff; padding:4px 3px; display:flex; flex-direction:column; align-items:stretch; gap:2px; font-family:'Inter',sans-serif; color:var(--charcoal); cursor:pointer; text-align:center; overflow:hidden; }
+  .av-weekdays div{ text-align:center; font-size:11px; font-weight:700; color:var(--muted); padding-bottom:3px; }
+  .av-cell{ min-height:78px; border:1.5px solid rgba(55,61,59,0.25); border-radius:10px; background:#fff; padding:4px 3px; display:flex; flex-direction:column; align-items:stretch; gap:2px; font-family:'Inter',sans-serif; color:var(--charcoal); cursor:pointer; text-align:center; overflow:hidden; scroll-margin-top:96px; -webkit-tap-highlight-color:transparent; }
   .av-cell.av-empty{ border:none; background:transparent; cursor:default; }
   .av-cell.av-past{ opacity:0.4; cursor:default; }
   .av-cell.av-today{ border-color:var(--charcoal); border-width:2px; }
-  .av-cell.av-selected{ box-shadow:0 0 0 2px var(--charcoal); }
-  .av-num{ font-size:13px; font-weight:700; text-align:left; padding-left:2px; }
+  .av-cell.av-selected{ box-shadow:0 0 0 3px var(--charcoal); }
+  .av-num{ font-size:14px; font-weight:700; text-align:left; padding-left:2px; }
   .av-full{ background:#b9dfc5; border-color:#5aa276; }
-  .av-full-label{ margin:auto 0; font-size:clamp(9px,2.4vw,12px); font-weight:700; }
+  .av-full-label{ margin:auto 0; font-size:clamp(10px,2.6vw,13px); font-weight:700; }
   .av-part{ background:#f4f9f5; border-color:#5aa276; }
-  .av-band{ background:#b9dfc5; border-radius:5px; font-size:clamp(8px,2.2vw,11px); font-weight:600; padding:2px 1px; line-height:1.15; overflow:hidden; text-overflow:clip; }
+  .av-band{ background:#b9dfc5; border-radius:5px; font-size:clamp(9px,2.3vw,11px); font-weight:600; padding:2px 1px; line-height:1.15; overflow:hidden; }
   .av-short{ display:none; }
   @media (max-width:560px){ .av-long{ display:none; } .av-short{ display:inline; } }
-  .av-editor{ margin-top:12px; padding:12px; border:2px solid var(--charcoal); border-radius:14px; background:var(--card); }
-  .av-editor-title{ font-weight:700; font-size:14px; margin-bottom:10px; }
-  .av-editor-chips{ display:flex; flex-wrap:wrap; gap:8px; }
-  .av-chip{ border:1.5px solid var(--charcoal); border-radius:999px; padding:9px 16px; background:#fff; font-family:'Inter',sans-serif; font-size:14px; cursor:pointer; }
-  .av-chip.on{ background:#b9dfc5; border-color:#5aa276; font-weight:700; }
-  .av-chip.av-clear{ border-style:dashed; }
-  .av-done{ margin-top:10px; border:none; background:var(--charcoal); color:var(--cream); border-radius:999px; padding:9px 20px; font-family:'Inter',sans-serif; font-size:14px; cursor:pointer; }
-  .av-actions{ display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap; }
-  .av-save[disabled]{ opacity:0.45; cursor:default; }
-  .av-status{ font-size:13px; }
-  .av-note{ font-size:12px; line-height:1.6; text-align:center; margin:0 0 10px; padding:8px 10px; border-radius:10px; background:rgba(201,170,173,0.25); }
-  .av-chip small{ display:block; font-size:10px; font-weight:500; opacity:0.75; }
-  .av-link{ background:none; border:none; padding:0; font-family:'Inter',sans-serif; font-size:13px; text-decoration:underline; cursor:pointer; color:var(--charcoal); }
+  .av-note{ font-size:12px; line-height:1.6; text-align:center; margin:12px 0 6px; padding:8px 10px; border-radius:10px; background:rgba(201,170,173,0.25); }
+  .av-status-line{ min-height:22px; text-align:center; font-size:13px; }
+  .av-link{ background:none; border:none; padding:6px 0; font-family:'Inter',sans-serif; font-size:13px; text-decoration:underline; cursor:pointer; color:var(--charcoal); }
+  .av-sheet{ position:fixed; left:0; right:0; bottom:0; z-index:60; max-width:640px; margin:0 auto; padding:16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); background:var(--cream); border:2px solid var(--charcoal); border-bottom:none; border-radius:20px 20px 0 0; box-shadow:0 -8px 28px rgba(0,0,0,0.22); }
+  .av-sheet-title{ font-weight:700; font-size:18px; }
+  .av-sheet-sub{ font-size:13px; color:var(--muted); margin:2px 0 12px; }
+  .av-big, .av-opt{ font-family:'Inter',sans-serif; border:2px solid var(--charcoal); border-radius:14px; background:#fff; color:var(--charcoal); cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .av-big{ width:100%; min-height:54px; font-size:17px; font-weight:700; margin-bottom:8px; }
+  .av-row{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+  .av-opt{ min-height:62px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:6px 2px; }
+  .av-opt span{ font-size:15px; font-weight:700; }
+  .av-opt small{ font-size:11px; opacity:0.75; }
+  .av-big.on, .av-opt.on{ background:#b9dfc5; border-color:#3f8a5c; box-shadow:inset 0 0 0 2px #3f8a5c; }
+  .av-sheet-foot{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; }
+  .av-sheet-foot .av-status{ flex:1; text-align:center; font-size:12px; }
+  .av-clear{ background:none; border:none; padding:10px 0; font-family:'Inter',sans-serif; font-size:13px; text-decoration:underline; cursor:pointer; color:var(--charcoal); }
+  .av-done{ border:none; background:var(--charcoal); color:var(--cream); border-radius:999px; min-height:46px; padding:0 30px; font-family:'Inter',sans-serif; font-size:16px; font-weight:700; cursor:pointer; }
   .clubs-top-actions{ display:flex; align-items:stretch; justify-content:center; gap:10px; margin-bottom:14px; }
   .clubs-top-actions .club-guide-btn, .clubs-top-actions .fall-cta-btn{ flex:0 0 110px; width:110px; aspect-ratio:1; margin-bottom:0; text-align:center; padding:8px; font-size:13px; display:flex; align-items:center; justify-content:center; }
   .fall-signup{ max-width:640px; margin:0 auto; }
@@ -1004,7 +1017,7 @@ let state = {
   cmAdminOpen:false, cmAdminLoggedIn:null, cmAdminError:'', cmAdminClub:null, cmAdminEvents:null,
   cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
-  availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availEditDate:null, availStatus:'',
+  availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'',
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventEditDeleting:false,
   reviewMode:false, reviewQueue:[], reviewTotal:0, eventCreateMode:false,
   resourceEditOpen:false, resourceEditId:null, resourceEditData:null, resourceEditError:'', resourceEditSaving:false, resourceEditSaved:false, resourceCreateMode:false,
@@ -2295,7 +2308,7 @@ el.innerHTML = `<div class="clubs-top-actions">
     <button type="button" class="club-guide-btn" id="clubsLoginOpenBtn">${(() => { const s = getCmSession(); return s ? `<span>MY CLUBS<small style="display:block;font-weight:500;font-size:10px;margin-top:4px;text-transform:none;">Signed in as ${escapeCm(s.name)}</small></span>` : 'LOG IN'; })()}</button>
     </div>
     ${state.clubsLoginPickerOpen ? `
-    <div class="rules-content" style="max-width:${getCmSession() && !state.clubsMyClubsPickerOpen ? '760px' : '420px'};margin:0 auto 18px;">
+    <div class="rules-content" style="max-width:${getCmSession() && !state.clubsMyClubsPickerOpen ? '760px' : '420px'};margin:0 auto 18px;${state.availEditDate && getCmSession() ? 'padding-bottom:300px;' : ''}">
       ${state.clubsMyClubsPickerOpen ? `
         ${(state.cmSessionClubs || []).length ? `
           <p style="font-size:13px;margin-bottom:10px;">Which club do you want to open?</p>
@@ -3838,16 +3851,21 @@ async function cmApi(pathSuffix, opts){
    CLUB MEMBER MONTH-VIEW AVAILABILITY
    After signing in, members see "You're a member of the … Club" and a big
    month calendar. Each day is: nothing, Full day, or any mix of
-   Morning / Afternoon / Night. Stored privately per member per club on the
-   Worker (GET/PUT /api/clubs/:clubId/availability/:userId).
+   Morning / Afternoon / Night. Changes save automatically (debounced) to a
+   private per-member, per-club doc on the Worker
+   (GET/PUT /api/clubs/:clubId/availability/:userId).
    ============================================================ */
 const AV_PARTS = [['morning','Morning'],['afternoon','Afternoon'],['night','Night']];
 const AV_SHORT = {morning:'Morn', afternoon:'Aft', night:'Night'};
 const AV_RANGES = {morning:'before 12 PM', afternoon:'12 – 5 PM', night:'after 5 PM'};
 const AV_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+let availSaveTimer = null;
 
 function availReset(){
-  Object.assign(state, { availClubId:null, availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availEditDate:null, availStatus:'' });
+  clearTimeout(availSaveTimer);
+  Object.assign(state, { availClubId:null, availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'' });
+  const t = new Date();
+  state.availYear = t.getFullYear(); state.availMonth = t.getMonth();
 }
 function avClubTitle(id){
   const c = clubsData.find(x => x.id === id);
@@ -3856,6 +3874,14 @@ function avClubTitle(id){
 }
 function avYmd(y, m, d){ return y + '-' + String(m + 1).padStart(2,'0') + '-' + String(d).padStart(2,'0'); }
 function avToday(){ const t = new Date(); return avYmd(t.getFullYear(), t.getMonth(), t.getDate()); }
+// Earliest month = this month (nothing in the past); latest = 11 months ahead (server keeps ~400 days).
+function avMonthIndex(y, m){ return y * 12 + m; }
+function avMonthBounds(){ const t = new Date(); const min = avMonthIndex(t.getFullYear(), t.getMonth()); return { min, max: min + 11 }; }
+function avSummary(parts){
+  if(!parts.length) return 'not marked';
+  if(parts.length === 3) return 'free all day';
+  return 'free in the ' + parts.join(' and ');
+}
 
 function renderAvailabilityPanel(session){
   const clubs = session.clubs || [];
@@ -3864,12 +3890,13 @@ function renderAvailabilityPanel(session){
   const clubId = state.availClubId;
   const heading = `<p class="av-heading">You're a member of the <strong>${escapeCm(avClubTitle(clubId))}</strong></p>`;
   const chips = clubs.length > 1
-    ? `<div class="av-clubs">${clubs.map(id => `<button type="button" class="av-club-chip${id === clubId ? ' active' : ''}" data-avclub="${escapeCm(id)}">${escapeCm(avClubTitle(id))}</button>`).join('')}</div>`
+    ? `<div class="av-clubs" aria-label="Switch club">${clubs.map(id => `<button type="button" class="av-club-chip${id === clubId ? ' active' : ''}" data-avclub="${escapeCm(id)}">${escapeCm(avClubTitle(id))}</button>`).join('')}</div>`
     : '';
   if(state.availError && state.availLoadedFor !== clubId) return heading + chips + `<p class="av-msg" style="color:#c00;">${escapeCm(state.availError)}</p>`;
-  if(state.availLoadedFor !== clubId) return heading + chips + `<p class="av-msg">Loading your availability…</p>`;
+  if(state.availLoadedFor !== clubId) return heading + chips + `<p class="av-msg">Loading your calendar…</p>`;
 
   const y = state.availYear, m = state.availMonth, today = avToday();
+  const bounds = avMonthBounds(), idx = avMonthIndex(y, m);
   const startDay = new Date(y, m, 1).getDay();
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   let cells = '';
@@ -3884,41 +3911,58 @@ function renderAvailabilityPanel(session){
     else if(parts.length){ cls += ' av-part'; inner += AV_PARTS.filter(([k]) => parts.includes(k)).map(([k, label]) => `<span class="av-band"><span class="av-long">${label}</span><span class="av-short">${AV_SHORT[k]}</span></span>`).join(''); }
     if(date === today) cls += ' av-today';
     if(state.availEditDate === date) cls += ' av-selected';
-    cells += past ? `<div class="${cls} av-past">${inner}</div>` : `<button type="button" class="${cls}" data-avdate="${date}">${inner}</button>`;
+    const aria = `${new Date(date + 'T00:00:00').toLocaleDateString('en-CA', {weekday:'long', month:'long', day:'numeric'})}: ${avSummary(parts)}`;
+    cells += past ? `<div class="${cls} av-past" aria-hidden="true">${inner}</div>` : `<button type="button" class="${cls}" data-avdate="${date}" aria-label="${escapeCm(aria)}">${inner}</button>`;
   }
 
-  let editor = '';
+  let sheet = '';
   if(state.availEditDate){
     const ed = state.availEditDate;
     const parts = state.availDays[ed] || [];
     const label = new Date(ed + 'T00:00:00').toLocaleDateString('en-CA', {weekday:'long', month:'long', day:'numeric'});
-    editor = `<div class="av-editor">
-      <div class="av-editor-title">${escapeCm(label)} — when are you free?</div>
-      <div class="av-editor-chips">
-        <button type="button" class="av-chip${parts.length === 3 ? ' on' : ''}" data-avpart="full">Full day</button>
-        ${AV_PARTS.map(([k, l]) => `<button type="button" class="av-chip${parts.includes(k) ? ' on' : ''}" data-avpart="${k}">${l}<small>${AV_RANGES[k]}</small></button>`).join('')}
-        <button type="button" class="av-chip av-clear" data-avpart="clear">Clear</button>
+    sheet = `<div class="av-sheet" role="dialog" aria-label="Set availability for ${escapeCm(label)}">
+      <div class="av-sheet-title">${escapeCm(label)}</div>
+      <div class="av-sheet-sub">When are you free? Tap all that apply.</div>
+      <button type="button" class="av-big${parts.length === 3 ? ' on' : ''}" data-avpart="full">Free all day</button>
+      <div class="av-row">
+        ${AV_PARTS.map(([k, l]) => `<button type="button" class="av-opt${parts.includes(k) ? ' on' : ''}" data-avpart="${k}"><span>${l}</span><small>${AV_RANGES[k]}</small></button>`).join('')}
       </div>
-      <button type="button" class="av-done" data-avdone="1">Done</button>
+      <div class="av-sheet-foot">
+        <button type="button" class="av-clear" data-avpart="clear">Not free (clear)</button>
+        <span class="av-status" aria-live="polite">${escapeCm(state.availStatus)}</span>
+        <button type="button" class="av-done" data-avdone="1">Done</button>
+      </div>
     </div>`;
   }
 
   return heading + chips + `
-    <div class="av-month-head">
-      <button type="button" class="av-nav" id="avPrev" aria-label="Previous month">‹</button>
-      <div class="av-month-title">${AV_MONTHS[m]} ${y}</div>
-      <button type="button" class="av-nav" id="avNext" aria-label="Next month">›</button>
+    <div class="av-steps">
+      <div class="av-step"><b>1</b><span>Tap a day</span></div>
+      <div class="av-step"><b>2</b><span>Pick when you're free</span></div>
+      <div class="av-step"><b>3</b><span>It saves by itself</span></div>
     </div>
-    <p class="av-hint">Tap a day to mark when you're free — the full day, or just the morning, afternoon or night.</p>
-    <p class="av-note"><strong>Morning</strong> = ${AV_RANGES.morning} &nbsp;·&nbsp; <strong>Afternoon</strong> = ${AV_RANGES.afternoon} &nbsp;·&nbsp; <strong>Night</strong> = ${AV_RANGES.night} &nbsp;·&nbsp; <strong>Full day</strong> = all of the above</p>
+    <div class="av-legend">
+      <span><i class="av-sw av-sw-free"></i>Free</span>
+      <span><i class="av-sw av-sw-none"></i>Not marked</span>
+      <span><i class="av-sw av-sw-past"></i>Passed</span>
+    </div>
+    <div class="av-month-head">
+      <button type="button" class="av-nav" id="avPrev" aria-label="Previous month" ${idx <= bounds.min ? 'disabled' : ''}>‹</button>
+      <div class="av-month-title">${AV_MONTHS[m]} ${y}</div>
+      <button type="button" class="av-nav" id="avNext" aria-label="Next month" ${idx >= bounds.max ? 'disabled' : ''}>›</button>
+    </div>
     <div class="av-weekdays">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div>${d}</div>`).join('')}</div>
     <div class="av-grid">${cells}</div>
-    ${editor}
-    <div class="av-actions">
-      <button type="button" class="club-guide-btn av-save" id="avSaveBtn" ${state.availDirty && !state.availSaving ? '' : 'disabled'}>${state.availSaving ? 'Saving…' : 'Save my availability'}</button>
-      <span class="av-status" id="avStatus">${escapeCm(state.availStatus || (state.availDirty ? 'Unsaved changes' : ''))}</span>
-    </div>
-    <div style="margin-top:14px;"><button type="button" class="av-link" id="avEventsBtn">Club events &amp; profile →</button></div>`;
+    <p class="av-note"><strong>Morning</strong> ${AV_RANGES.morning} &nbsp;·&nbsp; <strong>Afternoon</strong> ${AV_RANGES.afternoon} &nbsp;·&nbsp; <strong>Night</strong> ${AV_RANGES.night}</p>
+    <div class="av-status-line"><span class="av-status" aria-live="polite">${state.availEditDate ? '' : escapeCm(state.availStatus)}</span>${state.availStatus.startsWith('Couldn') ? ` <button type="button" class="av-link" id="avRetryBtn">Try again</button>` : ''}</div>
+    <div style="margin-top:10px;"><button type="button" class="av-link" id="avEventsBtn">Club events &amp; profile →</button></div>
+    ${sheet}`;
+}
+
+function availShowStatus(){
+  document.querySelectorAll('.av-status').forEach(el => { el.textContent = state.availStatus; });
+  const retry = document.getElementById('avRetryBtn');
+  if(retry && !state.availStatus.startsWith('Couldn')) retry.remove();
 }
 
 async function availLoad(){
@@ -3943,26 +3987,45 @@ async function availLoad(){
   if(state.tab === 'clubs') render();
 }
 
+function availScheduleSave(){
+  clearTimeout(availSaveTimer);
+  state.availStatus = 'Saving…';
+  availShowStatus();
+  availSaveTimer = setTimeout(availSave, 700);
+}
+
 async function availSave(){
+  clearTimeout(availSaveTimer);
   const session = getCmSession();
-  if(!session || state.availSaving) return;
+  if(!session || !state.availDirty || !state.availLoadedFor) return;
+  if(state.availSaving){ state.availResave = true; return; }
+  const clubId = state.availLoadedFor;
+  const snapshot = JSON.stringify(state.availDays);
   state.availSaving = true;
-  state.availStatus = '';
-  render();
+  state.availStatus = 'Saving…';
+  availShowStatus();
+  let failed = false;
   try {
-    const data = await cmApi(encodeURIComponent(state.availClubId) + '/availability/' + encodeURIComponent(session.id), {
+    const data = await cmApi(encodeURIComponent(clubId) + '/availability/' + encodeURIComponent(session.id), {
       method:'PUT',
       headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.token },
-      body: JSON.stringify({ days: state.availDays })
+      body: JSON.stringify({ days: JSON.parse(snapshot) })
     });
-    state.availDays = data.days || {};
-    state.availDirty = false;
-    state.availStatus = 'Saved ✓';
+    if(JSON.stringify(state.availDays) === snapshot){
+      state.availDays = data.days || {};
+      state.availDirty = false;
+      state.availStatus = 'Saved ✓';
+    } else {
+      state.availResave = true;
+    }
   } catch(err){
-    state.availStatus = 'Error: ' + err.message;
+    failed = true;
+    state.availStatus = 'Couldn’t save (' + err.message + ').';
   }
   state.availSaving = false;
-  render();
+  if(failed){ state.availResave = false; if(state.tab === 'clubs') render(); return; }
+  availShowStatus();
+  if(state.availResave){ state.availResave = false; availSave(); }
 }
 
 function availApplyPart(part){
@@ -3975,16 +4038,21 @@ function availApplyPart(part){
   if(parts.length) state.availDays[date] = AV_PARTS.map(([k]) => k).filter(k => parts.includes(k));
   else delete state.availDays[date];
   state.availDirty = true;
-  state.availStatus = '';
   render();
+  availScheduleSave();
+}
+
+function availScrollToSelected(){
+  const cell = document.querySelector('.av-cell.av-selected');
+  if(cell) cell.scrollIntoView({ block:'start' });
 }
 
 function wireAvailabilityPanel(){
   if(!document.querySelector('.av-heading')) return;
   if(state.availLoadedFor !== state.availClubId && !state.availLoading && !state.availError) availLoad();
-  document.querySelectorAll('[data-avclub]').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('[data-avclub]').forEach(btn => btn.addEventListener('click', async () => {
     if(btn.dataset.avclub === state.availClubId) return;
-    if(state.availDirty && !confirm('You have unsaved changes for this club. Switch anyway?')) return;
+    if(state.availDirty) await availSave();
     state.availClubId = btn.dataset.avclub;
     state.availLoadedFor = null; state.availError = ''; state.availDirty = false; state.availEditDate = null; state.availStatus = '';
     render();
@@ -3992,19 +4060,28 @@ function wireAvailabilityPanel(){
   document.querySelectorAll('[data-avdate]').forEach(btn => btn.addEventListener('click', () => {
     state.availEditDate = state.availEditDate === btn.dataset.avdate ? null : btn.dataset.avdate;
     render();
+    if(state.availEditDate) availScrollToSelected();
   }));
   document.querySelectorAll('[data-avpart]').forEach(btn => btn.addEventListener('click', () => availApplyPart(btn.dataset.avpart)));
   const done = document.querySelector('[data-avdone]');
   if(done) done.addEventListener('click', () => { state.availEditDate = null; render(); });
+  const shift = delta => {
+    const bounds = avMonthBounds();
+    const next = avMonthIndex(state.availYear, state.availMonth) + delta;
+    if(next < bounds.min || next > bounds.max) return;
+    state.availYear = Math.floor(next / 12); state.availMonth = next % 12;
+    state.availEditDate = null; render();
+  };
   const prev = document.getElementById('avPrev'), next = document.getElementById('avNext');
-  const shift = delta => { let m = state.availMonth + delta, y = state.availYear; if(m < 0){ m = 11; y--; } if(m > 11){ m = 0; y++; } state.availMonth = m; state.availYear = y; state.availEditDate = null; render(); };
   if(prev) prev.addEventListener('click', () => shift(-1));
   if(next) next.addEventListener('click', () => shift(1));
-  const save = document.getElementById('avSaveBtn');
-  if(save) save.addEventListener('click', availSave);
+  const retry = document.getElementById('avRetryBtn');
+  if(retry) retry.addEventListener('click', availSave);
   const ev = document.getElementById('avEventsBtn');
-  if(ev) ev.addEventListener('click', () => { state.clubsLoginPickerOpen = false; openClubMembers(state.availClubId, avClubTitle(state.availClubId)); });
+  if(ev) ev.addEventListener('click', async () => { if(state.availDirty) await availSave(); state.clubsLoginPickerOpen = false; openClubMembers(state.availClubId, avClubTitle(state.availClubId)); });
 }
+
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden' && state.availDirty) availSave(); });
 
 // A person can belong to several clubs under one username, so signing in never
 // needs to ask "which club" up front — the server tells us which clubs they're in.

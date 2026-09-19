@@ -79,6 +79,12 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-19 (availability: no past months, self-explanatory + phone-friendly, auto-save)
+
+**2026-09-19 (availability: no past months, self-explanatory + phone-friendly, auto-save) — Claude (chat) — `index.html`** — Lujane: don't let anything before September be accessible, and make it extremely self-explanatory and easy on a phone. **Bounds:** the month view can't go earlier than the current month (`avMonthBounds()`; the ‹ button is disabled there) or later than 11 months ahead (server keeps ~400 days); past days were already greyed/unclickable. I used "current month" rather than a hard-coded September so it keeps working after September. **Clarity:** numbered 3-step strip (Tap a day / Pick when you're free / It saves by itself), a Free / Not marked / Passed legend, the Morning/Afternoon/Night range note, aria-labels on day cells. **Phone UX:** the day chooser is now a fixed bottom sheet (large 54–62px buttons: Free all day, Morning, Afternoon, Night with their ranges, Not free (clear), Done) instead of a block below the calendar that needed scrolling; tapping a day scrolls it to the top so it stays visible above the sheet; month arrows are 44px. **Auto-save:** removed the Save button — edits save automatically ~0.7s after the last tap (`availScheduleSave`/`availSave`, coalesces overlapping saves, flushes on club switch / leaving the tab / "Club events" link), status shows Saving… / Saved ✓, and on failure a "Couldn’t save" message with a Try again link. Tested end-to-end at 375px with local `wrangler dev` + a throwaway `.dev.vars` (deleted) and a test member: month bounds, tap/choose/auto-save persisted in KV, day stays visible above the sheet, failure + retry path. Not yet tried with a real member login on production.
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-19 (availability: time-range note)
 
 **2026-09-19 (availability: time-range note) — Claude (chat) — `index.html`** — Added a note above the month view clarifying the parts of day (`AV_RANGES`: Morning = before 12 PM, Afternoon = 12–5 PM, Night = after 5 PM, Full day = all three) and put the same range under each chip in the day chooser. The cutoffs are my choice, not from Lujane — edit `AV_RANGES` to change the wording. Verified render with a mocked member session.
@@ -522,6 +528,7 @@ npx wrangler deploy
 
 _(most recent first — add new entries to the top, trim past ~15)_
 
+- 2026-09-19 — Claude (chat) — `index.html` — Availability month view: no months before the current one, 3-step guide + legend, bottom-sheet day chooser for phones, auto-save (no Save button).
 - 2026-09-19 — Claude (chat) — `index.html` — Availability month view: note explaining Morning/Afternoon/Night time ranges.
 - 2026-09-19 — Claude (chat) — `index.html`, `workers/src/worker.js` — Clubs: logged-in members get "You're a member of the … Club" + month-view availability (Full day / Morning / Afternoon / Night); new private availability endpoints.
 - 2026-09-18 — Claude (chat) — `index.html` — Add to Home Screen tile now sits right above the footer (Home only); details-change disclaimer shows only on the Calendar tab.
