@@ -417,6 +417,31 @@
   .av-welcome{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; line-height:1.4; padding:10px 12px; margin-bottom:12px; border-radius:12px; background:#dff0e5; border:1.5px solid #5aa276; }
   .av-waitlist{ font-size:13px; line-height:1.45; padding:10px 12px; margin:0 0 12px; border-radius:12px; background:#fdf1d6; border:1.5px solid #d9b25c; }
   .fall-login-box{ border:2px dashed var(--charcoal); border-radius:14px; padding:12px; }
+  body.av-editing{ overflow:hidden; }
+  .av-overlay{ position:fixed; inset:0; z-index:200; background:var(--cream); overflow-y:auto; -webkit-overflow-scrolling:touch; padding:64px 12px 40px; box-sizing:border-box; }
+  .av-overlay.has-sheet{ padding-bottom:340px; }
+  .av-overlay-inner{ max-width:640px; margin:0 auto; }
+  .av-overlay-title{ margin:0 0 8px; font-size:17px; font-weight:700; }
+  .av-overlay-title small{ display:block; font-size:12px; font-weight:500; color:var(--muted); }
+  .av-exit{ position:fixed; top:calc(12px + env(safe-area-inset-top, 0px)); right:14px; z-index:230; min-height:44px; padding:0 18px; border:2px solid var(--charcoal); border-radius:999px; background:var(--charcoal); color:var(--cream); font-family:'Inter',sans-serif; font-size:15px; font-weight:700; cursor:pointer; box-shadow:2px 2px 0 rgba(0,0,0,0.2); }
+  .mem-section{ margin-top:22px; padding-top:14px; border-top:1.5px dashed rgba(55,61,59,0.3); }
+  .mem-title{ margin:0 0 10px; font-size:16px; }
+  .mem-filter{ display:block; font-size:13px; margin-bottom:10px; }
+  .mem-filter select{ padding:8px 10px; border-radius:10px; border:1.5px solid var(--charcoal); font-family:'Inter',sans-serif; font-size:14px; background:#fff; }
+  .mem-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; }
+  .mem-card{ display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 6px; border:1.5px solid rgba(55,61,59,0.3); border-radius:12px; background:#fff; font-family:'Inter',sans-serif; cursor:pointer; text-align:center; }
+  .mem-avatar{ width:42px; height:42px; border-radius:50%; background:#c9aaad; color:var(--charcoal); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px; }
+  .mem-avatar-big{ width:84px; height:84px; font-size:34px; margin:0 auto; }
+  .mem-name{ font-weight:700; font-size:14px; line-height:1.2; word-break:break-word; }
+  .mem-clubs{ font-size:11px; color:var(--muted); line-height:1.25; }
+  .mem-pop{ position:fixed; inset:0; z-index:300; background:rgba(33,30,28,0.5); display:flex; align-items:center; justify-content:center; padding:20px; }
+  .mem-pop-card{ position:relative; width:min(340px,100%); background:var(--cream); border:2px solid var(--charcoal); border-radius:18px; padding:22px 18px 18px; text-align:center; }
+  .mem-pop-close{ position:absolute; top:8px; right:10px; border:none; background:none; font-size:20px; cursor:pointer; }
+  .mem-pop-photo{ width:110px; height:110px; border-radius:50%; object-fit:cover; border:2px solid var(--charcoal); }
+  .mem-pop-clubs{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
+  .cp-box{ border:2px dashed var(--charcoal); border-radius:14px; padding:12px; margin:14px 0; }
+  .cp-clubs{ display:flex; flex-wrap:wrap; gap:6px 14px; }
+  .cp-club{ font-size:13px; display:flex; align-items:center; gap:6px; }
   .av-heading{ font-size:17px; margin:0 0 12px; }
   .av-clubs{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
   .av-club-chip{ border:1.5px solid var(--charcoal); border-radius:999px; padding:8px 14px; background:transparent; font-family:'Inter',sans-serif; font-size:13px; cursor:pointer; }
@@ -828,7 +853,7 @@
     </a>
   </div>
   <img class="footer-logo" src="assets/OFFICIAL%20LOGO.png" alt="Not a cult (Yet)">
-  <button type="button" class="suggest-btn" id="footerLogoutBtn" style="display:none;margin-top:14px;">Log Out</button>
+  <button type="button" class="suggest-btn" id="footerLogoutBtn" style="display:none;margin-top:14px;">Sign Out</button>
 </footer>
 
 <div class="footer-admin-modal-overlay" id="footerAdminModalOverlay">
@@ -1027,7 +1052,7 @@ let state = {
   cmAdminOpen:false, cmAdminLoggedIn:null, cmAdminError:'', cmAdminClub:null, cmAdminEvents:null,
   cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
-  availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'',
+  availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventEditDeleting:false,
   reviewMode:false, reviewQueue:[], reviewTotal:0, eventCreateMode:false,
   resourceEditOpen:false, resourceEditId:null, resourceEditData:null, resourceEditError:'', resourceEditSaving:false, resourceEditSaved:false, resourceCreateMode:false,
@@ -2336,12 +2361,12 @@ function renderDirectory(){
     renderTripEarthView('travelEarthView', 'travelEarthMap', travelItems, false);
   } else if(state.tab === 'clubs'){
     document.getElementById('resourcePagination').innerHTML = '';
-el.innerHTML = `<div class="clubs-top-actions">
+el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions">
     <button class="fall-cta-btn" data-hometab="fallsignup">SIGN UP</button>
-    <button type="button" class="club-guide-btn" id="clubsLoginOpenBtn">${(() => { const s = getCmSession(); return s ? `<span>MY CLUBS<small style="display:block;font-weight:500;font-size:10px;margin-top:4px;text-transform:none;">Signed in as ${escapeCm(s.name)}</small></span>` : 'LOG IN'; })()}</button>
-    </div>
-    ${state.clubsLoginPickerOpen ? `
-    <div class="rules-content" style="max-width:${getCmSession() && !state.clubsMyClubsPickerOpen ? '760px' : '420px'};margin:0 auto 18px;${state.availEditDate && getCmSession() ? 'padding-bottom:300px;' : ''}">
+    <button type="button" class="club-guide-btn" id="clubsLoginOpenBtn">LOG IN</button>
+    </div>`}
+    ${(state.clubsLoginPickerOpen || getCmSession()) ? `
+    <div class="rules-content" style="max-width:${getCmSession() && !state.clubsMyClubsPickerOpen ? '760px' : '420px'};margin:0 auto 18px;">
       ${state.clubsMyClubsPickerOpen ? `
         ${(state.cmSessionClubs || []).length ? `
           <p style="font-size:13px;margin-bottom:10px;">Which club do you want to open?</p>
@@ -3895,7 +3920,8 @@ let availSaveTimer = null;
 
 function availReset(){
   clearTimeout(availSaveTimer);
-  Object.assign(state, { availClubId:null, availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'' });
+  Object.assign(state, { availClubId:null, availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', availEditing:false, membersList:null, membersError:'', membersFilter:'all', membersLoading:false });
+  document.body.classList.remove('av-editing');
   const t = new Date();
   state.availYear = t.getFullYear(); state.availMonth = t.getMonth();
 }
@@ -3981,6 +4007,29 @@ function renderAvailabilityPanel(session){
     </div>`;
   }
 
+  const calendarHtml = `
+    <div class="av-month-head">
+      <button type="button" class="av-nav" id="avPrev" aria-label="Previous month" ${idx <= bounds.min ? 'disabled' : ''}>‹</button>
+      <div class="av-month-title">${AV_MONTHS[m]} ${y}</div>
+      <button type="button" class="av-nav" id="avNext" aria-label="Next month" ${idx >= bounds.max ? 'disabled' : ''}>›</button>
+    </div>
+    <div class="av-weekdays">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div>${d}</div>`).join('')}</div>
+    <div class="av-grid">${cells}</div>`;
+  const statusLine = `<div class="av-status-line"><span class="av-status" aria-live="polite">${state.availEditDate ? '' : escapeCm(state.availStatus)}</span>${state.availStatus.startsWith('Couldn') ? ` <button type="button" class="av-link" id="avRetryBtn">Try again</button>` : ''}</div>`;
+
+  // Editing mode: a full-screen overlay showing only the calendar, with an Exit button top-right.
+  if(state.availEditing){
+    return `<div class="av-overlay${state.availEditDate ? ' has-sheet' : ''}">
+      <button type="button" class="av-exit" id="avExitBtn" aria-label="Exit editing mode">✕ Exit</button>
+      <div class="av-overlay-inner">
+        <p class="av-overlay-title">Editing availability<small>${escapeCm(avClubTitle(clubId))}</small></p>
+        ${calendarHtml}
+        ${statusLine}
+      </div>
+      ${sheet}
+    </div>`;
+  }
+
   return heading + chips + `
     <div class="av-steps">
       <div class="av-step"><b>1</b><span>Tap a day</span></div>
@@ -3994,17 +4043,78 @@ function renderAvailabilityPanel(session){
       <span><i class="av-sw av-sw-busy"></i>You're Busy</span>
     </div>
     <p class="av-default-note">Every day is <strong>You're Busy</strong> unless you tap it and say you're free.</p>
-    <div class="av-month-head">
-      <button type="button" class="av-nav" id="avPrev" aria-label="Previous month" ${idx <= bounds.min ? 'disabled' : ''}>‹</button>
-      <div class="av-month-title">${AV_MONTHS[m]} ${y}</div>
-      <button type="button" class="av-nav" id="avNext" aria-label="Next month" ${idx >= bounds.max ? 'disabled' : ''}>›</button>
-    </div>
-    <div class="av-weekdays">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div>${d}</div>`).join('')}</div>
-    <div class="av-grid">${cells}</div>
+    ${calendarHtml}
     <p class="av-note"><strong>Morning</strong> ${AV_RANGES.morning} &nbsp;·&nbsp; <strong>Afternoon</strong> ${AV_RANGES.afternoon} &nbsp;·&nbsp; <strong>Night</strong> ${AV_RANGES.night}</p>
-    <div class="av-status-line"><span class="av-status" aria-live="polite">${state.availEditDate ? '' : escapeCm(state.availStatus)}</span>${state.availStatus.startsWith('Couldn') ? ` <button type="button" class="av-link" id="avRetryBtn">Try again</button>` : ''}</div>
+    ${statusLine}
     <div style="margin-top:10px;"><button type="button" class="av-link" id="avEventsBtn">Club events &amp; profile →</button></div>
-    ${sheet}`;
+    ${renderMembersDirectory()}`;
+}
+
+/* ---- Members directory: signed-in members can browse every profile ---- */
+function cmAuthHeaders(){ const sess = getCmSession(); return { 'Content-Type':'application/json', 'Authorization':'Bearer ' + (sess ? sess.token : '') }; }
+
+async function membersLoad(){
+  if(state.membersLoading || state.membersList) return;
+  state.membersLoading = true; state.membersError = '';
+  try {
+    const data = await cmApiRaw('/api/members', { headers: cmAuthHeaders() });
+    state.membersList = data.members || [];
+  } catch(err){
+    state.membersError = /not signed in/i.test(err.message) ? 'Please sign in again to see profiles.' : err.message;
+  }
+  state.membersLoading = false;
+  if(state.tab === 'clubs') render();
+}
+
+function renderMembersDirectory(){
+  if(!getCmSession()) return '';
+  let body;
+  if(state.membersError) body = `<p class="av-msg" style="color:#c00;">${escapeCm(state.membersError)}</p>`;
+  else if(!state.membersList) body = `<p class="av-msg">Loading profiles…</p>`;
+  else {
+    const usedClubIds = [...new Set(state.membersList.flatMap(mm => mm.clubs))];
+    const list = state.membersFilter === 'all' ? state.membersList : state.membersList.filter(mm => mm.clubs.includes(state.membersFilter));
+    body = `
+      <label class="mem-filter">Show: <select id="memFilter">
+        <option value="all">Everyone (${state.membersList.length})</option>
+        ${usedClubIds.map(id => `<option value="${escapeCm(id)}" ${state.membersFilter === id ? 'selected' : ''}>${escapeCm(avClubTitle(id))}</option>`).join('')}
+      </select></label>
+      <div class="mem-grid">${list.map(mm => `
+        <button type="button" class="mem-card" data-memid="${escapeCm(mm.id)}">
+          <span class="mem-avatar">${escapeCm((mm.name || '?').trim().charAt(0).toUpperCase())}</span>
+          <span class="mem-name">${escapeCm(mm.name)}</span>
+          <span class="mem-clubs">${mm.clubs.map(id => escapeCm(avClubTitle(id).replace(/ Club$/, ''))).join(' · ')}</span>
+        </button>`).join('') || '<p class="av-msg">Nobody here yet.</p>'}</div>`;
+  }
+  return `<div class="mem-section"><h3 class="mem-title">Community profiles</h3>${body}</div>`;
+}
+
+async function openMemberProfile(id){
+  const wrap = document.createElement('div');
+  wrap.className = 'mem-pop';
+  wrap.innerHTML = `<div class="mem-pop-card"><button type="button" class="mem-pop-close" aria-label="Close">✕</button><p class="av-msg">Loading…</p></div>`;
+  document.body.appendChild(wrap);
+  const close = () => wrap.remove();
+  wrap.addEventListener('click', e => { if(e.target === wrap || e.target.closest('.mem-pop-close')) close(); });
+  try {
+    const p = await cmApiRaw('/api/members/' + encodeURIComponent(id), { headers: cmAuthHeaders() });
+    const photo = p.photo && /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/]+=*$/.test(p.photo)
+      ? `<img class="mem-pop-photo" src="${p.photo}" alt="">`
+      : `<span class="mem-avatar mem-avatar-big">${escapeCm((p.name || '?').trim().charAt(0).toUpperCase())}</span>`;
+    wrap.querySelector('.mem-pop-card').innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
+      ${photo}<h3 style="margin:10px 0 6px;">${escapeCm(p.name)}</h3>
+      <div class="mem-pop-clubs">${(p.clubs || []).map(cid => `<span class="av-club-chip active">${escapeCm(avClubTitle(cid))}</span>`).join('') || '<span class="av-msg">Not in a club yet</span>'}</div>`;
+  } catch(err){
+    wrap.querySelector('.mem-pop-card').innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`;
+  }
+}
+
+function wireMembersDirectory(){
+  if(!document.querySelector('.mem-section')) return;
+  if(!state.membersList && !state.membersLoading && !state.membersError) membersLoad();
+  const filter = document.getElementById('memFilter');
+  if(filter) filter.addEventListener('change', () => { state.membersFilter = filter.value; render(); });
+  document.querySelectorAll('[data-memid]').forEach(btn => btn.addEventListener('click', () => openMemberProfile(btn.dataset.memid)));
 }
 
 function availShowStatus(){
@@ -4096,7 +4206,9 @@ function availScrollToSelected(){
 }
 
 function wireAvailabilityPanel(){
-  if(!document.querySelector('.av-heading')) return;
+  document.body.classList.toggle('av-editing', !!document.querySelector('.av-overlay'));
+  if(!document.querySelector('.av-heading') && !document.querySelector('.av-overlay')) return;
+  wireMembersDirectory();
   if(state.availLoadedFor !== state.availClubId && !state.availLoading && !state.availError) availLoad();
   document.querySelectorAll('[data-avclub]').forEach(btn => btn.addEventListener('click', async () => {
     if(btn.dataset.avclub === state.availClubId) return;
@@ -4106,13 +4218,17 @@ function wireAvailabilityPanel(){
     render();
   }));
   document.querySelectorAll('[data-avdate]').forEach(btn => btn.addEventListener('click', () => {
+    state.availEditing = true;
     state.availEditDate = state.availEditDate === btn.dataset.avdate ? null : btn.dataset.avdate;
     render();
     if(state.availEditDate) availScrollToSelected();
   }));
+  const exitEditing = () => { state.availEditing = false; state.availEditDate = null; if(state.availDirty) availSave(); render(); };
+  const exitBtn = document.getElementById('avExitBtn');
+  if(exitBtn) exitBtn.addEventListener('click', exitEditing);
   document.querySelectorAll('[data-avpart]').forEach(btn => btn.addEventListener('click', () => availApplyPart(btn.dataset.avpart)));
   const done = document.querySelector('[data-avdone]');
-  if(done) done.addEventListener('click', () => { state.availEditDate = null; render(); });
+  if(done) done.addEventListener('click', exitEditing);
   const shift = delta => {
     const bounds = avMonthBounds();
     const next = avMonthIndex(state.availYear, state.availMonth) + delta;
@@ -4132,6 +4248,7 @@ function wireAvailabilityPanel(){
 }
 
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden' && state.availDirty) availSave(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && state.availEditing){ state.availEditing = false; state.availEditDate = null; if(state.availDirty) availSave(); render(); } });
 
 // A person can belong to several clubs under one username, so signing in never
 // needs to ask "which club" up front — the server tells us which clubs they're in.
@@ -4783,6 +4900,18 @@ function renderClubAdminPanel(){
       <h3 style="margin:0;">All Members</h3>
       <button class="club-guide-btn" id="cmAdminLogoutBtn" style="padding:6px 12px;font-size:12px;">Log Out</button>
     </div>
+    <div class="cp-box">
+      <h4 style="margin:0 0 6px;">Create a profile</h4>
+      <p style="font-size:11px;color:#776867;margin:0 0 10px;">Makes the member and puts them in every club you tick. A username that already exists is just added to those clubs.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <input id="cpName" placeholder="Name" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
+        <input id="cpUsername" placeholder="Username (letters, numbers, _)" autocapitalize="none" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
+        <input id="cpPin" placeholder="PIN (optional — blank = auto-generate)" inputmode="numeric" maxlength="4" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
+        <div class="cp-clubs">${adminClubChoices().map(c => `<label class="cp-club"><input type="checkbox" class="cp-club-check" value="${escapeCm(c.id)}"> ${escapeCm(c.title)}</label>`).join('')}</div>
+        <button class="club-guide-btn" id="cpCreateBtn" style="background:var(--blush);">Create profile</button>
+        <span id="cpStatus" style="font-size:12px;color:#c00;"></span>
+      </div>
+    </div>
     <div style="margin:14px 0 26px;">${renderAdminAllMembersPanels()}</div>
 
     <h3>Club Events Admin</h3>
@@ -4826,8 +4955,53 @@ function renderClubAdminPanel(){
   </div>`;
 }
 
+function adminClubChoices(){
+  const seen = new Set();
+  return [...clubsData, ...FALL_SIGNUP_CLUBS].filter(c => !seen.has(c.id) && seen.add(c.id));
+}
+
+async function cmAdminCreateProfile(){
+  const name = document.getElementById('cpName').value.trim();
+  const username = document.getElementById('cpUsername').value.trim().toLowerCase();
+  const pin = document.getElementById('cpPin').value.trim();
+  const clubIds = [...document.querySelectorAll('.cp-club-check:checked')].map(c => c.value);
+  const status = document.getElementById('cpStatus');
+  status.style.color = '#c00';
+  if(!name) return status.textContent = 'Enter a name.';
+  if(!/^[a-z0-9_]{3,20}$/.test(username)) return status.textContent = 'Username: 3–20 letters, numbers or _.';
+  if(pin && !/^\d{4}$/.test(pin)) return status.textContent = 'PIN must be exactly 4 digits (or leave blank).';
+  if(!clubIds.length) return status.textContent = 'Tick at least one club.';
+  status.textContent = 'Creating…';
+  const done = [];
+  let finalPin = pin, existed = false;
+  try {
+    for(let i = 0; i < clubIds.length; i++){
+      const res = await fetch('/api/admin/club-members/' + encodeURIComponent(clubIds[i]), {
+        method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
+        body: JSON.stringify(i === 0 ? { name, username, pin: pin || undefined } : { username })
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.error || 'Could not create profile');
+      if(i === 0){ finalPin = data.pin || finalPin; existed = !!data.addedExisting; }
+      done.push(clubIds[i]);
+    }
+    status.textContent = '';
+    const clubNames = done.map(id => avClubTitle(id)).join(', ');
+    alert(existed
+      ? `@${username} already had an account — added to: ${clubNames}. Their existing PIN still works.`
+      : `Created ${name} (@${username}) with PIN ${finalPin} — give them this PIN so they can sign in. Clubs: ${clubNames}.`);
+    await cmAdminLoadAllMembers();
+    state.membersList = null;
+    render();
+  } catch(err){
+    status.textContent = 'Error: ' + err.message + (done.length ? ` (already added to: ${done.map(id => avClubTitle(id)).join(', ')})` : '');
+  }
+}
+
 function wireClubAdminPanel(){
   if(!state.cmAdminOpen) return;
+  const cpBtn = document.getElementById('cpCreateBtn');
+  if(cpBtn) cpBtn.addEventListener('click', cmAdminCreateProfile);
   const loginBtn = document.getElementById('cmAdminLoginBtn');
   if(loginBtn) loginBtn.addEventListener('click', cmAdminLogin);
   const logoutBtn = document.getElementById('cmAdminLogoutBtn');
@@ -4889,6 +5063,8 @@ async function checkAdminSession(){
 }
 
 function render(){
+  if(state.tab !== 'clubs' && state.availEditing){ state.availEditing = false; state.availEditDate = null; }
+  if(state.tab !== 'clubs') document.body.classList.remove('av-editing');
   renderFooterLogout();
   renderFooterAdmin();
   const contextBack = document.getElementById('contextBack');
@@ -5258,6 +5434,7 @@ document.getElementById('footerLogoutBtn').addEventListener('click', async () =>
   const wasAdmin = state.cmAdminLoggedIn === true;
   if(getCmSession()) clearCmSession();
   availReset();
+  state.clubsLoginPickerOpen = false; state.clubsMyClubsPickerOpen = false;
   if(wasAdmin) await cmAdminLogout();
   state.cmView = 'auth'; state.cmMe = null;
   render();

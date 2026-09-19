@@ -24,6 +24,8 @@
  *   GET    /api/clubs/:clubId/events                        - This club's admin-created events
  *   GET    /api/clubs/:clubId/events/:eventId/responses     - Every member's availability for one event + aggregate counts
  *   PUT    /api/clubs/:clubId/events/:eventId/responses/:userId - Save own availability for one event (Bearer session token required)
+ *   GET    /api/members                                     - Signed-in members only (Bearer token): every profile as {id, name, hasPhoto, clubs:[clubId]} (no usernames/PINs)
+ *   GET    /api/members/:id                                 - Signed-in members only: one profile {id, name, photo, clubs}
  *   GET    /api/clubs/:clubId/availability/:userId          - Own month-view availability ({days:{"YYYY-MM-DD":["morning"|"afternoon"|"night"]}}); Bearer token, private to that member
  *   PUT    /api/clubs/:clubId/availability/:userId          - Replace own month-view availability ({days:{...}}); Bearer token + club membership required
  *
@@ -115,7 +117,7 @@ const readUser = async (env, userId) => {
 };
 
 const writeUser = async (env, user) => {
-  await env.SITE_DATA.put(userKey(user.id), JSON.stringify(user));
+  await env.SITE_DATA.put(userKey(user.id), JSON.stringify(user), { metadata: { name: user.name, hasPhoto: !!user.photo } });
 };
 
 const deleteUser = async (env, userId) => {
@@ -563,6 +565,54 @@ export default {
       responses[userId] = sanitizeEventSlots(body.slots, event);
       await env.SITE_DATA.put(key, JSON.stringify(responses));
       return jsonResponse({ slots: responses[userId] }, 200, corsHeaders);
+    }
+
+    // ---- Signed-in members can browse every profile (names + clubs; never usernames or PINs) ----
+    const memberIdFromRequest = async () => {
+      const authHeader = request.headers.get("Authorization") || "";
+      const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+      if (!token) return null;
+      const raw = await env.SITE_DATA.get(`membersession:${token}`);
+      if (!raw) return null;
+      try { return JSON.parse(raw).userId || null; } catch { return null; }
+    };
+    const membersListMatch = path === "/api/members" || path === "/api/members/";
+    const memberProfileMatch = path.match(/^\/api\/members\/([^/]+)\/?$/);
+    if ((membersListMatch || memberProfileMatch) && request.method === "GET") {
+      if (!(await memberIdFromRequest())) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      if (memberProfileMatch) {
+        const id = decodeURIComponent(memberProfileMatch[1]);
+        const user = await readUser(env, id);
+        if (!user) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
+        const clubs = await allClubIdsContaining(env, id);
+        return jsonResponse({ id: user.id, name: user.name, photo: user.photo || null, clubs }, 200, corsHeaders);
+      }
+      const clubKeys = await env.SITE_DATA.list({ prefix: "clubmembers:" });
+      const clubsByUser = {};
+      for (const key of clubKeys.keys) {
+        const clubId = key.name.slice("clubmembers:".length);
+        const ids = JSON.parse((await env.SITE_DATA.get(key.name)) || "[]");
+        for (const id of ids) (clubsByUser[id] = clubsByUser[id] || []).push(clubId);
+      }
+      const userKeys = await env.SITE_DATA.list({ prefix: "user:" });
+      const members = [];
+      let legacyReads = 0;
+      for (const key of userKeys.keys) {
+        const id = key.name.slice("user:".length);
+        if (!clubsByUser[id]) continue; // profiles with no club aren't listed
+        let name = key.metadata && key.metadata.name;
+        let hasPhoto = key.metadata ? !!key.metadata.hasPhoto : false;
+        if (!name && legacyReads < 30) { // records saved before metadata existed: read once and backfill
+          legacyReads++;
+          const user = await readUser(env, id);
+          if (!user) continue;
+          name = user.name; hasPhoto = !!user.photo;
+          await writeUser(env, user);
+        }
+        if (name) members.push({ id, name, hasPhoto, clubs: clubsByUser[id] });
+      }
+      members.sort((a, b) => a.name.localeCompare(b.name));
+      return jsonResponse({ members }, 200, corsHeaders);
     }
 
     const cmAvailabilityMatch = path.match(/^\/api\/clubs\/([^/]+)\/availability\/([^/]+)\/?$/);
