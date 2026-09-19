@@ -1,6 +1,32 @@
 {
   "items": [
     {
+      "section": "trips",
+      "title": "Barbados Treat",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "thetravelbuilder",
+      "eventDate": "2026-09-27",
+      "endDate": "2026-10-04",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "Barbados",
+      "link": "https://www.instagram.com/p/DZ8y3zdnFCn/?stkn=MTNzanY1OXV3bnJzaQ==",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "barbados-treat"
+    },
+    {
       "id": "deen-journeys-granada-retreat-2027",
       "title": "Deen Journeys Granada Retreat",
       "tag": "Trip",
