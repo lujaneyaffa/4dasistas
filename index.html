@@ -412,6 +412,40 @@
   .club-guide-btn:hover{ transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--charcoal); }
   .fall-cta-btn{ display:flex; align-items:center; justify-content:center; text-align:center; border:none; border-radius:16px; padding:8px; background:var(--blush); color:var(--charcoal); font-family:'Inter',sans-serif; font-weight:700; font-size:14px; line-height:1.2; cursor:pointer; box-shadow:0 4px 14px rgba(202,170,173,0.35); transition:transform 0.12s ease, box-shadow 0.12s ease; }
   .fall-cta-btn:hover{ transform:translate(0,-2px); box-shadow:0 6px 18px rgba(202,170,173,0.45); }
+  .av-heading{ font-size:16px; margin:0 0 10px; }
+  .av-clubs{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .av-club-chip{ border:1.5px solid var(--charcoal); border-radius:999px; padding:5px 12px; background:transparent; font-family:'Inter',sans-serif; font-size:12px; cursor:pointer; }
+  .av-club-chip.active{ background:var(--charcoal); color:var(--cream); }
+  .av-msg{ font-size:13px; margin:8px 0; }
+  .av-month-head{ display:flex; align-items:center; justify-content:space-between; margin:8px 0 4px; }
+  .av-month-title{ font-family:'Inter',sans-serif; font-weight:700; font-size:18px; }
+  .av-nav{ width:36px; height:36px; border:1.5px solid var(--charcoal); border-radius:50%; background:transparent; font-size:20px; line-height:1; cursor:pointer; }
+  .av-hint{ font-size:12px; color:var(--muted); margin:0 0 10px; text-align:center; }
+  .av-weekdays, .av-grid{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; }
+  .av-weekdays div{ text-align:center; font-size:11px; font-weight:700; color:var(--muted); padding-bottom:2px; }
+  .av-cell{ min-height:74px; border:1.5px solid rgba(55,61,59,0.25); border-radius:10px; background:#fff; padding:4px 3px; display:flex; flex-direction:column; align-items:stretch; gap:2px; font-family:'Inter',sans-serif; color:var(--charcoal); cursor:pointer; text-align:center; overflow:hidden; }
+  .av-cell.av-empty{ border:none; background:transparent; cursor:default; }
+  .av-cell.av-past{ opacity:0.4; cursor:default; }
+  .av-cell.av-today{ border-color:var(--charcoal); border-width:2px; }
+  .av-cell.av-selected{ box-shadow:0 0 0 2px var(--charcoal); }
+  .av-num{ font-size:13px; font-weight:700; text-align:left; padding-left:2px; }
+  .av-full{ background:#b9dfc5; border-color:#5aa276; }
+  .av-full-label{ margin:auto 0; font-size:clamp(9px,2.4vw,12px); font-weight:700; }
+  .av-part{ background:#f4f9f5; border-color:#5aa276; }
+  .av-band{ background:#b9dfc5; border-radius:5px; font-size:clamp(8px,2.2vw,11px); font-weight:600; padding:2px 1px; line-height:1.15; overflow:hidden; text-overflow:clip; }
+  .av-short{ display:none; }
+  @media (max-width:560px){ .av-long{ display:none; } .av-short{ display:inline; } }
+  .av-editor{ margin-top:12px; padding:12px; border:2px solid var(--charcoal); border-radius:14px; background:var(--card); }
+  .av-editor-title{ font-weight:700; font-size:14px; margin-bottom:10px; }
+  .av-editor-chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .av-chip{ border:1.5px solid var(--charcoal); border-radius:999px; padding:9px 16px; background:#fff; font-family:'Inter',sans-serif; font-size:14px; cursor:pointer; }
+  .av-chip.on{ background:#b9dfc5; border-color:#5aa276; font-weight:700; }
+  .av-chip.av-clear{ border-style:dashed; }
+  .av-done{ margin-top:10px; border:none; background:var(--charcoal); color:var(--cream); border-radius:999px; padding:9px 20px; font-family:'Inter',sans-serif; font-size:14px; cursor:pointer; }
+  .av-actions{ display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap; }
+  .av-save[disabled]{ opacity:0.45; cursor:default; }
+  .av-status{ font-size:13px; }
+  .av-link{ background:none; border:none; padding:0; font-family:'Inter',sans-serif; font-size:13px; text-decoration:underline; cursor:pointer; color:var(--charcoal); }
   .clubs-top-actions{ display:flex; align-items:stretch; justify-content:center; gap:10px; margin-bottom:14px; }
   .clubs-top-actions .club-guide-btn, .clubs-top-actions .fall-cta-btn{ flex:0 0 110px; width:110px; aspect-ratio:1; margin-bottom:0; text-align:center; padding:8px; font-size:13px; display:flex; align-items:center; justify-content:center; }
   .fall-signup{ max-width:640px; margin:0 auto; }
@@ -968,6 +1002,7 @@ let state = {
   cmAdminOpen:false, cmAdminLoggedIn:null, cmAdminError:'', cmAdminClub:null, cmAdminEvents:null,
   cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
+  availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availEditDate:null, availStatus:'',
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventEditDeleting:false,
   reviewMode:false, reviewQueue:[], reviewTotal:0, eventCreateMode:false,
   resourceEditOpen:false, resourceEditId:null, resourceEditData:null, resourceEditError:'', resourceEditSaving:false, resourceEditSaved:false, resourceCreateMode:false,
@@ -2258,7 +2293,7 @@ el.innerHTML = `<div class="clubs-top-actions">
     <button type="button" class="club-guide-btn" id="clubsLoginOpenBtn">${(() => { const s = getCmSession(); return s ? `<span>MY CLUBS<small style="display:block;font-weight:500;font-size:10px;margin-top:4px;text-transform:none;">Signed in as ${escapeCm(s.name)}</small></span>` : 'LOG IN'; })()}</button>
     </div>
     ${state.clubsLoginPickerOpen ? `
-    <div class="rules-content" style="max-width:420px;margin:0 auto 18px;">
+    <div class="rules-content" style="max-width:${getCmSession() && !state.clubsMyClubsPickerOpen ? '760px' : '420px'};margin:0 auto 18px;">
       ${state.clubsMyClubsPickerOpen ? `
         ${(state.cmSessionClubs || []).length ? `
           <p style="font-size:13px;margin-bottom:10px;">Which club do you want to open?</p>
@@ -2268,10 +2303,7 @@ el.innerHTML = `<div class="clubs-top-actions">
           }).join('')}
         ` : `<p style="font-size:13px;">You're not part of any club yet — ask an organizer to add you.</p>`}
       ` : getCmSession() ? `
-        ${(() => { const sess = getCmSession(); const hasClubs = (sess.clubs || []).length > 0; return `
-        <p style="font-size:13px;margin-bottom:10px;">Hi ${escapeCm(sess.name)}! What would you like to do?</p>
-        ${hasClubs ? `<button type="button" class="club-guide-btn" id="clubsFillAvailBtn" style="width:100%;margin-bottom:8px;text-align:left;">📅 Fill in my availability</button>` : `<p style="font-size:13px;margin-bottom:8px;">You're not part of any club yet — ask an organizer to add you to fill in availability.</p>`}
-        <a class="club-guide-btn" href="${IG_DM_URL}" target="_blank" rel="noopener" style="display:block;width:100%;box-sizing:border-box;margin-bottom:8px;text-align:left;text-decoration:none;color:var(--charcoal);">💡 Suggest an activity</a>`; })()}
+        ${renderAvailabilityPanel(getCmSession())}
       ` : `
         <p style="font-size:13px;margin-bottom:10px;">Sign in with the username and PIN an organizer gave you.</p>
         <div id="clubsLoginError" style="color:#c00;font-size:13px;margin-bottom:8px;"></div>
@@ -2305,19 +2337,7 @@ el.innerHTML = `<div class="clubs-top-actions">
         state.clubsLoginPickerOpen = !state.clubsLoginPickerOpen;
         render();
       });
-      const fillAvailBtn = document.getElementById('clubsFillAvailBtn');
-      if(fillAvailBtn) fillAvailBtn.addEventListener('click', () => {
-        const clubs = (getCmSession() || {}).clubs || [];
-        if(clubs.length === 1){
-          const club = clubsData.find(c => c.id === clubs[0]);
-          state.clubsLoginPickerOpen = false;
-          openClubMembers(clubs[0], club ? club.title : '');
-          return;
-        }
-        state.cmSessionClubs = clubs;
-        state.clubsMyClubsPickerOpen = true;
-        render();
-      });
+      wireAvailabilityPanel();
       const loginSubmitBtn = document.getElementById('clubsLoginSubmitBtn');
       if(loginSubmitBtn) loginSubmitBtn.addEventListener('click', cmGeneralLogin);
       document.querySelectorAll('.clubs-my-club-btn').forEach(btn => {
@@ -3812,6 +3832,176 @@ async function cmApi(pathSuffix, opts){
   return cmApiRaw('/api/clubs/' + pathSuffix, opts);
 }
 
+/* ============================================================
+   CLUB MEMBER MONTH-VIEW AVAILABILITY
+   After signing in, members see "You're a member of the … Club" and a big
+   month calendar. Each day is: nothing, Full day, or any mix of
+   Morning / Afternoon / Night. Stored privately per member per club on the
+   Worker (GET/PUT /api/clubs/:clubId/availability/:userId).
+   ============================================================ */
+const AV_PARTS = [['morning','Morning'],['afternoon','Afternoon'],['night','Night']];
+const AV_SHORT = {morning:'Morn', afternoon:'Aft', night:'Night'};
+const AV_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function availReset(){
+  Object.assign(state, { availClubId:null, availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availEditDate:null, availStatus:'' });
+}
+function avClubTitle(id){
+  const c = clubsData.find(x => x.id === id);
+  const t = c ? c.title : id;
+  return /club$/i.test(t) ? t : t + ' Club';
+}
+function avYmd(y, m, d){ return y + '-' + String(m + 1).padStart(2,'0') + '-' + String(d).padStart(2,'0'); }
+function avToday(){ const t = new Date(); return avYmd(t.getFullYear(), t.getMonth(), t.getDate()); }
+
+function renderAvailabilityPanel(session){
+  const clubs = session.clubs || [];
+  if(!clubs.length) return `<p style="font-size:13px;">You're not part of any club yet — ask an organizer to add you.</p>`;
+  if(!state.availClubId || !clubs.includes(state.availClubId)) state.availClubId = clubs[0];
+  const clubId = state.availClubId;
+  const heading = `<p class="av-heading">You're a member of the <strong>${escapeCm(avClubTitle(clubId))}</strong></p>`;
+  const chips = clubs.length > 1
+    ? `<div class="av-clubs">${clubs.map(id => `<button type="button" class="av-club-chip${id === clubId ? ' active' : ''}" data-avclub="${escapeCm(id)}">${escapeCm(avClubTitle(id))}</button>`).join('')}</div>`
+    : '';
+  if(state.availError && state.availLoadedFor !== clubId) return heading + chips + `<p class="av-msg" style="color:#c00;">${escapeCm(state.availError)}</p>`;
+  if(state.availLoadedFor !== clubId) return heading + chips + `<p class="av-msg">Loading your availability…</p>`;
+
+  const y = state.availYear, m = state.availMonth, today = avToday();
+  const startDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  let cells = '';
+  for(let i = 0; i < startDay; i++) cells += `<div class="av-cell av-empty"></div>`;
+  for(let d = 1; d <= daysInMonth; d++){
+    const date = avYmd(y, m, d);
+    const parts = state.availDays[date] || [];
+    const past = date < today;
+    let inner = `<span class="av-num">${d}</span>`;
+    let cls = 'av-cell';
+    if(parts.length === 3){ cls += ' av-full'; inner += `<span class="av-full-label">Full day</span>`; }
+    else if(parts.length){ cls += ' av-part'; inner += AV_PARTS.filter(([k]) => parts.includes(k)).map(([k, label]) => `<span class="av-band"><span class="av-long">${label}</span><span class="av-short">${AV_SHORT[k]}</span></span>`).join(''); }
+    if(date === today) cls += ' av-today';
+    if(state.availEditDate === date) cls += ' av-selected';
+    cells += past ? `<div class="${cls} av-past">${inner}</div>` : `<button type="button" class="${cls}" data-avdate="${date}">${inner}</button>`;
+  }
+
+  let editor = '';
+  if(state.availEditDate){
+    const ed = state.availEditDate;
+    const parts = state.availDays[ed] || [];
+    const label = new Date(ed + 'T00:00:00').toLocaleDateString('en-CA', {weekday:'long', month:'long', day:'numeric'});
+    editor = `<div class="av-editor">
+      <div class="av-editor-title">${escapeCm(label)} — when are you free?</div>
+      <div class="av-editor-chips">
+        <button type="button" class="av-chip${parts.length === 3 ? ' on' : ''}" data-avpart="full">Full day</button>
+        ${AV_PARTS.map(([k, l]) => `<button type="button" class="av-chip${parts.includes(k) ? ' on' : ''}" data-avpart="${k}">${l}</button>`).join('')}
+        <button type="button" class="av-chip av-clear" data-avpart="clear">Clear</button>
+      </div>
+      <button type="button" class="av-done" data-avdone="1">Done</button>
+    </div>`;
+  }
+
+  return heading + chips + `
+    <div class="av-month-head">
+      <button type="button" class="av-nav" id="avPrev" aria-label="Previous month">‹</button>
+      <div class="av-month-title">${AV_MONTHS[m]} ${y}</div>
+      <button type="button" class="av-nav" id="avNext" aria-label="Next month">›</button>
+    </div>
+    <p class="av-hint">Tap a day to mark when you're free — the full day, or just the morning, afternoon or night.</p>
+    <div class="av-weekdays">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div>${d}</div>`).join('')}</div>
+    <div class="av-grid">${cells}</div>
+    ${editor}
+    <div class="av-actions">
+      <button type="button" class="club-guide-btn av-save" id="avSaveBtn" ${state.availDirty && !state.availSaving ? '' : 'disabled'}>${state.availSaving ? 'Saving…' : 'Save my availability'}</button>
+      <span class="av-status" id="avStatus">${escapeCm(state.availStatus || (state.availDirty ? 'Unsaved changes' : ''))}</span>
+    </div>
+    <div style="margin-top:14px;"><button type="button" class="av-link" id="avEventsBtn">Club events &amp; profile →</button></div>`;
+}
+
+async function availLoad(){
+  const session = getCmSession();
+  const clubId = state.availClubId;
+  if(!session || !clubId || state.availLoading) return;
+  state.availLoading = true;
+  state.availError = '';
+  try {
+    const data = await cmApi(encodeURIComponent(clubId) + '/availability/' + encodeURIComponent(session.id), {
+      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.token }
+    });
+    state.availDays = data.days || {};
+    state.availLoadedFor = clubId;
+    state.availDirty = false;
+    state.availStatus = '';
+    state.availEditDate = null;
+  } catch(err){
+    state.availError = /not signed in/i.test(err.message) ? 'Your session expired — please log in again.' : err.message;
+  }
+  state.availLoading = false;
+  if(state.tab === 'clubs') render();
+}
+
+async function availSave(){
+  const session = getCmSession();
+  if(!session || state.availSaving) return;
+  state.availSaving = true;
+  state.availStatus = '';
+  render();
+  try {
+    const data = await cmApi(encodeURIComponent(state.availClubId) + '/availability/' + encodeURIComponent(session.id), {
+      method:'PUT',
+      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.token },
+      body: JSON.stringify({ days: state.availDays })
+    });
+    state.availDays = data.days || {};
+    state.availDirty = false;
+    state.availStatus = 'Saved ✓';
+  } catch(err){
+    state.availStatus = 'Error: ' + err.message;
+  }
+  state.availSaving = false;
+  render();
+}
+
+function availApplyPart(part){
+  const date = state.availEditDate;
+  if(!date) return;
+  let parts = (state.availDays[date] || []).slice();
+  if(part === 'clear') parts = [];
+  else if(part === 'full') parts = parts.length === 3 ? [] : AV_PARTS.map(([k]) => k);
+  else parts = parts.includes(part) ? parts.filter(x => x !== part) : [...parts, part];
+  if(parts.length) state.availDays[date] = AV_PARTS.map(([k]) => k).filter(k => parts.includes(k));
+  else delete state.availDays[date];
+  state.availDirty = true;
+  state.availStatus = '';
+  render();
+}
+
+function wireAvailabilityPanel(){
+  if(!document.querySelector('.av-heading')) return;
+  if(state.availLoadedFor !== state.availClubId && !state.availLoading && !state.availError) availLoad();
+  document.querySelectorAll('[data-avclub]').forEach(btn => btn.addEventListener('click', () => {
+    if(btn.dataset.avclub === state.availClubId) return;
+    if(state.availDirty && !confirm('You have unsaved changes for this club. Switch anyway?')) return;
+    state.availClubId = btn.dataset.avclub;
+    state.availLoadedFor = null; state.availError = ''; state.availDirty = false; state.availEditDate = null; state.availStatus = '';
+    render();
+  }));
+  document.querySelectorAll('[data-avdate]').forEach(btn => btn.addEventListener('click', () => {
+    state.availEditDate = state.availEditDate === btn.dataset.avdate ? null : btn.dataset.avdate;
+    render();
+  }));
+  document.querySelectorAll('[data-avpart]').forEach(btn => btn.addEventListener('click', () => availApplyPart(btn.dataset.avpart)));
+  const done = document.querySelector('[data-avdone]');
+  if(done) done.addEventListener('click', () => { state.availEditDate = null; render(); });
+  const prev = document.getElementById('avPrev'), next = document.getElementById('avNext');
+  const shift = delta => { let m = state.availMonth + delta, y = state.availYear; if(m < 0){ m = 11; y--; } if(m > 11){ m = 0; y++; } state.availMonth = m; state.availYear = y; state.availEditDate = null; render(); };
+  if(prev) prev.addEventListener('click', () => shift(-1));
+  if(next) next.addEventListener('click', () => shift(1));
+  const save = document.getElementById('avSaveBtn');
+  if(save) save.addEventListener('click', availSave);
+  const ev = document.getElementById('avEventsBtn');
+  if(ev) ev.addEventListener('click', () => { state.clubsLoginPickerOpen = false; openClubMembers(state.availClubId, avClubTitle(state.availClubId)); });
+}
+
 // A person can belong to several clubs under one username, so signing in never
 // needs to ask "which club" up front — the server tells us which clubs they're in.
 async function cmGeneralLogin(){
@@ -3822,6 +4012,7 @@ async function cmGeneralLogin(){
   try {
     const data = await cmApiRaw('/api/login', { method:'POST', body: JSON.stringify({ username, pin }) });
     setCmSession(data);
+    availReset();
     const clubs = data.clubs || [];
     if(!clubs.length){
       if(errEl) errEl.textContent = "You're not part of any club yet — ask an organizer to add you.";
@@ -4935,6 +5126,7 @@ document.getElementById('detailCloseBtn').addEventListener('click', closeDetail)
 document.getElementById('footerLogoutBtn').addEventListener('click', async () => {
   const wasAdmin = state.cmAdminLoggedIn === true;
   if(getCmSession()) clearCmSession();
+  availReset();
   if(wasAdmin) await cmAdminLogout();
   state.cmView = 'auth'; state.cmMe = null;
   render();

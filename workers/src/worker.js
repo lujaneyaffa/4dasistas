@@ -20,6 +20,8 @@
  *   GET    /api/clubs/:clubId/events                        - This club's admin-created events
  *   GET    /api/clubs/:clubId/events/:eventId/responses     - Every member's availability for one event + aggregate counts
  *   PUT    /api/clubs/:clubId/events/:eventId/responses/:userId - Save own availability for one event (Bearer session token required)
+ *   GET    /api/clubs/:clubId/availability/:userId          - Own month-view availability ({days:{"YYYY-MM-DD":["morning"|"afternoon"|"night"]}}); Bearer token, private to that member
+ *   PUT    /api/clubs/:clubId/availability/:userId          - Replace own month-view availability ({days:{...}}); Bearer token + club membership required
  *
  *   -- Admin (session-cookie gated) --
  *   POST   /api/admin/login                                 - JSON password login for the in-site admin panel (sets the same session cookie as /login)
@@ -180,6 +182,26 @@ const verifyMemberToken = async (env, userId, token) => {
 // ---- Club events (admin-created, members mark availability per event) ----
 const clubEventsKey = (clubId) => `clubevents:${clubId}`;
 const clubEventResponsesKey = (clubId, eventId) => `clubeventresponses:${clubId}:${eventId}`;
+
+// ---- Month-view availability: one private document per member per club ----
+const AVAILABILITY_PARTS = ["morning", "afternoon", "night"];
+const clubAvailabilityKey = (clubId, userId) => `clubavailability:${clubId}:${userId}`;
+const sanitizeAvailabilityDays = (input) => {
+  const out = {};
+  if (!input || typeof input !== "object" || Array.isArray(input)) return out;
+  const today = new Date();
+  const minDate = new Date(today.getTime() - 60 * 86400000).toISOString().slice(0, 10);
+  const maxDate = new Date(today.getTime() + 400 * 86400000).toISOString().slice(0, 10);
+  for (const [date, parts] of Object.entries(input)) {
+    if (Object.keys(out).length >= 500) break;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < minDate || date > maxDate) continue;
+    if (Number.isNaN(Date.parse(date + "T00:00:00Z"))) continue;
+    if (!Array.isArray(parts)) continue;
+    const clean = AVAILABILITY_PARTS.filter((p) => parts.includes(p));
+    if (clean.length) out[date] = clean;
+  }
+  return out;
+};
 
 const readClubEvents = async (env, clubId) => {
   const raw = await env.SITE_DATA.get(clubEventsKey(clubId));
@@ -493,6 +515,29 @@ export default {
       responses[userId] = sanitizeEventSlots(body.slots, event);
       await env.SITE_DATA.put(key, JSON.stringify(responses));
       return jsonResponse({ slots: responses[userId] }, 200, corsHeaders);
+    }
+
+    const cmAvailabilityMatch = path.match(/^\/api\/clubs\/([^/]+)\/availability\/([^/]+)\/?$/);
+    if (cmAvailabilityMatch && (request.method === "GET" || request.method === "PUT")) {
+      const clubId = decodeURIComponent(cmAvailabilityMatch[1]);
+      const userId = decodeURIComponent(cmAvailabilityMatch[2]);
+      const authHeader = request.headers.get("Authorization") || "";
+      const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+      if (!(await verifyMemberToken(env, userId, token))) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      const memberIds = await readClubMemberIds(env, clubId);
+      if (!memberIds.includes(userId)) return jsonResponse({ error: "Not a member of this club" }, 403, corsHeaders);
+      const key = clubAvailabilityKey(clubId, userId);
+      if (request.method === "GET") {
+        const raw = await env.SITE_DATA.get(key);
+        let days = {};
+        try { days = raw ? JSON.parse(raw) : {}; } catch { days = {}; }
+        return jsonResponse({ days }, 200, corsHeaders);
+      }
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const days = sanitizeAvailabilityDays(body.days);
+      await env.SITE_DATA.put(key, JSON.stringify(days));
+      return jsonResponse({ days }, 200, corsHeaders);
     }
 
     // ---- Auth helpers ----
