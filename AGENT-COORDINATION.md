@@ -79,6 +79,12 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-19 (availability day cells: 3-stripe colouring, no Busy text)
+
+**2026-09-19 (availability day cells: 3-stripe colouring, no Busy text) — Claude (chat) — `index.html`** — Lujane marked Morning + Night and the cell still looked red. Cause: my previous change kept a faded-red background on partially-free days and only laid small coloured tags on top, so it read as busy. Now every day with any free time is drawn as three full-height stripes (Morning / Afternoon / Night): free stripes are yellow / orange / blue (labelled Morn / Aft / Night, or full words on wide screens), busy stripes faded red; a full day is all three colours with a "Full day" pill. Days with nothing marked stay plain faded red. Removed the per-day "Busy" text (legend + note still explain You're Busy). Cells are 104px tall so the labels don't collide with the date number. Same data model. Tested at 375px with a mocked member (measured no number/label overlap).
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-19 (signup form cleanup + availability colours / busy-by-default)
 
 **2026-09-19 (signup form cleanup + availability colours / busy-by-default) — Claude (chat) — `index.html`** — Five asks from Lujane. (1) Removed the stale "Please submit by Monday, August 24th" line (and `.fall-deadline` CSS). (2) Added a PIN-reset note: "Forgot your PIN? No stress — an admin can reset it for you." under the PIN field on the Sign Up form, and a matching line under the Sign In button on the Clubs login form (admins reset PINs via the existing Club Members panel → reset-pin). (3) Removed the "Badminton Club" checkbox section from the Sign Up form (the `name="badminton"` field is no longer sent to Formspree) and its CSS. (4) Availability colours: Morning = yellow (#ffe27a), Afternoon = orange (#ffb066), Night = blue (#8fb8ff) — on day cells, the legend, and the day-chooser buttons; Full day is a yellow/orange/blue stripe. Lujane said "evening" this time but earlier "night"; I kept the label **Night** ("after 5 PM") and coloured it blue — rename `AV_PARTS`/`AV_SHORT`/`AV_RANGES` if she wants Evening. (5) "Not marked" is now **You're Busy**: every non-past day defaults to a faded-red "Busy" cell (`.av-cell.av-busy`), partially-free days keep the faded-red background with only the free parts coloured, past days stay grey; new note "Every day is You're Busy unless you tap it and say you're free", chooser copy "Every day starts as busy — tap the times you're free", clear button now "I'm busy (clear)". No data-model change: busy = no entry, as before. Tested at 375px with a mocked member; verified form/login copy via DOM checks.
@@ -540,6 +546,7 @@ npx wrangler deploy
 
 _(most recent first — add new entries to the top, trim past ~15)_
 
+- 2026-09-19 — Claude (chat) — `index.html` — Availability days now render as 3 coloured stripes (free = yellow/orange/blue, busy = faded red); removed per-day Busy text.
 - 2026-09-19 — Claude (chat) — `index.html` — Sign Up: removed deadline + Badminton option, added PIN-reset note (also on login); availability: yellow/orange/blue parts, days default to faded-red You're Busy.
 - 2026-09-19 — Claude (chat) — `index.html`, `workers/src/worker.js` — Sign Up form now creates a login (username+PIN), signs them into their #1 club with the calendar, other picks shown as standby; new /api/signup with rate limits; mobile nav no longer clipped.
 - 2026-09-19 — Claude (chat) — `index.html` — Availability month view: no months before the current one, 3-step guide + legend, bottom-sheet day chooser for phones, auto-save (no Save button).

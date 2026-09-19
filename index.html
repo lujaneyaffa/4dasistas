@@ -434,24 +434,25 @@
   .av-sw-busy{ background:#f9dcdc; border-color:#e3a3a3; }
   .av-default-note{ font-size:12px; text-align:center; margin:0 0 10px; color:var(--muted); }
   .av-cell.av-busy{ background:#f9dcdc; border-color:#e8b4b4; }
-  .av-busy-label{ margin:auto 0; font-size:clamp(9px,2.4vw,11px); font-weight:600; color:#b46a6a; opacity:0.85; }
   .av-month-head{ display:flex; align-items:center; justify-content:space-between; margin:6px 0 8px; }
   .av-month-title{ font-family:'Inter',sans-serif; font-weight:700; font-size:20px; }
   .av-nav{ width:44px; height:44px; border:1.5px solid var(--charcoal); border-radius:50%; background:transparent; font-size:24px; line-height:1; cursor:pointer; }
   .av-nav[disabled]{ opacity:0.25; cursor:default; }
   .av-weekdays, .av-grid{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; }
   .av-weekdays div{ text-align:center; font-size:11px; font-weight:700; color:var(--muted); padding-bottom:3px; }
-  .av-cell{ min-height:78px; border:1.5px solid rgba(55,61,59,0.25); border-radius:10px; background:#fff; padding:4px 3px; display:flex; flex-direction:column; align-items:stretch; gap:2px; font-family:'Inter',sans-serif; color:var(--charcoal); cursor:pointer; text-align:center; overflow:hidden; scroll-margin-top:96px; -webkit-tap-highlight-color:transparent; }
+  .av-cell{ position:relative; min-height:104px; border:1.5px solid rgba(55,61,59,0.25); border-radius:10px; background:#fff; padding:4px 3px; display:flex; flex-direction:column; align-items:stretch; gap:2px; font-family:'Inter',sans-serif; color:var(--charcoal); cursor:pointer; text-align:center; overflow:hidden; scroll-margin-top:96px; -webkit-tap-highlight-color:transparent; }
   .av-cell.av-empty{ border:none; background:transparent; cursor:default; }
   .av-cell.av-past{ opacity:0.4; cursor:default; }
   .av-cell.av-today{ border-color:var(--charcoal); border-width:2px; }
   .av-cell.av-selected{ box-shadow:0 0 0 3px var(--charcoal); }
-  .av-num{ font-size:14px; font-weight:700; text-align:left; padding-left:2px; }
-  .av-full{ background:linear-gradient(to bottom,#ffe27a 0 33.4%,#ffb066 33.4% 66.7%,#8fb8ff 66.7% 100%); border-color:#c9a25a; }
-  .av-full-label{ margin:auto 0; font-size:clamp(10px,2.6vw,13px); font-weight:700; background:rgba(255,255,255,0.78); border-radius:6px; padding:2px 4px; }
-  .av-part{ background:#f9dcdc; border-color:#e8b4b4; }
+  .av-num{ position:relative; z-index:2; font-size:14px; line-height:1.1; font-weight:700; text-align:left; padding-left:2px; }
+  .av-full{ border-color:#c9a25a; }
+  .av-full-label{ position:relative; z-index:2; margin:auto 0; font-size:clamp(10px,2.6vw,13px); font-weight:700; background:rgba(255,255,255,0.78); border-radius:6px; padding:2px 4px; }
+  .av-part{ border-color:#c9a25a; }
+  .av-segs{ position:absolute; inset:0; display:flex; flex-direction:column; }
+  .av-seg{ flex:1; display:flex; align-items:flex-end; justify-content:center; padding-bottom:2px; font-size:clamp(9px,2.3vw,11px); font-weight:700; line-height:1.1; overflow:hidden; }
+  .av-seg-busy{ background:#f9dcdc; }
   .av-b-morning{ background:#ffe27a; } .av-b-afternoon{ background:#ffb066; } .av-b-night{ background:#8fb8ff; }
-  .av-band{ border-radius:5px; font-size:clamp(9px,2.3vw,11px); font-weight:600; padding:2px 1px; line-height:1.15; overflow:hidden; }
   .av-short{ display:none; }
   @media (max-width:560px){ .av-long{ display:none; } .av-short{ display:inline; } }
   .av-note{ font-size:12px; line-height:1.6; text-align:center; margin:12px 0 6px; padding:8px 10px; border-radius:10px; background:rgba(201,170,173,0.25); }
@@ -3947,9 +3948,13 @@ function renderAvailabilityPanel(session){
     const past = date < today;
     let inner = `<span class="av-num">${d}</span>`;
     let cls = 'av-cell';
-    if(parts.length === 3){ cls += ' av-full'; inner += `<span class="av-full-label">Full day</span>`; }
-    else if(parts.length){ cls += ' av-part'; inner += AV_PARTS.filter(([k]) => parts.includes(k)).map(([k, label]) => `<span class="av-band av-b-${k}"><span class="av-long">${label}</span><span class="av-short">${AV_SHORT[k]}</span></span>`).join(''); }
-    else if(!past){ cls += ' av-busy'; inner += `<span class="av-busy-label">Busy</span>`; }
+    if(parts.length){
+      cls += parts.length === 3 ? ' av-full' : ' av-part';
+      inner += `<span class="av-segs">${AV_PARTS.map(([k, label]) => parts.includes(k)
+        ? `<span class="av-seg av-b-${k}">${parts.length === 3 ? '' : `<span class="av-long">${label}</span><span class="av-short">${AV_SHORT[k]}</span>`}</span>`
+        : `<span class="av-seg av-seg-busy"></span>`).join('')}</span>`;
+      if(parts.length === 3) inner += `<span class="av-full-label">Full day</span>`;
+    } else if(!past){ cls += ' av-busy'; }
     if(date === today) cls += ' av-today';
     if(state.availEditDate === date) cls += ' av-selected';
     const aria = `${new Date(date + 'T00:00:00').toLocaleDateString('en-CA', {weekday:'long', month:'long', day:'numeric'})}: ${avSummary(parts)}`;
