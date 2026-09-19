@@ -79,6 +79,12 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-18 (Inter font, flat nav tabs on pink bar, Support Groups moved into Mental Health)
+
+**2026-09-18 (Inter font, flat nav tabs on pink bar, Support Groups moved into Mental Health) — Claude (chat) — `index.html`** — Three asks from Lujane. (1) Font: replaced Space Grotesk with Inter site-wide (all 57 font-family uses + the Google Fonts import) for a simpler, sleeker look. (2) Nav: pink bar background restored (`rgba(201,170,173,0.45)`), tabs are now flat text (no border, no rounded pill), uppercase, with a 2px underline + bold on the active tab. (3) Support Groups now live entirely under Directory > Mental Health: support programs (data/supportprograms.json, still edited the same way in Decap/site admin) get `category = 'mentalhealth'` (still flagged `isSupportGroup`) so they appear in the Mental Health list and use its card layout; new `supportWhenText`/`resourceAddrHtml` helpers show their date/time and Online marker instead of "Location not provided", cards get a More Info link when `link` is set, and their admin Edit button opens the event editor (they are calendar-shaped), not the resource editor. Removed the standalone Support Groups tab/calendar (`renderSupportGroupCalendar`, sg-* CSS/state), the "Support Groups →" button in the Calendar category row, the Support Groups option in Event Types, and the "View Support Groups →" button in Mental Health. Old links (`#tab=supportgroups`, `goToTab('supportgroups')`) redirect to the Mental Health list via `normalizeLegacyTab()`. Tested locally: fonts, nav computed styles, Mental Health lists 6 support-group cards with correct dates, legacy hash redirect, Event Types row gone.
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-18 (Clubs tab: My availability + Suggest an activity tiles)
 
 **2026-09-18 (Clubs tab: My availability + Suggest an activity tiles) — Claude (chat) — `index.html`** — Lujane wanted an easier way for members to log availability and suggest activities, on the Clubs tab (not Home). The top row of square tiles was JOIN A CLUB + Log In. The Log In tile is now **MY AVAILABILITY** (subline: "Log in to add yours" or "Signed in as NAME"), same id/handler as before — signed out it opens the sign-in form, signed in it opens their club (or a picker if several). Added a third tile **SUGGEST AN ACTIVITY** linking to the Instagram DM (`IG_DM_URL`, same account/pattern as Travel's Add a trip), so no backend needed. Tested locally: three tiles render in a row, login form opens on click, DM link is correct.
@@ -492,6 +498,7 @@ npx wrangler deploy
 
 _(most recent first — add new entries to the top, trim past ~15)_
 
+- 2026-09-18 — Claude (chat) — `index.html` — Inter font site-wide; flat (non-pill) nav tabs on the pink bar; Support Groups moved entirely into Directory > Mental Health.
 - 2026-09-18 — Claude (chat) — `index.html` — Clubs tab: Log In tile became MY AVAILABILITY; added SUGGEST AN ACTIVITY tile (Instagram DM).
 - 2026-09-18 — Claude (chat) — `index.html` — Admin event/resource forms no longer wipe typed values on a failed save; added Google Places address search to their Location fields.
 - 2026-09-18 — Claude (chat) — `index.html` — Nav bar all caps + light pill background restored; admin Add business button now small and only on the Directory All tab.
