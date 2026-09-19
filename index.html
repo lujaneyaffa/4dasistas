@@ -331,7 +331,10 @@
   .panel-card{ background:var(--card); border:2px solid var(--charcoal); border-radius:16px; padding:18px; margin-bottom:16px; box-shadow:3px 3px 0 var(--charcoal); text-align:left; position:relative; }
   .resource-photo{ width:100%; height:180px; object-fit:cover; display:block; margin:-2px 0 14px; border-radius:10px; background:var(--lightblue); }
 
-  .home-quicklinks{ display:flex; justify-content:center; flex-wrap:wrap; gap:12px; margin:20px 0; }
+  .home-quicklinks{ display:flex; justify-content:center; flex-wrap:wrap; gap:12px; margin:20px 0 4px; }
+  body.on-home main{ padding-bottom:0; }
+  body.on-home #resourcePagination{ display:none; }
+  body.on-home .list-and-pagination{ gap:0; }
   .home-quicklinks .club-guide-btn{ flex:0 0 150px; width:150px; aspect-ratio:1; padding:10px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:18px; }
   .home-tiles{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
   .home-tile{ display:block; width:100%; text-align:left; border:2px solid var(--charcoal); border-radius:18px; padding:24px 22px; cursor:pointer; box-shadow:4px 4px 0 var(--charcoal); transition:transform 0.12s ease, box-shadow 0.12s ease; font-family:'Inter',sans-serif; position:relative; }
@@ -698,6 +701,7 @@
 /* Keeps the Add-to-Homescreen tile clearly separated from What's On Today
    no matter how long the day's list grows. */
 .home-tiles.bottom-row{ margin-top:36px; clear:both; }
+#homescreenSlot .home-tiles.bottom-row{ margin-top:0; }
 </style>
 </head>
 <body>
@@ -2037,7 +2041,7 @@ function renderHomescreenSlot(){
   if(state.tab !== 'home'){ slot.style.display = 'none'; slot.innerHTML = ''; return; }
   const title = siteText.homeTileHomescreenTitle || 'Add this to your Home Screen';
   const desc = siteText.homeTileHomescreenDesc || 'Install 4DASISTAS like an app for quick access.';
-  slot.style.cssText = 'display:block;max-width:760px;margin:24px auto 20px;padding:0 20px;box-sizing:border-box;';
+  slot.style.cssText = 'display:block;max-width:760px;margin:12px auto 20px;padding:0 20px;box-sizing:border-box;';
   slot.innerHTML = `<div class="home-tiles bottom-row"><button type="button" class="home-tile" style="background:#F1F6F2;color:#373d3b;grid-column:1/-1;justify-self:center;max-width:560px;width:100%" data-hometab="homescreen"><div class="home-tile-title">${title}</div><div class="home-tile-desc">${desc}</div><div class="home-tile-arrow">→</div></button></div>`;
   slot.querySelector('.home-tile').addEventListener('click', () => goToTab('homescreen'));
 }
@@ -5063,6 +5067,7 @@ async function checkAdminSession(){
 }
 
 function render(){
+  document.body.classList.toggle('on-home', state.tab === 'home');
   if(state.tab !== 'clubs' && state.availEditing){ state.availEditing = false; state.availEditDate = null; }
   if(state.tab !== 'clubs') document.body.classList.remove('av-editing');
   renderFooterLogout();
