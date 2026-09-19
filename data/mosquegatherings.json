@@ -1,6 +1,36 @@
 {
   "items": [
     {
+      "section": "mosqueprograms",
+      "title": "Dawah Training",
+      "audienceType": [],
+      "emoji": "",
+      "organizedBy": "uoftmsa",
+      "eventDate": "2026-09-27",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [
+        {
+          "date": "2026-10-04"
+        }
+      ],
+      "virtual": false,
+      "location": "Toronto, ON, Canada",
+      "link": "https://www.instagram.com/p/Dde5x5nlOrE/?stkn=MzU3cnI0OGs4MTM5",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [
+        "functions"
+      ],
+      "id": "dawah-training"
+    },
+    {
       "eventDate": "2026-09-13",
       "date": "September 13, 2026 · 4 PM",
       "desc": "Toronto Book Club session studying 'Allah Loves' by Omar Suleiman, part of this quarter's theme 'Love of Allah & Longing for Jannah'. Members free, non-members $15.",
