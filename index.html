@@ -684,6 +684,7 @@
   footer{ position:relative; text-align:center; padding:32px 20px calc(40px + env(safe-area-inset-bottom)); border-top:1px solid rgba(33,30,28,0.12); margin-top:16px; background:#ce8491; }
   .footer-admin-corner{ position:absolute; top:14px; right:14px; text-align:right; z-index:5; display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
   .footer-admin-btn{ font-family:'Inter',sans-serif; font-weight:700; font-size:11px; padding:7px 12px; border-radius:999px; border:2px solid var(--charcoal); background:rgba(255,255,255,0.85); color:var(--charcoal); cursor:pointer; box-shadow:2px 2px 0 var(--charcoal); }
+  .ev-created-box{ background:#e7f4ec; border:2px solid #5aa276; border-radius:12px; padding:12px; }
   .footer-admin-btn:hover{ transform:translate(-1px,-1px); box-shadow:3px 3px 0 var(--charcoal); }
   .footer-missing-btn{ background:var(--gold); }
   .footer-admin-modal-overlay{ position:fixed; inset:0; background:rgba(33,30,28,0.5); z-index:6000; display:none; align-items:center; justify-content:center; padding:20px; padding-bottom:calc(20px + env(safe-area-inset-bottom)); }
@@ -694,7 +695,7 @@
   .footer-admin-modal button[type="submit"]{ width:100%; padding:10px; border-radius:8px; border:none; background:var(--charcoal); color:var(--cream); font-weight:700; cursor:pointer; font-size:13px; }
   .footer-admin-modal .footer-admin-cancel{ width:100%; padding:8px; border-radius:8px; border:none; background:transparent; color:var(--charcoal); cursor:pointer; font-size:12px; margin-top:6px; }
   @media (max-width:520px){
-    .footer-admin-corner{ top:8px; right:8px; }
+    .footer-admin-corner{ position:static; flex-direction:row; flex-wrap:wrap; justify-content:center; align-items:center; margin:0 0 12px; }
     .footer-admin-btn{ font-size:10px; padding:6px 10px; }
   }
   .footer-btns{ display:flex; justify-content:center; flex-wrap:nowrap; gap:10px; margin:14px 0; }
@@ -1096,7 +1097,7 @@ let state = {
   cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false, membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
-  eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventEditDeleting:false,
+  eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventJustCreated:false, eventEditDeleting:false,
   reviewMode:false, reviewQueue:[], reviewTotal:0, eventCreateMode:false,
   resourceEditOpen:false, resourceEditId:null, resourceEditData:null, resourceEditError:'', resourceEditSaving:false, resourceEditSaved:false, resourceCreateMode:false,
   aboutEditOpen:false, aboutEditValue:null, aboutEditError:'', aboutEditSaving:false, aboutEditSaved:false,
@@ -3172,6 +3173,7 @@ async function openEventEdit(id){
 }
 
 function openEventCreate(){
+  state.eventJustCreated = false;
   state.eventEditOpen = true;
   state.eventCreateMode = true;
   state.eventEditId = null;
@@ -3181,6 +3183,9 @@ function openEventCreate(){
   document.getElementById('detail-view').classList.add('open');
   document.body.style.overflow = 'hidden';
   renderEventEditView();
+  const dv = document.getElementById('detail-view'), dc = document.getElementById('detailCard');
+  if(dv) dv.scrollTop = 0;
+  if(dc) dc.scrollTop = 0;
 }
 
 function closeEventEdit(returnToDetail){
@@ -3192,6 +3197,7 @@ function closeEventEdit(returnToDetail){
   state.eventEditData = null;
   state.eventEditError = '';
   state.eventEditSaved = false;
+  state.eventJustCreated = false;
   if(returnToDetail !== false && id && !wasCreate){
     renderDetail(id);
   } else {
@@ -3261,7 +3267,7 @@ function renderEventEditView(){
           <input id="editEndDate" type="date" value="${d.endDate||''}" style="${fieldStyle}">
         </label>
       </div>
-      <div style="display:flex;gap:10px;align-items:flex-end;">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
         <label style="${labelStyle}">Time
           <input id="editTime" type="time" value="${d.time||''}" style="${fieldStyle}">
         </label>
@@ -3327,11 +3333,20 @@ function renderEventEditView(){
         </div>
       </div>
       ${state.eventEditError ? `<p style="color:#c00;font-size:13px;">${escapeCm(state.eventEditError)}</p>` : ''}
-      ${state.eventEditSaved ? `<p style="color:#2a7a4a;font-size:13px;">${createMode ? 'Created!' : 'Saved!'}${reviewMode ? ' Moving to the next one…' : ' The site rebuilds automatically — this can take a minute or two to appear live.'}</p>` : ''}
+      ${state.eventEditSaved && state.eventJustCreated ? `
+        <div class="ev-created-box">
+          <p style="margin:0 0 4px;font-weight:700;color:#2a7a4a;">✓ Event created!</p>
+          <p style="margin:0 0 10px;font-size:12px;color:var(--muted);">The site rebuilds automatically — it can take a minute or two to appear.</p>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <button type="button" class="link-btn primary" id="eventAddAnotherBtn" style="width:100%;text-align:center;">➕ Add another event</button>
+            <button type="button" class="link-btn secondary" id="eventDoneBtn" style="width:100%;text-align:center;">Done</button>
+          </div>
+        </div>` : (state.eventEditSaved ? `<p style="color:#2a7a4a;font-size:13px;">${createMode ? 'Created!' : 'Saved!'}${reviewMode ? ' Moving to the next one…' : ' The site rebuilds automatically — this can take a minute or two to appear.'}</p>` : '')}
       <div style="display:flex;gap:10px;margin-top:6px;">
         <button type="button" class="link-btn primary" id="eventEditSaveBtn" style="flex:1;text-align:center;" ${state.eventEditSaving?'disabled':''}>${state.eventEditSaving?'Saving…':(createMode ? 'Create event' : (reviewMode ? 'Save & next' : 'Save changes'))}</button>
         <button type="button" class="link-btn secondary" id="eventEditCancelBtn2" style="flex:1;text-align:center;">${reviewMode ? 'Skip this one' : 'Cancel'}</button>
       </div>
+      ${(!createMode && !reviewMode && !state.eventJustCreated) ? `<button type="button" class="link-btn secondary" id="eventNewLinkBtn" style="width:100%;text-align:center;margin-top:10px;">➕ Add a new event</button>` : ''}
       ${createMode ? '' : `<button type="button" id="eventEditDeleteBtn" ${state.eventEditDeleting?'disabled':''} style="margin-top:10px;width:100%;padding:10px;border:2px solid #b3261e;border-radius:10px;background:#fff;color:#b3261e;font-family:'Inter',sans-serif;font-weight:700;font-size:13.5px;cursor:pointer;">${state.eventEditDeleting?'Deleting…':'🗑 Delete this event entirely'}</button>
       <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px;">Removes it from the site for good (the monthly calendar too). ${reviewMode ? "You'll move straight to the next one." : 'This cannot be undone.'}</p>`}
     </div>
@@ -3339,6 +3354,12 @@ function renderEventEditView(){
   document.getElementById('eventEditCancelBtn').addEventListener('click', () => reviewMode ? exitReviewMode() : closeEventEdit());
   document.getElementById('eventEditCancelBtn2').addEventListener('click', () => reviewMode ? advanceReviewQueue() : closeEventEdit());
   document.getElementById('eventEditSaveBtn').addEventListener('click', saveEventEdit);
+  const addAnotherBtn = document.getElementById('eventAddAnotherBtn');
+  if(addAnotherBtn) addAnotherBtn.addEventListener('click', openEventCreate);
+  const eventDoneBtn = document.getElementById('eventDoneBtn');
+  if(eventDoneBtn) eventDoneBtn.addEventListener('click', () => closeEventEdit(false));
+  const newEventLink = document.getElementById('eventNewLinkBtn');
+  if(newEventLink) newEventLink.addEventListener('click', openEventCreate);
   attachLocationSearch('editLocation');
   const deleteBtn = document.getElementById('eventEditDeleteBtn');
   if(deleteBtn) deleteBtn.addEventListener('click', deleteEventEdit);
@@ -3476,6 +3497,7 @@ async function saveEventEdit(){
     if(createMode){
       state.eventEditId = data.id;
       state.eventCreateMode = false;
+      state.eventJustCreated = true;
     } else {
       // Keep the in-memory copy (already loaded from the aggregate files) in sync so a
       // review-queue count taken later this session doesn't still flag this item.

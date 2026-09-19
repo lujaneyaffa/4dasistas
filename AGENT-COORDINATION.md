@@ -79,6 +79,12 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-19 (admin: Add another event after creating; mobile overlap fixes)
+
+**2026-09-19 (admin: Add another event after creating; mobile overlap fixes) — Claude (chat) — `index.html`** — Lujane: as admin, after adding an event she had to X out and reopen to add the next one, and the mobile view must not overlap anything. **Flow:** after a successful create the form now shows a green "✓ Event created!" box with **➕ Add another event** (calls `openEventCreate()`: fresh blank form, scrolled to top, `eventJustCreated` reset) and **Done** (`closeEventEdit(false)`); while editing an existing event (not review mode, not create mode) there is also a **➕ Add a new event** button under Save/Cancel. New state flag `eventJustCreated`. **Mobile:** (1) the admin footer buttons (New event / N need details / Admin: Log Out) were absolutely positioned top-right and overlapped the social icons at ≤520px — they are now a static centered wrapping row there; (2) the Time / End time / All day row in the event form didn't wrap, so "All day" overflowed the card by ~6px at 375px (sideways scroll) — now `flex-wrap:wrap`. Audited the create-event, edit-event and add-business forms at 375px with a script that checks every pair of visible controls for overlap and the card for horizontal overflow: none found after the fixes. Tested with a mocked admin session and mocked save.
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-19 (Clubs tab: single thin JOIN A CLUB! button, Log In button removed)
 
 **2026-09-19 (Clubs tab: single thin JOIN A CLUB! button, Log In button removed) — Claude (chat) — `index.html`** — Lujane: remove the log in button, rename Sign Up to "join a club!" and make it a thin rectangle. The Clubs-tab top row is now one wide, short button **JOIN A CLUB!** (`.join-club-btn`: width min(100%,340px), ~44px tall, replaces the 110px squares) that still opens the join form (`fallsignup`). The LOG IN tile is gone. **Consequence flagged to Lujane:** there is now no visible way for an existing member to log in (new sign-ups are signed in automatically and stay signed in on that device; the availability calendar still needs a member login; the idea boards do not). The login form/handlers (`clubsLoginPickerOpen`, `cmGeneralLogin`) still exist in the code but nothing opens them. Tab still hides the button when a member is signed in. Tested at 375px.
@@ -576,6 +582,7 @@ npx wrangler deploy
 
 _(most recent first — add new entries to the top, trim past ~15)_
 
+- 2026-09-19 — Claude (chat) — `index.html` — Admin event form: "Add another event" after creating (no more X and restart); fixed mobile footer-button overlap and form sideways overflow.
 - 2026-09-19 — Claude (chat) — `index.html` — Clubs tab: Log In button removed; Sign Up is now one thin JOIN A CLUB! button.
 - 2026-09-19 — Claude (chat) — `index.html`, `workers/src/worker.js` — Idea boards v2: name-only guest sign-in, required Google Maps link, voter names popup, admin edit (title/map/date/votes); per-club links #/clubs/<slug>; Clubs removed from the calendar.
 - 2026-09-19 — Claude (chat) — `index.html`, `workers/src/worker.js` — Clubs: panel Sign out button; subtitle gap 36px→14px; club cards open Mentimeter-style idea boards (suggest + vote, bubbles grow with votes).
