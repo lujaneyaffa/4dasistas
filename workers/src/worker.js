@@ -13,6 +13,10 @@
  *
  *   -- Club Members Schedule (global identity — one username can belong to several clubs) --
  *   POST   /api/login                                       - Sign in with username+PIN (no club needed), returns { ...user, clubs:[clubId,...], token }
+ *   POST   /api/signup                                     - Public self-signup from the Sign Up form: {name, username, pin (4 digits), clubId}. Creates the member,
+ *                                                                adds them to that ONE club (their #1 pick), and returns the same shape as /api/login (incl. token) so
+ *                                                                they're signed in immediately. Optional waitlist:[clubId,...] (their 2nd/3rd picks) is stored on the user
+ *                                                                and returned by /api/login + /api/signup as waitlist (auto-hidden once they're added to that club). Limits: 10/hour per IP, 100/day total; clubId must be in SIGNUP_CLUB_IDS.
  *   GET    /api/clubs/:clubId/members                       - This club's roster (name, username, photo — no PINs)
  *   GET    /api/users/:id                                   - One member's public profile
  *   PUT    /api/users/:id                                   - Update own profile photo (Bearer session token required)
@@ -97,6 +101,11 @@ const sanitizeUsername = (input) => {
   return /^[a-z0-9_]{3,20}$/.test(u) ? u : null;
 };
 
+// Clubs people can join through the public Sign Up form (mirrors FALL_SIGNUP_CLUBS in index.html).
+const SIGNUP_CLUB_IDS = new Set(["club-activegaming", "club-adrenaline", "club-theater", "club-cuisine", "club-artscrafts", "club-retreats", "club-adhd"]);
+const SIGNUP_MAX_PER_IP_PER_HOUR = 10;
+const SIGNUP_MAX_PER_DAY = 100;
+
 // ---- Global member identity: one person, one username, can belong to several clubs ----
 const userKey = (userId) => `user:${userId}`;
 
@@ -113,6 +122,7 @@ const deleteUser = async (env, userId) => {
   await env.SITE_DATA.delete(userKey(userId));
 };
 
+const visibleWaitlist = (user, clubs) => (Array.isArray(user.waitlist) ? user.waitlist : []).filter((id) => !clubs.includes(id));
 const publicUser = (u) => ({ id: u.id, name: u.name, username: u.username, photo: u.photo || null });
 
 // ---- Club membership: each club just holds a list of member userIds ----
@@ -437,7 +447,45 @@ export default {
       }
       const token = await createMemberSession(env, user.id);
       const clubs = await allClubIdsContaining(env, user.id);
-      return jsonResponse({ ...publicUser(user), clubs, token }, 200, corsHeaders);
+      return jsonResponse({ ...publicUser(user), clubs, waitlist: visibleWaitlist(user, clubs), token }, 200, corsHeaders);
+    }
+
+    // Public self-signup (Sign Up form): creates the account, joins the chosen club, and signs them in.
+    if (path === "/api/signup" && request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const name = String(body.name || "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 60);
+      const username = sanitizeUsername(body.username);
+      const pin = String(body.pin || "").trim();
+      const clubId = String(body.clubId || "");
+      if (!name) return jsonResponse({ error: "Please enter your name" }, 400, corsHeaders);
+      if (!username) return jsonResponse({ error: "Username must be 3-20 characters: letters, numbers and underscore only" }, 400, corsHeaders);
+      if (!/^\d{4}$/.test(pin)) return jsonResponse({ error: "PIN must be exactly 4 digits" }, 400, corsHeaders);
+      if (!SIGNUP_CLUB_IDS.has(clubId)) return jsonResponse({ error: "Please pick a club from the list" }, 400, corsHeaders);
+
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+      const ipKey = `signuprate:${ip}:${Math.floor(Date.now() / 3600000)}`;
+      const dayKey = `signupday:${new Date().toISOString().slice(0, 10)}`;
+      const [ipCount, dayCount] = await Promise.all([env.SITE_DATA.get(ipKey), env.SITE_DATA.get(dayKey)]);
+      if (Number(ipCount || 0) >= SIGNUP_MAX_PER_IP_PER_HOUR) return jsonResponse({ error: "Too many sign-ups from this connection — please try again in an hour" }, 429, corsHeaders);
+      if (Number(dayCount || 0) >= SIGNUP_MAX_PER_DAY) return jsonResponse({ error: "Sign-ups are very busy right now — please message us on Instagram" }, 429, corsHeaders);
+
+      if (await findUserIdByUsername(env, username)) return jsonResponse({ error: "That username is taken — try another (add a number or your last initial)" }, 409, corsHeaders);
+
+      const waitlist = [...new Set((Array.isArray(body.waitlist) ? body.waitlist : []).map(String))].filter((id) => SIGNUP_CLUB_IDS.has(id) && id !== clubId).slice(0, 2);
+      const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, waitlist, createdAt: Date.now() };
+      await writeUser(env, user);
+      await reserveUsername(env, username, user.id);
+      const memberIds = await readClubMemberIds(env, clubId);
+      memberIds.push(user.id);
+      await writeClubMemberIds(env, clubId, memberIds);
+      await Promise.all([
+        env.SITE_DATA.put(ipKey, String(Number(ipCount || 0) + 1), { expirationTtl: 3700 }),
+        env.SITE_DATA.put(dayKey, String(Number(dayCount || 0) + 1), { expirationTtl: 90000 }),
+      ]);
+      const token = await createMemberSession(env, user.id);
+      const clubs = await allClubIdsContaining(env, user.id);
+      return jsonResponse({ ...publicUser(user), clubs, waitlist: visibleWaitlist(user, clubs), token }, 201, corsHeaders);
     }
 
     if (cmMembersMatch && request.method === "GET") {

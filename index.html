@@ -291,7 +291,9 @@
     .wa-btn, .ig-btn, .tiktok-btn{ padding:0; width:44px; height:44px; gap:0; justify-content:center; }
     .wa-btn svg, .ig-btn svg, .tiktok-btn svg{ width:20px; height:20px; }
     .wa-btn span, .ig-btn span, .tiktok-btn span{ display:none; }
-    .top-search-wrap{ flex-basis:180px; width:180px; }
+    .tabs{ flex-wrap:wrap; overflow-x:visible; gap:4px 4px; padding:10px 8px; }
+    .tab-btn{ font-size:11px; padding:8px 6px; letter-spacing:0.02em; }
+    .top-search-wrap{ flex:1 1 100%; width:100%; justify-content:center; margin-top:4px; }
     .top-search-shell{ max-width:100%; }
     .search-suggestions{ right:0; width:180px; }
     .subfilter-row, .category-row, .tabs { justify-content:center; }
@@ -412,6 +414,9 @@
   .club-guide-btn:hover{ transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--charcoal); }
   .fall-cta-btn{ display:flex; align-items:center; justify-content:center; text-align:center; border:none; border-radius:16px; padding:8px; background:var(--blush); color:var(--charcoal); font-family:'Inter',sans-serif; font-weight:700; font-size:14px; line-height:1.2; cursor:pointer; box-shadow:0 4px 14px rgba(202,170,173,0.35); transition:transform 0.12s ease, box-shadow 0.12s ease; }
   .fall-cta-btn:hover{ transform:translate(0,-2px); box-shadow:0 6px 18px rgba(202,170,173,0.45); }
+  .av-welcome{ display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:13px; line-height:1.4; padding:10px 12px; margin-bottom:12px; border-radius:12px; background:#dff0e5; border:1.5px solid #5aa276; }
+  .av-waitlist{ font-size:13px; line-height:1.45; padding:10px 12px; margin:0 0 12px; border-radius:12px; background:#fdf1d6; border:1.5px solid #d9b25c; }
+  .fall-login-box{ border:2px dashed var(--charcoal); border-radius:14px; padding:12px; }
   .av-heading{ font-size:17px; margin:0 0 12px; }
   .av-clubs{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
   .av-club-chip{ border:1.5px solid var(--charcoal); border-radius:999px; padding:8px 14px; background:transparent; font-family:'Inter',sans-serif; font-size:13px; cursor:pointer; }
@@ -1017,7 +1022,7 @@ let state = {
   cmAdminOpen:false, cmAdminLoggedIn:null, cmAdminError:'', cmAdminClub:null, cmAdminEvents:null,
   cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
-  availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'',
+  availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'',
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventEditDeleting:false,
   reviewMode:false, reviewQueue:[], reviewTotal:0, eventCreateMode:false,
   resourceEditOpen:false, resourceEditId:null, resourceEditData:null, resourceEditError:'', resourceEditSaving:false, resourceEditSaved:false, resourceCreateMode:false,
@@ -2246,6 +2251,12 @@ function setupFallSignupForm(){
 
     const missing = [];
     const checkedClubCount = checks.filter(c => c.checked).length;
+    const enteredName = (form.elements['name'].value || '').trim();
+    const enteredUsername = (document.getElementById('fallUsername').value || '').trim().toLowerCase();
+    const enteredPin = (document.getElementById('fallPin').value || '').trim();
+    if(!enteredName) missing.push('add your name');
+    if(!/^[a-z0-9_]{3,20}$/.test(enteredUsername)) missing.push('choose a username (3–20 letters, numbers or _)');
+    if(!/^\d{4}$/.test(enteredPin)) missing.push('choose a 4-digit PIN');
     if(checkedClubCount !== 3) missing.push('select exactly 3 clubs above');
     if(!form.whatsapp.value.trim()) missing.push('add your WhatsApp number');
     if(otherCheckbox.checked && !otherNameInput.value.trim()) missing.push('tell us the name of the "Other" club you have in mind');
@@ -2260,25 +2271,42 @@ function setupFallSignupForm(){
     }
 
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Sending…';
+    submitBtn.textContent = 'Creating your account…';
+
+    // 1) Create the login first (so a taken username can be fixed before anything is sent to organizers).
+    //    Their #1 listed club = member now; their other listed picks = standby.
+    const rankedClubs = clubOrder.map(cb => FALL_SIGNUP_CLUBS.find(c => c.title === cb.value)).filter(Boolean);
+    const firstClub = rankedClubs[0];
+    let account;
     try {
-      const res = await fetch(FALL_SIGNUP_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Accept': 'application/json' },
-        body: new FormData(form)
-      });
-      if(res.ok){
-        form.style.display = 'none';
-        document.getElementById('fallThankYou').style.display = 'block';
-      } else {
-        throw new Error('Form submission failed');
-      }
+      account = await cmApiRaw('/api/signup', { method:'POST', body: JSON.stringify({
+        name: enteredName, username: enteredUsername, pin: enteredPin,
+        clubId: firstClub.id, waitlist: rankedClubs.slice(1).map(c => c.id)
+      }) });
     } catch(err){
-      console.error('Fall signup submission failed:', err);
-      statusEl.textContent = 'Something went wrong — please try again, or message us directly.';
+      statusEl.textContent = err.message;
+      statusEl.classList.add('fall-status-error');
       submitBtn.disabled = false;
       submitBtn.textContent = 'Submit →';
+      return;
     }
+
+    // 2) Send the full form to organizers (the PIN input has no name, so it is never included).
+    let sent = true;
+    try {
+      const res = await fetch(FALL_SIGNUP_ENDPOINT, { method:'POST', headers:{ 'Accept':'application/json' }, body: new FormData(form) });
+      if(!res.ok) sent = false;
+    } catch(err){ console.error('Fall signup submission failed:', err); sent = false; }
+
+    // 3) Signed in — straight to their club and its calendar.
+    setCmSession(account);
+    availReset();
+    state.availClubId = firstClub.id;
+    state.availWelcome = enteredUsername;
+    state.clubsNotice = sent ? '' : "Your login is ready, but we couldn't send the rest of your form to the organizers. Please DM us on Instagram so they see your picks.";
+    state.clubsLoginPickerOpen = true;
+    state.clubsMyClubsPickerOpen = false;
+    goToTab('clubs');
   });
 }
 
@@ -2427,7 +2455,7 @@ el.innerHTML = `<div class="clubs-top-actions">
       <div class="fall-signup">
         <div class="fall-hero">
           <h2>Pick Your Clubs — Fall Season 🌸</h2>
-          <p>Fill out the form below to choose your club(s) for the season! Max 2 clubs for now — a 3rd can open after 1 month of activity. Not ready to commit to one of your picks yet? Mention it in the notes below and we'll put you on <strong>STANDBY</strong> for it instead of a firm YES.</p>
+          <p><strong>Choose a username + PIN below and you'll be signed in to your #1 pick straight away</strong> — your other picks go on the standby list. Fill out the form to choose your club(s) for the season! Max 2 clubs for now — a 3rd can open after 1 month of activity. Not ready to commit to one of your picks yet? Mention it in the notes below and we'll put you on <strong>STANDBY</strong> for it instead of a firm YES.</p>
           <p class="fall-deadline">💌 Please submit by <strong>Monday, August 24th</strong> so we can get groups moving!</p>
         </div>
         <form id="fallSignupForm">
@@ -2435,6 +2463,12 @@ el.innerHTML = `<div class="clubs-top-actions">
           <div class="fall-section">
             <h3>Name</h3>
             <input type="text" name="name" placeholder="First name + last initial (e.g. Amina K.)" class="fall-text-input">
+          </div>
+          <div class="fall-section fall-login-box">
+            <h3>Create your login</h3>
+            <p class="fall-hint" style="margin:0 0 10px;">You'll use these to log in and fill in your availability. As soon as you submit, you're signed in to your #1 club.</p>
+            <input type="text" name="username" id="fallUsername" placeholder="Choose a username (letters, numbers or _)" class="fall-text-input" autocomplete="username" autocapitalize="none" autocorrect="off" maxlength="20">
+            <input type="tel" id="fallPin" placeholder="Choose a 4-digit PIN (remember it!)" class="fall-text-input" inputmode="numeric" maxlength="4" autocomplete="off" style="margin-top:10px;">
           </div>
           <div class="fall-section">
             <h3>WhatsApp number</h3>
@@ -3863,12 +3897,12 @@ let availSaveTimer = null;
 
 function availReset(){
   clearTimeout(availSaveTimer);
-  Object.assign(state, { availClubId:null, availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'' });
+  Object.assign(state, { availClubId:null, availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'' });
   const t = new Date();
   state.availYear = t.getFullYear(); state.availMonth = t.getMonth();
 }
 function avClubTitle(id){
-  const c = clubsData.find(x => x.id === id);
+  const c = clubsData.find(x => x.id === id) || FALL_SIGNUP_CLUBS.find(x => x.id === id);
   const t = c ? c.title : id;
   return /club$/i.test(t) ? t : t + ' Club';
 }
@@ -3888,7 +3922,16 @@ function renderAvailabilityPanel(session){
   if(!clubs.length) return `<p style="font-size:13px;">You're not part of any club yet — ask an organizer to add you.</p>`;
   if(!state.availClubId || !clubs.includes(state.availClubId)) state.availClubId = clubs[0];
   const clubId = state.availClubId;
-  const heading = `<p class="av-heading">You're a member of the <strong>${escapeCm(avClubTitle(clubId))}</strong></p>`;
+  const waitIds = (session.waitlist || []).filter(id => !clubs.includes(id));
+  const waitNames = waitIds.map(id => `<strong>${escapeCm(avClubTitle(id))}</strong>`);
+  const waitHtml = waitIds.length
+    ? `<div class="av-waitlist">You're on the <strong>standby list</strong> for ${waitNames.length > 1 ? waitNames.slice(0, -1).join(', ') + ' and ' + waitNames[waitNames.length - 1] : waitNames[0]}. An organizer will let you know if a spot opens up.</div>`
+    : '';
+  const welcomeHtml = state.availWelcome
+    ? `<div class="av-welcome"><span>You're in! Your username is <strong>${escapeCm(state.availWelcome)}</strong> — use it with your PIN to log in next time.</span><button type="button" class="av-link" id="avWelcomeClose">Got it</button></div>`
+    : '';
+  const noticeHtml = state.clubsNotice ? `<div class="av-waitlist" style="background:#fbe9e7;">${escapeCm(state.clubsNotice)}</div>` : '';
+  const heading = welcomeHtml + noticeHtml + `<p class="av-heading">You're a member of the <strong>${escapeCm(avClubTitle(clubId))}</strong></p>` + waitHtml;
   const chips = clubs.length > 1
     ? `<div class="av-clubs" aria-label="Switch club">${clubs.map(id => `<button type="button" class="av-club-chip${id === clubId ? ' active' : ''}" data-avclub="${escapeCm(id)}">${escapeCm(avClubTitle(id))}</button>`).join('')}</div>`
     : '';
@@ -4077,6 +4120,8 @@ function wireAvailabilityPanel(){
   if(next) next.addEventListener('click', () => shift(1));
   const retry = document.getElementById('avRetryBtn');
   if(retry) retry.addEventListener('click', availSave);
+  const welcomeClose = document.getElementById('avWelcomeClose');
+  if(welcomeClose) welcomeClose.addEventListener('click', () => { state.availWelcome = ''; state.clubsNotice = ''; render(); });
   const ev = document.getElementById('avEventsBtn');
   if(ev) ev.addEventListener('click', async () => { if(state.availDirty) await availSave(); state.clubsLoginPickerOpen = false; openClubMembers(state.availClubId, avClubTitle(state.availClubId)); });
 }
