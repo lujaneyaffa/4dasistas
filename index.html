@@ -428,9 +428,13 @@
   .av-legend{ display:flex; justify-content:center; gap:16px; flex-wrap:wrap; font-size:12px; margin-bottom:10px; }
   .av-legend span{ display:flex; align-items:center; gap:6px; }
   .av-sw{ display:inline-block; width:16px; height:16px; border-radius:5px; border:1.5px solid rgba(55,61,59,0.35); }
-  .av-sw-free{ background:#b9dfc5; border-color:#5aa276; }
-  .av-sw-none{ background:#fff; }
-  .av-sw-past{ background:#fff; opacity:0.4; }
+  .av-sw-morning{ background:#ffe27a; border-color:#d9b92e; }
+  .av-sw-afternoon{ background:#ffb066; border-color:#e08a2e; }
+  .av-sw-night{ background:#8fb8ff; border-color:#5a8ddb; }
+  .av-sw-busy{ background:#f9dcdc; border-color:#e3a3a3; }
+  .av-default-note{ font-size:12px; text-align:center; margin:0 0 10px; color:var(--muted); }
+  .av-cell.av-busy{ background:#f9dcdc; border-color:#e8b4b4; }
+  .av-busy-label{ margin:auto 0; font-size:clamp(9px,2.4vw,11px); font-weight:600; color:#b46a6a; opacity:0.85; }
   .av-month-head{ display:flex; align-items:center; justify-content:space-between; margin:6px 0 8px; }
   .av-month-title{ font-family:'Inter',sans-serif; font-weight:700; font-size:20px; }
   .av-nav{ width:44px; height:44px; border:1.5px solid var(--charcoal); border-radius:50%; background:transparent; font-size:24px; line-height:1; cursor:pointer; }
@@ -443,10 +447,11 @@
   .av-cell.av-today{ border-color:var(--charcoal); border-width:2px; }
   .av-cell.av-selected{ box-shadow:0 0 0 3px var(--charcoal); }
   .av-num{ font-size:14px; font-weight:700; text-align:left; padding-left:2px; }
-  .av-full{ background:#b9dfc5; border-color:#5aa276; }
-  .av-full-label{ margin:auto 0; font-size:clamp(10px,2.6vw,13px); font-weight:700; }
-  .av-part{ background:#f4f9f5; border-color:#5aa276; }
-  .av-band{ background:#b9dfc5; border-radius:5px; font-size:clamp(9px,2.3vw,11px); font-weight:600; padding:2px 1px; line-height:1.15; overflow:hidden; }
+  .av-full{ background:linear-gradient(to bottom,#ffe27a 0 33.4%,#ffb066 33.4% 66.7%,#8fb8ff 66.7% 100%); border-color:#c9a25a; }
+  .av-full-label{ margin:auto 0; font-size:clamp(10px,2.6vw,13px); font-weight:700; background:rgba(255,255,255,0.78); border-radius:6px; padding:2px 4px; }
+  .av-part{ background:#f9dcdc; border-color:#e8b4b4; }
+  .av-b-morning{ background:#ffe27a; } .av-b-afternoon{ background:#ffb066; } .av-b-night{ background:#8fb8ff; }
+  .av-band{ border-radius:5px; font-size:clamp(9px,2.3vw,11px); font-weight:600; padding:2px 1px; line-height:1.15; overflow:hidden; }
   .av-short{ display:none; }
   @media (max-width:560px){ .av-long{ display:none; } .av-short{ display:inline; } }
   .av-note{ font-size:12px; line-height:1.6; text-align:center; margin:12px 0 6px; padding:8px 10px; border-radius:10px; background:rgba(201,170,173,0.25); }
@@ -461,7 +466,9 @@
   .av-opt{ min-height:62px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:6px 2px; }
   .av-opt span{ font-size:15px; font-weight:700; }
   .av-opt small{ font-size:11px; opacity:0.75; }
-  .av-big.on, .av-opt.on{ background:#b9dfc5; border-color:#3f8a5c; box-shadow:inset 0 0 0 2px #3f8a5c; }
+  .av-big.on{ background:linear-gradient(to right,#ffe27a 0 33.4%,#ffb066 33.4% 66.7%,#8fb8ff 66.7% 100%); box-shadow:inset 0 0 0 2px var(--charcoal); }
+  .av-opt.on{ box-shadow:inset 0 0 0 2px var(--charcoal); }
+  .av-o-morning.on{ background:#ffe27a; } .av-o-afternoon.on{ background:#ffb066; } .av-o-night.on{ background:#8fb8ff; }
   .av-sheet-foot{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:12px; }
   .av-sheet-foot .av-status{ flex:1; text-align:center; font-size:12px; }
   .av-clear{ background:none; border:none; padding:10px 0; font-family:'Inter',sans-serif; font-size:13px; text-decoration:underline; cursor:pointer; color:var(--charcoal); }
@@ -473,7 +480,6 @@
   .fall-hero h2{ font-family:'Inter',sans-serif; font-weight:700; font-size:24px; margin-bottom:10px; }
   .fall-hero p{ font-size:14.5px; color:#4a4640; line-height:1.55; max-width:480px; margin:0 auto; }
   .fall-hero p + p{ margin-top:12px; }
-  .fall-deadline{ font-weight:600; color:var(--charcoal) !important; }
   .fall-goodtoknow{ background:var(--tan); }
   .fall-goodtoknow ul{ margin:10px 0 0; padding-left:18px; display:flex; flex-direction:column; gap:10px; }
   .fall-goodtoknow li{ font-size:13px; color:#4a4640; line-height:1.5; }
@@ -497,8 +503,6 @@
   .fall-option-text strong{ color:var(--charcoal); font-family:'Inter',sans-serif; }
   .fall-radio-group{ display:flex; flex-direction:column; gap:10px; margin-top:14px; }
   .fall-option-compact{ padding:12px 14px; font-size:14px; font-weight:600; color:var(--charcoal); }
-  .fall-section-badminton{ background:#eaf1f8; }
-  .fall-section-badminton p{ font-size:13.5px; color:#4a4640; line-height:1.5; margin:6px 0 14px; }
   .fall-section-chitchat{ background:var(--coral); }
   .fall-section-chitchat p{ font-size:13.5px; color:#4a4640; line-height:1.5; margin:6px 0 14px; }
   .fall-terms{ background:var(--blush); }
@@ -2353,6 +2357,7 @@ el.innerHTML = `<div class="clubs-top-actions">
         <input id="clubsLoginUsername" placeholder="Username" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);margin-bottom:10px;box-sizing:border-box;">
         <input id="clubsLoginPin" placeholder="PIN" inputmode="numeric" maxlength="4" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);margin-bottom:10px;box-sizing:border-box;">
         <button class="club-guide-btn" id="clubsLoginSubmitBtn" style="width:100%;background:var(--lightblue);">Sign In</button>
+        <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;">Forgot your PIN? An admin can reset it for you — just message us.</p>
       `}
     </div>` : ''}
     <div class="clubs-grid">${clubsData.map(c => {
@@ -2456,7 +2461,6 @@ el.innerHTML = `<div class="clubs-top-actions">
         <div class="fall-hero">
           <h2>Pick Your Clubs — Fall Season 🌸</h2>
           <p><strong>Choose a username + PIN below and you'll be signed in to your #1 pick straight away</strong> — your other picks go on the standby list. Fill out the form to choose your club(s) for the season! Max 2 clubs for now — a 3rd can open after 1 month of activity. Not ready to commit to one of your picks yet? Mention it in the notes below and we'll put you on <strong>STANDBY</strong> for it instead of a firm YES.</p>
-          <p class="fall-deadline">💌 Please submit by <strong>Monday, August 24th</strong> so we can get groups moving!</p>
         </div>
         <form id="fallSignupForm">
           <input type="text" name="_gotcha" class="hp-field" tabindex="-1" autocomplete="off">
@@ -2469,6 +2473,7 @@ el.innerHTML = `<div class="clubs-top-actions">
             <p class="fall-hint" style="margin:0 0 10px;">You'll use these to log in and fill in your availability. As soon as you submit, you're signed in to your #1 club.</p>
             <input type="text" name="username" id="fallUsername" placeholder="Choose a username (letters, numbers or _)" class="fall-text-input" autocomplete="username" autocapitalize="none" autocorrect="off" maxlength="20">
             <input type="tel" id="fallPin" placeholder="Choose a 4-digit PIN (remember it!)" class="fall-text-input" inputmode="numeric" maxlength="4" autocomplete="off" style="margin-top:10px;">
+            <p class="fall-hint" style="margin:8px 0 0;">Forgot your PIN? No stress — an admin can reset it for you.</p>
           </div>
           <div class="fall-section">
             <h3>WhatsApp number</h3>
@@ -2516,14 +2521,6 @@ el.innerHTML = `<div class="clubs-top-actions">
               <li><strong>👑 Leadership:</strong> each member can lead only one club at a time. Admin sits in every club as a backup lead/moderator only. Clubs with 7+ members should have two co-leaders, not one.</li>
               <li><strong>🚫 Zero tolerance:</strong> any harassment or negativity from a leader or member means a ban from the club and/or community. No cliques, no exclusion, no gatekeeping.</li>
             </ul>
-          </div>
-          <div class="fall-section fall-section-badminton">
-            <h3>Badminton Club 🏸</h3>
-            <p>Same weekly crew, just easier to find & join here — a great way to stay active with the girls! Note: you must be able to drop in at least once a week to join.</p>
-            <label class="fall-option fall-option-compact">
-              <input type="checkbox" name="badminton" value="Yes, interested in Badminton Club">
-              Yes, I'm interested in joining Badminton Club.
-            </label>
           </div>
           <div class="fall-section fall-section-chitchat">
             <h3>ChitChat Group 💬</h3>
@@ -3912,7 +3909,7 @@ function avToday(){ const t = new Date(); return avYmd(t.getFullYear(), t.getMon
 function avMonthIndex(y, m){ return y * 12 + m; }
 function avMonthBounds(){ const t = new Date(); const min = avMonthIndex(t.getFullYear(), t.getMonth()); return { min, max: min + 11 }; }
 function avSummary(parts){
-  if(!parts.length) return 'not marked';
+  if(!parts.length) return 'busy';
   if(parts.length === 3) return 'free all day';
   return 'free in the ' + parts.join(' and ');
 }
@@ -3951,7 +3948,8 @@ function renderAvailabilityPanel(session){
     let inner = `<span class="av-num">${d}</span>`;
     let cls = 'av-cell';
     if(parts.length === 3){ cls += ' av-full'; inner += `<span class="av-full-label">Full day</span>`; }
-    else if(parts.length){ cls += ' av-part'; inner += AV_PARTS.filter(([k]) => parts.includes(k)).map(([k, label]) => `<span class="av-band"><span class="av-long">${label}</span><span class="av-short">${AV_SHORT[k]}</span></span>`).join(''); }
+    else if(parts.length){ cls += ' av-part'; inner += AV_PARTS.filter(([k]) => parts.includes(k)).map(([k, label]) => `<span class="av-band av-b-${k}"><span class="av-long">${label}</span><span class="av-short">${AV_SHORT[k]}</span></span>`).join(''); }
+    else if(!past){ cls += ' av-busy'; inner += `<span class="av-busy-label">Busy</span>`; }
     if(date === today) cls += ' av-today';
     if(state.availEditDate === date) cls += ' av-selected';
     const aria = `${new Date(date + 'T00:00:00').toLocaleDateString('en-CA', {weekday:'long', month:'long', day:'numeric'})}: ${avSummary(parts)}`;
@@ -3965,13 +3963,13 @@ function renderAvailabilityPanel(session){
     const label = new Date(ed + 'T00:00:00').toLocaleDateString('en-CA', {weekday:'long', month:'long', day:'numeric'});
     sheet = `<div class="av-sheet" role="dialog" aria-label="Set availability for ${escapeCm(label)}">
       <div class="av-sheet-title">${escapeCm(label)}</div>
-      <div class="av-sheet-sub">When are you free? Tap all that apply.</div>
+      <div class="av-sheet-sub">Every day starts as busy — tap the times you're free.</div>
       <button type="button" class="av-big${parts.length === 3 ? ' on' : ''}" data-avpart="full">Free all day</button>
       <div class="av-row">
-        ${AV_PARTS.map(([k, l]) => `<button type="button" class="av-opt${parts.includes(k) ? ' on' : ''}" data-avpart="${k}"><span>${l}</span><small>${AV_RANGES[k]}</small></button>`).join('')}
+        ${AV_PARTS.map(([k, l]) => `<button type="button" class="av-opt av-o-${k}${parts.includes(k) ? ' on' : ''}" data-avpart="${k}"><span>${l}</span><small>${AV_RANGES[k]}</small></button>`).join('')}
       </div>
       <div class="av-sheet-foot">
-        <button type="button" class="av-clear" data-avpart="clear">Not free (clear)</button>
+        <button type="button" class="av-clear" data-avpart="clear">I'm busy (clear)</button>
         <span class="av-status" aria-live="polite">${escapeCm(state.availStatus)}</span>
         <button type="button" class="av-done" data-avdone="1">Done</button>
       </div>
@@ -3985,10 +3983,12 @@ function renderAvailabilityPanel(session){
       <div class="av-step"><b>3</b><span>It saves by itself</span></div>
     </div>
     <div class="av-legend">
-      <span><i class="av-sw av-sw-free"></i>Free</span>
-      <span><i class="av-sw av-sw-none"></i>Not marked</span>
-      <span><i class="av-sw av-sw-past"></i>Passed</span>
+      <span><i class="av-sw av-sw-morning"></i>Morning</span>
+      <span><i class="av-sw av-sw-afternoon"></i>Afternoon</span>
+      <span><i class="av-sw av-sw-night"></i>Night</span>
+      <span><i class="av-sw av-sw-busy"></i>You're Busy</span>
     </div>
+    <p class="av-default-note">Every day is <strong>You're Busy</strong> unless you tap it and say you're free.</p>
     <div class="av-month-head">
       <button type="button" class="av-nav" id="avPrev" aria-label="Previous month" ${idx <= bounds.min ? 'disabled' : ''}>‹</button>
       <div class="av-month-title">${AV_MONTHS[m]} ${y}</div>
