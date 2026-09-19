@@ -445,6 +445,8 @@
   .av-actions{ display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap; }
   .av-save[disabled]{ opacity:0.45; cursor:default; }
   .av-status{ font-size:13px; }
+  .av-note{ font-size:12px; line-height:1.6; text-align:center; margin:0 0 10px; padding:8px 10px; border-radius:10px; background:rgba(201,170,173,0.25); }
+  .av-chip small{ display:block; font-size:10px; font-weight:500; opacity:0.75; }
   .av-link{ background:none; border:none; padding:0; font-family:'Inter',sans-serif; font-size:13px; text-decoration:underline; cursor:pointer; color:var(--charcoal); }
   .clubs-top-actions{ display:flex; align-items:stretch; justify-content:center; gap:10px; margin-bottom:14px; }
   .clubs-top-actions .club-guide-btn, .clubs-top-actions .fall-cta-btn{ flex:0 0 110px; width:110px; aspect-ratio:1; margin-bottom:0; text-align:center; padding:8px; font-size:13px; display:flex; align-items:center; justify-content:center; }
@@ -3841,6 +3843,7 @@ async function cmApi(pathSuffix, opts){
    ============================================================ */
 const AV_PARTS = [['morning','Morning'],['afternoon','Afternoon'],['night','Night']];
 const AV_SHORT = {morning:'Morn', afternoon:'Aft', night:'Night'};
+const AV_RANGES = {morning:'before 12 PM', afternoon:'12 – 5 PM', night:'after 5 PM'};
 const AV_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 function availReset(){
@@ -3893,7 +3896,7 @@ function renderAvailabilityPanel(session){
       <div class="av-editor-title">${escapeCm(label)} — when are you free?</div>
       <div class="av-editor-chips">
         <button type="button" class="av-chip${parts.length === 3 ? ' on' : ''}" data-avpart="full">Full day</button>
-        ${AV_PARTS.map(([k, l]) => `<button type="button" class="av-chip${parts.includes(k) ? ' on' : ''}" data-avpart="${k}">${l}</button>`).join('')}
+        ${AV_PARTS.map(([k, l]) => `<button type="button" class="av-chip${parts.includes(k) ? ' on' : ''}" data-avpart="${k}">${l}<small>${AV_RANGES[k]}</small></button>`).join('')}
         <button type="button" class="av-chip av-clear" data-avpart="clear">Clear</button>
       </div>
       <button type="button" class="av-done" data-avdone="1">Done</button>
@@ -3907,6 +3910,7 @@ function renderAvailabilityPanel(session){
       <button type="button" class="av-nav" id="avNext" aria-label="Next month">›</button>
     </div>
     <p class="av-hint">Tap a day to mark when you're free — the full day, or just the morning, afternoon or night.</p>
+    <p class="av-note"><strong>Morning</strong> = ${AV_RANGES.morning} &nbsp;·&nbsp; <strong>Afternoon</strong> = ${AV_RANGES.afternoon} &nbsp;·&nbsp; <strong>Night</strong> = ${AV_RANGES.night} &nbsp;·&nbsp; <strong>Full day</strong> = all of the above</p>
     <div class="av-weekdays">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div>${d}</div>`).join('')}</div>
     <div class="av-grid">${cells}</div>
     ${editor}

@@ -79,6 +79,12 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-19 (availability: time-range note)
+
+**2026-09-19 (availability: time-range note) — Claude (chat) — `index.html`** — Added a note above the month view clarifying the parts of day (`AV_RANGES`: Morning = before 12 PM, Afternoon = 12–5 PM, Night = after 5 PM, Full day = all three) and put the same range under each chip in the day chooser. The cutoffs are my choice, not from Lujane — edit `AV_RANGES` to change the wording. Verified render with a mocked member session.
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-19 (Clubs: member month-view availability replaces Suggest an activity)
 
 **2026-09-19 (Clubs: member month-view availability replaces Suggest an activity) — Claude (chat) — `index.html`, `workers/src/worker.js`** — Lujane: once a member logs in on the Clubs tab, drop "Suggest an activity", show "You're a member of the … Club" with a big month view where they mark availability per day — Full day, or any mix of Morning / Afternoon / Night. **Worker:** new private endpoints `GET/PUT /api/clubs/:clubId/availability/:userId` (Bearer member token + club-membership check; one KV doc per member per club, key `clubavailability:<clubId>:<userId>`, value `{ "YYYY-MM-DD": ["morning"|"afternoon"|"night"] }`). `sanitizeAvailabilityDays` drops invalid dates, dates >60 days past or >400 ahead, unknown parts, empty days, and caps at 500 days. Nobody else (not even other club members) can read a member's doc. "Full day" is stored as all three parts. **Frontend:** `renderAvailabilityPanel`/`availLoad`/`availSave`/`wireAvailabilityPanel` (state fields `avail*`) in the Clubs panel; big day cells (green = free; "Full day" or the chosen part names, short Morn/Aft/Night on phones), tap a day for a chip editor, explicit Save button with unsaved-changes note, month arrows, past days disabled, club chips if a member is in several clubs, and a "Club events & profile →" link to the existing per-event dashboard (`openClubMembers`) so that feature stays reachable. The old member menu (Fill in my availability / Suggest an activity) is gone; the SIGN UP / LOG IN tiles are unchanged. Session/avail state is reset on login and footer logout. **Tested end-to-end** with local `wrangler dev` + a throwaway `.dev.vars` (deleted): admin created a test member, real UI login, saved/cleared/full-day edits persisted in KV; curl checks: 401 without token, 403 for a club they're not in, sanitizing verified; checked at 375px width. **Not yet tested against production KV with a real member login** (I have no member PINs).
@@ -516,6 +522,7 @@ npx wrangler deploy
 
 _(most recent first — add new entries to the top, trim past ~15)_
 
+- 2026-09-19 — Claude (chat) — `index.html` — Availability month view: note explaining Morning/Afternoon/Night time ranges.
 - 2026-09-19 — Claude (chat) — `index.html`, `workers/src/worker.js` — Clubs: logged-in members get "You're a member of the … Club" + month-view availability (Full day / Morning / Afternoon / Night); new private availability endpoints.
 - 2026-09-18 — Claude (chat) — `index.html` — Add to Home Screen tile now sits right above the footer (Home only); details-change disclaimer shows only on the Calendar tab.
 - 2026-09-18 — Claude (chat) — `index.html` — Clubs tab: SIGN UP / LOG IN tiles, login opens menu with Fill in availability + Suggest an activity; Home Travel/About buttons are big squares without arrows.
