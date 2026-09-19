@@ -79,6 +79,12 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-18 (Clubs tab: Sign up / Log in; Home Travel+About big square buttons)
+
+**2026-09-18 (Clubs tab: Sign up / Log in; Home Travel+About big square buttons) — Claude (chat) — `index.html`** — (1) Clubs tab top row is now just two tiles: **SIGN UP** (the old JOIN A CLUB tile — opens the `fallsignup` form, which posts to Formspree) and **LOG IN**. Replaced the previous MY AVAILABILITY / SUGGEST AN ACTIVITY tiles. Signed out, LOG IN opens the username+PIN form. A successful login (`cmGeneralLogin`) no longer jumps straight into the club; it opens a small member menu with **📅 Fill in my availability** (opens their club, or a club picker if they have several) and **💡 Suggest an activity** (Instagram DM via `IG_DM_URL`). Once signed in the tile reads MY CLUBS / Signed in as NAME and toggles the same menu; a member with no clubs sees a note plus only the Suggest link. (2) Home tab: the Travel and About quick-links are now 150px square buttons with larger text and no arrows. Tested locally with a mocked login (tiles, form, menu, picker, DM link) and cleared the fake session afterward.
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-18 (Inter font, flat nav tabs on pink bar, Support Groups moved into Mental Health)
 
 **2026-09-18 (Inter font, flat nav tabs on pink bar, Support Groups moved into Mental Health) — Claude (chat) — `index.html`** — Three asks from Lujane. (1) Font: replaced Space Grotesk with Inter site-wide (all 57 font-family uses + the Google Fonts import) for a simpler, sleeker look. (2) Nav: pink bar background restored (`rgba(201,170,173,0.45)`), tabs are now flat text (no border, no rounded pill), uppercase, with a 2px underline + bold on the active tab. (3) Support Groups now live entirely under Directory > Mental Health: support programs (data/supportprograms.json, still edited the same way in Decap/site admin) get `category = 'mentalhealth'` (still flagged `isSupportGroup`) so they appear in the Mental Health list and use its card layout; new `supportWhenText`/`resourceAddrHtml` helpers show their date/time and Online marker instead of "Location not provided", cards get a More Info link when `link` is set, and their admin Edit button opens the event editor (they are calendar-shaped), not the resource editor. Removed the standalone Support Groups tab/calendar (`renderSupportGroupCalendar`, sg-* CSS/state), the "Support Groups →" button in the Calendar category row, the Support Groups option in Event Types, and the "View Support Groups →" button in Mental Health. Old links (`#tab=supportgroups`, `goToTab('supportgroups')`) redirect to the Mental Health list via `normalizeLegacyTab()`. Tested locally: fonts, nav computed styles, Mental Health lists 6 support-group cards with correct dates, legacy hash redirect, Event Types row gone.
@@ -498,6 +504,7 @@ npx wrangler deploy
 
 _(most recent first — add new entries to the top, trim past ~15)_
 
+- 2026-09-18 — Claude (chat) — `index.html` — Clubs tab: SIGN UP / LOG IN tiles, login opens menu with Fill in availability + Suggest an activity; Home Travel/About buttons are big squares without arrows.
 - 2026-09-18 — Claude (chat) — `index.html` — Inter font site-wide; flat (non-pill) nav tabs on the pink bar; Support Groups moved entirely into Directory > Mental Health.
 - 2026-09-18 — Claude (chat) — `index.html` — Clubs tab: Log In tile became MY AVAILABILITY; added SUGGEST AN ACTIVITY tile (Instagram DM).
 - 2026-09-18 — Claude (chat) — `index.html` — Admin event/resource forms no longer wipe typed values on a failed save; added Google Places address search to their Location fields.

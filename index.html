@@ -330,7 +330,7 @@
   .resource-photo{ width:100%; height:180px; object-fit:cover; display:block; margin:-2px 0 14px; border-radius:10px; background:var(--lightblue); }
 
   .home-quicklinks{ display:flex; justify-content:center; flex-wrap:wrap; gap:12px; margin:20px 0; }
-  .home-quicklinks .club-guide-btn{ padding:10px 20px; }
+  .home-quicklinks .club-guide-btn{ flex:0 0 150px; width:150px; aspect-ratio:1; padding:10px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:18px; }
   .home-tiles{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
   .home-tile{ display:block; width:100%; text-align:left; border:2px solid var(--charcoal); border-radius:18px; padding:24px 22px; cursor:pointer; box-shadow:4px 4px 0 var(--charcoal); transition:transform 0.12s ease, box-shadow 0.12s ease; font-family:'Inter',sans-serif; position:relative; }
   .home-tile[data-hometab="homescreen"]{ padding-top:8px; padding-bottom:8px; min-height:auto; align-self:center; justify-self:center; width:100%; grid-column:1 / -1; box-shadow:none; border-color:rgba(55,61,59,0.2); }
@@ -2241,9 +2241,8 @@ function renderDirectory(){
   } else if(state.tab === 'clubs'){
     document.getElementById('resourcePagination').innerHTML = '';
 el.innerHTML = `<div class="clubs-top-actions">
-    <button class="fall-cta-btn" data-hometab="fallsignup">JOIN A CLUB</button>
-    <button type="button" class="club-guide-btn" id="clubsLoginOpenBtn">${(() => { const s = getCmSession(); return `<span>MY AVAILABILITY<small style="display:block;font-weight:500;font-size:10px;margin-top:4px;text-transform:none;">${s ? `Signed in as ${escapeCm(s.name)}` : 'Log in to add yours'}</small></span>`; })()}</button>
-    <a class="club-guide-btn" href="${IG_DM_URL}" target="_blank" rel="noopener" style="text-decoration:none;color:var(--charcoal);"><span>SUGGEST AN ACTIVITY<small style="display:block;font-weight:500;font-size:10px;margin-top:4px;">DM us on Instagram</small></span></a>
+    <button class="fall-cta-btn" data-hometab="fallsignup">SIGN UP</button>
+    <button type="button" class="club-guide-btn" id="clubsLoginOpenBtn">${(() => { const s = getCmSession(); return s ? `<span>MY CLUBS<small style="display:block;font-weight:500;font-size:10px;margin-top:4px;text-transform:none;">Signed in as ${escapeCm(s.name)}</small></span>` : 'LOG IN'; })()}</button>
     </div>
     ${state.clubsLoginPickerOpen ? `
     <div class="rules-content" style="max-width:420px;margin:0 auto 18px;">
@@ -2255,6 +2254,11 @@ el.innerHTML = `<div class="clubs-top-actions">
             return `<button type="button" class="club-guide-btn clubs-my-club-btn" data-club-id="${cid}" style="width:100%;margin-bottom:8px;text-align:left;">${escapeCm(club ? club.title : cid)}</button>`;
           }).join('')}
         ` : `<p style="font-size:13px;">You're not part of any club yet — ask an organizer to add you.</p>`}
+      ` : getCmSession() ? `
+        ${(() => { const sess = getCmSession(); const hasClubs = (sess.clubs || []).length > 0; return `
+        <p style="font-size:13px;margin-bottom:10px;">Hi ${escapeCm(sess.name)}! What would you like to do?</p>
+        ${hasClubs ? `<button type="button" class="club-guide-btn" id="clubsFillAvailBtn" style="width:100%;margin-bottom:8px;text-align:left;">📅 Fill in my availability</button>` : `<p style="font-size:13px;margin-bottom:8px;">You're not part of any club yet — ask an organizer to add you to fill in availability.</p>`}
+        <a class="club-guide-btn" href="${IG_DM_URL}" target="_blank" rel="noopener" style="display:block;width:100%;box-sizing:border-box;margin-bottom:8px;text-align:left;text-decoration:none;color:var(--charcoal);">💡 Suggest an activity</a>`; })()}
       ` : `
         <p style="font-size:13px;margin-bottom:10px;">Sign in with the username and PIN an organizer gave you.</p>
         <div id="clubsLoginError" style="color:#c00;font-size:13px;margin-bottom:8px;"></div>
@@ -2283,22 +2287,22 @@ el.innerHTML = `<div class="clubs-top-actions">
       const loginBtn = document.getElementById('clubsLoginOpenBtn');
       if(loginBtn) loginBtn.addEventListener('click', () => {
         const session = getCmSession();
-        if(session){
-          const clubs = session.clubs || [];
-          if(clubs.length === 1){
-            const club = clubsData.find(c => c.id === clubs[0]);
-            openClubMembers(clubs[0], club ? club.title : '');
-            return;
-          }
-          state.cmSessionClubs = clubs;
-          state.clubsLoginPickerOpen = true;
-          state.clubsMyClubsPickerOpen = true;
-          render();
+        state.cmSessionClubs = session ? (session.clubs || []) : [];
+        state.clubsMyClubsPickerOpen = false;
+        state.clubsLoginPickerOpen = !state.clubsLoginPickerOpen;
+        render();
+      });
+      const fillAvailBtn = document.getElementById('clubsFillAvailBtn');
+      if(fillAvailBtn) fillAvailBtn.addEventListener('click', () => {
+        const clubs = (getCmSession() || {}).clubs || [];
+        if(clubs.length === 1){
+          const club = clubsData.find(c => c.id === clubs[0]);
+          state.clubsLoginPickerOpen = false;
+          openClubMembers(clubs[0], club ? club.title : '');
           return;
         }
-        state.cmSessionClubs = [];
-        state.clubsLoginPickerOpen = !state.clubsLoginPickerOpen;
-        state.clubsMyClubsPickerOpen = false;
+        state.cmSessionClubs = clubs;
+        state.clubsMyClubsPickerOpen = true;
         render();
       });
       const loginSubmitBtn = document.getElementById('clubsLoginSubmitBtn');
@@ -2536,7 +2540,7 @@ el.innerHTML = `<div class="clubs-top-actions">
       </div></div>
     </section>`;
     el.innerHTML = `${todaySection}<div class="home-quicklinks">${quickLinks.map(q => `
-      <button type="button" class="club-guide-btn" data-hometab="${q.tab}">${q.label} →</button>`).join('')}</div>
+      <button type="button" class="club-guide-btn" data-hometab="${q.tab}">${q.label}</button>`).join('')}</div>
       <div class="home-tiles bottom-row">
         <button class="home-tile" style="background:${homescreenTile.bg};color:${homescreenTile.fg};grid-column:1/-1;justify-self:center;max-width:560px;width:100%" data-hometab="${homescreenTile.tab}">
           <div class="home-tile-title">${homescreenTile.title}</div>
@@ -3818,14 +3822,9 @@ async function cmGeneralLogin(){
       if(errEl) errEl.textContent = "You're not part of any club yet — ask an organizer to add you.";
       return;
     }
-    if(clubs.length === 1){
-      state.clubsLoginPickerOpen = false;
-      const club = clubsData.find(c => c.id === clubs[0]);
-      openClubMembers(clubs[0], club ? club.title : '');
-      return;
-    }
     state.cmSessionClubs = clubs;
-    state.clubsMyClubsPickerOpen = true;
+    state.clubsLoginPickerOpen = true;
+    state.clubsMyClubsPickerOpen = false;
     render();
   } catch(err){
     if(errEl) errEl.textContent = err.message;
