@@ -449,23 +449,40 @@
   .av-headrow .av-heading{ flex:1; margin:0 0 12px; }
   .av-signout{ flex-shrink:0; border:1.5px solid var(--charcoal); border-radius:999px; background:transparent; color:var(--charcoal); padding:7px 14px; font-family:'Inter',sans-serif; font-size:13px; font-weight:600; cursor:pointer; }
   .ideas-wrap{ max-width:640px; margin:0 auto; }
-  .ideas-title{ font-family:'Inter',sans-serif; font-size:22px; text-align:center; margin:8px 0 6px; }
+  .ideas-title{ font-family:'Inter',sans-serif; font-size:22px; text-align:center; margin:8px 0 4px; }
+  .ideas-link{ display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-bottom:8px; word-break:break-all; }
   .ideas-sub{ font-size:13.5px; color:var(--muted); text-align:center; margin:0 0 14px; line-height:1.45; }
-  .ideas-form{ display:flex; gap:8px; margin-bottom:8px; }
-  .ideas-form input{ flex:1; min-width:0; padding:12px; border-radius:12px; border:2px solid var(--charcoal); font-family:'Inter',sans-serif; font-size:15px; background:#fff; }
-  .ideas-form .club-guide-btn{ padding:0 20px; text-align:center; }
-  .ideas-login{ display:flex; align-items:center; justify-content:center; gap:10px; font-size:13px; margin-bottom:8px; flex-wrap:wrap; }
-  .ideas-login .club-guide-btn{ padding:8px 16px; }
+  .ideas-who{ text-align:center; font-size:14px; margin-bottom:10px; }
+  .ideas-join{ display:flex; gap:8px; margin-bottom:4px; }
+  .ideas-join input, .ideas-form input{ flex:1; min-width:0; padding:12px; border-radius:12px; border:2px solid var(--charcoal); font-family:'Inter',sans-serif; font-size:15px; background:#fff; }
+  .ideas-join .club-guide-btn{ padding:0 20px; text-align:center; }
+  .ideas-hint{ font-size:12px; color:var(--muted); text-align:center; margin:4px 0 10px; line-height:1.4; }
+  .ideas-form{ display:flex; flex-direction:column; gap:8px; margin-bottom:8px; padding:12px; border:2px dashed var(--charcoal); border-radius:14px; }
+  .ideas-form .club-guide-btn{ padding:12px 20px; text-align:center; }
+  .ideas-form .ideas-hint{ margin:0; }
   .ideas-status{ min-height:20px; text-align:center; font-size:13px; margin-bottom:6px; }
   .ideas-cloud{ display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:10px; padding:8px 0 4px; }
   .idea-bubble{ position:relative; border-radius:50%; border:3px solid var(--line); background:var(--fill); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:14px; box-sizing:border-box; cursor:pointer; font-family:'Inter',sans-serif; color:var(--charcoal); text-align:center; transition:width .4s cubic-bezier(.3,1.5,.5,1), height .4s cubic-bezier(.3,1.5,.5,1), transform .15s, box-shadow .2s; -webkit-tap-highlight-color:transparent; }
   .idea-bubble:active{ transform:scale(.95); }
   .idea-bubble.voted{ box-shadow:0 0 0 3px var(--cream), 0 0 0 5px var(--line); }
+  .idea-date{ font-size:11px; font-weight:700; margin-bottom:3px; opacity:0.9; }
   .idea-title{ font-weight:700; font-size:13px; line-height:1.2; display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
   .idea-votes{ margin-top:6px; font-size:12px; font-weight:600; opacity:0.85; }
-  .idea-x{ position:absolute; top:3%; right:8%; width:22px; height:22px; border-radius:50%; border:1.5px solid var(--line); background:#fff; font-size:11px; line-height:19px; text-align:center; cursor:pointer; }
+  .idea-mini{ position:absolute; width:22px; height:22px; border-radius:50%; border:1.5px solid var(--line); background:#fff; font-size:11px; line-height:19px; text-align:center; cursor:pointer; font-weight:700; }
+  .idea-info{ top:3%; left:8%; font-style:italic; font-family:Georgia,serif; }
+  .idea-x{ top:3%; right:8%; }
+  .idea-edit{ bottom:3%; right:8%; }
   .ideas-empty{ text-align:center; padding:26px 0; font-size:14px; color:var(--muted); }
   .ideas-empty-circle{ display:inline-flex; align-items:center; justify-content:center; width:96px; height:96px; border-radius:50%; border:3px dashed #d46a86; background:#ffe0e6; font-size:38px; font-weight:700; color:#d46a86; }
+  .idea-pop-card{ text-align:left; max-height:88vh; overflow-y:auto; }
+  .idea-pop-date{ margin:0; font-size:13px; font-weight:600; }
+  .idea-pop-map{ display:block; text-align:center; text-decoration:none; color:var(--charcoal); margin:6px 0 10px; }
+  .idea-pop-by{ font-size:13px; margin:0 0 8px; }
+  .idea-pop-h{ font-size:13px; font-weight:700; margin:0 0 6px; }
+  .idea-pop-names{ display:flex; flex-wrap:wrap; gap:6px; }
+  .idea-pop-admin{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:14px; }
+  .idea-edit-l{ display:block; font-size:12px; font-weight:700; margin-bottom:8px; }
+  .idea-edit-l input{ display:block; width:100%; box-sizing:border-box; margin-top:3px; padding:10px; border-radius:10px; border:2px solid var(--charcoal); font-family:'Inter',sans-serif; font-size:14px; background:#fff; }
   .av-heading{ font-size:17px; margin:0 0 12px; }
   .av-clubs{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
   .av-club-chip{ border:1.5px solid var(--charcoal); border-radius:999px; padding:8px 14px; background:transparent; font-family:'Inter',sans-serif; font-size:13px; cursor:pointer; }
@@ -1031,7 +1048,7 @@ applySiteText();
   supportProgramsData = dedupeEvents(supportProgramsData);
 
   allResourceItems = [...resourcesData, ...supportProgramsData];
-  ALL_ITEMS = [...sportsData, ...gatheringsData, ...dayActivitiesData, ...tripsData, ...clubsData, ...resourcesData, ...supportProgramsData, ...mosqueGatheringsData, ...clubCalendarItems()];
+  ALL_ITEMS = [...sportsData, ...gatheringsData, ...dayActivitiesData, ...tripsData, ...clubsData, ...resourcesData, ...supportProgramsData, ...mosqueGatheringsData];
   // The main calendar is limited to sports, activities, and functions.
   // Trips, clubs, and mosque programs have their own dedicated calendars.
   EVENT_ITEMS = mixEvents(sportsData, gatheringsData, dayActivitiesData, [], []);
@@ -1077,7 +1094,7 @@ let state = {
   cmAdminOpen:false, cmAdminLoggedIn:null, cmAdminError:'', cmAdminClub:null, cmAdminEvents:null,
   cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
-  availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
+  availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false, membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventEditDeleting:false,
   reviewMode:false, reviewQueue:[], reviewTotal:0, eventCreateMode:false,
   resourceEditOpen:false, resourceEditId:null, resourceEditData:null, resourceEditError:'', resourceEditSaving:false, resourceEditSaved:false, resourceCreateMode:false,
@@ -1352,17 +1369,6 @@ function tripTypeForItem(item){
   return /canada|ontario|toronto|mississauga|oakville|burlington/i.test(`${item.location || ''} ${item.title || ''}`) ? 'domestic' : 'international';
 }
 
-function clubCalendarItems(){
-  return clubsData.flatMap(club => (club.calendarEvents || []).map(event => ({
-    ...event,
-    id: `${club.id}-${event.id}`,
-    clubId: club.id,
-    clubName: club.title,
-    tag: 'Club',
-    category: 'clubs'
-  })));
-}
-
 /* Event-types multi-select: lets users combine any of the six event types
    (incl. Trips / Knowledge / Support Groups, which normally live on
    their own tabs) into one list or calendar view. */
@@ -1495,7 +1501,7 @@ function itemsOnDate(candidates, selectedDate){
 }
 
 function homepageTodayItems(selectedDate){
-  const candidates = [...sportsData, ...gatheringsData, ...dayActivitiesData, ...tripsData, ...mosqueGatheringsData, ...clubCalendarItems()]
+  const candidates = [...sportsData, ...gatheringsData, ...dayActivitiesData, ...tripsData, ...mosqueGatheringsData]
     .filter(item => !(tripsData.includes(item) && tripTypeForItem(item) === 'international'));
   return itemsOnDate(candidates, selectedDate);
 }
@@ -1526,9 +1532,7 @@ function renderList(){
   const pagEl = document.getElementById('pagination');
 
   if(items.length === 0){
-    const msg = state.categoryFilter === 'clubs' && state.clubFilter !== 'all'
-      ? 'No events have been added to this club calendar yet. Add them in Decap CMS.'
-      : state.categoryFilter === 'activities' && state.timeFilter === 'upcoming'
+    const msg = state.categoryFilter === 'activities' && state.timeFilter === 'upcoming'
       ? 'Nothing dated yet — check back soon, or see Directory for ongoing spots.'
       : 'Nothing here yet.';
     el.innerHTML = `<div class="empty">${msg}</div>`;
@@ -1990,9 +1994,6 @@ el.innerHTML = sportFilterOptions().map(f => `<button class="filter-chip ${state
   } else if(state.categoryFilter === 'activities'){
     el.innerHTML = `<select class="filter-select" id="citySelect">${cityFilterList.map(c=>`<option value="${c.key}" ${state.dayCity===c.key?'selected':''}>${c.label}</option>`).join('')}</select>`
       + `<div class="sub-note">Location filter applies to activities.</div>`;
-  } else if(state.categoryFilter === 'clubs'){
-    el.innerHTML = [{key:'all',title:'All clubs'}, ...clubsData.map(club => ({key:club.id,title:club.title}))]
-      .map(club => `<button class="filter-chip ${state.clubFilter===club.key?'active':''}" data-clubfilter="${club.key}">${club.title}</button>`).join('');
   } else if(state.categoryFilter === 'trips'){
     const types = [{key:'all',label:'All'},{key:'domestic',label:'Domestic'},{key:'international',label:'International'}];
     const views = state.tripType === 'domestic' ? [{key:'list',label:'List'}] : [{key:'list',label:'List'},{key:'earth',label:'Earth'}];
@@ -2412,11 +2413,11 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions">
         <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;">Forgot your PIN? An admin can reset it for you — just message us.</p>
       `}
     </div>` : ''}
-    <div class="clubs-grid">${clubsData.map(c => {
+    <div class="clubs-grid">${clubsForGrid().map(c => {
       const col = clubColors[c.id] || {bg:'#373d3b', fg:'#fff7e6'};
       const monogramHtml = c.logo ? `<div class="monogram"><img src="${c.logo}" alt="${c.title} logo"></div>` : `<div class="monogram" style="background:${col.bg};color:${col.fg}">${c.title.charAt(0)}</div>`;
       return `
-      <div class="panel-card club-card" style="border-top:6px solid ${col.bg}" data-club-id="${c.id}" tabindex="0" role="button" aria-label="Open ${c.title} calendar">
+      <div class="panel-card club-card" style="border-top:6px solid ${col.bg}" data-club-id="${c.id}" tabindex="0" role="button" aria-label="Open the ${c.title} idea board">
         <div class="panel-top">
                   ${monogramHtml}
           <div><h4>${c.title}</h4></div>
@@ -4157,27 +4158,77 @@ async function cmMemberSignOut(){
 
 /* ============================================================
    CLUB IDEA BOARD (Mentimeter-style)
-   Press a club → suggest an event idea; signed-in members tap a bubble to
-   vote (tap again to un-vote). More votes = a bigger bubble, with the vote
-   count under the title. Data lives on the Worker (/api/clubs/:id/ideas).
+   Every club has its own board and its own link (#/clubs/<slug>).
+   Anyone can join with just a name (no password / no account); members use
+   their account name. Each option = title + Google Maps link. Tap a bubble
+   to vote (tap again to un-vote); more votes = a bigger bubble with the vote
+   count under the title. The admin can edit an option's title, map link,
+   date (shown on top of the bubble) and vote total. Data: /api/clubs/:id/ideas
    ============================================================ */
+const CLUB_SLUGS = {
+  'club-activegaming':'active-gaming', 'club-adrenaline':'adrenaline', 'club-theater':'theatre',
+  'club-cuisine':'cuisine', 'club-artscrafts':'arts-crafts', 'club-retreats':'field', 'club-adhd':'adhd'
+};
+function clubSlug(id){ return CLUB_SLUGS[id] || String(id).replace(/^club-/, ''); }
+function clubIdFromSlug(slug){
+  const hit = Object.entries(CLUB_SLUGS).find(([, s]) => s === slug);
+  if(hit) return hit[0];
+  const guess = 'club-' + slug;
+  return clubsData.some(c => c.id === guess) ? guess : null;
+}
+function clubsForGrid(){
+  const extra = FALL_SIGNUP_CLUBS.filter(c => !clubsData.some(x => x.id === c.id)).map(c => ({ id:c.id, title:c.title, desc:c.desc }));
+  return [...clubsData, ...extra];
+}
+function clubLink(id){ return location.origin + location.pathname + '#/clubs/' + clubSlug(id); }
+
 const IDEA_FILLS = ['#ffe0e6','#ffe9c7','#fff6bf','#d9f0d8','#d3ecf7','#e2dcf7','#fbd9ef','#dcefe6'];
 const IDEA_LINES = ['#d46a86','#e0982b','#c9ae1f','#4f9a4b','#3f95c2','#7a63c9','#c85aa3','#3f9a78'];
 
 function ideaColorIndex(id){ let h = 0; for(let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return h % IDEA_FILLS.length; }
-function ideaSize(votes, title){
+function ideaSize(votes, title, hasDate){
   const byVotes = 112 + 34 * Math.sqrt(Math.max(0, votes - 1));
   const len = (title || '').length;
-  const byText = len > 32 ? 160 : len > 20 ? 136 : 112;
+  const byText = (len > 32 ? 160 : len > 20 ? 136 : 112) + (hasDate ? 14 : 0);
   return Math.min(210, Math.round(Math.max(byVotes, byText)));
 }
 function ideaVotesLabel(n){ return n + (n === 1 ? ' vote' : ' votes'); }
-function ideaHeaders(){ const sess = getCmSession(); const h = { 'Content-Type':'application/json' }; if(sess && sess.token) h['Authorization'] = 'Bearer ' + sess.token; return h; }
+function ideaDateLabel(d){ return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' }) : ''; }
+function ideaLongDate(d){ return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric', year:'numeric' }) : ''; }
+function safeMapUrl(u){
+  try { const x = new URL(String(u || '')); return x.protocol === 'https:' ? x.href : ''; } catch { return ''; }
+}
+
+// --- who is voting: a signed-in member, or a guest who only gave a name ---
+function ideaGuest(){ try { const g = JSON.parse(localStorage.getItem('ideaGuest') || 'null'); return g && g.id && g.name ? g : null; } catch { return null; } }
+function ideaNewId(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12) + Math.random().toString(36).slice(2, 12);
+}
+function ideaSaveGuest(name){
+  const prev = ideaGuest();
+  const g = { id: prev ? prev.id : ideaNewId(), name };
+  try { localStorage.setItem('ideaGuest', JSON.stringify(g)); } catch {}
+  return g;
+}
+function ideaMe(){
+  const sess = getCmSession();
+  if(sess) return { kind:'member', name: sess.name };
+  const g = ideaGuest();
+  return g ? { kind:'guest', name: g.name } : null;
+}
+function ideaHeaders(){
+  const h = { 'Content-Type':'application/json' };
+  const sess = getCmSession(), g = ideaGuest();
+  if(sess && sess.token) h['Authorization'] = 'Bearer ' + sess.token;
+  else if(g){ h['X-Guest-Id'] = g.id; h['X-Guest-Name'] = encodeURIComponent(g.name); }
+  return h;
+}
 
 function openClubIdeas(clubId){
   state.tab = 'clubideas';
   state.ideasClubId = clubId;
-  state.ideas = null; state.ideasError = ''; state.ideasStatus = '';
+  state.ideas = null; state.ideasError = ''; state.ideasStatus = ''; state.ideasRenaming = false;
   render();
   window.scrollTo({ top:0, behavior:'smooth' });
 }
@@ -4195,105 +4246,202 @@ async function ideasLoad(){
 }
 
 function ideaBubbleHtml(idea){
-  const ci = ideaColorIndex(idea.id), size = ideaSize(idea.votes, idea.title);
-  const canRemove = idea.mine || state.cmAdminLoggedIn === true;
+  const ci = ideaColorIndex(idea.id), size = ideaSize(idea.votes, idea.title, !!idea.date);
+  const admin = state.cmAdminLoggedIn === true;
   return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${IDEA_FILLS[ci]};--line:${IDEA_LINES[ci]};width:${size}px;height:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}${idea.voted ? ', you voted' : ''}">
+    ${idea.date ? `<span class="idea-date">📅 ${escapeCm(ideaDateLabel(idea.date))}</span>` : ''}
     <span class="idea-title">${escapeCm(idea.title)}</span>
     <span class="idea-votes">${ideaVotesLabel(idea.votes)}${idea.voted ? ' ✓' : ''}</span>
-    ${canRemove ? `<span class="idea-x" data-ideadel="${escapeCm(idea.id)}" role="button" aria-label="Remove idea" title="Remove">✕</span>` : ''}
+    <span class="idea-mini idea-info" data-ideainfo="${escapeCm(idea.id)}" role="button" aria-label="Details and names" title="Details &amp; who voted">i</span>
+    ${(idea.mine || admin) ? `<span class="idea-mini idea-x" data-ideadel="${escapeCm(idea.id)}" role="button" aria-label="Remove option" title="Remove">✕</span>` : ''}
+    ${admin ? `<span class="idea-mini idea-edit" data-ideaedit="${escapeCm(idea.id)}" role="button" aria-label="Edit option" title="Edit (admin)">✎</span>` : ''}
   </button>`;
 }
 
 function renderClubIdeas(el){
   const clubId = state.ideasClubId;
-  const session = getCmSession();
   const title = avClubTitle(clubId);
+  const me = ideaMe();
   let cloud;
   if(state.ideasError) cloud = `<p class="av-msg" style="color:#c00;text-align:center;">${escapeCm(state.ideasError)}</p>`;
-  else if(!state.ideas) cloud = `<p class="av-msg" style="text-align:center;">Loading ideas…</p>`;
-  else if(!state.ideas.length) cloud = `<div class="ideas-empty"><span class="ideas-empty-circle">?</span><p>No ideas yet — be the first to suggest one!</p></div>`;
+  else if(!state.ideas) cloud = `<p class="av-msg" style="text-align:center;">Loading options…</p>`;
+  else if(!state.ideas.length) cloud = `<div class="ideas-empty"><span class="ideas-empty-circle">?</span><p>No options yet — be the first to add one!</p></div>`;
   else cloud = `<div class="ideas-cloud">${state.ideas.map(ideaBubbleHtml).join('')}</div>`;
+
+  const guest = ideaGuest();
+  const joinForm = `<form class="ideas-join" id="ideaJoinForm">
+      <input id="ideaNameInput" type="text" maxlength="30" value="${escapeCm(state.ideasRenaming && guest ? guest.name : '')}" placeholder="Your name — no password needed" autocomplete="given-name">
+      <button type="submit" class="club-guide-btn">${state.ideasRenaming ? 'Save' : 'Join'}</button>
+    </form>
+    <p class="ideas-hint">Enter your name to vote and add options. No account needed.</p>`;
+  const whoBlock = (me && !state.ideasRenaming)
+    ? `<div class="ideas-who">Voting as <strong>${escapeCm(me.name)}</strong>${me.kind === 'guest' ? ` · <button type="button" class="av-link" id="ideaRenameBtn">change name</button>` : ' (member)'}</div>`
+    : joinForm;
+  const addForm = (me && !state.ideasRenaming) ? `
+    <form class="ideas-form" id="ideaForm">
+      <input id="ideaInput" type="text" maxlength="80" placeholder="Event idea (e.g. Pottery night)" autocomplete="off">
+      <input id="ideaMapInput" type="url" placeholder="Google Maps link of the place" autocomplete="off" inputmode="url">
+      <button type="submit" class="club-guide-btn" id="ideaAddBtn">Add option</button>
+      <p class="ideas-hint">Both are required. Find the place in Google Maps → Share → Copy link, then paste it here.</p>
+    </form>` : '';
+
   el.innerHTML = `
     <button class="back-btn" data-hometab="clubs">← Back to clubs</button>
     <div class="ideas-wrap">
       <h2 class="ideas-title">Ideas for the ${escapeCm(title)}</h2>
-      <p class="ideas-sub">Suggest an event you'd love to do. <strong>Tap a bubble to vote</strong> — the more votes, the bigger it grows!</p>
-      ${session ? `
-        <form class="ideas-form" id="ideaForm">
-          <input id="ideaInput" type="text" maxlength="80" placeholder="Suggest a new event (e.g. Pottery night)" autocomplete="off">
-          <button type="submit" class="club-guide-btn" id="ideaAddBtn">Add</button>
-        </form>` : `
-        <div class="ideas-login"><span>Log in to suggest and vote.</span> <button type="button" class="club-guide-btn" id="ideaLoginBtn">Log in</button></div>`}
+      <div class="ideas-link"><span>🔗 ${escapeCm(clubLink(clubId).replace(/^https?:\/\//, ''))}</span><button type="button" class="av-link" id="ideaCopyBtn">Copy link</button></div>
+      <p class="ideas-sub">Add an event you'd love to do. <strong>Tap a bubble to vote</strong> — the more votes, the bigger it grows! Tap the <strong>i</strong> on a bubble to see the place and who voted.</p>
+      ${whoBlock}
+      ${addForm}
       <div class="ideas-status" id="ideasStatus" aria-live="polite">${escapeCm(state.ideasStatus)}</div>
       ${cloud}
-      <div style="text-align:center;margin-top:18px;"><button type="button" class="av-link" id="ideaCalBtn">See the ${escapeCm(title)} events on the calendar →</button></div>
     </div>`;
   wireClubIdeas();
 }
 
 function ideasSetStatus(msg){ state.ideasStatus = msg; const st = document.getElementById('ideasStatus'); if(st) st.textContent = msg; }
+function ideasNeedName(){
+  ideasSetStatus('Enter your name above to vote — no password needed.');
+  const inp = document.getElementById('ideaNameInput');
+  if(inp){ inp.focus(); inp.scrollIntoView({ block:'center' }); }
+}
 
 function wireClubIdeas(){
   if(state.ideas === null && !state.ideasLoading && !state.ideasError) ideasLoad();
+  const join = document.getElementById('ideaJoinForm');
+  if(join) join.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = document.getElementById('ideaNameInput').value.replace(/\s+/g, ' ').trim();
+    if(name.length < 2) return ideasSetStatus('Please enter your name (at least 2 letters).');
+    ideaSaveGuest(name);
+    state.ideasRenaming = false; state.ideasStatus = 'Welcome, ' + name + '! You can vote and add options now.';
+    state.ideas = null; render();
+  });
+  const rename = document.getElementById('ideaRenameBtn');
+  if(rename) rename.addEventListener('click', () => { state.ideasRenaming = true; render(); });
+  const copy = document.getElementById('ideaCopyBtn');
+  if(copy) copy.addEventListener('click', async () => {
+    const link = clubLink(state.ideasClubId);
+    try { await navigator.clipboard.writeText(link); ideasSetStatus('Link copied — share it anywhere!'); }
+    catch { window.prompt('Copy this link:', link); }
+  });
   const form = document.getElementById('ideaForm');
   if(form) form.addEventListener('submit', async e => {
     e.preventDefault();
-    const input = document.getElementById('ideaInput');
-    const text = input.value.trim();
-    if(text.length < 3) return ideasSetStatus('Type at least 3 characters.');
+    const text = document.getElementById('ideaInput').value.trim();
+    const map = document.getElementById('ideaMapInput').value.trim();
+    if(text.length < 3) return ideasSetStatus('Type a title (at least 3 characters).');
+    if(!map) return ideasSetStatus('Please paste the Google Maps link of the place.');
     const btn = document.getElementById('ideaAddBtn'); btn.disabled = true;
     try {
-      const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(state.ideasClubId) + '/ideas', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ title: text }) });
+      const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(state.ideasClubId) + '/ideas', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ title: text, mapUrl: map }) });
       state.ideas = data.ideas; state.ideasStatus = 'Added — thanks! Others can vote on it now.';
       render();
     } catch(err){
       btn.disabled = false;
-      ideasSetStatus(/not signed in/i.test(err.message) ? 'Please log in again to suggest ideas.' : err.message);
+      ideasSetStatus(err.message);
     }
   });
-  const loginBtn = document.getElementById('ideaLoginBtn');
-  if(loginBtn) loginBtn.addEventListener('click', () => { state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); });
-  const calBtn = document.getElementById('ideaCalBtn');
-  if(calBtn) calBtn.addEventListener('click', () => {
-    state.tab = 'events'; state.categoryFilter = 'clubs'; state.clubFilter = state.ideasClubId; state.view = 'list';
-    render(); window.scrollTo({ top:0, behavior:'smooth' });
-  });
   document.querySelectorAll('.idea-bubble').forEach(b => b.addEventListener('click', e => {
-    if(e.target.closest('[data-ideadel]')) return;
+    if(e.target.closest('.idea-mini')) return;
     ideaVote(b.dataset.ideaid, b);
   }));
+  document.querySelectorAll('[data-ideainfo]').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); openIdeaInfo(x.dataset.ideainfo); }));
   document.querySelectorAll('[data-ideadel]').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); ideaRemove(x.dataset.ideadel); }));
+  document.querySelectorAll('[data-ideaedit]').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); openIdeaEdit(x.dataset.ideaedit); }));
 }
 
 async function ideaVote(id, bubble){
-  if(!getCmSession()){ ideasSetStatus('Log in to vote — tap “Log in” above.'); return; }
+  if(!ideaMe()){ ideasNeedName(); return; }
   const idea = state.ideas.find(i => i.id === id);
   if(!idea) return;
   // Optimistic: grow/shrink the bubble right away, then sync with the server.
   idea.voted = !idea.voted; idea.votes += idea.voted ? 1 : -1;
   bubble.classList.toggle('voted', idea.voted);
-  bubble.style.width = bubble.style.height = ideaSize(idea.votes, idea.title) + 'px';
+  bubble.style.width = bubble.style.height = ideaSize(idea.votes, idea.title, !!idea.date) + 'px';
   bubble.querySelector('.idea-votes').textContent = ideaVotesLabel(idea.votes) + (idea.voted ? ' ✓' : '');
   try {
     const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(state.ideasClubId) + '/ideas/' + encodeURIComponent(id) + '/vote', { method:'POST', headers: ideaHeaders() });
     state.ideas = data.ideas;
     setTimeout(() => { if(state.tab === 'clubideas') render(); }, 450);
   } catch(err){
-    ideasSetStatus(/not signed in/i.test(err.message) ? 'Please log in again to vote.' : err.message);
+    ideasSetStatus(err.message);
     state.ideas = null; ideasLoad();
   }
 }
 
-async function ideaRemove(id){
-  if(!confirm('Remove this idea?')) return;
+async function ideaRemove(id, afterClose){
+  if(!confirm('Remove this option?')) return;
   const asAdmin = state.cmAdminLoggedIn === true && !(state.ideas.find(i => i.id === id) || {}).mine;
   try {
     const url = asAdmin ? '/api/admin/club-ideas/' + encodeURIComponent(state.ideasClubId) + '/' + encodeURIComponent(id)
                         : '/api/clubs/' + encodeURIComponent(state.ideasClubId) + '/ideas/' + encodeURIComponent(id);
     const data = await cmApiRaw(url, { method:'DELETE', headers: ideaHeaders(), credentials:'include' });
-    state.ideas = data.ideas; state.ideasStatus = 'Idea removed.';
+    state.ideas = data.ideas; state.ideasStatus = 'Option removed.';
+    if(afterClose) afterClose();
     render();
   } catch(err){ ideasSetStatus(err.message); }
+}
+
+function ideaPopup(html){
+  const wrap = document.createElement('div');
+  wrap.className = 'mem-pop';
+  wrap.innerHTML = `<div class="mem-pop-card idea-pop-card"><button type="button" class="mem-pop-close" aria-label="Close">✕</button>${html}</div>`;
+  document.body.appendChild(wrap);
+  const close = () => wrap.remove();
+  wrap.addEventListener('click', e => { if(e.target === wrap || e.target.closest('.mem-pop-close')) close(); });
+  return { wrap, close };
+}
+
+function openIdeaInfo(id){
+  const idea = (state.ideas || []).find(i => i.id === id);
+  if(!idea) return;
+  const admin = state.cmAdminLoggedIn === true;
+  const map = safeMapUrl(idea.mapUrl);
+  const names = idea.voters || [];
+  const { wrap, close } = ideaPopup(`
+    ${idea.date ? `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(idea.date))}</p>` : ''}
+    <h3 style="margin:4px 0 8px;">${escapeCm(idea.title)}</h3>
+    ${map ? `<a class="club-guide-btn idea-pop-map" href="${escapeCm(map)}" target="_blank" rel="noopener">📍 Open in Google Maps</a>` : '<p class="av-msg">No map link yet.</p>'}
+    <p class="idea-pop-by">Added by <strong>${escapeCm(idea.by || 'someone')}</strong></p>
+    <p class="idea-pop-h">${ideaVotesLabel(idea.votes)}${names.length ? ' — who voted' : ''}</p>
+    <div class="idea-pop-names">${names.length ? names.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('') : '<span class="av-msg">No named votes yet.</span>'}</div>
+    ${admin ? `<div class="idea-pop-admin"><button type="button" class="club-guide-btn" id="ideaPopEdit">✎ Edit (admin)</button></div>` : ''}`);
+  const edit = wrap.querySelector('#ideaPopEdit');
+  if(edit) edit.addEventListener('click', () => { close(); openIdeaEdit(id); });
+}
+
+function openIdeaEdit(id){
+  const idea = (state.ideas || []).find(i => i.id === id);
+  if(!idea || state.cmAdminLoggedIn !== true) return;
+  const { wrap, close } = ideaPopup(`
+    <h3 style="margin:0 0 10px;">Edit option (admin)</h3>
+    <label class="idea-edit-l">Title<input id="ieTitle" type="text" maxlength="80" value="${escapeCm(idea.title)}"></label>
+    <label class="idea-edit-l">Google Maps link<input id="ieMap" type="url" value="${escapeCm(idea.mapUrl || '')}" placeholder="https://maps.app.goo.gl/…"></label>
+    <label class="idea-edit-l">Date (shown on top of the bubble)<input id="ieDate" type="date" value="${escapeCm(idea.date || '')}"></label>
+    <label class="idea-edit-l">Votes (total shown)<input id="ieVotes" type="number" min="0" max="9999" value="${idea.votes}"></label>
+    <p class="ideas-hint" style="text-align:left;">Named voters stay listed; changing the total adds or removes unnamed votes.</p>
+    <div class="idea-pop-admin">
+      <button type="button" class="club-guide-btn" id="ieSave">Save</button>
+      <button type="button" class="av-link" id="ieDelete" style="color:#c00;">Delete option</button>
+    </div>
+    <div class="ideas-status" id="ieStatus" style="color:#c00;"></div>`);
+  wrap.querySelector('#ieSave').addEventListener('click', async () => {
+    const st = wrap.querySelector('#ieStatus'); st.textContent = 'Saving…';
+    try {
+      const data = await cmApiRaw('/api/admin/club-ideas/' + encodeURIComponent(state.ideasClubId) + '/' + encodeURIComponent(id), {
+        method:'PUT', headers:{ 'Content-Type':'application/json' }, credentials:'include',
+        body: JSON.stringify({
+          title: wrap.querySelector('#ieTitle').value, mapUrl: wrap.querySelector('#ieMap').value,
+          date: wrap.querySelector('#ieDate').value, votes: Number(wrap.querySelector('#ieVotes').value)
+        })
+      });
+      state.ideas = (state.ideas || []).map(o => o.id === id ? Object.assign({}, o, (data.ideas.find(n => n.id === id) || {}), { voted:o.voted, mine:o.mine }) : o);
+      state.ideasStatus = 'Option updated.';
+      close(); state.ideas = null; render();
+    } catch(err){ st.textContent = err.message; }
+  });
+  wrap.querySelector('#ieDelete').addEventListener('click', () => ideaRemove(id, close));
 }
 
 function availShowStatus(){
@@ -5337,7 +5485,7 @@ function syncStateToHash(){
   // Full state still saved to localStorage (used to restore after a home-screen
   // app relaunch, which always opens with no hash at all — see note above).
   const params = new URLSearchParams();
-  params.set('tab', state.tab);
+  params.set('tab', state.tab === 'clubideas' ? 'clubs' : state.tab);
   params.set('cat', state.categoryFilter);
   params.set('view', state.view);
   params.set('time', state.timeFilter);
@@ -5349,6 +5497,7 @@ function syncStateToHash(){
   // The visible URL only shows the tab and, where meaningful, the one filter
   // most worth bookmarking/sharing — not the full query-string of every toggle.
   const slugParts = [TAB_SLUGS[state.tab] || state.tab];
+  if(state.tab === 'clubideas' && state.ideasClubId) slugParts.splice(0, 1, 'clubs', clubSlug(state.ideasClubId));
   if(state.tab === 'events' && state.categoryFilter !== 'all') slugParts.push(state.categoryFilter);
   if(state.tab === 'resources' && state.resourceFilter !== 'all') slugParts.push(state.resourceFilter);
   history.replaceState(null, '', location.pathname + location.search + '#/' + slugParts.join('/'));
@@ -5376,6 +5525,7 @@ function restoreStateFromHash(){
     // always opens in its calendar-grid view, never the list view.
     const [slug, sub] = hash.slice(2).split('/');
     state.tab = SLUG_TO_TAB[slug] || slug;
+    if(state.tab === 'clubs' && sub){ const cid = clubIdFromSlug(sub); if(cid){ state.tab = 'clubideas'; state.ideasClubId = cid; } }
     if(state.tab === 'events'){
       state.view = 'calendar';
       if(sub) state.categoryFilter = sub;
@@ -5510,8 +5660,6 @@ document.getElementById('categoryRow').addEventListener('click', e => {
 });
 
 document.getElementById('subFilterRow').addEventListener('click', e => {
-  const clubBtn = e.target.closest('[data-clubfilter]');
-  if(clubBtn){ state.clubFilter = clubBtn.dataset.clubfilter; state.page = 1; render(); }
 });
 
 document.getElementById('subFilterRow').addEventListener('click', e => {
@@ -5555,13 +5703,7 @@ document.body.addEventListener('click', e => {
   }
   const clubCard = e.target.closest('[data-club-id]');
   if(clubCard && !e.target.closest('a')){
-    if(clubCard.classList.contains('club-card') && state.tab === 'clubs'){ openClubIdeas(clubCard.dataset.clubId); return; }
-    state.tab = 'events';
-    state.categoryFilter = 'clubs';
-    state.clubFilter = clubCard.dataset.clubId;
-    state.view = 'list';
-    render();
-    window.scrollTo({top:0, behavior:'smooth'});
+    if(clubCard.classList.contains('club-card')) openClubIdeas(clubCard.dataset.clubId);
     return;
   }
   const trigger = e.target.closest('[data-id]');
@@ -5670,7 +5812,9 @@ document.getElementById('contextBackButton').addEventListener('click', () => {
 
 window.addEventListener('hashchange', () => {
   const match = location.hash.match(/^#\/event\/(.+)$/);
+  const clubMatch = location.hash.match(/^#\/clubs\/([^/]+)/);
   if(match) renderDetail(match[1]);
+  else if(clubMatch && clubIdFromSlug(clubMatch[1])) openClubIdeas(clubIdFromSlug(clubMatch[1]));
   else closeDetail();
 });
 

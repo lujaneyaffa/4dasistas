@@ -24,11 +24,13 @@
  *   GET    /api/clubs/:clubId/events                        - This club's admin-created events
  *   GET    /api/clubs/:clubId/events/:eventId/responses     - Every member's availability for one event + aggregate counts
  *   PUT    /api/clubs/:clubId/events/:eventId/responses/:userId - Save own availability for one event (Bearer session token required)
- *   GET    /api/clubs/:clubId/ideas                         - Event-idea board for a club: [{id,title,votes,voted,mine}] (public read; Bearer optional to fill voted/mine)
- *   POST   /api/clubs/:clubId/ideas                         - Suggest an idea ({title}); any signed-in member; creator auto-votes; max 3 per member, 40 per club
- *   POST   /api/clubs/:clubId/ideas/:ideaId/vote            - Toggle your vote on an idea (signed-in member)
- *   DELETE /api/clubs/:clubId/ideas/:ideaId                 - Remove your own idea (signed-in member)
- *   DELETE /api/admin/club-ideas/:clubId/:ideaId            - Admin removes any idea (session cookie)
+ *   GET    /api/clubs/:clubId/ideas                         - Event-idea board: [{id,title,mapUrl,date,votes,voters:[names],by,voted,mine}] (public; identity headers optional)
+ *   POST   /api/clubs/:clubId/ideas                         - Add an option ({title, mapUrl = Google Maps link, both required}). Acting identity = signed-in member (Bearer) OR a
+ *                                                                guest with just a name (X-Guest-Id + X-Guest-Name headers, no password). Creator auto-votes; max 3 per person, 40 per club
+ *   POST   /api/clubs/:clubId/ideas/:ideaId/vote            - Toggle your vote (member or guest)
+ *   DELETE /api/clubs/:clubId/ideas/:ideaId                 - Remove an option you added
+ *   PUT    /api/admin/club-ideas/:clubId/:ideaId            - Admin edits title / mapUrl / date (YYYY-MM-DD) / votes (sets the displayed total via an adjustment)
+ *   DELETE /api/admin/club-ideas/:clubId/:ideaId            - Admin removes any option (session cookie)
  *   GET    /api/members                                     - Signed-in members only (Bearer token): every profile as {id, name, hasPhoto, clubs:[clubId]} (no usernames/PINs)
  *   GET    /api/members/:id                                 - Signed-in members only: one profile {id, name, photo, clubs}
  *   GET    /api/clubs/:clubId/availability/:userId          - Own month-view availability ({days:{"YYYY-MM-DD":["morning"|"afternoon"|"night"]}}); Bearer token, private to that member
@@ -200,17 +202,52 @@ const verifyMemberToken = async (env, userId, token) => {
 const clubEventsKey = (clubId) => `clubevents:${clubId}`;
 const clubEventResponsesKey = (clubId, eventId) => `clubeventresponses:${clubId}:${eventId}`;
 
-// ---- Event-idea boards: one shared document per club, votes toggled per member ----
+// ---- Event-idea boards: one shared document per club. Anyone can join with just a name (no password);
+// a signed-in member uses their account name. Each option = title + Google Maps link (+ an admin-set date). ----
 const clubIdeasKey = (clubId) => `clubideas:${clubId}`;
 const IDEAS_MAX_PER_CLUB = 40;
-const IDEAS_MAX_PER_MEMBER = 3;
+const IDEAS_MAX_PER_PERSON = 3;
 const readClubIdeas = async (env, clubId) => {
   const raw = await env.SITE_DATA.get(clubIdeasKey(clubId));
   try { const d = raw ? JSON.parse(raw) : {}; return Array.isArray(d.ideas) ? d.ideas : []; } catch { return []; }
 };
 const writeClubIdeas = async (env, clubId, ideas) => env.SITE_DATA.put(clubIdeasKey(clubId), JSON.stringify({ ideas }));
-const publicIdea = (idea, me) => ({ id: idea.id, title: idea.title, votes: idea.votes.length, voted: !!me && idea.votes.includes(me), mine: !!me && idea.by === me });
+const sanitizePersonName = (input) => String(input || "").replace(/[\x00-\x1f\x7f<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 30);
+const isGoogleMapsUrl = (input) => {
+  try {
+    const u = new URL(String(input || "").trim());
+    if (u.protocol !== "https:") return null;
+    const h = u.hostname.toLowerCase();
+    const ok = h === "maps.app.goo.gl" || h === "maps.google.com" || (h === "goo.gl" && u.pathname.startsWith("/maps")) ||
+      (h === "g.co" && u.pathname.startsWith("/kgs")) ||
+      ((h === "google.com" || h.endsWith(".google.com") || /^(www\.)?google\.[a-z]{2,3}(\.[a-z]{2})?$/.test(h)) && u.pathname.startsWith("/maps"));
+    return ok && u.href.length <= 500 ? u.href : null;
+  } catch { return null; }
+};
+const ideaPeople = (idea) => ({
+  by: idea.by && typeof idea.by === "object" ? idea.by : { id: String(idea.by || ""), name: "Member" },
+  voters: (Array.isArray(idea.votes) ? idea.votes : []).map((v) => (typeof v === "object" ? v : { id: String(v), name: "Member" })),
+});
+const publicIdea = (idea, me) => {
+  const { by, voters } = ideaPeople(idea);
+  return {
+    id: idea.id, title: idea.title, mapUrl: idea.mapUrl || "", date: idea.date || "",
+    votes: Math.max(0, voters.length + (idea.adjust || 0)), adjust: idea.adjust || 0,
+    voters: voters.map((v) => v.name), by: by.name,
+    voted: !!me && voters.some((v) => v.id === me.id), mine: !!me && by.id === me.id,
+  };
+};
 const sortedPublicIdeas = (ideas, me) => ideas.map((i) => publicIdea(i, me)).sort((a, b) => b.votes - a.votes || a.title.localeCompare(b.title));
+// Best-effort per-IP throttle for idea writes (in-memory, so it costs no KV writes).
+const ideaRate = new Map();
+const ideaRateOk = (ip) => {
+  const now = Date.now();
+  if (ideaRate.size > 5000) ideaRate.clear();
+  const e = ideaRate.get(ip);
+  if (!e || now > e.reset) { ideaRate.set(ip, { n: 1, reset: now + 60000 }); return true; }
+  e.n += 1;
+  return e.n <= 40;
+};
 
 // ---- Month-view availability: one private document per member per club ----
 const AVAILABILITY_PARTS = ["morning", "afternoon", "night"];
@@ -412,8 +449,8 @@ export default {
 
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS, DELETE",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, OPTIONS, DELETE",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Guest-Id, X-Guest-Name",
     };
 
     if (request.method === "OPTIONS") {
@@ -588,65 +625,89 @@ export default {
     const ideasListMatch = path.match(/^\/api\/clubs\/([^/]+)\/ideas\/?$/);
     const ideaVoteMatch = path.match(/^\/api\/clubs\/([^/]+)\/ideas\/([^/]+)\/vote\/?$/);
     const ideaOneMatch = path.match(/^\/api\/clubs\/([^/]+)\/ideas\/([^/]+)\/?$/);
-    const ideaMe = async () => {
+    // Who is acting? A signed-in member (Bearer token) or a guest who only gave a name (X-Guest-Id / X-Guest-Name).
+    const ideaWho = async () => {
       const authHeader = request.headers.get("Authorization") || "";
       const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
-      if (!token) return null;
-      const raw = await env.SITE_DATA.get(`membersession:${token}`);
-      if (!raw) return null;
-      try { return JSON.parse(raw).userId || null; } catch { return null; }
+      if (token) {
+        const raw = await env.SITE_DATA.get(`membersession:${token}`);
+        let userId = null;
+        try { userId = raw ? JSON.parse(raw).userId : null; } catch { userId = null; }
+        const user = userId ? await readUser(env, userId) : null;
+        if (user) return { id: `m:${user.id}`, name: sanitizePersonName(user.name) || "Member" };
+      }
+      const gid = request.headers.get("X-Guest-Id") || "";
+      let gname = "";
+      try { gname = sanitizePersonName(decodeURIComponent(request.headers.get("X-Guest-Name") || "")); } catch { gname = ""; }
+      if (/^[A-Za-z0-9_-]{16,64}$/.test(gid) && gname.length >= 2) return { id: `g:${gid}`, name: gname };
+      return null;
     };
     const ideaClub = (m) => { const id = decodeURIComponent(m[1]); return SIGNUP_CLUB_IDS.has(id) ? id : null; };
+    const refreshName = (ideas, who) => {
+      for (const i of ideas) {
+        if (i.by && typeof i.by === "object" && i.by.id === who.id) i.by.name = who.name;
+        if (Array.isArray(i.votes)) for (const v of i.votes) if (v && typeof v === "object" && v.id === who.id) v.name = who.name;
+      }
+    };
+    const ideaIp = request.headers.get("CF-Connecting-IP") || "unknown";
 
     if (ideasListMatch && request.method === "GET") {
       const clubId = ideaClub(ideasListMatch);
       if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
-      return jsonResponse({ ideas: sortedPublicIdeas(await readClubIdeas(env, clubId), await ideaMe()) }, 200, corsHeaders);
+      return jsonResponse({ ideas: sortedPublicIdeas(await readClubIdeas(env, clubId), await ideaWho()) }, 200, corsHeaders);
     }
     if (ideasListMatch && request.method === "POST") {
       const clubId = ideaClub(ideasListMatch);
       if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
-      const me = await ideaMe();
-      if (!me) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      const who = await ideaWho();
+      if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
+      if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
       let body;
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
-      const title = String(body.title || "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim();
-      if (title.length < 3 || title.length > 80) return jsonResponse({ error: "Ideas need 3–80 characters" }, 400, corsHeaders);
+      const title = String(body.title || "").replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim();
+      if (title.length < 3 || title.length > 80) return jsonResponse({ error: "The title needs 3–80 characters" }, 400, corsHeaders);
+      const mapUrl = isGoogleMapsUrl(body.mapUrl);
+      if (!mapUrl) return jsonResponse({ error: "Please paste a Google Maps link (from Google Maps → Share → Copy link)" }, 400, corsHeaders);
       const ideas = await readClubIdeas(env, clubId);
-      if (ideas.length >= IDEAS_MAX_PER_CLUB) return jsonResponse({ error: "This board is full — vote on an existing idea instead" }, 400, corsHeaders);
-      if (ideas.filter((i) => i.by === me).length >= IDEAS_MAX_PER_MEMBER) return jsonResponse({ error: `You already have ${IDEAS_MAX_PER_MEMBER} ideas here — remove one to add another` }, 400, corsHeaders);
+      if (ideas.length >= IDEAS_MAX_PER_CLUB) return jsonResponse({ error: "This board is full — vote on an existing option instead" }, 400, corsHeaders);
+      if (ideas.filter((i) => ideaPeople(i).by.id === who.id).length >= IDEAS_MAX_PER_PERSON) return jsonResponse({ error: `You already added ${IDEAS_MAX_PER_PERSON} options here — remove one to add another` }, 400, corsHeaders);
       if (ideas.some((i) => i.title.toLowerCase() === title.toLowerCase())) return jsonResponse({ error: "Someone already suggested that — go vote for it!" }, 409, corsHeaders);
-      ideas.push({ id: crypto.randomUUID(), title, by: me, at: Date.now(), votes: [me] });
+      refreshName(ideas, who);
+      ideas.push({ id: crypto.randomUUID(), title, mapUrl, date: "", by: who, at: Date.now(), votes: [who], adjust: 0 });
       await writeClubIdeas(env, clubId, ideas);
-      return jsonResponse({ ideas: sortedPublicIdeas(ideas, me) }, 201, corsHeaders);
+      return jsonResponse({ ideas: sortedPublicIdeas(ideas, who) }, 201, corsHeaders);
     }
     if (ideaVoteMatch && request.method === "POST") {
       const clubId = ideaClub(ideaVoteMatch);
       if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
-      const me = await ideaMe();
-      if (!me) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      const who = await ideaWho();
+      if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
+      if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
       const ideaId = decodeURIComponent(ideaVoteMatch[2]);
       const ideas = await readClubIdeas(env, clubId);
       const idea = ideas.find((i) => i.id === ideaId);
-      if (!idea) return jsonResponse({ error: "That idea was removed" }, 404, corsHeaders);
-      idea.votes = idea.votes.includes(me) ? idea.votes.filter((v) => v !== me) : [...idea.votes, me];
+      if (!idea) return jsonResponse({ error: "That option was removed" }, 404, corsHeaders);
+      refreshName(ideas, who);
+      const voters = ideaPeople(idea).voters;
+      idea.votes = voters.some((v) => v.id === who.id) ? voters.filter((v) => v.id !== who.id) : [...voters, who];
       await writeClubIdeas(env, clubId, ideas);
-      return jsonResponse({ ideas: sortedPublicIdeas(ideas, me) }, 200, corsHeaders);
+      return jsonResponse({ ideas: sortedPublicIdeas(ideas, who) }, 200, corsHeaders);
     }
     if (ideaOneMatch && request.method === "DELETE") {
       const clubId = ideaClub(ideaOneMatch);
       if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
-      const me = await ideaMe();
-      if (!me) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      const who = await ideaWho();
+      if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
       const ideaId = decodeURIComponent(ideaOneMatch[2]);
       const ideas = await readClubIdeas(env, clubId);
       const idea = ideas.find((i) => i.id === ideaId);
-      if (!idea) return jsonResponse({ error: "That idea was already removed" }, 404, corsHeaders);
-      if (idea.by !== me) return jsonResponse({ error: "You can only remove your own ideas" }, 403, corsHeaders);
+      if (!idea) return jsonResponse({ error: "That option was already removed" }, 404, corsHeaders);
+      if (ideaPeople(idea).by.id !== who.id) return jsonResponse({ error: "You can only remove options you added" }, 403, corsHeaders);
       const rest = ideas.filter((i) => i.id !== ideaId);
       await writeClubIdeas(env, clubId, rest);
-      return jsonResponse({ ideas: sortedPublicIdeas(rest, me) }, 200, corsHeaders);
+      return jsonResponse({ ideas: sortedPublicIdeas(rest, who) }, 200, corsHeaders);
     }
+
     // ---- Signed-in members can browse every profile (names + clubs; never usernames or PINs) ----
     const memberIdFromRequest = async () => {
       const authHeader = request.headers.get("Authorization") || "";
@@ -882,16 +943,42 @@ export default {
     }
 
     const adminIdeaMatch = path.match(/^\/api\/admin\/club-ideas\/([^/]+)\/([^/]+)\/?$/);
-    if (adminIdeaMatch && request.method === "DELETE") {
+    if (adminIdeaMatch && (request.method === "DELETE" || request.method === "PUT")) {
       const clubId = decodeURIComponent(adminIdeaMatch[1]);
       const ideaId = decodeURIComponent(adminIdeaMatch[2]);
       const ideas = await readClubIdeas(env, clubId);
-      if (!ideas.some((i) => i.id === ideaId)) return jsonResponse({ error: "Idea not found" }, 404, corsHeaders);
-      const rest = ideas.filter((i) => i.id !== ideaId);
-      await writeClubIdeas(env, clubId, rest);
-      return jsonResponse({ ideas: sortedPublicIdeas(rest, null) }, 200, corsHeaders);
+      const idea = ideas.find((i) => i.id === ideaId);
+      if (!idea) return jsonResponse({ error: "Option not found" }, 404, corsHeaders);
+      if (request.method === "DELETE") {
+        const rest = ideas.filter((i) => i.id !== ideaId);
+        await writeClubIdeas(env, clubId, rest);
+        return jsonResponse({ ideas: sortedPublicIdeas(rest, null) }, 200, corsHeaders);
+      }
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      if (body.title !== undefined) {
+        const title = String(body.title || "").replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim();
+        if (title.length < 3 || title.length > 80) return jsonResponse({ error: "The title needs 3–80 characters" }, 400, corsHeaders);
+        idea.title = title;
+      }
+      if (body.mapUrl !== undefined) {
+        const mapUrl = String(body.mapUrl || "").trim() === "" ? "" : isGoogleMapsUrl(body.mapUrl);
+        if (mapUrl === null) return jsonResponse({ error: "That isn't a Google Maps link" }, 400, corsHeaders);
+        idea.mapUrl = mapUrl;
+      }
+      if (body.date !== undefined) {
+        const date = String(body.date || "").trim();
+        if (date && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date + "T00:00:00Z")))) return jsonResponse({ error: "Date must look like 2026-10-03" }, 400, corsHeaders);
+        idea.date = date;
+      }
+      if (body.votes !== undefined) {
+        const want = Number(body.votes);
+        if (!Number.isInteger(want) || want < 0 || want > 9999) return jsonResponse({ error: "Votes must be a whole number from 0 to 9999" }, 400, corsHeaders);
+        idea.adjust = want - ideaPeople(idea).voters.length;
+      }
+      await writeClubIdeas(env, clubId, ideas);
+      return jsonResponse({ ideas: sortedPublicIdeas(ideas, null) }, 200, corsHeaders);
     }
-
 
     const adminClubMembersCreateMatch = path.match(/^\/api\/admin\/club-members\/([^/]+)\/?$/);
     if (adminClubMembersCreateMatch && request.method === "POST") {
