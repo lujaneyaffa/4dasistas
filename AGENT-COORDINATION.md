@@ -79,6 +79,12 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
+**Last updated:** 2026-09-18 (Add to Home Screen tile above footer; details disclaimer Calendar-only)
+
+**2026-09-18 (Add to Home Screen tile above footer; details disclaimer Calendar-only) — Claude (chat) — `index.html`** — (1) The "Add this to your Home Screen" tile moved out of the Home tab body into a new `#homescreenSlot` placed directly above `<footer>` (after `#pageCtaSlot`); `renderHomescreenSlot()` fills it on the Home tab only and clears it elsewhere, click still goes to the `homescreen` tab. Removed the old in-body tile and the unused `homescreenTile` const. (2) The "Details change often…confirm with the organizer" `#pageDisclaimer` now shows only on the Calendar tab (`state.tab === 'events'`); it was previously shown on Home, Travel and others. Tested locally across all tabs: disclaimer visible only on Calendar, tile only on Home, tile is the element immediately before the footer (20px gap), click opens the homescreen page.
+
+**Status:** IDLE
+**Last updated by:** Claude (chat)
 **Last updated:** 2026-09-18 (Clubs tab: Sign up / Log in; Home Travel+About big square buttons)
 
 **2026-09-18 (Clubs tab: Sign up / Log in; Home Travel+About big square buttons) — Claude (chat) — `index.html`** — (1) Clubs tab top row is now just two tiles: **SIGN UP** (the old JOIN A CLUB tile — opens the `fallsignup` form, which posts to Formspree) and **LOG IN**. Replaced the previous MY AVAILABILITY / SUGGEST AN ACTIVITY tiles. Signed out, LOG IN opens the username+PIN form. A successful login (`cmGeneralLogin`) no longer jumps straight into the club; it opens a small member menu with **📅 Fill in my availability** (opens their club, or a club picker if they have several) and **💡 Suggest an activity** (Instagram DM via `IG_DM_URL`). Once signed in the tile reads MY CLUBS / Signed in as NAME and toggles the same menu; a member with no clubs sees a note plus only the Suggest link. (2) Home tab: the Travel and About quick-links are now 150px square buttons with larger text and no arrows. Tested locally with a mocked login (tiles, form, menu, picker, DM link) and cleared the fake session afterward.
@@ -504,6 +510,7 @@ npx wrangler deploy
 
 _(most recent first — add new entries to the top, trim past ~15)_
 
+- 2026-09-18 — Claude (chat) — `index.html` — Add to Home Screen tile now sits right above the footer (Home only); details-change disclaimer shows only on the Calendar tab.
 - 2026-09-18 — Claude (chat) — `index.html` — Clubs tab: SIGN UP / LOG IN tiles, login opens menu with Fill in availability + Suggest an activity; Home Travel/About buttons are big squares without arrows.
 - 2026-09-18 — Claude (chat) — `index.html` — Inter font site-wide; flat (non-pill) nav tabs on the pink bar; Support Groups moved entirely into Directory > Mental Health.
 - 2026-09-18 — Claude (chat) — `index.html` — Clubs tab: Log In tile became MY AVAILABILITY; added SUGGEST AN ACTIVITY tile (Instagram DM).
