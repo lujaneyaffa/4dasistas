@@ -541,6 +541,7 @@
   .av-clear{ background:none; border:none; padding:10px 0; font-family:'Inter',sans-serif; font-size:13px; text-decoration:underline; cursor:pointer; color:var(--charcoal); }
   .av-done{ border:none; background:var(--charcoal); color:var(--cream); border-radius:999px; min-height:46px; padding:0 30px; font-family:'Inter',sans-serif; font-size:16px; font-weight:700; cursor:pointer; }
   .clubs-top-actions{ display:flex; align-items:stretch; justify-content:center; gap:10px; margin-bottom:14px; }
+  .clubs-top-actions .fall-cta-btn.join-club-btn{ flex:0 0 auto; width:min(100%,340px); aspect-ratio:auto; height:auto; padding:13px 20px; font-size:15px; font-weight:700; letter-spacing:0.04em; }
   .clubs-top-actions .club-guide-btn, .clubs-top-actions .fall-cta-btn{ flex:0 0 110px; width:110px; aspect-ratio:1; margin-bottom:0; text-align:center; padding:8px; font-size:13px; display:flex; align-items:center; justify-content:center; }
   .fall-signup{ max-width:640px; margin:0 auto; }
   .fall-hero{ text-align:center; margin:18px 0 24px; }
@@ -2389,8 +2390,7 @@ function renderDirectory(){
   } else if(state.tab === 'clubs'){
     document.getElementById('resourcePagination').innerHTML = '';
 el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions">
-    <button class="fall-cta-btn" data-hometab="fallsignup">SIGN UP</button>
-    <button type="button" class="club-guide-btn" id="clubsLoginOpenBtn">LOG IN</button>
+    <button class="fall-cta-btn join-club-btn" data-hometab="fallsignup">JOIN A CLUB!</button>
     </div>`}
     ${(state.clubsLoginPickerOpen || getCmSession()) ? `
     <div class="rules-content" style="max-width:${getCmSession() && !state.clubsMyClubsPickerOpen ? '760px' : '420px'};margin:0 auto 18px;">
