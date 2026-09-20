@@ -333,6 +333,7 @@
 
   .home-quicklinks{ display:flex; justify-content:center; flex-wrap:wrap; gap:12px; margin:20px 0 4px; }
   body.on-home main{ padding-bottom:0; }
+  body.on-events main{ padding-bottom:14px; }
   body.on-home #resourcePagination{ display:none; }
   body.on-home .list-and-pagination{ gap:0; }
   .home-quicklinks .club-guide-btn{ flex:0 0 150px; width:150px; aspect-ratio:1; padding:10px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:18px; }
@@ -1058,9 +1059,9 @@ applySiteText();
 
   allResourceItems = [...resourcesData, ...supportProgramsData];
   ALL_ITEMS = [...sportsData, ...gatheringsData, ...dayActivitiesData, ...tripsData, ...clubsData, ...resourcesData, ...supportProgramsData, ...mosqueGatheringsData];
-  // The main calendar is limited to sports, activities, and functions.
-  // Trips, clubs, and mosque programs have their own dedicated calendars.
-  EVENT_ITEMS = mixEvents(sportsData, gatheringsData, dayActivitiesData, [], []);
+  // The main calendar shows sports, activities, functions and Knowledge (mosque programs).
+  // Trips and clubs have their own dedicated calendars.
+  EVENT_ITEMS = mixEvents(sportsData, gatheringsData, dayActivitiesData, [], mosqueGatheringsData);
 }
 
 function mixEvents(sports, gatherings, dayActs, trips, mosqueGatherings){
@@ -1869,8 +1870,6 @@ function renderCalendar(){
   if(typeMultiActive()){
     const names = state.typeSel.map(k => TYPE_MULTI_NAMES[k] || k).join(' · ');
     html += `<p class="calendar-scope-note">Showing ${names} in this calendar.</p>`;
-  } else if(state.categoryFilter === 'all'){
-    html += `<p class="calendar-scope-note">Trips, Clubs, and Knowledge are not included here. Check their respective tabs for their calendars.</p>`;
   }
 
   document.getElementById('calendar-view').innerHTML = html;
@@ -2382,7 +2381,8 @@ function renderDirectory(){
     document.getElementById('resourcePagination').innerHTML = '';
     const typeMatched = state.tripType === 'all' ? tripsData : tripsData.filter(item => tripTypeForItem(item) === state.tripType);
     const travelItems = state.tripShowPast ? typeMatched.filter(isPastItem) : typeMatched.filter(item => !isPastItem(item));
-    el.innerHTML = `<div class="travel-earth-layout">
+    el.innerHTML = `<button class="back-btn" type="button" data-hometab="home" id="travelBackBtn">← Back to Home</button>
+    <div class="travel-earth-layout">
       <div class="travel-trip-list">
         <h4>Trips on the globe</h4>
         <button class="travel-past-toggle" id="travelPastToggle" type="button">${state.tripShowPast ? '← View Upcoming' : 'View Past →'}</button>
@@ -5487,6 +5487,7 @@ async function checkAdminSession(){
 
 function render(){
   document.body.classList.toggle('on-home', state.tab === 'home');
+  document.body.classList.toggle('on-events', state.tab === 'events');
   if(state.tab !== 'clubs' && state.availEditing){ state.availEditing = false; state.availEditDate = null; }
   if(state.tab !== 'clubs') document.body.classList.remove('av-editing');
   renderFooterLogout();
