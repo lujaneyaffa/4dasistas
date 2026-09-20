@@ -386,7 +386,21 @@
       "registration": "Women 18+",
       "tag": "Fitness",
       "id": "meadowvale-sisters-fitness-2026",
-      "section": "sports"
+      "section": "sports",
+      "audienceType": [],
+      "emoji": "",
+      "organizedBy": "",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "recurStart": "2026-09-14",
+      "recurEnd": "2026-12-28",
+      "extraDates": [],
+      "virtual": false,
+      "link": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": []
     },
     {
       "id": "mg-hia-sistersonthecourt",
