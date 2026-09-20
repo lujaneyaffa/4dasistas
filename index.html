@@ -1641,6 +1641,40 @@ function buildDateMap(items, year, month){
 }
 
 
+/* Trips in the same country often share (or nearly share) coordinates, which stacked their pillars
+   on the globe. Nudge any pins closer than TRIP_PIN_MIN_SEP degrees apart until none touch, so each
+   trip gets its own spot in roughly the same area. Only the pin position moves — never the data. */
+const TRIP_PIN_MIN_SEP = 2.6;
+function spreadTripPoints(points){
+  const pts = points.map(p => ({ ...p }));
+  const cosLat = p => Math.max(0.2, Math.cos(p.lat * Math.PI / 180));
+  for(let iter = 0; iter < 80; iter++){
+    let moved = false;
+    for(let i = 0; i < pts.length; i++){
+      for(let j = i + 1; j < pts.length; j++){
+        const a = pts[i], b = pts[j];
+        const c = cosLat(a);
+        let dx = (b.lng - a.lng) * c, dy = b.lat - a.lat;
+        let d = Math.hypot(dx, dy);
+        if(d >= TRIP_PIN_MIN_SEP) continue;
+        if(d < 0.01){
+          // exact duplicates: split along a fixed, repeatable direction
+          const ang = (i * 2.4 + j * 1.1) % (2 * Math.PI);
+          dx = Math.cos(ang) * 0.01; dy = Math.sin(ang) * 0.01; d = 0.01;
+        }
+        const push = (TRIP_PIN_MIN_SEP - d) / 2 + 0.02;
+        const ux = dx / d, uy = dy / d;
+        a.lng -= (ux * push) / c; a.lat -= uy * push;
+        b.lng += (ux * push) / c; b.lat += uy * push;
+        moved = true;
+      }
+    }
+    if(!moved) break;
+  }
+  pts.forEach(p => { p.lat = Math.max(-85, Math.min(85, p.lat)); });
+  return pts;
+}
+
 function renderTripEarthView(targetId='calendar-view', mapId='tripEarthMap', selectedItems=itemsForCategory('trips'), replaceTarget=true){
   const el = document.getElementById(targetId);
   if(replaceTarget) el.innerHTML = `<div id="${mapId}" class="calendar-map">
@@ -1654,7 +1688,7 @@ function renderTripEarthView(targetId='calendar-view', mapId='tripEarthMap', sel
   </div>`;
 
   const items = selectedItems;
-  const points = items
+  const points = spreadTripPoints(items
     .filter(item => typeof item.lat === 'number' && typeof item.lng === 'number')
     .map((item, index) => ({
       id: item.id,
@@ -1664,7 +1698,7 @@ function renderTripEarthView(targetId='calendar-view', mapId='tripEarthMap', sel
       title: item.title,
       location: item.location || '',
       date: item.date || ''
-    }));
+    })));
   const globe = Globe()(document.getElementById(mapId))
     .backgroundColor('#e5f4fb')
     .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
@@ -1677,12 +1711,12 @@ function renderTripEarthView(targetId='calendar-view', mapId='tripEarthMap', sel
     .pointLng('lng')
     .pointColor(point => point.color)
     .pointAltitude(0.16)
-    .pointRadius(1.5)
+    .pointRadius(1.0)
     .ringsData(points)
     .ringLat('lat')
     .ringLng('lng')
     .ringColor(point => point.color)
-    .ringMaxRadius(6)
+    .ringMaxRadius(3)
     .ringPropagationSpeed(2)
     .ringRepeatPeriod(700)
     .pointLabel(point => `<strong>${emojiTitle(point)}</strong><br>${point.location}<br>${point.date}`)

@@ -79,7 +79,9 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
-**Last updated:** 2026-09-20 (Knowledge back on the main calendar; note under calendar removed; gap above Subscribe closed; Travel back button)
+**Last updated:** 2026-09-20 (Travel globe: trips in the same country no longer overlap)
+
+**2026-09-20 (Travel globe: trips in the same country no longer overlap) — Claude (chat) — `index.html`** — Lujane: two trips in the same country must never overlap on the globe; place them in different spots in the same country. **Cause:** pins are drawn at each trip's `lat/lng`, and several trips share (or nearly share) coordinates — both Jordan trips, both Granada trips, both Macedonia/Kosovo trips, and three Morocco trips (0.6–1° apart). **Fix:** new `spreadTripPoints()` (with `TRIP_PIN_MIN_SEP = 2.6°`) runs in `renderTripEarthView` on a copy of the points and iteratively pushes any pins closer than that apart (longitude scaled by cos(lat)); exact duplicates split in a fixed repeatable direction. The trip data is never modified, only where the pin is drawn, so it applies to every future trip too. Pin radius 1.5→1.0 and pulse ring max 6→3 so the pins/rings themselves don't touch. Checked: all 19 mapped trips now ≥2.6° apart, biggest shift 1.6°; 6 identical points also separate. Not verified: that shifted pins stay inside each country's borders (a ~1.3° nudge can cross a border in small countries like Jordan). Note: `barbados-treat` has no lat/lng so it isn't on the globe at all.
 
 **2026-09-20 (Knowledge back on the main calendar; note under calendar removed; gap above Subscribe closed; Travel back button) — Claude (chat) — `index.html`** — Lujane: bring Knowledge back to the home calendar, remove the disclaimer under the calendar, remove the odd gap between it and the Subscribe button, and add a back button on Travel. **Knowledge:** `EVENT_ITEMS = mixEvents(sports, gatherings, dayActivities, [], mosqueGatheringsData)` (it had been passed `[]`), so the 24 mosque-program events show on the main calendar/list again; Trips still have their own calendar. **Note:** removed the "Trips, Clubs, and Knowledge are not included here…" scope line under the calendar (`calendar-scope-note`, the `categoryFilter==='all'` branch). The separate "Details change often…" `#pageDisclaimer` sits *below* the Subscribe button and was left alone — say if that one should go too. **Gap:** `main` had 80px bottom padding; new `body.on-events main{padding-bottom:14px}` with `on-events` toggled in `render()` — calendar-to-Subscribe gap 84px → 18px. **Travel:** added `← Back to Home` (`#travelBackBtn`, `data-hometab="home"`) at the top of the Travel page; shows however you reach it. About has no back button (not asked). Tested locally at 375px.
 
@@ -586,6 +588,7 @@ npx wrangler deploy
 
 _(most recent first — add new entries to the top, trim past ~15)_
 
+- 2026-09-20 — Claude (chat) — `index.html` — Travel globe: trips sharing a country/coordinates are spread so pins never overlap (render-time only, data untouched).
 - 2026-09-20 — Claude (chat) — `index.html` — Knowledge events back on the main calendar; removed the "not included here" note under it; closed the gap above Subscribe; Travel page now has a Back to Home button.
 - 2026-09-20 — Claude (chat) — `index.html`, `workers/src/worker.js` — Fixed emoji-id events not opening (encoded URL hash); new-event form: no description, required date + location, search-only Canada-restricted location (any country for Trips); date/time rows hardened for phones.
 - 2026-09-19 — Claude (chat) — `index.html` — Admin event form: "Add another event" after creating (no more X and restart); fixed mobile footer-button overlap and form sideways overflow.
