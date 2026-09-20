@@ -165,6 +165,33 @@
     },
     {
       "section": "functions",
+      "title": "Chai & Chill",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "utmmsa",
+      "eventDate": "2026-09-24",
+      "endDate": "",
+      "time": "15:00",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "1800 Middle Rd, Mississauga, ON L5L 1J7, Canada",
+      "link": "https://www.instagram.com/p/DdhLen6oM05/?stkn=M2FhbGplcGtpaDNm",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "chai-chill",
+      "tag": "Chai & Chill"
+    },
+    {
+      "section": "functions",
       "eventDate": "2026-08-22",
       "endTime": "14:00",
       "virtual": false,
