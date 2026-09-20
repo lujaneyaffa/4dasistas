@@ -419,8 +419,23 @@ const torontoDate = () => new Intl.DateTimeFormat("en-CA", {
 const weekdayForDate = (dateString) => new Date(`${dateString}T00:00:00Z`).getUTCDay();
 const weekdayNumbers = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
 
+// Monthly repeats: Nth (or last) weekday of the month, or a fixed day of the month.
+const monthlyRuleMatches = (item, dateString) => {
+  if (item.recurFrequency !== "monthly") return false;
+  const start = item.recurStart || item.calDate || item.eventDate || "";
+  if (start && dateString < start) return false;
+  if (item.recurEnd && dateString > item.recurEnd) return false;
+  const [y, m, d] = dateString.split("-").map(Number);
+  if (item.monthlyType === "date") return d === Math.floor(Number(item.monthlyDate));
+  const wd = weekdayNumbers[String(item.monthlyDay || "").toLowerCase()];
+  if (wd === undefined || weekdayForDate(dateString) !== wd) return false;
+  if (item.monthlyWeek === "last") return d + 7 > new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return Math.ceil(d / 7) === Number(item.monthlyWeek);
+};
+
 const eventIsOnDate = (item, dateString) => {
   if (item.calDate === dateString || item.eventDate === dateString) return true;
+  if (monthlyRuleMatches(item, dateString)) return true;
   if (!Array.isArray(item.days) || !item.days.length) return false;
   if (item.recurStart && dateString < item.recurStart) return false;
   if (item.recurEnd && dateString > item.recurEnd) return false;

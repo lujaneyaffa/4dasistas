@@ -79,7 +79,9 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
-**Last updated:** 2026-09-20 (Audience option "Muslim Youth" added)
+**Last updated:** 2026-09-20 (Monthly repeat option for events)
+
+**2026-09-20 (Monthly repeat option for events) — Claude (chat) — `index.html`, `workers/src/worker.js`, `scripts/generate_calendar.py`** — Lujane: events can repeat monthly, not just weekly. **Data model (all optional, on the source `data/calendar/*.json`):** `recurFrequency:"monthly"` + either `monthlyType:"weekday"` with `monthlyWeek` (`"1"`–`"4"` or `"last"`) and `monthlyDay` (`sun`…`sat`), e.g. 2nd Saturday; or `monthlyType:"date"` with `monthlyDate` (1–31; months without that day are skipped, same as iCal). Weekly is unchanged (`days`); monthly items keep `days` empty. `recurStart`/`recurEnd` bound either kind; the event's own date (`eventDate`/`calDate`) is always shown and is the default start. **Places updated:** (1) site calendar — `occurrencesInMonth` + new `monthlyDatesInMonth`/`monthlyRuleLabel`, and the displayed date becomes e.g. "Every 2nd Saturday of the month"; (2) `worker.js` `eventIsOnDate` (via `monthlyRuleMatches`) so "today's events" includes monthly ones; (3) `generate_calendar.py` emits `RRULE:FREQ=MONTHLY;BYDAY=2SA` / `BYDAY=-1FR` / `BYMONTHDAY=15` (+ `UNTIL` from `recurEnd`); the in-page custom ICS export does the same; (4) admin form: new **Repeats** dropdown (Doesn't repeat / Weekly / Monthly) with the weekday checkboxes under Weekly, the monthly rule builder under Monthly (with a live preview line), and "Repeat starts/ends" (renamed from Recurring). Existing weekly events open as Weekly. Validation: monthly-by-date needs 1–31. `eventHasDate()` counts monthly as having a date. Tested: worker + ICS output with sample rules (2nd Sat, last Fri, 15th, UNTIL), site calendar for Sep/Oct/Nov, form show/hide + preview + collected payload at 375px, no overlap. **Not done:** `admin/config.yml` (Decap) has no monthly fields — Decap is broken anyway, in-site editor is the way. No real monthly event has been saved yet.
 
 **2026-09-20 (Audience option "Muslim Youth" added) — Claude (chat) — `index.html`, `admin/config.yml`** — Lujane: add "Muslim Youth" to the audience options; audience stays optional. Added to `EVENT_EDIT_AUDIENCE` (in-site admin form) and to all six `audienceType` option lists in `admin/config.yml` (YAML validated). Detail pages already render whatever audience values an event has as pills, so nothing else changed. Checked locally that the checkbox appears and is collected on save.
 
@@ -596,6 +598,7 @@ npx wrangler deploy
 
 _(most recent first — add new entries to the top, trim past ~15)_
 
+- 2026-09-20 — Claude (chat) — `index.html`, `workers/src/worker.js`, `scripts/generate_calendar.py` — Events can repeat monthly (Nth weekday or fixed date) via a new Repeats dropdown; calendar, today feed and .ics support it.
 - 2026-09-20 — Claude (chat) — `index.html`, `admin/config.yml` — Added "Muslim Youth" as an audience option (still optional).
 - 2026-09-20 — Claude (chat) — `index.html` — "Needs details" queue now flags only missing date/location (145 → 17 events); description and audience type no longer count.
 - 2026-09-20 — Claude (chat) — `index.html` — Home Travel/About buttons now nav-bar colour and 108px squares (were 150px, blush/blue).

@@ -1045,7 +1045,10 @@ applySiteText();
           const ed = new Date(item.endDate + 'T00:00:00');
           item.date += ` – ${monthNames[ed.getMonth()]} ${ed.getDate()}, ${ed.getFullYear()}`;
         }
-      } else if(!item.date && item.days && item.days.length){
+      }
+      if(isMonthlyItem(item)){
+        item.date = monthlyRuleLabel(item);
+      } else if(!item.eventDate && !item.date && item.days && item.days.length){
         const dayLabels = item.days.map(d => dayLabelsShort[dayOrder.indexOf(d)]).join(', ');
         item.date = `Every ${dayLabels}`;
       }
@@ -1597,6 +1600,42 @@ function extraDatesInMonth(item, year, month){
     });
 }
 
+/* Monthly repeats. An event with recurFrequency:'monthly' repeats either on the Nth weekday of each
+   month (monthlyType:'weekday' + monthlyWeek '1'..'4'|'last' + monthlyDay 'sat') or on a fixed day of
+   the month (monthlyType:'date' + monthlyDate 1–31; months without that day are skipped, like iCal). */
+const MONTHLY_WEEK_OPTIONS = [['1','1st'],['2','2nd'],['3','3rd'],['4','4th'],['last','Last']];
+const FULL_DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function ordinalNum(n){ const v = n % 100; return n + (['th','st','nd','rd'][(v - 20) % 10] || ['th','st','nd','rd'][v] || 'th'); }
+function isMonthlyItem(item){ return !!item && item.recurFrequency === 'monthly'; }
+function monthlyRuleLabel(item){
+  if(!isMonthlyItem(item)) return '';
+  if(item.monthlyType === 'date') return `${ordinalNum(Number(item.monthlyDate) || 1)} of every month`;
+  const wk = (MONTHLY_WEEK_OPTIONS.find(([v]) => v === String(item.monthlyWeek)) || MONTHLY_WEEK_OPTIONS[0])[1].toLowerCase();
+  const di = dayOrder.indexOf(item.monthlyDay);
+  return `Every ${wk} ${FULL_DAY_NAMES[di < 0 ? 0 : di]} of the month`;
+}
+function monthlyDatesInMonth(item, year, month){
+  if(!isMonthlyItem(item)) return [];
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startBound = item.recurStart || item.calDate || item.eventDate || '';
+  let dayNum = 0;
+  if(item.monthlyType === 'date'){
+    dayNum = Math.floor(Number(item.monthlyDate));
+    if(!(dayNum >= 1 && dayNum <= daysInMonth)) return [];
+  } else {
+    const wd = dayOrder.indexOf(item.monthlyDay);
+    if(wd < 0) return [];
+    const matches = [];
+    for(let d = 1; d <= daysInMonth; d++) if(new Date(year, month, d).getDay() === wd) matches.push(d);
+    dayNum = item.monthlyWeek === 'last' ? matches[matches.length - 1] : matches[Number(item.monthlyWeek) - 1];
+    if(!dayNum) return [];
+  }
+  const dateStr = `${year}-${pad(month + 1)}-${pad(dayNum)}`;
+  if(startBound && dateStr < startBound) return [];
+  if(item.recurEnd && dateStr > item.recurEnd) return [];
+  return [dateStr];
+}
+
 function occurrencesInMonth(item, year, month){
   let base = [];
   if(item.days && item.days.length){
@@ -1627,8 +1666,8 @@ function occurrencesInMonth(item, year, month){
     }
   }
   // Extra one-off dates (not necessarily consecutive with the above) apply
-  // to any event, recurring or not.
-  const extras = extraDatesInMonth(item, year, month);
+  // to any event, recurring or not. Monthly repeats add their rule dates on top of the first date.
+  const extras = [...extraDatesInMonth(item, year, month), ...monthlyDatesInMonth(item, year, month)];
   if(!extras.length) return base;
   return [...new Set([...base, ...extras])].sort();
 }
@@ -3024,6 +3063,10 @@ function generateCustomICS(){
       const dayMap = {sun:'SU',mon:'MO',tue:'TU',wed:'WE',thu:'TH',fri:'FR',sat:'SA'};
       const byday = item.days.map(d => dayMap[d] || d.toUpperCase()).join(',');
       ics += 'RRULE:FREQ=WEEKLY;BYDAY=' + byday + '\n';
+    } else if(isMonthlyItem(item)){
+      const dm = {sun:'SU',mon:'MO',tue:'TU',wed:'WE',thu:'TH',fri:'FR',sat:'SA'};
+      if(item.monthlyType === 'date') ics += 'RRULE:FREQ=MONTHLY;BYMONTHDAY=' + (Number(item.monthlyDate) || 1) + '\n';
+      else ics += 'RRULE:FREQ=MONTHLY;BYDAY=' + (item.monthlyWeek === 'last' ? '-1' : (Number(item.monthlyWeek) || 1)) + (dm[item.monthlyDay] || 'MO') + '\n';
     }
     const summary = (item.title || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,');
     ics += 'SUMMARY:' + summary + '\n';
@@ -3058,7 +3101,7 @@ function isEditableCalendarItem(e){ return !!e && EDITABLE_SECTIONS.includes(e.s
 
 // "Needs details" = missing what the admin form requires: a date and (unless virtual) a location.
 function eventHasDate(e){
-  return !!(e.eventDate || e.calDate || (Array.isArray(e.days) && e.days.length) || (Array.isArray(e.extraDates) && e.extraDates.length) || e.recurStart);
+  return !!(e.eventDate || e.calDate || isMonthlyItem(e) || (Array.isArray(e.days) && e.days.length) || (Array.isArray(e.extraDates) && e.extraDates.length) || e.recurStart);
 }
 function missingDetailsFor(e){
   const missing = [];
@@ -3195,7 +3238,7 @@ const EVENT_EDIT_WEEKDAYS = [['sun','Sun'],['mon','Mon'],['tue','Tue'],['wed','W
 const EVENT_EDIT_AUDIENCE = ['Muslim Women','Muslim Youth','Hijabi Friendly','Family Event','All Women'];
 const EVENT_EDIT_SECTIONS = [['sports','Sports'],['activities','Activities'],['functions','Functions'],['trips','Trips'],['mosqueprograms','Knowledge']];
 const EVENT_EDIT_ALSOSHOWIN = [['sports','Sports'],['activities','Activities'],['functions','Functions'],['trips','Trips'],['mosqueprograms','Knowledge']];
-const EVENT_CREATE_DEFAULTS = { section:'functions', title:'', audienceType:[], emoji:'', organizedBy:'', eventDate:'', endDate:'', time:'', endTime:'', allDay:false, days:[], recurStart:'', recurEnd:'', extraDates:[], virtual:false, location:'', link:'', desc:'', sportKey:'', alsoSportKeys:[], alsoShowIn:[] };
+const EVENT_CREATE_DEFAULTS = { section:'functions', title:'', audienceType:[], emoji:'', organizedBy:'', eventDate:'', endDate:'', time:'', endTime:'', allDay:false, days:[], recurFrequency:'', monthlyType:'weekday', monthlyWeek:'1', monthlyDay:'sat', monthlyDate:'', recurStart:'', recurEnd:'', extraDates:[], virtual:false, location:'', link:'', desc:'', sportKey:'', alsoSportKeys:[], alsoShowIn:[] };
 
 async function openEventEdit(id){
   state.eventEditOpen = true;
@@ -3269,6 +3312,8 @@ function renderEventEditView(){
 
   const audience = Array.isArray(d.audienceType) ? d.audienceType : (d.audienceType ? [d.audienceType] : []);
   const days = Array.isArray(d.days) ? d.days : [];
+  const recurFreq = d.recurFrequency === 'monthly' ? 'monthly' : (days.length ? 'weekly' : 'none');
+  const monthlyType = d.monthlyType === 'date' ? 'date' : 'weekday';
   const alsoShowIn = Array.isArray(d.alsoShowIn) ? d.alsoShowIn : [];
   const alsoSportKeys = Array.isArray(d.alsoSportKeys) ? d.alsoSportKeys : [];
   const extraDates = Array.isArray(d.extraDates) ? d.extraDates : [];
@@ -3325,16 +3370,51 @@ function renderEventEditView(){
         <label style="font-size:12px;display:flex;align-items:center;gap:4px;white-space:nowrap;padding-bottom:9px;"><input type="checkbox" id="editAllDay" ${d.allDay?'checked':''}>All day</label>
       </div>
       <div>
-        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Recurring weekdays</div>
+        <label style="${labelStyle}">Repeats
+          <select id="editRecurFreq" style="${fieldStyle}">
+            <option value="none" ${recurFreq==='none'?'selected':''}>Doesn't repeat</option>
+            <option value="weekly" ${recurFreq==='weekly'?'selected':''}>Weekly (pick weekdays)</option>
+            <option value="monthly" ${recurFreq==='monthly'?'selected':''}>Monthly</option>
+          </select>
+        </label>
+      </div>
+      <div id="recurWeeklyBox" style="display:${recurFreq==='weekly'?'block':'none'};">
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Every week on</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;">
           ${EVENT_EDIT_WEEKDAYS.map(([v,l]) => `<label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="editDay" value="${v}" ${days.includes(v)?'checked':''}>${l}</label>`).join('')}
         </div>
       </div>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;">
-        <label style="${rowLabelStyle}">Recurring starts
+      <div id="recurMonthlyBox" style="display:${recurFreq==='monthly'?'flex':'none'};flex-direction:column;gap:8px;border:1.5px dashed var(--charcoal);border-radius:10px;padding:10px;">
+        <label style="${labelStyle}">Repeat monthly on
+          <select id="editMonthlyType" style="${fieldStyle}">
+            <option value="weekday" ${monthlyType==='weekday'?'selected':''}>A certain weekday (e.g. 2nd Saturday)</option>
+            <option value="date" ${monthlyType==='date'?'selected':''}>A certain date (e.g. the 15th)</option>
+          </select>
+        </label>
+        <div id="monthlyWeekdayRow" style="display:${monthlyType==='weekday'?'flex':'none'};flex-wrap:wrap;gap:10px;">
+          <label style="${rowLabelStyle}">Which one
+            <select id="editMonthlyWeek" style="${fieldStyle}">
+              ${MONTHLY_WEEK_OPTIONS.map(([v,l]) => `<option value="${v}" ${String(d.monthlyWeek||'1')===v?'selected':''}>${l}</option>`).join('')}
+            </select>
+          </label>
+          <label style="${rowLabelStyle}">Weekday
+            <select id="editMonthlyDay" style="${fieldStyle}">
+              ${EVENT_EDIT_WEEKDAYS.map(([v]) => `<option value="${v}" ${(d.monthlyDay||'sat')===v?'selected':''}>${FULL_DAY_NAMES[dayOrder.indexOf(v)]}</option>`).join('')}
+            </select>
+          </label>
+        </div>
+        <div id="monthlyDateRow" style="display:${monthlyType==='date'?'block':'none'};">
+          <label style="${labelStyle}">Day of the month (1–31)
+            <input id="editMonthlyDate" type="number" min="1" max="31" inputmode="numeric" value="${escapeCm(d.monthlyDate||'')}" style="${fieldStyle}">
+          </label>
+        </div>
+        <div id="monthlyPreview" style="font-size:12px;color:var(--muted);"></div>
+      </div>
+      <div id="recurRangeRow" style="display:${recurFreq==='none'?'none':'flex'};flex-wrap:wrap;gap:10px;">
+        <label style="${rowLabelStyle}">Repeat starts <span style="font-weight:400;">(optional)</span>
           <input id="editRecurStart" type="date" value="${d.recurStart||''}" style="${fieldStyle}">
         </label>
-        <label style="${rowLabelStyle}">Recurring ends
+        <label style="${rowLabelStyle}">Repeat ends <span style="font-weight:400;">(optional)</span>
           <input id="editRecurEnd" type="date" value="${d.recurEnd||''}" style="${fieldStyle}">
         </label>
       </div>
@@ -3418,6 +3498,24 @@ function renderEventEditView(){
     document.getElementById('sportsOnlyFields').style.display = e.target.value === 'sports' ? 'flex' : 'none';
     mountEventLocationSearch(); // Canada-only, except for trips
   });
+  const updateRecurUi = () => {
+    const f = document.getElementById('editRecurFreq').value;
+    const mt = document.getElementById('editMonthlyType').value;
+    document.getElementById('recurWeeklyBox').style.display = f === 'weekly' ? 'block' : 'none';
+    document.getElementById('recurMonthlyBox').style.display = f === 'monthly' ? 'flex' : 'none';
+    document.getElementById('recurRangeRow').style.display = f === 'none' ? 'none' : 'flex';
+    document.getElementById('monthlyWeekdayRow').style.display = mt === 'weekday' ? 'flex' : 'none';
+    document.getElementById('monthlyDateRow').style.display = mt === 'date' ? 'block' : 'none';
+    const prev = document.getElementById('monthlyPreview');
+    if(prev) prev.textContent = f === 'monthly' ? '📅 ' + (monthlyRuleLabel({ recurFrequency:'monthly',
+      monthlyType: mt, monthlyWeek: document.getElementById('editMonthlyWeek').value,
+      monthlyDay: document.getElementById('editMonthlyDay').value, monthlyDate: document.getElementById('editMonthlyDate').value }) || '') : '';
+  };
+  ['editRecurFreq','editMonthlyType','editMonthlyWeek','editMonthlyDay','editMonthlyDate'].forEach(id => {
+    const el = document.getElementById(id);
+    el.addEventListener('change', updateRecurUi); el.addEventListener('input', updateRecurUi);
+  });
+  updateRecurUi();
   document.getElementById('editVirtual').addEventListener('change', e => {
     document.getElementById('editLocationBlock').style.display = e.target.checked ? 'none' : 'block';
   });
@@ -3447,6 +3545,7 @@ function renderEventEditView(){
 
 function collectEventFormFields(){
   const audience = [...document.querySelectorAll('.editAudience:checked')].map(cb => cb.value);
+  const freq = document.getElementById('editRecurFreq').value;
   const days = [...document.querySelectorAll('.editDay:checked')].map(cb => cb.value);
   const alsoShowIn = [...document.querySelectorAll('.editAlsoShowIn:checked')].map(cb => cb.value);
   const extraDates = [...document.querySelectorAll('.editExtraDate')].map(inp => inp.value).filter(Boolean).map(date => ({date}));
@@ -3462,9 +3561,14 @@ function collectEventFormFields(){
     time: document.getElementById('editTime').value,
     endTime: document.getElementById('editEndTime').value,
     allDay: document.getElementById('editAllDay').checked,
-    days,
-    recurStart: document.getElementById('editRecurStart').value,
-    recurEnd: document.getElementById('editRecurEnd').value,
+    days: freq === 'weekly' ? days : [],
+    recurFrequency: freq === 'monthly' ? 'monthly' : '',
+    monthlyType: document.getElementById('editMonthlyType').value,
+    monthlyWeek: document.getElementById('editMonthlyWeek').value,
+    monthlyDay: document.getElementById('editMonthlyDay').value,
+    monthlyDate: document.getElementById('editMonthlyDate').value.trim(),
+    recurStart: freq === 'none' ? '' : document.getElementById('editRecurStart').value,
+    recurEnd: freq === 'none' ? '' : document.getElementById('editRecurEnd').value,
     extraDates,
     virtual: document.getElementById('editVirtual').checked,
     location: document.getElementById('editLocation').value.trim(),
@@ -3576,6 +3680,15 @@ async function saveEventEdit(){
   const createMode = state.eventCreateMode;
   const fields = collectEventFormFields();
   Object.assign(state.eventEditData, fields);
+  if(fields.recurFrequency === 'monthly' && fields.monthlyType === 'date'){
+    const n = Number(fields.monthlyDate);
+    if(!(Number.isInteger(n) && n >= 1 && n <= 31)){
+      state.eventEditError = 'Please enter a day of the month between 1 and 31 for the monthly repeat.';
+      state.eventEditSaved = false;
+      renderEventEditView();
+      return;
+    }
+  }
   if(createMode){
     let problem = '';
     if(!fields.title) problem = 'Please enter a title.';

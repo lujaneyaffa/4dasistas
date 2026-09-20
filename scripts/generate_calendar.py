@@ -186,6 +186,21 @@ def event_to_ics(item, category):
             lines.append(f"RRULE:FREQ=WEEKLY;BYDAY={byday}")
     else:
         lines.append(f"DTSTART;VALUE=DATE:{cal_date.replace('-', '')}")
+        if item.get("recurFrequency") == "monthly":
+            if item.get("monthlyType") == "date":
+                try:
+                    lines.append(f"RRULE:FREQ=MONTHLY;BYMONTHDAY={int(item.get('monthlyDate'))}")
+                except (TypeError, ValueError):
+                    pass
+            else:
+                wk = "-1" if str(item.get("monthlyWeek")) == "last" else str(item.get("monthlyWeek") or "1")
+                wd = DAY_MAP.get(str(item.get("monthlyDay") or "").lower())
+                if wd:
+                    lines.append(f"RRULE:FREQ=MONTHLY;BYDAY={wk}{wd}")
+        if item.get("recurFrequency") == "monthly" and item.get("recurEnd") and lines and lines[-1].startswith("RRULE:"):
+            end = parse_date(item.get("recurEnd"))
+            if end:
+                lines[-1] += ";UNTIL=" + end.replace("-", "")
         # Structured end date (CMS 'End date' field), then legacy text fallback.
         end_date = None
         if item.get("endDate"):
