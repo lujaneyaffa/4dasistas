@@ -704,7 +704,7 @@
     {
       "section": "sports",
       "eventDate": "2026-09-20",
-      "endTime": "12:30",
+      "endTime": "",
       "alsoShowIn": [
         "activities"
       ],
@@ -716,6 +716,15 @@
       "link": "https://www.instagram.com/p/DctabYRFqZ7/?igsi=MTdrZDZhZTdrbGxucQ==",
       "allDay": false,
       "desc": "Her Healing Space TO's first hike — welcoming the new season of rest and reflection with a group hike into fall.",
+      "audienceType": [],
+      "emoji": "",
+      "endDate": "",
+      "days": [],
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "sportKey": "",
+      "alsoSportKeys": [],
       "id": "🍂take-a-hike-into-fall"
     },
     {
