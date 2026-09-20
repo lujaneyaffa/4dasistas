@@ -3056,11 +3056,13 @@ function firstUrl(value){
 const EDITABLE_SECTIONS = ['sports','activities','functions','trips','mosqueprograms','supportprograms'];
 function isEditableCalendarItem(e){ return !!e && EDITABLE_SECTIONS.includes(e.section); }
 
+// "Needs details" = missing what the admin form requires: a date and (unless virtual) a location.
+function eventHasDate(e){
+  return !!(e.eventDate || e.calDate || (Array.isArray(e.days) && e.days.length) || (Array.isArray(e.extraDates) && e.extraDates.length) || e.recurStart);
+}
 function missingDetailsFor(e){
   const missing = [];
-  const audience = Array.isArray(e.audienceType) ? e.audienceType : (e.audienceType ? [e.audienceType] : []);
-  if(!audience.length) missing.push('Audience Type');
-  if(!e.desc || !String(e.desc).trim()) missing.push('Description');
+  if(!eventHasDate(e)) missing.push('Date');
   if(!e.virtual && (!e.location || !String(e.location).trim())) missing.push('Location');
   return missing;
 }
@@ -3071,7 +3073,7 @@ function buildMissingDetailsQueue(){
 
 function startMissingDetailsReview(){
   const queue = buildMissingDetailsQueue();
-  if(!queue.length){ alert('Nothing missing — every event has Audience Type, Description, and Location filled in!'); return; }
+  if(!queue.length){ alert('Nothing missing — every event has a date and a location!'); return; }
   state.reviewMode = true;
   state.reviewQueue = queue.slice(1);
   state.reviewTotal = queue.length;
@@ -3306,8 +3308,8 @@ function renderEventEditView(){
         <input id="editOrganizedBy" type="text" value="${escapeCm(d.organizedBy||'')}" style="${fieldStyle}">
       </label>
       <div style="display:flex;flex-wrap:wrap;gap:10px;">
-        <label style="${rowLabelStyle}">Event date${createMode ? ' <span style="color:#c00;">*</span>' : ''}
-          <input id="editEventDate" type="date" value="${d.eventDate||''}" style="${fieldStyle}">
+        <label style="${rowLabelStyle}">Event date${createMode ? ' <span style="color:#c00;">*</span>' : ''}${missing.includes('Date') ? ' <span style="color:#c00;">— missing</span>' : ''}
+          <input id="editEventDate" type="date" value="${d.eventDate||''}" style="${fieldStyle}${missing.includes('Date') ? missingBorder : ''}">
         </label>
         <label style="${rowLabelStyle}">End date
           <input id="editEndDate" type="date" value="${d.endDate||''}" style="${fieldStyle}">

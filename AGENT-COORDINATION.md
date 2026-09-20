@@ -79,7 +79,9 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
-**Last updated:** 2026-09-20 (Home Travel/About buttons: nav-bar colour, smaller squares)
+**Last updated:** 2026-09-20 ("Needs details" queue = missing date or location only)
+
+**2026-09-20 ("Needs details" queue = missing date or location only) — Claude (chat) — `index.html`** — Lujane: the footer "📋 N need details" list should only flag what she's said is required. `missingDetailsFor()` used to flag Audience Type, Description and Location (145 events); it now flags only **Date** (no `eventDate`/`calDate`/`days`/`extraDates`/`recurStart` — new helper `eventHasDate`) and **Location** (unless virtual) → 17 events (15 "Date TBC" mg-hia-* items, plus Pink Track Sunday and The Case Night with no location). Review form shows a red "— missing" on Event date too; the empty-queue message updated. Audience Type is no longer required either (she never listed it as required this session) — say if she wants it back.
 
 **2026-09-20 (Home Travel/About buttons: nav-bar colour, smaller squares) — Claude (chat) — `index.html`** — Lujane: Travel and About buttons on Home should match the nav bar colour and be less wide. `.home-quicklinks .club-guide-btn` (and `:last-child`, which had forced light blue) now `background:rgba(201,170,173,0.45)` (identical computed value to `#tabs`) and 150px→108px squares, font 18→16px. Border/shadow unchanged. Checked at 375px.
 
@@ -592,6 +594,7 @@ npx wrangler deploy
 
 _(most recent first — add new entries to the top, trim past ~15)_
 
+- 2026-09-20 — Claude (chat) — `index.html` — "Needs details" queue now flags only missing date/location (145 → 17 events); description and audience type no longer count.
 - 2026-09-20 — Claude (chat) — `index.html` — Home Travel/About buttons now nav-bar colour and 108px squares (were 150px, blush/blue).
 - 2026-09-20 — Claude (chat) — `data/calendar/*`, `data/*.json`, `calendar.ics`, `index.html` — Six support-group/one-time events moved from Mental Health into Knowledge; Mental Health tab now organizations only.
 - 2026-09-20 — Claude (chat) — `index.html` — Travel globe: trips sharing a country/coordinates are spread so pins never overlap (render-time only, data untouched).
