@@ -372,6 +372,32 @@
     },
     {
       "section": "mosqueprograms",
+      "title": "Rooted Narratives Workshop",
+      "audienceType": [],
+      "emoji": "",
+      "organizedBy": "muslim literary festival",
+      "eventDate": "2026-11-07",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "24 Cecil St, Toronto, ON M5T 1N2, Canada",
+      "link": "https://www.instagram.com/p/DdhEaMCxJhS/?stkn=ZjVleGd3cnlvMXB0",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [
+        "activities"
+      ],
+      "id": "rooted-narratives-workshop"
+    },
+    {
+      "section": "mosqueprograms",
       "title": "Sisters Tafseer Gems",
       "audienceType": [
         "Muslim Women"
