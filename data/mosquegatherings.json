@@ -2,6 +2,16 @@
   "items": [
     {
       "section": "mosqueprograms",
+      "virtual": true,
+      "link": "https://www.instagram.com/p/DceBEVDlEUQ/?igsi=ZWJvY2lyMGVuMXBw",
+      "desc": "Join CCMW LAW (Legal Advocacy for Women) for an engaging webinar exploring parenting and child support through both Canadian and Muslim family law frameworks, with practical insights to better support Muslim women navigating family law matters.\n\nCPD Accreditation: \n1 hour Professionalism Content \n30 minutes EDI Professionalism Content \n\nThis webinar is designed for lawyers, paralegals, social service providers, and Muslim women seeking to deepen their understanding of culturally competent legal practice. ",
+      "time": "12:00",
+      "eventDate": "2026-09-02",
+      "title": "Building Cultural Competency to Support Muslim Women",
+      "id": "building-cultural-competency-to-support-muslim-women"
+    },
+    {
+      "section": "mosqueprograms",
       "title": "Dawah Training",
       "audienceType": [],
       "emoji": "",
@@ -82,6 +92,30 @@
       "link": ""
     },
     {
+      "id": "eldest-daughters-support-group",
+      "title": "Eldest Daughters",
+      "type": "Support Group",
+      "virtual": true,
+      "calDate": "2026-08-28",
+      "date": "Friday, August 28, 2026 · 6:00–7:30 PM · Online",
+      "ownedBy": "Community-run support group",
+      "desc": "A support space for eldest daughters to connect and process shared experiences together.",
+      "instagram": "https://www.instagram.com/p/DcOkpTNOQ9W/",
+      "section": "mosqueprograms"
+    },
+    {
+      "id": "healing-hearts-muslim-survivors-group",
+      "title": "Healing Hearts: Muslim Survivors Group",
+      "type": "Support Group",
+      "virtual": true,
+      "location": "",
+      "date": "October 14, 2026 · 11:00 AM – 12:00 PM (UTC-4)",
+      "ownedBy": "Community-run support group",
+      "desc": "A gathering space for Muslim individuals who identify as having experienced sexual violence, sexual harassment, and/or gender-based violence. Participants discuss healing, faith, and community-building.",
+      "calDate": "2026-10-14",
+      "section": "mosqueprograms"
+    },
+    {
       "section": "mosqueprograms",
       "title": "Ihsan in Academia",
       "audienceType": [],
@@ -159,6 +193,22 @@
     },
     {
       "section": "mosqueprograms",
+      "eventDate": "2026-08-30",
+      "price": "$10",
+      "city": "Mississauga",
+      "date": "Saturday, August 30, 2026 · 1:00–4:00 PM",
+      "desc": "A university and college prep workshop for Muslim youth, with lunch provided and mandatory registration.",
+      "instagram": "https://www.instagram.com/hidayah__icco/",
+      "location": "2550 Dunwin Dr, Mississauga, ON L5L 1T1, Canada",
+      "title": "Your Journey Ahead: University and College Prep",
+      "registration": "Registration mandatory",
+      "tag": "Day Activity",
+      "link": "https://centres.macnet.ca/icco/hidayah-uni-college-prep/",
+      "id": "journey-ahead-icco-aug30",
+      "calDate": "2026-08-30"
+    },
+    {
+      "section": "mosqueprograms",
       "title": "Layali of Poetry & Praise",
       "audienceType": [
         "Muslim Women"
@@ -182,6 +232,23 @@
       "alsoSportKeys": [],
       "alsoShowIn": [],
       "id": "layali-of-poetry-praise"
+    },
+    {
+      "id": "mental-khalil-navigating-divorce-support-group",
+      "title": "Navigating Divorce: Women Support Group",
+      "type": "Women Support Group",
+      "desc": "A compassionate and confidential virtual support group for women contemplating divorce, navigating its challenges, or healing from its impact. Offers support, reflection, renewal, and connection with women who understand.",
+      "virtual": true,
+      "location": "Virtual via Zoom",
+      "website": "https://www.instagram.com/p/DaEG5Njjv27/",
+      "instagram": "https://www.instagram.com/khalilcenter/",
+      "days": [
+        "mon"
+      ],
+      "time": "11:00",
+      "date": "Every Monday · 11:00 AM–12:00 PM CST",
+      "ownedBy": "Khalil Center",
+      "section": "mosqueprograms"
     },
     {
       "id": "mg-almukhlisin-fiqh-of-salah",
@@ -497,6 +564,16 @@
       "alsoSportKeys": [],
       "alsoShowIn": [],
       "id": "the-character-of-a-muslim"
+    },
+    {
+      "section": "mosqueprograms",
+      "virtual": true,
+      "link": "https://www.instagram.com/p/DcePjnpBq0C/?igsi=c24xZWZvNjl4dDEw",
+      "desc": "Imagine growing up in a community where the cost of error is your life, where a single rumour can mark you for death. \nIn some Muslim communities, distorted ideas of honour have been weaponised into violence, turning women into the bearers of family reputation and the targets when that reputation is ‘compromised’.\n\nWhy does ‘honour’ weighed more valuable than a women’s life? \nAnd what must we do collectively to dismantle the norms that allow this violence to continue?\n\nJoin us this week for this MWJA Discussion Session. 📢\n🔗 Join Session here: https://t.me/MWJAGLOBAL",
+      "time": "14:00",
+      "eventDate": "2026-08-28",
+      "title": "The Deadly Weight of \"Honour\" ",
+      "id": "the-deadly-weight-of-honour"
     },
     {
       "section": "mosqueprograms",

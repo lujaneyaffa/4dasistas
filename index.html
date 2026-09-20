@@ -1057,7 +1057,9 @@ applySiteText();
   mosqueGatheringsData = dedupeEvents(mosqueGatheringsData);
   supportProgramsData = dedupeEvents(supportProgramsData);
 
-  allResourceItems = [...resourcesData, ...supportProgramsData];
+  // Mental Health (and every Directory tab) lists organizations only — one-time events and
+  // support groups live in the Knowledge calendar instead.
+  allResourceItems = [...resourcesData];
   ALL_ITEMS = [...sportsData, ...gatheringsData, ...dayActivitiesData, ...tripsData, ...clubsData, ...resourcesData, ...supportProgramsData, ...mosqueGatheringsData];
   // The main calendar shows sports, activities, functions and Knowledge (mosque programs).
   // Trips and clubs have their own dedicated calendars.
@@ -3188,7 +3190,7 @@ function closeDetail(){
 
 const EVENT_EDIT_WEEKDAYS = [['sun','Sun'],['mon','Mon'],['tue','Tue'],['wed','Wed'],['thu','Thu'],['fri','Fri'],['sat','Sat']];
 const EVENT_EDIT_AUDIENCE = ['Muslim Women','Hijabi Friendly','Family Event','All Women'];
-const EVENT_EDIT_SECTIONS = [['sports','Sports'],['activities','Activities'],['functions','Functions'],['trips','Trips'],['mosqueprograms','Knowledge'],['supportprograms','Support Groups']];
+const EVENT_EDIT_SECTIONS = [['sports','Sports'],['activities','Activities'],['functions','Functions'],['trips','Trips'],['mosqueprograms','Knowledge']];
 const EVENT_EDIT_ALSOSHOWIN = [['sports','Sports'],['activities','Activities'],['functions','Functions'],['trips','Trips'],['mosqueprograms','Knowledge']];
 const EVENT_CREATE_DEFAULTS = { section:'functions', title:'', audienceType:[], emoji:'', organizedBy:'', eventDate:'', endDate:'', time:'', endTime:'', allDay:false, days:[], recurStart:'', recurEnd:'', extraDates:[], virtual:false, location:'', link:'', desc:'', sportKey:'', alsoSportKeys:[], alsoShowIn:[] };
 

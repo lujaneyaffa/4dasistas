@@ -7,7 +7,7 @@ X-WR-CALNAME:4DASISTAS Community Calendar
 X-WR-TIMEZONE:America/Toronto
 BEGIN:VEVENT
 UID:5k-for-columbia-sisters-run-club-toronto@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260830
 SUMMARY:5K For Columbia
 DESCRIPTION:Time: 15:00\\nDesc: SISTERS RUN CLUB TORONTO | SEASON 01 RUN 02 | 5K FOR COLOMBIA 🏃🏻‍♀️🇨🇴 🤍\n\nJoin us on August 30 for a 5K run/walk for Colombia\, a special fundraiser bringing women together through movement while supporting communities affected by the earthquake. \n\n📍 Downsview Park (Orchard Pavilion)\n🗓️ Sunday\, August 30\n⏰ Meet at 3:00 PM\n\nFREE TO JOIN • PAY WHAT YOU CAN\n100% of donations will support earthquake relief efforts in Colombia 🇨🇴🤍\n\nEnjoy some fast chews by @saltstick to keep us energized before the run ❤️💥\n\nAfter the run\, we’ll head to @goodbehaviour.to to relax\, connect\, and enjoy some delicious food together. When you join us\, you’ll also receive 20% off ice cream or smash burgers!🍦🍔 \n\nWhether you run or walk\, this is a space for everyone. All ages\, backgrounds\, and fitness levels are welcome. Come move at your own pace\, meet your community\, and help us give back 🤍\n\nSee you there\, sisters! 🏃🏻‍♀️
@@ -16,7 +16,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:padel-sisterthroughfaith@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260829
 DTEND;VALUE=DATE:20260810
 SUMMARY:Padel & Perspective
@@ -26,7 +26,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:bad-thu@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260806
 RRULE:FREQ=WEEKLY;BYDAY=TH
 SUMMARY:🏸Badminton Drop-In
@@ -36,7 +36,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:ballhockey-open-practice@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20240106
 RRULE:FREQ=WEEKLY;BYDAY=SA
 SUMMARY:Ball Hockey Open Practice
@@ -46,7 +46,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:boxing-program-launch@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260823
 SUMMARY:Boxing Program Launch
 DESCRIPTION:Time: 12:00\\nDesc: Sisters Fitness Club Toronto x Atlas Boxing & Fitness Club — a beginner-friendly\, women-only boxing program to learn boxing\, build confidence\, get stronger\, and train together. All fitness levels welcome. Weekday schedule: Tue 7-8 AM (Technique/Bag Work)\, Thu 8-8:45 PM (Bag Work/Conditioning)\, Thu 8:45-9:30 PM (Technique/Drills). Weekend schedule: Sat 3-4 PM (Bag Work/Conditioning)\, Sun 12-1 PM (Technique/Bag Work).
@@ -55,7 +55,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:boxing-program-launch-1@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260827
 SUMMARY:Boxing Program Launch
 DESCRIPTION:Time: 20:00\\nDesc: Sisters Fitness Club Toronto x Atlas Boxing & Fitness Club — a beginner-friendly\, women-only boxing program to learn boxing\, build confidence\, get stronger\, and train together. All fitness levels welcome. Weekday schedule: Tue 7-8 AM (Technique/Bag Work)\, Thu 8-8:45 PM (Bag Work/Conditioning)\, Thu 8:45-9:30 PM (Technique/Drills). Weekend schedule: Sat 3-4 PM (Bag Work/Conditioning)\, Sun 12-1 PM (Technique/Bag Work).
@@ -64,7 +64,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:boxing-program-launch-2@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260830
 SUMMARY:Boxing Program Launch
 DESCRIPTION:Time: 12:00\\nDesc: Sisters Fitness Club Toronto x Atlas Boxing & Fitness Club — a beginner-friendly\, women-only boxing program to learn boxing\, build confidence\, get stronger\, and train together. All fitness levels welcome. Weekday schedule: Tue 7-8 AM (Technique/Bag Work)\, Thu 8-8:45 PM (Bag Work/Conditioning)\, Thu 8:45-9:30 PM (Technique/Drills). Weekend schedule: Sat 3-4 PM (Bag Work/Conditioning)\, Sun 12-1 PM (Technique/Bag Work).
@@ -73,7 +73,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:f-series-strength-training-hijabiballers@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260906
 RRULE:FREQ=WEEKLY;BYDAY=SU
 SUMMARY:F-Series Strength Training
@@ -83,7 +83,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:hidayah-sisters-soccer-tournament-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260823
 SUMMARY:Sisters Soccer Tournament
 DESCRIPTION:Date: Sunday\, August 23\, 2026 · 4:00–8:00 PM\\nTime: 16:00\\nPrice: $10 per person\\nRegistration: Mandatory registration required\\nOrganizer: ICCO / Hidayah ICCO\\nWebsite: https://centres.macnet.ca/icco/\\nInstagram: https://www.instagram.com/hidayah__icco/\\nDesc: Sisters soccer tournament for ages 16+. Teams of 7–10. Evening of soccer\, sisterhood\, and fun. Must be between 18–29 to register for Hidayah programs.
@@ -92,7 +92,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:hijabiballers-fseries-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260906
 RRULE:FREQ=WEEKLY;BYDAY=SU
 SUMMARY:Hijabi Ballers FSeries
@@ -102,7 +102,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:ism-sisterly-badminton-aug15-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260815
 SUMMARY:ISM Sisterly Sports Night: Badminton
 DESCRIPTION:Date: Saturday\, August 15\, 2026 · 5:30–8:00 PM\\nRegistration: RSVP: https://bit.ly/sisterlybadminton\\nOrganizer: ISM Core\\nWebsite: https://bit.ly/sisterlybadminton\\nInstagram: https://www.instagram.com/ismcore/\\nDesc: Sisterly badminton tournament and sports night. Dinner provided\, spectators welcome\, and prizes for the winning team.
@@ -111,7 +111,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:isna-run-against-hunger-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260913
 SUMMARY:ISNA Run Against Hunger
 DESCRIPTION:Date: Sunday\, September 13\, 2026 · 10:00 AM–4:00 PM\\nPrice: 1K walk or 5K / 10K run\\nRegistration: Register via ISNA Canada\\nOrganizer: ISNA Canada\\nWebsite: https://isnacanada.com/run\\nDesc: Community run/walk with BBQ and family activities to support hunger relief.
@@ -120,7 +120,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:justice-is-islam-hike@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260825
 SUMMARY:Justice is Islam | Hike 🥾
 DESCRIPTION:Time: 18:30\\nDesc: 🧭 MWJA Sisters Hike!\n\nJoin us for a Sisters Hike as we walk together through Rattray Marsh\, talk\, breathe\, & reconnect with what justice means to us — for Allah\, for justice\, for each other.\n\nCome solo\, come with a friend\, and leave with a few more sisters in your circle.\n\n📅 Tuesday\, Aug. 25\n🕧 6:30 – 8:00 PM\n📍 Rattray Marsh Conservation Area\n🍎 $5 (Snacks included!)\n\n🔗 Sign up now! bit.ly/mwja-hike (LINK IN BIO!)\n
@@ -129,7 +129,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:mat-pilates-teacher-training@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261002
 DTEND;VALUE=DATE:20261005
 RDATE;VALUE=DATE:20261106,20261204
@@ -139,7 +139,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:meadowvale-sisters-fitness-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260914
 RRULE:FREQ=WEEKLY;BYDAY=MO
 SUMMARY:Meadowvale Sisters Fitness
@@ -149,7 +149,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:musfit-womens-reformer-pilates-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260820
 RRULE:FREQ=WEEKLY;BYDAY=TH
 SUMMARY:MusFit Women's Reformer Pilates
@@ -159,7 +159,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:muslimfest-pilates-workshop-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260828
 SUMMARY:MuslimFest Women's Pilates Workshop
 DESCRIPTION:Date: During MuslimFest\, August 28–30\, 2026 (exact day/time TBD — check registration)\\nRegistration: Link in bio\\nInstagram: https://www.instagram.com/muslimfest/\\nDesc: Exclusive women-only Pilates workshop in collaboration with Physiola Clinics. Privacy prioritized. Limited spots.
@@ -168,7 +168,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:pickleball-pilates@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260830
 RDATE;VALUE=DATE:20260823
 SUMMARY:🎀Pickleball & Pilates
@@ -178,7 +178,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:pilates-in-pjs@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260907
 SUMMARY:Pilates in PJs🍿
 DESCRIPTION:Time: 19:00\\nDesc: FRIDAY SEPTEMBER 4TH 7PM\nPilates… but make it a girls’ night 🎀🧸✨\nGrab your bestie\, throw on your cutest PJs & join us for Pilates & Pajamas 💕\n\n🧘‍♀️ Pilates\n🍕 Pizza\n🍿 Popcorn\n🎬 Movie\n💗 All the cozy girl vibes\n\nCome move\, laugh\, eat & unwind with us ✨\n🎟️ Registration Link in bio\n| Limited spots 📍 Ms Kay Fit Studios | Oakville
@@ -187,7 +187,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:pilates-pajamas-sept4-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260904
 SUMMARY:Pilates & Pajamas
 DESCRIPTION:Date: Friday\, September 4\, 2026 · 7:00 PM\\nRegistration: Link in bio\\nInstagram: https://www.instagram.com/reel/DcWHd-bOnsV/\\nDesc: Pilates\, but make it a girls' night — pizza\, popcorn\, movie\, and all the cozy girl vibes. Grab your bestie\, throw on your cutest PJs. Limited spots.
@@ -196,7 +196,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:pilates-sisterscorner-aug29@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260829
 SUMMARY:🎀Pilates & Wellness Social
 DESCRIPTION:Date: August 29\, 2026 · 11:00 AM\\nRegistration: Tickets available through the link in bio\\nOrganizer: The Muslim Sisters Corner GTA\\nInstagram: https://www.instagram.com/thesisterscorner_gta/\\nDesc: Join The Sisters Corner for our Pilates & Wellness Social\, an afternoon created for Muslim women to move\, reset\, connect\, and pour a little time back into themselves. 🧘🏻‍♀️🌷\n\nAs we head into a new academic year and a fresh season of routines\, we wanted to create a space to slow down\, take care of ourselves\, and be surrounded by a community of sisters. 🤍\n\nYour ticket includes:\n\n🩷 A professionally led Pilates class\n\n🧘🏻‍♀️ Your own Pilates mat to use and take home\n\n🎀 Curated gift bag\n\n🥣 Complimentary açaí bowl\n\n📸 Photo booth to capture the day\n\n🛍️ Local vendors to shop from throughout the event\n\n🌸 A beautiful wellness-inspired setup\n\n🤍 Time to meet and connect with Muslim women from across the GTA\n\nWhether you’re coming with friends or showing up on your own\, you’re more than welcome. Come spend the afternoon moving\, shopping\, taking cute pictures\, meeting new sisters\, and enjoying some much-needed time for yourself. 💗
@@ -205,7 +205,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:pink-track-sunday@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260920
 SUMMARY:Pink Track Sunday
 DESCRIPTION:Desc: oin us for a special pre-event track session in support of the CIBC Run for the Cure\, catered to those racing this fall and open anyone who misses our iconic track sessions!\n\nall paces are welcome.\n\n📍 Details on SweatPals\n📅 sunday\, september 20\n⏰ 9:30 AM - 11:30 AM\n🎟️ $10\n🎀 dress code: ALL PINK
@@ -213,7 +213,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:rallyclub-tennis-pickleball@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20240104
 RRULE:FREQ=WEEKLY;BYDAY=TH
 SUMMARY:Rally Club (Tennis & Pickleball)
@@ -223,7 +223,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:run-her@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260927
 SUMMARY:Run Her
 DESCRIPTION:Time: 10:00\\nDesc: all Run and PSL??? 🍂☕️🤎🏃🏽‍♀️\n\nJoin us on September 27th at 10 am @wet_coffee_community for RUN’HER FALL EDIT - a fall women’s community run and coffee social pop-up 🤎\n\nYour experience:\n• A beginner-friendly scenic fall run through Downtown Oakville 🏃🏽‍♀️🍂\n• A post-run coffee social featuring @wet_coffee_community new FALL drink menu 🍁☕️\n• Post-run wellness goodies 🤎\n\nAll levels are welcome - bring your running shoes\, your water bottle\, and a friend (or come solo and meet new ones 🤎)!\n\nTickets will be live via the link in our bio on September 13th at 6:00 pm EST - spots are limited 🏃🏽‍♀️🍂
@@ -232,7 +232,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:run4sudan@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260830
 SUMMARY:RUN4SUDAN
 DESCRIPTION:Date: Sunday\, August 30 @ 9 am - 1 pm\\nRegistration: Registration details to follow\\nOrganizer: Run 4 Collective\, Muslim Hands Canada\, Strong Women Toronto\, WomensFitSauga\\nInstagram: https://www.instagram.com/run4collective/\\nDesc: Run with purpose to raise funds for a food bank. Choose a 1K walk\, 5K run\, or 10K run\; run solo or gather a team of five. Vendors\, BBQ\, awards\, and more. In partnership with Arab Run Club.
@@ -241,7 +241,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:sisters-martial-arts-kickboxing-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260823
 RRULE:FREQ=WEEKLY;BYDAY=SU
 SUMMARY:Sisters Martial Arts Program
@@ -251,7 +251,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:sma-fitness-pilates-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260606
 RRULE:FREQ=WEEKLY;BYDAY=SA
 SUMMARY:Women's Fitness and Pilates Class
@@ -261,7 +261,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:sokoon-weekly-muslim-runs-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260822
 RRULE:FREQ=WEEKLY;BYDAY=SA,SU
 SUMMARY:Sokoon Society Weekly Muslim Runs
@@ -271,7 +271,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:soul-stretch@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260920
 SUMMARY:Soul & Stretch
 DESCRIPTION:Time: 15:00
@@ -280,7 +280,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:tcs-toronto-waterfront-womensfitsauga-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261017
 SUMMARY:TCS Toronto Waterfront Marathon: Group Participation
 DESCRIPTION:Date: Saturday\, October 17\, 2026 · 9:00 AM\\nRegistration: https://sweatpals.com/host/womensfitsauga\\nOrganizer: WomensFitSauga\\nWebsite: https://linktr.ee/womensfitsauga\\nInstagram: https://www.instagram.com/womensfitsauga/\\nDesc: Women’s fitness group participation in the TCS Toronto Waterfront Marathon.
@@ -289,7 +289,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:womens-padel-social@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260830
 SUMMARY:Women's Padel Social
 DESCRIPTION:Time: 17:45\\nDesc: our Sunday plans\, sorted 🎾🤍\n\nWe can’t wait to see you on court 🤍\n\n📅 Sunday\, August 30\n📍 Court X\, Oakville\n🎟️ Limited spots — link in bio
@@ -298,7 +298,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:don-valley-hike@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260905
 SUMMARY:🌲Don Valley Hike
 DESCRIPTION:Time: 09:00\\nDesc: Assalamu wa rahmatullahi wa barakatu sisters\, we hope this reaches you well it\nJoin us for our third annual hike on the lower Don Valley Trail next Saturday.\nROUTE: We will meet at the Big Park/Regent Park at 9:00 am\, then walk towards Dundas and River to follow the B. We will then continue on the lower Don Valley trail\, and continue to Evergreen Brickworks.\n• Meet at 9:00 AM\, depart at 9:30 AM sharp!\nDON'T FORGET TO BRING WATER AND SNACKS!\nWe hope to see you all there!\nFor more information\, DM us @habasisters
@@ -307,7 +307,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:take-a-hike-into-fall@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260920
 SUMMARY:🍂Take a Hike..Into Fall
 DESCRIPTION:Time: 10:00\\nDesc: Her Healing Space TO's first hike — welcoming the new season of rest and reflection with a group hike into fall.
@@ -316,7 +316,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:paws-pilates@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260920
 SUMMARY:🐾Paws & Pilates
 DESCRIPTION:Time: 16:00\\nDesc: A pilates session with dogs\, hosted by Wijhah Initiative — combining movement and connection with furry friends.
@@ -325,7 +325,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:she-travels-hike@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260906
 SUMMARY:🌲Hike
 DESCRIPTION:Time: 10:00\\nDesc: A group hike hosted by She Travels.
@@ -334,7 +334,7 @@ CATEGORIES:Sports
 END:VEVENT
 BEGIN:VEVENT
 UID:muslimahfarmermarket@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260726
 SUMMARY:Muslimah Farmers Market
 DESCRIPTION:Date: July 26th\, 2026\\nInstagram: https://www.instagram.com/p/DbJ-w0oFsfZ/?utm_source=ig_web_copy_link&igsh=NTc4MTIwNjQ2YQ==&igsi=NTc4MTIwNjQ2YQ==\\nDesc: Our Muslimah Farmers Market 💕 \n\nTake a stroll through our beautiful vendor market and discover amazing local businesses offering handcrafted goods\, stationery\, wellness products\, sweet treats\, home décor\, gifts\, and so much more! 🤍\n\nTreat yourself to something special 🤭\n\n📍 Erin Hill Acres\n🗓️ This Sunday | 9:00 AM – 5:00 PM\n\nSee you at the market! 🌸
@@ -343,7 +343,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:aangan-chai-and-chill-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260912
 SUMMARY:Aangan Chai and Chill
 DESCRIPTION:Date: Friday\, September 12\, 2026 · 6:30 PM\\nOrganizer: Aangan / The Courtyard\\nInstagram: https://www.instagram.com/aanganthecourtyard/\\nDesc: A community chai catch-up with a time discrepancy between the caption and graphic\; exact location is still TBA.
@@ -352,7 +352,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:ahc-community-bbq-aug29-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260829
 SUMMARY:🍗Community BBQ
 DESCRIPTION:Date: Saturday\, August 29\, 2026 · 2:00 PM – 8:00 PM\\nTime: 14:00\\nInstagram: https://www.instagram.com/abuhurairacenter/\\nDesc: A fun-filled day for the whole family — BBQ\, vendors\, sweets\, bouncy castles\, and more. Giveaway: an iPad Mini (more details coming soon). Free entry\, open to everyone.
@@ -361,7 +361,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:bazm-market-aug15-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260815
 SUMMARY:BAZM Market
 DESCRIPTION:Date: August 15\, 2026 · 12–8 PM\\nInstagram: https://www.instagram.com/bazmmarket/\\nDesc: A curated day of shopping\, community\, food\, and supporting small businesses. Free entry. Vendor applications open.
@@ -370,7 +370,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:beingme-toronto-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261024
 SUMMARY:Being ME Toronto
 DESCRIPTION:Date: Friday–Saturday\, October 24–25\, 2026\\nOrganizer: Being Me Toronto\\nWebsite: https://attendbm.com/\\nInstagram: https://www.instagram.com/beingmetoronto/\\nDesc: Women’s retreat and conference weekend\; registration opens via attendbm.com and exact location/time/price are still pending.
@@ -379,7 +379,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:biggest-all-girl-party@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260823
 SUMMARY:⛱️Biggest All-Girl Party
 DESCRIPTION:Time: 13:00\\nDesc: Join us for Bye Habibi: The Last Splash. A private women-only poolside experience filled with sunshine\, swimming\, music\, vendors\, and sisterhood.\n\n🗓️ August 23\n📍 Burlington\, ON\n\n✨ Limited spots available\, secure yours now!
@@ -388,7 +388,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:brewed-for-the-fall@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261003
 SUMMARY:Brewed for the Fall
 DESCRIPTION:Desc: Barista Basics & Brunch Social
@@ -397,7 +397,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:built-by-her-toronto-aug21-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260821
 SUMMARY:Built by Her: Coffee Circle
 DESCRIPTION:Date: Friday\, August 21\, 2026 · 6:30 PM\\nPrice: Members $10 · Non-members $20\\nRegistration: Limited spots\; register through the link in bio\\nOrganizer: Deen Journeys\\nInstagram: https://www.instagram.com/deen.journeys/\\nDesc: A curated coffee circle for Muslimah entrepreneurs and creatives with an intentional theme\, guided roundtable conversation\, practical strategy\, shared wisdom\, and barakah-centered sisterhood.
@@ -406,7 +406,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:car-care-101@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260919
 SUMMARY:🏎️Car Care 101
 DESCRIPTION:Time: 09:00\\nDesc: The car care event you know and love just got a serious upgrade. 🏎️✨\n\nWe’re levelling things up with an exclusive experience at the Porsche Experience Centre! Join us for an exclusive day featuring a hands-on car care workshop\, Porsche simulator experience\, behind-the-scenes facility tour + a $10 café voucher.\n\n📅 Saturday\, September 19\n📍 Porsche Experience Centre\, Pickering\n\nCars\, care & community...with a Porsche twist. Consider yourself invited. 🏁
@@ -415,7 +415,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:ccmw-women-who-inspire-awards-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261108
 SUMMARY:Women Who Inspire Awards 2026
 DESCRIPTION:Date: Sunday\, November 8\, 2026 · Afternoon event\; time TBA\\nRegistration: https://www.ccmw.com/scholarship/women-who-inspire-awards-2026/\\nOrganizer: Canadian Council of Muslim Women (CCMW)\\nWebsite: https://www.ccmw.com/\\nInstagram: https://www.instagram.com/ccmwnational/\\nDesc: Celebrating Canadian Muslim women in leadership\, advocacy\, mentorship\, and community impact. Includes a vendor market supporting Muslim-owned businesses.
@@ -424,7 +424,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:chai-chill@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260924
 SUMMARY:Chai & Chill
 DESCRIPTION:Time: 15:00
@@ -433,7 +433,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:community-bbq-muslim-welfare-canada@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260822
 SUMMARY:🍗Community BBQ 
 DESCRIPTION:Time: 11:00\\nDesc: Mississauga\, we’re firing up the grill this weekend and we’d love to see you there! 🌞🔥\n\nJoin us for our MWC Community BBQ! A chance to enjoy good food\, connect with great people\, and celebrate the strength of our community. 🤝💛\n\n📍 3490 Mavis Road\, Mississauga \n🗓️ Saturday\, August 22 \n⏰ 11:00 AM – 2:00 PM\n\nBring your family\, friends\, and appetite — everyone is welcome.\n
@@ -442,7 +442,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:deen-journeys-bookclub-nov22-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261122
 SUMMARY:Toronto Book Club: Because I Want Jannah
 DESCRIPTION:Date: November 22\, 2026 · 1 PM\\nInstagram: https://www.instagram.com/deen.journeys/\\nDesc: Toronto Book Club session studying 'Because I Want Jannah' by H. Abdulhakim\, part of this quarter's theme 'Love of Allah & Longing for Jannah'. Members free\, non-members $15.
@@ -451,7 +451,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:harvest-fest@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261011
 SUMMARY:Harvest Fest
 DESCRIPTION:Time: 11:00
@@ -460,7 +460,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:hdm-sewing-workshop-aug29-30-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260829
 SUMMARY:Sewing Workshop
 DESCRIPTION:Date: Saturday Aug 29 (during drop-in hours) & Sunday Aug 30\, 5-8 PM\, 2026\\nRegistration: https://docs.google.com/forms/d/e/1FAIpQLSfsp6fhiz4ViiR9Yz_lg9gu-DFyoYwM2Giilc4RjglFeiGRbg/viewform\\nOrganizer: Hamilton Downtown Mosque & Muslim Youth Centre\\nInstagram: https://www.instagram.com/mycgirls_hdm/\\nDesc: Free two-day sewing workshop open to all girls 13+. Learn minor clothing alterations — shorten an abaya\, sew a hijab tear\, and more. Registration requested so materials can be prepared. Registration deadline was Aug 22.
@@ -469,7 +469,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:icna-canada-convention-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261010
 SUMMARY:ICNA Canada Convention 2026
 DESCRIPTION:Date: Saturday\, October 10\, 2026 · 10:00 AM\\nPrice: Early bird $30\\nRegistration: https://www.zeffy.com/en-CA/ticketing/icna-canada-convention--2026\\nOrganizer: ICNA Canada\\nWebsite: https://icna.ca/\\nInstagram: https://www.instagram.com/icnasisterscanada/\\nDesc: Annual Islamic convention with programs for all ages.
@@ -478,7 +478,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:isna-converts-bbq-potluck-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260829
 SUMMARY:ISNA Converts BBQ and Potluck
 DESCRIPTION:Date: Friday\, August 29\, 2026 · 2:00–5:00 PM\\nOrganizer: ISNA Canada\\nWebsite: https://isnacanada.com/convertbbq\\nDesc: A community BBQ and potluck for converts and new Muslims\, with food\, fellowship\, and connection.
@@ -487,7 +487,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:isna-food-festival-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260919
 SUMMARY:ISNA Canada Street Food Festival
 DESCRIPTION:Date: September 19-20\, 2026\\nWebsite: https://www.isnacanada.com/events-programs/street-food-festival-2026/\\nInstagram: https://www.instagram.com/isna_canada/\\nDesc: ISNA Canada's 3rd Annual Street Food Festival. Free admission. Halal street food\, entertainment\, attractions\, vendors\, bazaar\, activities\, contests\, inflatables\, and performances. Family-friendly community event.
@@ -496,7 +496,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:isna-high-park-picnic-aug30-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260830
 SUMMARY:🧺Picnic
 DESCRIPTION:Date: Sunday\, August 30\, 2026 · 2:30–7:00 PM\\nRegistration: https://isnacanada.com/jamipicnic\\nInstagram: https://www.instagram.com/jami_isna/\\nDesc: Community picnic — enjoy the warmth of community during the beautiful summer days.
@@ -505,7 +505,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:jannah-circle-barakah-brunch-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260912
 SUMMARY:Jannah Circle: The Barakah Brunch
 DESCRIPTION:Date: Saturday\, September 12\, 2026 · 11:00 AM–2:00 PM\\nPrice: $55\, includes a main and a drink\\nRegistration: Seats limited\; reserve through the link in bio\\nOrganizer: Jannah Circle Canada\\nInstagram: https://www.instagram.com/jannahcirclecanada/\\nDesc: Launch event for the Jannah Circle East End Chapter\, with guest speaker Ustadha Taimiyyah Zubair.
@@ -514,7 +514,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:link-community-bbq-aug1-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260801
 SUMMARY:🍗Community BBQ
 DESCRIPTION:Date: August 1\, 2026 · 2–6 PM\\nInstagram: https://www.instagram.com/linkcommunityspace/\\nDesc: Gather with the Link community for an evening of BBQ\, connection\, and summer fun. For Brothers & Sisters\, ages 18-35. Registration required.
@@ -523,7 +523,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:link-mommies-minis-aug9-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260809
 SUMMARY:🍼Mommies & Minis: Crafting Connections
 DESCRIPTION:Date: Sunday\, August 9\, 2026 · 1:00–3:00 PM\\nTime: 22:00\\nInstagram: https://www.instagram.com/linkcommunityspace/\\nDesc: Story time and creative crafts for little ones (ages 0-3)\, giving moms a dedicated space to connect over refreshments. $15 per mother-child pair\, includes refreshments\, activity & goodie bags.
@@ -532,7 +532,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:market-salaamgirls-aug22@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260822
 SUMMARY:🛍️Muslimah Market
 DESCRIPTION:Date: August 22\, 2026 · 1:00–8:00 PM\\nWebsite: https://www.eventbrite.co.uk/e/muslimah-market-attendee-volunteer-content-creator-workshop-tickets-registration-1994915605277\\nInstagram: https://www.instagram.com/salaamgirlsmarket/\\nDesc: 80+ vendors\, pay-what-you-can charity market — food\, art\, spa\, workshops & speakers.
@@ -541,7 +541,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:meadowvale-bbq-family-fun-day-aug22@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260822
 SUMMARY:Meadowvale Community BBQ and Family Fun Day
 DESCRIPTION:Date: Saturday\, August 22\, 2026 · 12:00–4:00 PM\\nOrganizer: Meadowvale Islamic Centre\\nInstagram: https://www.instagram.com/meadowvaleislamiccentre/\\nDesc: Community BBQ and family fun day with halal food\, bouncy castles\, face painting\, games\, community stalls\, and more.
@@ -550,7 +550,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:mg-mam-sisters-only-oct-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261018
 SUMMARY:Sister's Only Session
 DESCRIPTION:Date: Friday\, October 18th\, 2026\\nOrganizer: Muslim Association of Milton (MAM)\\nWebsite: https://miltonmasjid.com/\\nDesc: Sister's only session at MAM. Part of the weekly gatherings series (between Maghrib and Isha).
@@ -559,7 +559,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:mnn-taste-of-mississauga-sept5-6-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260822
 DTEND;VALUE=DATE:20260824
 SUMMARY:🍽️Taste of Mississauga
@@ -569,7 +569,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:mscca-shabab-social-aug16-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260816
 SUMMARY:MSCCA Shabab Social
 DESCRIPTION:Date: Sunday\, August 16\, 2026 · 4:00–9:00 PM\\nPrice: Free\\nRegistration: Ages 16–25\; registration required\\nOrganizer: MSCCA\\nDesc: Youth social with games\, music\, food\, good vibes\, and new connections.
@@ -578,7 +578,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:muslim-film-fest@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261029
 DTEND;VALUE=DATE:20261102
 SUMMARY:Muslim Film Fest
@@ -588,7 +588,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:muslimfest-mississauga-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260828
 DTEND;VALUE=DATE:20260831
 SUMMARY:MuslimFest Mississauga
@@ -598,7 +598,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:palestinian-food-festival@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260830
 SUMMARY:🇵🇸Palestinian Food Festival
 DESCRIPTION:Time: 13:00\\nDesc: A family-friendly food festival celebrating Palestinian cuisine and culture\, hosted by Palestine House Toronto.
@@ -607,7 +607,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:pym-community-bbq-sept26-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260926
 SUMMARY:Community BBQ (Hand in Hand)
 DESCRIPTION:Date: Saturday\, September 26\, 2026 · time TBD\\nInstagram: https://www.instagram.com/pymtoronto/\\nDesc: Annual community BBQ hosted by Peel Palestinian Families\, PYM Toronto\, Streetsville 4 Palestine\, and Connect with PCAC. Free entry\, food available for pre-purchase. Features food\, cultural performances\, kids' activities\, and local vendors. This year's theme: Hand in Hand.
@@ -616,7 +616,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:recfest-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260926
 SUMMARY:RECFEST 2026 (10th Anniversary)
 DESCRIPTION:Date: September 26\, 2026\\nWebsite: https://smilecan.org/recfest\\nInstagram: https://www.instagram.com/smilecanada/\\nDesc: Smile Canada's biggest sports and recreational event of the year\, celebrating 10 years. Giant inflatables\, carnival games\, arts & crafts\, raffle\, food vendors. Free parking\, open to everyone.
@@ -625,7 +625,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:sakeenah-money-matters-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260920
 SUMMARY:Sakeenah Money Matters
 DESCRIPTION:Date: Sunday\, September 20\, 2026 · 11:00 AM–3:00 PM\\nOrganizer: Sakeenah Canada\\nInstagram: https://www.instagram.com/sakeenahcanada/\\nDesc: Sundays With Sakeenah: Money Matters - Risqy Business\, focused on wealth-building\, financial confidence\, and smart money management. In partnership with TD Canada. More details to come.
@@ -634,7 +634,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:sisters-study-chill@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260926
 SUMMARY:Sister's Study & Chill
 DESCRIPTION:Time: 12:00
@@ -643,7 +643,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:sma-taste-of-spice-sept5-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260905
 SUMMARY:Taste of Spice
 DESCRIPTION:Date: Saturday\, September 5\, 2026 · 11 AM – 8 PM\\nOrganizer: Scarborough Muslim Association\\nInstagram: https://www.instagram.com/sma__sisters/\\nDesc: A day of fun for the whole family — free admission. All proceeds go to SMA's operational costs. All poultry and meat strictly hand-slaughtered halal. Vendor inquiries: text Br. Ismail Chawala at 647-300-9074.
@@ -652,7 +652,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:suhba-seasons-potluck@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260828
 SUMMARY:Suhba Seasons Potluck
 DESCRIPTION:Time: 18:00\\nDesc: Bismillah. \n\n“Then do they not reflect upon the Qur'an\, or are there locks upon their hearts?” (Surah Muhammad 47:24)\n\nA new season awaits us\, a new chapter in store. Join in suhba as we reflect on the summer season\, potluck style.\n\nWe look forward to seeing you there inshAllah.
@@ -661,7 +661,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:summer-bash-lions-valley-aug30-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260830
 SUMMARY:Annual Summer Bash
 DESCRIPTION:Date: Sunday\, August 30\, 2026 · 4:00–7:00 PM\\nRegistration: Ages 18+\; bring a friend\\nOrganizer: Community sisters\\nDesc: Annual summer gathering with fun activities\, opportunities to meet new people\, and a rejuvenating khatira. Rain or shine.
@@ -670,7 +670,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:syg-summer-cafe-aug14-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260814
 SUMMARY:SYG Summer Cafe: Shukr
 DESCRIPTION:Date: Friday\, August 14\, 2026 · 7:30–9:00 PM\\nRegistration: https://tinyurl.com/SYGweekly26\\nInstagram: https://www.instagram.com/macyouthmississauga/\\nDesc: SYG Mississauga summer cafe — make your own summer drinks\, reflections\, activities\, and sisterhood. This session's lesson: Shukr (Gratitude Through Obedience). All high school girls welcome.
@@ -679,7 +679,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:the-cozy-cowgirl-club@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261017
 SUMMARY:The Cozy Cowgirl Club
 DESCRIPTION:Desc: Horses\, Painting\, & Pizza Making
@@ -688,7 +688,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:tmc-board-games-night-aug22-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260822
 SUMMARY:♟️Board Games Night
 DESCRIPTION:Date: Saturday\, August 22\, 2026 · 8:00 PM\\nOrganizer: TMC\\nWebsite: https://www.instagram.com/4dasistas.ca/\\nDesc: An evening of board games\, community\, and friendly competition.
@@ -697,7 +697,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:tmc-sisters-waterpark-aug9-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260809
 SUMMARY:TMC Sisters-Only Waterpark Event
 DESCRIPTION:Date: Sunday\, August 9\, 2026\\nOrganizer: TMC\\nWebsite: https://www.instagram.com/4dasistas.ca/\\nDesc: Past sisters-only waterpark event with exclusive access\, female lifeguards\, water slides\, attractions\, and a heated wave pool.
@@ -706,7 +706,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:toronto-muslim-singles-night-market-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260906
 SUMMARY:Toronto Muslim Singles Night Market & Social Mixer
 DESCRIPTION:Date: Sunday\, September 6\, 2026 · 5:00 PM\\nRegistration: https://www.eventbrite.com/e/toronto-muslim-singles-night-market-social-mixer-tickets-1996385075502\\nOrganizer: TBA\\nWebsite: https://www.eventbrite.com/d/canada--toronto/muslim/\\nDesc: Muslim singles social event in a night market format.
@@ -715,7 +715,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:ummahcon-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261012
 SUMMARY:Ummah Con 2026
 DESCRIPTION:Date: Monday\, October 12\, 2026 (Thanksgiving Day) · 12 PM – 9 PM\\nRegistration: https://forms.gle/TewyTENCTXCjw1pt9\\nInstagram: https://www.instagram.com/ummahcon/\\nDesc: Mississauga's biggest single-day Muslim convention & fun fest. Family friendly\, free entry\, free parking (or park on Aimco St if lot is full). Check in 1 hour early to secure your spot.
@@ -724,7 +724,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:yaqeen-s-annual-toronto-conference@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261017
 SUMMARY:Yaqeen’s Annual Toronto Conference
 DESCRIPTION:Desc: This year\, we’re marking 10 years of Yaqeen — a decade of turning questions into clarity\, doubt into conviction\, and scholarship into a source of strength for Muslims around the world. ⁠\n⁠\nAnd we’d love for you to join us for Yaqeen’s Annual Toronto Conference as we reflect on this journey and look ahead to what’s next. We look forward to seeing you in Toronto\, insha’Allah.⁠
@@ -733,7 +733,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:dive-in-movie-night@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260913
 SUMMARY:🍿Dive-In Movie Night 
 DESCRIPTION:Time: 17:30\\nDesc: SUMMER'S NOT OVER YET...\nBUT there's only 3 weekends left before fall •\nCome solo\, bring your girls\, make new friends here\, just don't let summer end from your couch!\nPOOL PARTY + MOVIE NIGHT UNDER THE STARS\n• Private secluded property in Burlington\n17 Sunday\, September 13\n© 5:30-9PM\nWe're taking over a completely private\, resort-style property for one last summer evening together:\na A warm swim in the heated pool\n• Mocktails poolside\nQ: Lounging\, cabanas & soaking up the last summer sun\nPizza dinner\n• Sunset views while swimming\n& Changing into your comfiest PJs after your swim\nin A cozy movie night under the stars i Snacks & good vibes
@@ -742,7 +742,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:ism-carnival@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260829
 SUMMARY:🎪ISM Carnival
 DESCRIPTION:Time: 12:00\\nDesc: 🎪 THE CARNIVAL SCHEDULE IS HERE! 🎠\n\nWe’ve got a full day of fun planned for the whole family! From the Petting Zoo & Pony Rides to superheroes\, face painting\, balloon twisting and more\, there’s something happening all day long! 🐴🎈🎨🦸‍♂️\n\nAnd don’t miss our special events:\n🐾 4:00 PM – Animal Show\n✨ 6:45 PM – Jannah’s Family\n🎤 8:30 PM – Live Nasheeds ft. ILYAS MAO!!!\n\n📅 Saturday\, August 29 (12PM-10PM)\n📍 Islamic Society of Markham\n\nSave the schedule\, send it to the family\, and we’ll see you at the Carnival! 💚
@@ -751,7 +751,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:sisters-social-luncheon@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261115
 SUMMARY:👗Sisters Social Luncheon
 DESCRIPTION:Time: 12:00\\nDesc: This isn't simply an afternoon to come\, eat and leave. We're thoughtfully planning a gathering where *sisters can connect\, be reminded\, reflect\, laugh\, enjoy beautiful food and drinks\, and strengthen bonds of sisterhood*— all in a welcoming\, sisters-only environment.\n* Live Islamic reminder by Umm Yahya i Catered lunch buffet\n• Latte & matcha station\n• Dessert table\n• Mocktail station\n• Sisterhood reflection cards\n•' Interactive quiz & prizes
@@ -760,7 +760,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:the-ottoman-ball@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261018
 SUMMARY:💃🏻The Ottoman Ball
 DESCRIPTION:Desc: The Ottoman Ball\, an event bringing together women to immerse themselves in the rich history of ancient Turkey through fashion\, storytelling\, and cultural experiences. Take a step into the past while celebrating The Great Islamic Empire that reigned for 600+ years!\n\n📍375 Brunel Rd\, Mississauga ON L4Z 1Z5\n📆October 18th 2026\n⏱️5:30pm - 11:30pm\n\n18+ WOMEN ONLY
@@ -769,7 +769,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:lovember@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261114
 SUMMARY:💋Lovember
 DESCRIPTION:Time: 18:00\\nDesc: LOVEMBER\nA Fall Galentine's by Her Healing Hub\n仄\nJoin us for an intimate evening with your girls featuring:\n) Dinner\n• A coffee & matcha bar\n§ A flower bar to create your own bouquet oi A photobooth to capture the memories\n• Special goodies & surprises\n• And a night dedicated to celebrating you!\nDRESS CODE:\n• Pink\n• Red\n• Brown\nIvory\nCome dressed in your favourite shade\, bring your girls\, and get ready for your new favourite fall tradition. * 't\nLOVEMBER — A Fall Galentine's
@@ -778,7 +778,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:muslimahs-dining@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260822
 RDATE;VALUE=DATE:20260830
 SUMMARY:🕯️Muslimahs Dining
@@ -788,7 +788,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:community-bbq-bazaar@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260907
 SUMMARY:🛍️Community BBQ & Bazaar
 DESCRIPTION:Time: 14:00
@@ -797,7 +797,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:fall-festival@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260926
 SUMMARY:🛍️Fall Festival
 DESCRIPTION:Time: 17:00
@@ -806,7 +806,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:sister-s-picnic-potluck@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260904
 SUMMARY:🧺Sister’s Picnic & Potluck
 DESCRIPTION:Time: 16:00
@@ -815,7 +815,7 @@ CATEGORIES:Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:autumn-en-plein-air-oil-pastel-painting-course@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261010
 RDATE;VALUE=DATE:20261017
 SUMMARY:🎨Autumn En Plein Air | Oil Pastel & Painting Course
@@ -825,7 +825,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:bloombake-girlsroom-aug23@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260823
 SUMMARY:🍰Bloom & Bake
 DESCRIPTION:Date: August 23\, 2026 · 12:00 PM\\nTime: 12:00\\nPrice: $49\\nInstagram: https://www.instagram.com/p/DbvzMSyDrtX/\\nDesc: Afternoon of collage-making\, coffee\, matcha\, chai\, bouquet-building\, and a dessert swap featuring homemade treats. Bring something you love to bake.
@@ -834,7 +834,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:daff-workshop@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261101
 RRULE:FREQ=WEEKLY;BYDAY=SU
 SUMMARY:Daff Workshop 
@@ -843,7 +843,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:day-escape@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260818
 SUMMARY:Cube Challenges
 DESCRIPTION:Date: 9pm on August 18th\, 2026\\nTime: 21:00\\nInstagram: https://www.instagram.com/4dasistas.ca/
@@ -852,7 +852,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:fall-in-full-colour@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260926
 SUMMARY:Fall in Full Colour
 DESCRIPTION:Desc: Apple Picking & Colours Social
@@ -861,7 +861,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:family-apple-picking@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260920
 SUMMARY:Family Apple-Picking
 LOCATION:Milton
@@ -869,7 +869,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:gathering-games-sisters-night@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260919
 SUMMARY:Gathering & Games\, Sisters Night
 DESCRIPTION:Time: 18:00\\nDesc: SISTERS’ NIGHT ✨\n\nUnwind • Connect • Reflect\n\nJoin us for a fun evening of games\, laughter\, sisterhood\, and meaningful reflection!\n\nWhether you’re coming with friends or looking to meet new sisters\, come enjoy a night filled with:\n\n🎀 Icebreakers & Team Challenges\n🎲 Fun Games & Activities\n🕌 Reflection\n🤍 Sisterhood & Connection\n🍵 Refreshments\n\nTake a break from the usual routine\, connect with your sisters\, have some fun\, and leave with a beautiful reminder\, in shaa Allah.\n\n📆 Date: Saturday\, Sep 19tg\, 2026 6:00 - 8:00 PM\n💵 Fees: $35
@@ -878,7 +878,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:glamatelier-girlsroom-sep12@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260912
 SUMMARY:Glam Atelier
 DESCRIPTION:Date: September 12\, 2026 · 4:00 PM\\nInstagram: https://www.instagram.com/p/DcG676yjveM/\\nDesc: Custom lip gloss bar\, Palestine mirror decoden workshop\, specialty café drink & 15% off Mieluna's menu. Early bird spots limited.
@@ -887,7 +887,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:islamic-biomorphic-art-workshop@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260901
 RRULE:FREQ=WEEKLY;BYDAY=TU
 SUMMARY:Islamic Biomorphic Art Workshop
@@ -897,7 +897,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:masks-n-mane@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260927
 SUMMARY:Masks n Mane
 DESCRIPTION:Time: 16:00\\nDesc: What if your Sunday plans were simply... getting taken care of?\n\nIntroducing MASKS & MANE hosted by @the.ghee.mama.productions\, @skin9studio and @gistarallure - a beauty + self-care social created around all the little things we love doing\, except this time\, we've planned the whole afternoon for you.\n\nCome in\, settle down and start with a guided facial ritual by Skin 9 Studio - you will he taught and made to do double cleanse\, enzyme mask\, facial massage\, mask and aftercare.\n\nWanna fix your hair after the facial? Want to get side braids\, curls? You can get your little hair refresh with GistarAllure\, choosing from a curated menu of hairstyles.\n\nAnd in between? Make yourself a charm bracelet or keychain. Take cute photobooth pictures. Sip your coffee or matcha. Have your curated food box and charcuterie cup.\n\nMingle\, talk\, take pictures... or just sit and enjoy not having anywhere else to be.\n\nAnd yes\, you'll leave with a gua sha + face roller too.
@@ -906,7 +906,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:medieval-painting@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260926
 RDATE;VALUE=DATE:20261003
 SUMMARY:Medieval Painting
@@ -916,7 +916,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:moos-your-pumkin@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261024
 SUMMARY:Moo's Your Pumkin
 DESCRIPTION:Desc: Highland Cuddles & Pumkin Painting
@@ -925,7 +925,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:motw-cafe-sipnpaint-girls-night@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260818
 SUMMARY:MOTW Cafe | SipnPaint Girls' Night
 DESCRIPTION:Time: 17:00\\nDesc: Girls’ night at MOTW 🎨☕️💗\n\nGrab your girls and join us for an evening of painting\, drinks & good vibes!\n\n🎨 August 18 | 5–7 PM\n💗 $40 per person\n☕ Free small drink included\n📍 335 Kerr Street\, Oakville
@@ -934,7 +934,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:muslim-women-floral-mindset-workshop-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260827
 SUMMARY:Muslim Women Floral & Mindset Workshop
 DESCRIPTION:Date: Thursday\, August 27\, 2026 · 3:00 PM\\nRegistration: https://www.eventbrite.com/e/muslim-women-floral-mindset-workshop-august-27-toronto-tickets-1997795480060\\nOrganizer: TBA\\nWebsite: https://www.eventbrite.com/d/canada--toronto/muslim/\\nDesc: Muslim women-focused floral and mindset workshop.
@@ -943,7 +943,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:oil-pastel-art-therapy@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260903
 SUMMARY:Oil Pastel Art Therapy
 DESCRIPTION:Time: 18:00\\nDesc: An illustrative and meditative oil pastel workshop for women to connect and explore colour through emotion and self-expression\, learning techniques in colour theory\, abstracted landscapes\, layering\, texture\, and intuitive mark-making.\n\nGuided by Professional Artist Nora Alkeyat. Templates and materials provided. \n18+ | Sisters only \nThursday Sept 3 | 6pm - 8:30pm \nStudio.89 Café\, Mississauga
@@ -952,7 +952,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:paint-potluck@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261003
 SUMMARY:Paint & Potluck
 DESCRIPTION:Time: 14:00
@@ -961,7 +961,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:she-travels-toronto-ranch-sep26-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260926
 SUMMARY:She Travels Toronto: Ranch Weekend
 DESCRIPTION:Date: Saturday–Sunday\, September 26–27\, 2026\\nPrice: $185 CAD\\nRegistration: Register at https://shetravels.ca/\\nOrganizer: She Travels\\nWebsite: https://shetravels.ca/\\nDesc: Sisterhood weekend with a one-hour trail ride and rental equipment\, guided archery practice\, and a picnic with snacks and refreshments. Transportation is available at additional cost\; attractions and transportation are not included in the base price.
@@ -970,7 +970,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:sip-n-paint@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260926
 SUMMARY:Sip n Paint
 DESCRIPTION:Time: 13:00\\nDesc: come paint your own 20x20 canvas\, sip on some matcha\, and hang out with us at our next Side Quest!\n\n📆september 26 1:00-3:00 pm\n📍cafe daily\, north york\n🎟️$20 for early birds | $25 regular price\n🎨 all painting supplies\n🍵a drink of choice\n\ncome solo or bring your bestie — no painting skills needed!\n\nlimited spots | link in bio
@@ -979,7 +979,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:sisters-sip-paint@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260830
 SUMMARY:Sisters Sip & Paint
 DESCRIPTION:Time: 16:00\\nDesc: Calling all sisters for an afternoon you wouldn't wanna miss!\nJoin us for the 3rd Annual Sisters Sip & Paint\n- an afternoon filled with delicious drinks\, creativity\, laughter\, and sisterhood\nWhether you're an artist or just looking for a fun day out\, come paint\, sip\, and connect with sisters in the community\, 
@@ -988,7 +988,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:the-barn-after-dark@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261031
 SUMMARY:The Barn After Dark
 DESCRIPTION:Desc: Girls Night In: Movie\, Painting\, Alpacas\, & Food
@@ -997,7 +997,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:the-case-night@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261003
 SUMMARY:The Case Night
 DESCRIPTION:Desc: the case begins here. 🔎 spend the evening with us uncovering clues\, sharing theories\, and piecing it all together.
@@ -1005,7 +1005,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:tmc-sisters-paddle-picnic-aug25-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260825
 SUMMARY:TMC Sisters Youth: Sisters Paddle & Picnic
 DESCRIPTION:Date: Tuesday\, August 25\, 2026\\nRegistration: Spaces limited\; register through the link in bio\\nOrganizer: TMC Sisters Youth\\nDesc: Afternoon of kayaking/canoeing followed by a picnic with lunch\, snacks\, and drinks. Transportation to and from TMC will be available.
@@ -1014,7 +1014,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:trailbound-hike-connect@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260926
 SUMMARY:Trailbound | Hike & Connect
 DESCRIPTION:Time: 10:51
@@ -1023,7 +1023,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:tubing-koraa-aug23@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260823
 SUMMARY:Tubing the Rapids
 DESCRIPTION:Date: Sunday\, August 23\, 2026 · Drop in 10 AM–4 PM\\nInstagram: https://www.instagram.com/koraa.ca/\\nDesc: Tubing down the rapids with the girls — lunch provided after. Best for comfortable swimmers\, spots limited.
@@ -1032,7 +1032,7 @@ CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
 UID:sisters-craft-chill@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260901
 SUMMARY:✂️Sister's Craft & Chill
 DESCRIPTION:Time: 17:00\\nDesc: Make a keychain to take home\, play some games\, and meet new people! Craft & Chill is a laid-back hangout for first year sisters to unwind\, get creative\, and make some friends along the way. See you there! ✨🔑\n
@@ -1040,8 +1040,16 @@ LOCATION:1280 Main St W\, Hamilton\, ON L8S 1C7\, Canada
 CATEGORIES:Day Activities
 END:VEVENT
 BEGIN:VEVENT
+UID:building-cultural-competency-to-support-muslim-women@4dasistas.ca
+DTSTAMP:20260920T204918Z
+DTSTART;VALUE=DATE:20260902
+SUMMARY:Building Cultural Competency to Support Muslim Women
+DESCRIPTION:Time: 12:00\\nDesc: Join CCMW LAW (Legal Advocacy for Women) for an engaging webinar exploring parenting and child support through both Canadian and Muslim family law frameworks\, with practical insights to better support Muslim women navigating family law matters.\n\nCPD Accreditation: \n1 hour Professionalism Content \n30 minutes EDI Professionalism Content \n\nThis webinar is designed for lawyers\, paralegals\, social service providers\, and Muslim women seeking to deepen their understanding of culturally competent legal practice. 
+CATEGORIES:Mosque Gatherings
+END:VEVENT
+BEGIN:VEVENT
 UID:dawah-training@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260927
 RDATE;VALUE=DATE:20261004
 SUMMARY:Dawah Training
@@ -1050,7 +1058,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:deen-journeys-bookclub-sept13-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260913
 SUMMARY:Toronto Book Club: Allah Loves
 DESCRIPTION:Date: September 13\, 2026 · 4 PM\\nInstagram: https://www.instagram.com/deen.journeys/\\nDesc: Toronto Book Club session studying 'Allah Loves' by Omar Suleiman\, part of this quarter's theme 'Love of Allah & Longing for Jannah'. Members free\, non-members $15.
@@ -1059,7 +1067,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:deennstudy@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260901
 SUMMARY:Balancing Deen & Study
 DESCRIPTION:Date: September 1\, 2026 · 2:00–4:00 PM\\nTime: 14:00\\nInstagram: https://www.instagram.com/p/DcZTBTmByQk/?utm_source=ig_web_copy_link&igsi=NTc4MTIwNjQ2YQ==\\nDesc: Assalamu Alaikum\, YM Sisters Mississauga invites you!\n\nJoin us on September 1st for an inspiring Sisters’ Halaqah all about balancing Deen and academics throughout high school and university! We’ll share practical advice and learn how to stay connected to our faith while succeeding in our studies.\n\nAfterward\, stick around for badminton\, friendly competition\, and an opportunity to meet and connect with other sisters. We hope to see you there\, In Shaa Allah!
@@ -1067,8 +1075,24 @@ LOCATION:6635 Kitimat Rd\, Mississauga\, ON L5N 6J2\, Canada
 CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
+UID:eldest-daughters-support-group@4dasistas.ca
+DTSTAMP:20260920T204918Z
+DTSTART;VALUE=DATE:20260828
+SUMMARY:Eldest Daughters
+DESCRIPTION:Date: Friday\, August 28\, 2026 · 6:00–7:30 PM · Online\\nInstagram: https://www.instagram.com/p/DcOkpTNOQ9W/\\nDesc: A support space for eldest daughters to connect and process shared experiences together.
+CATEGORIES:Mosque Gatherings
+END:VEVENT
+BEGIN:VEVENT
+UID:healing-hearts-muslim-survivors-group@4dasistas.ca
+DTSTAMP:20260920T204918Z
+DTSTART;VALUE=DATE:20261014
+SUMMARY:Healing Hearts: Muslim Survivors Group
+DESCRIPTION:Date: October 14\, 2026 · 11:00 AM – 12:00 PM (UTC-4)\\nDesc: A gathering space for Muslim individuals who identify as having experienced sexual violence\, sexual harassment\, and/or gender-based violence. Participants discuss healing\, faith\, and community-building.
+CATEGORIES:Mosque Gatherings
+END:VEVENT
+BEGIN:VEVENT
 UID:ihsan-in-academia@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260924
 SUMMARY:Ihsan in Academia
 DESCRIPTION:Time: 18:15
@@ -1077,7 +1101,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:isna-thrive-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260824
 RRULE:FREQ=WEEKLY;BYDAY=MO
 SUMMARY:ISNA Thrive
@@ -1087,7 +1111,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:isna-youth-book-club-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260819
 RRULE:FREQ=WEEKLY;BYDAY=WE
 SUMMARY:ISNA Youth Book Club
@@ -1096,16 +1120,35 @@ LOCATION:ISNA Canada (ICC) Education Centre\, 2200 S Sheridan Way\, Mississauga
 CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
+UID:journey-ahead-icco-aug30@4dasistas.ca
+DTSTAMP:20260920T204918Z
+DTSTART;VALUE=DATE:20260830
+SUMMARY:Your Journey Ahead: University and College Prep
+DESCRIPTION:Date: Saturday\, August 30\, 2026 · 1:00–4:00 PM\\nPrice: $10\\nRegistration: Registration mandatory\\nInstagram: https://www.instagram.com/hidayah__icco/\\nDesc: A university and college prep workshop for Muslim youth\, with lunch provided and mandatory registration.
+LOCATION:2550 Dunwin Dr\, Mississauga\, ON L5L 1T1\, Canada
+CATEGORIES:Mosque Gatherings
+END:VEVENT
+BEGIN:VEVENT
 UID:layali-of-poetry-praise@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260925
 SUMMARY:Layali of Poetry & Praise
 LOCATION:Vaughan\, ON\, Canada
 CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
+UID:mental-khalil-navigating-divorce-support-group@4dasistas.ca
+DTSTAMP:20260920T204918Z
+DTSTART;VALUE=DATE:20240101
+RRULE:FREQ=WEEKLY;BYDAY=MO
+SUMMARY:Navigating Divorce: Women Support Group
+DESCRIPTION:Date: Every Monday · 11:00 AM–12:00 PM CST\\nTime: 11:00\\nWebsite: https://www.instagram.com/p/DaEG5Njjv27/\\nInstagram: https://www.instagram.com/khalilcenter/\\nDesc: A compassionate and confidential virtual support group for women contemplating divorce\, navigating its challenges\, or healing from its impact. Offers support\, reflection\, renewal\, and connection with women who understand.
+LOCATION:Virtual via Zoom
+CATEGORIES:Mosque Gatherings
+END:VEVENT
+BEGIN:VEVENT
 UID:mg-almukhlisin-fiqh-of-salah@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20240107
 RRULE:FREQ=WEEKLY;BYDAY=SU
 SUMMARY:Fiqh of Salah
@@ -1115,7 +1158,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:mg-isna-project-lina@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20240102
 RRULE:FREQ=WEEKLY;BYDAY=TU
 SUMMARY:Project Lina | Weekly Sisters-Only Convert Program
@@ -1125,7 +1168,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:mg-isna-sisters-quran-tajweed@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20240107
 RRULE:FREQ=WEEKLY;BYDAY=SU
 SUMMARY:Sisters Quran & Tajweed Class
@@ -1135,7 +1178,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:mg-meadowvale-rise-and-fall-insaan-aug21-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260821
 SUMMARY:The Rise and Fall of Insaan
 DESCRIPTION:Date: Friday\, August 21\, 2026 · 5:00–6:00 PM\\nOrganizer: Meadowvale Islamic Centre\\nInstagram: https://www.instagram.com/meadowvaleislamiccentre/\\nDesc: Girls youth event with Umme Ibrahim exploring lessons from Surah At-Teen. Presented in English.
@@ -1144,7 +1187,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:mg-sisters-through-faith-fiqh-salah-aug23@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260823
 SUMMARY:Sisters Through Faith Fiqh of Salah Halaqa
 DESCRIPTION:Date: Sunday\, August 23\, 2026 · 2:15–3:15 PM\\nPrice: Sisters 16+\\nOrganizer: Sisters Through Faith\\nInstagram: https://www.instagram.com/sistersthroughfaith/\\nDesc: A halaqa on the fiqh of salah\, with the remaining August sessions on Sundays at ISM Sisters.
@@ -1153,7 +1196,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:mg-sisters-through-faith-fiqh-salah-aug30@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260830
 SUMMARY:Sisters Through Faith Fiqh of Salah Halaqa
 DESCRIPTION:Date: Sunday\, August 30\, 2026 · 2:15–3:15 PM\\nPrice: Sisters 16+\\nOrganizer: Sisters Through Faith\\nInstagram: https://www.instagram.com/sistersthroughfaith/\\nDesc: A halaqa on the fiqh of salah\, with the remaining August sessions on Sundays at ISM Sisters.
@@ -1162,7 +1205,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:mnn-friday-family-halaqah-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260821
 RRULE:FREQ=WEEKLY;BYDAY=FR
 SUMMARY:Friday Family Halaqah
@@ -1172,7 +1215,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:mnn-sisters-tafseer-gems-aug26@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260826
 SUMMARY:MNN Sisters Tafseer Gems
 DESCRIPTION:Date: Wednesday\, August 26\, 2026 · 8:45 PM after Maghrib\\nOrganizer: MNN\\nInstagram: https://www.instagram.com/officialmnn/\\nDesc: Outdoor tafseer circle for sisters\, with chairs and snacks encouraged.
@@ -1181,7 +1224,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:mnn-stand-firm-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260902
 RRULE:FREQ=WEEKLY;BYDAY=WE
 SUMMARY:MNN Stand FIRM
@@ -1191,7 +1234,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:mnn-stand-firm-launch-aug22@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260822
 SUMMARY:MNN Stand FIRM Launch
 DESCRIPTION:Date: Friday\, August 22\, 2026 · 7:00–9:00 PM\\nOrganizer: MNN\\nInstagram: https://www.instagram.com/officialmnn/\\nDesc: Launch night for the Stand FIRM program.
@@ -1200,7 +1243,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:reflection-halaqah-night@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260919
 SUMMARY:Reflection Halaqah Night
 DESCRIPTION:Desc: As salamu alaykum sisters\, we pray that you’re all doing well insha’Allah 🫶🏽\n\nJoin us this Saturday at Masjid Khalid bin Al Walid at 5:30 pm as we open our hearts to reflect on our lives and purpose as Muslim sisters together lead by our Sister Lulay.\n\nDon’t forget to tell a friend to tell a friend 🤍
@@ -1209,7 +1252,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:rooted-narratives-workshop@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261107
 SUMMARY:Rooted Narratives Workshop
 LOCATION:24 Cecil St\, Toronto\, ON M5T 1N2\, Canada
@@ -1217,7 +1260,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:sisters-tafseer-gems@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260923
 SUMMARY:Sisters Tafseer Gems
 DESCRIPTION:Time: 19:45
@@ -1226,7 +1269,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:the-99-names-of-allah@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260918
 SUMMARY:The 99 names of Allah
 LOCATION:meadowvale islamic centre
@@ -1234,7 +1277,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:the-character-of-a-muslim@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260924
 RRULE:FREQ=WEEKLY;BYDAY=TH
 SUMMARY:The Character of a Muslim
@@ -1242,8 +1285,16 @@ LOCATION:3359 Mississauga Rd\, Mississauga\, ON L5L 1C6\, Canada
 CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
+UID:the-deadly-weight-of-honour@4dasistas.ca
+DTSTAMP:20260920T204918Z
+DTSTART;VALUE=DATE:20260828
+SUMMARY:The Deadly Weight of "Honour" 
+DESCRIPTION:Time: 14:00\\nDesc: Imagine growing up in a community where the cost of error is your life\, where a single rumour can mark you for death. \nIn some Muslim communities\, distorted ideas of honour have been weaponised into violence\, turning women into the bearers of family reputation and the targets when that reputation is ‘compromised’.\n\nWhy does ‘honour’ weighed more valuable than a women’s life? \nAnd what must we do collectively to dismantle the norms that allow this violence to continue?\n\nJoin us this week for this MWJA Discussion Session. 📢\n🔗 Join Session here: https://t.me/MWJAGLOBAL
+CATEGORIES:Mosque Gatherings
+END:VEVENT
+BEGIN:VEVENT
 UID:the-womens-roundtable@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260926
 SUMMARY:The Women's Roundtable
 DESCRIPTION:Time: 16:00\\nDesc: When the hijab becomes a barrier to education\, work\, or public life\, Muslim women and girls are being denied equal participation.\n\nHow’s that equality?\n\nLet’s unpack the uncomfortable truth.\n\n🗓 Sat\, Sept 26\n⏰ 4-6 PM\n📍 D Spot Cafe\, Scarborough
@@ -1252,7 +1303,7 @@ CATEGORIES:Mosque Gatherings
 END:VEVENT
 BEGIN:VEVENT
 UID:barbados-treat@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260927
 DTEND;VALUE=DATE:20261005
 SUMMARY:Barbados Treat
@@ -1261,7 +1312,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:deen-journeys-granada-retreat-2027@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20270526
 SUMMARY:Deen Journeys Granada Retreat
 DESCRIPTION:Date: May 26–June 1\, 2027\\nRegistration: Limited spots\; learn more through the link in the Deen Journeys Instagram bio.\\nOrganizer: Deen Journeys\\nWebsite: https://www.instagram.com/deen.journeys/\\nInstagram: https://www.instagram.com/deen.journeys/p/Dak_sPnGetJ/\\nDesc: Six-night soul-nourishing retreat in the mountains of Southern Spain focused on rest\, reflection\, reconnection with Allah\, and meaningful sisterhood. A deposit is required to secure a spot\; Alhambra tickets must be secured two months in advance.
@@ -1270,7 +1321,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:deen-journeys-orlando-retreat-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261210
 DTEND;VALUE=DATE:20261215
 SUMMARY:Deen Journeys Orlando Retreat
@@ -1280,7 +1331,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:lake-muskoka-writers-retreat@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260917
 DTEND;VALUE=DATE:20260921
 SUMMARY:Lake Muskoka Writers Retreat
@@ -1289,7 +1340,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:macedonia-kosovo@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260930
 DTEND;VALUE=DATE:20261005
 SUMMARY:Macedonia & Kosovo
@@ -1298,7 +1349,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:mawa-jordan-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261114
 SUMMARY:Ma'wa Jordan
 DESCRIPTION:Date: November 14–21\, 2026\\nWebsite: https://mawacollective.com/trips\\nInstagram: https://www.instagram.com/mawa.collective/\\nDesc: Eight-day hiking trip covering Petra\, Wadi Rum\, Jordan’s highest peak\, and a cooking class.
@@ -1307,7 +1358,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:muslim-hikers-mount-toubkal-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261002
 SUMMARY:Muslim Hikers Mount Toubkal
 DESCRIPTION:Date: October 2–5\, 2026\\nWebsite: https://www.instagram.com/muslim.hikers/\\nInstagram: https://www.instagram.com/muslim.hikers/\\nDesc: Two-day guided trek to 4\,167 m with Muslim Hikers — a challenging but rewarding mountain adventure.
@@ -1316,7 +1367,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:mwtg-jordan-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260517
 SUMMARY:MWTG: Jordan
 DESCRIPTION:Date: May 17–24\, 2026\\nPrice: See themwtg.com for pricing\\nWebsite: https://themwtg.com/trip-2026/\\nInstagram: https://www.instagram.com/the.mwtg/\\nDesc: Group trip to Jordan with The Muslim Women's Travel Group — female-only\, fully organized. Not GTA-based\, open to join from anywhere.
@@ -1325,7 +1376,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:mwtg-oman-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261024
 SUMMARY:MWTG Oman Group Trip
 DESCRIPTION:Date: October 24-31\, 2026\\nWebsite: https://themwtg.com/oman-2026_1/\\nInstagram: https://www.instagram.com/the.mwtg/\\nDesc: The Muslim Women's Travel Group presents an 8-day group trip to Oman. Women-only\, halal-friendly\, small group travel with local guides. Safety\, sisterhood\, and cultural immersion.
@@ -1334,7 +1385,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:onepath-japan-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261015
 SUMMARY:OnePath Japan
 DESCRIPTION:Date: October 15–25\, 2026\\nWebsite: https://travelonepath.com/\\nInstagram: https://www.instagram.com/onepath.travel/\\nDesc: Women-only group trip to Japan with OnePath Travel\, including major cultural cities and a well-paced itinerary.
@@ -1343,7 +1394,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:onepath-kyrgyzstan-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260628
 SUMMARY:OnePath Travel Kyrgyzstan (Ladies)
 DESCRIPTION:Date: June 28 - July 5\, 2026\\nWebsite: https://www.travelonepath.com/group-trips/kyrgyzstan-(ladies)\\nInstagram: https://www.instagram.com/onepath.travel/\\nDesc: Muslim-friendly group trip to Kyrgyzstan for women. Experience breathtaking untouched nature\, high mountains\, clear blue lakes\, and nomadic culture. Small group\, halal options\, meaningful cultural moments.
@@ -1352,7 +1403,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:onepath-macedonia-kosovo-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260930
 SUMMARY:OnePath Macedonia and Kosovo
 DESCRIPTION:Date: September 30–October 4\, 2026\\nWebsite: https://travelonepath.com/\\nInstagram: https://www.instagram.com/onepath.travel/\\nDesc: Women-only group trip with OnePath Travel covering cultural and scenic highlights across Macedonia and Kosovo.
@@ -1361,7 +1412,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:sakinah-cappadocia-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260924
 SUMMARY:Sakinah Retreats - Cappadocia Turkey
 DESCRIPTION:Date: September 24-28\, 2026\\nWebsite: https://sakinahretreats.wetravel.com/trips/cappadocia-turkey-sakinah-retreat-5-days-4-nights-sakinah-retreat-7626716303\\nInstagram: https://www.instagram.com/sakinaretreats/\\nDesc: 5-day sacred retreat in the surreal landscapes of Cappadocia. Sunrise hot air balloons\, ancient caves of Göreme\, pottery in Avanos\, spiritual day trip to Konya (resting place of Rumi). Faith-aligned travel with sisterhood.
@@ -1370,7 +1421,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:sisters-camping-adventure-alberta-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260904
 SUMMARY:Sisters Camping Adventure (Alberta)
 DESCRIPTION:Date: Friday\, September 4–Sunday\, September 6\, 2026\\nPrice: $200 CAD\\nRegistration: https://www.eventbrite.com/e/1994984412080?aff=ebdiglgoogleliveevents\\nOrganizer: Al Rashid Mosque Sisters\\nWebsite: https://www.eventbrite.com/e/1994984412080?aff=ebdiglgoogleliveevents\\nDesc: Three-day all-inclusive nature getaway with cabin/camp accommodation\, halal meals\, canoeing\, hikes\, wall climbing\, high-energy games\, campfire circle stories\, and spiritual community building. Round-trip transport from the mosque is included.
@@ -1379,7 +1430,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:sisters-getaway-granada-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20260824
 SUMMARY:Sisters Getaway Granada
 DESCRIPTION:Date: August 24–30\, 2026\\nWebsite: https://sistersgetaway.wetravel.com/trips/august-24-30th-2026-with-sisters-getaway-to-granada-sisters-getaway-56521944\\nInstagram: https://www.instagram.com/sistersgetawayofficial/\\nDesc: Women’s getaway to Granada and the Alpujarra Mountains with meals\, pool time\, wellness\, and an Alhambra tour.
@@ -1388,7 +1439,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:sisters-getaway-morocco-2026@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261001
 SUMMARY:Sisters Getaway - Morocco
 DESCRIPTION:Date: October 2026\\nWebsite: https://www.sistersgetaway.com/\\nInstagram: https://www.instagram.com/sistersgetawayofficial/\\nDesc: Fully-inclusive female-only group trip to Morocco with Sisters Getaway. 15-20 women per group\, 2 leaders\, private pool\, halal meals\, airport pickup\, yoga\, sightseeing\, and sisterhood. Split itinerary: rural retreat + city break.
@@ -1397,7 +1448,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:a-deen-retreat-experience@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261201
 DTEND;VALUE=DATE:20261208
 SUMMARY:🇨🇳A Deen Retreat Experience
@@ -1407,7 +1458,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:kazakhstan-deen-dunya-retreats@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261102
 DTEND;VALUE=DATE:20261109
 SUMMARY:🇰🇿Kazakhstan | Deen Dunya Retreats
@@ -1417,7 +1468,7 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:morocco-sisters-retreat-1@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261122
 DTEND;VALUE=DATE:20261130
 SUMMARY:🇲🇦Morocco Sisters retreat
@@ -1427,63 +1478,12 @@ CATEGORIES:Trips
 END:VEVENT
 BEGIN:VEVENT
 UID:a-journey-home@4dasistas.ca
-DTSTAMP:20260920T203846Z
+DTSTAMP:20260920T204918Z
 DTSTART;VALUE=DATE:20261110
 DTEND;VALUE=DATE:20261121
 SUMMARY:🕋A Journey Home
 DESCRIPTION:Desc: Umrah - A Journey Home 🤍\n\nThis retreat has been close to our hearts for many years\, and Alhamdulillah\, we now have the opportunity to share it with our community for a third year running.\n\nTogether\, we’ll explore places that have shaped our Islamic history\, walk through landscapes connected to the lives of the Prophets and the Sahabah (may Allah be pleased with them) and experience these stories in a way that brings them vividly to life. Alongside our visits to Makkah and Madinah\, we’ll spend time reflecting\, reconnecting with ourselves\, and strengthening our relationship with Allah.\n\nWhether this is your first Umrah or you’ve been blessed to visit before\, we pray this journey allows you to experience these sacred places with fresh eyes and an open heart.
 LOCATION:Makkah Saudi Arabia
 CATEGORIES:Trips
-END:VEVENT
-BEGIN:VEVENT
-UID:building-cultural-competency-to-support-muslim-women@4dasistas.ca
-DTSTAMP:20260920T203846Z
-DTSTART;VALUE=DATE:20260902
-SUMMARY:Building Cultural Competency to Support Muslim Women
-DESCRIPTION:Time: 12:00\\nDesc: Join CCMW LAW (Legal Advocacy for Women) for an engaging webinar exploring parenting and child support through both Canadian and Muslim family law frameworks\, with practical insights to better support Muslim women navigating family law matters.\n\nCPD Accreditation: \n1 hour Professionalism Content \n30 minutes EDI Professionalism Content \n\nThis webinar is designed for lawyers\, paralegals\, social service providers\, and Muslim women seeking to deepen their understanding of culturally competent legal practice. 
-CATEGORIES:Support Programs
-END:VEVENT
-BEGIN:VEVENT
-UID:eldest-daughters-support-group@4dasistas.ca
-DTSTAMP:20260920T203846Z
-DTSTART;VALUE=DATE:20260828
-SUMMARY:Eldest Daughters
-DESCRIPTION:Date: Friday\, August 28\, 2026 · 6:00–7:30 PM · Online\\nInstagram: https://www.instagram.com/p/DcOkpTNOQ9W/\\nDesc: A support space for eldest daughters to connect and process shared experiences together.
-CATEGORIES:Support Programs
-END:VEVENT
-BEGIN:VEVENT
-UID:healing-hearts-muslim-survivors-group@4dasistas.ca
-DTSTAMP:20260920T203846Z
-DTSTART;VALUE=DATE:20261014
-SUMMARY:Healing Hearts: Muslim Survivors Group
-DESCRIPTION:Date: October 14\, 2026 · 11:00 AM – 12:00 PM (UTC-4)\\nDesc: A gathering space for Muslim individuals who identify as having experienced sexual violence\, sexual harassment\, and/or gender-based violence. Participants discuss healing\, faith\, and community-building.
-CATEGORIES:Support Programs
-END:VEVENT
-BEGIN:VEVENT
-UID:journey-ahead-icco-aug30@4dasistas.ca
-DTSTAMP:20260920T203846Z
-DTSTART;VALUE=DATE:20260830
-SUMMARY:Your Journey Ahead: University and College Prep
-DESCRIPTION:Date: Saturday\, August 30\, 2026 · 1:00–4:00 PM\\nPrice: $10\\nRegistration: Registration mandatory\\nInstagram: https://www.instagram.com/hidayah__icco/\\nDesc: A university and college prep workshop for Muslim youth\, with lunch provided and mandatory registration.
-LOCATION:2550 Dunwin Dr\, Mississauga\, ON L5L 1T1\, Canada
-CATEGORIES:Support Programs
-END:VEVENT
-BEGIN:VEVENT
-UID:mental-khalil-navigating-divorce-support-group@4dasistas.ca
-DTSTAMP:20260920T203846Z
-DTSTART;VALUE=DATE:20240101
-RRULE:FREQ=WEEKLY;BYDAY=MO
-SUMMARY:Navigating Divorce: Women Support Group
-DESCRIPTION:Date: Every Monday · 11:00 AM–12:00 PM CST\\nTime: 11:00\\nWebsite: https://www.instagram.com/p/DaEG5Njjv27/\\nInstagram: https://www.instagram.com/khalilcenter/\\nDesc: A compassionate and confidential virtual support group for women contemplating divorce\, navigating its challenges\, or healing from its impact. Offers support\, reflection\, renewal\, and connection with women who understand.
-LOCATION:Virtual via Zoom
-CATEGORIES:Support Programs
-END:VEVENT
-BEGIN:VEVENT
-UID:the-deadly-weight-of-honour@4dasistas.ca
-DTSTAMP:20260920T203846Z
-DTSTART;VALUE=DATE:20260828
-SUMMARY:The Deadly Weight of "Honour" 
-DESCRIPTION:Time: 14:00\\nDesc: Imagine growing up in a community where the cost of error is your life\, where a single rumour can mark you for death. \nIn some Muslim communities\, distorted ideas of honour have been weaponised into violence\, turning women into the bearers of family reputation and the targets when that reputation is ‘compromised’.\n\nWhy does ‘honour’ weighed more valuable than a women’s life? \nAnd what must we do collectively to dismantle the norms that allow this violence to continue?\n\nJoin us this week for this MWJA Discussion Session. 📢\n🔗 Join Session here: https://t.me/MWJAGLOBAL
-CATEGORIES:Support Programs
 END:VEVENT
 END:VCALENDAR
