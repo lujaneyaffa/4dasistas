@@ -682,6 +682,13 @@
   .link-btn.secondary{ background:white; color:var(--charcoal); }
 
   footer{ position:relative; text-align:center; padding:32px 20px calc(40px + env(safe-area-inset-bottom)); border-top:1px solid rgba(33,30,28,0.12); margin-top:16px; background:#ce8491; }
+  /* Admin event form: keep native date/time pickers inside the card (iOS Safari gives them a wide intrinsic size) */
+  #detailCard input[type=date], #detailCard input[type=time]{ min-width:0; max-width:100%; box-sizing:border-box; -webkit-appearance:none; appearance:none; min-height:40px; background:#fff; font-family:inherit; font-size:14px; }
+  #detailCard select, #detailCard input[type=text], #detailCard textarea{ max-width:100%; }
+  .ev-loc-chosen{ margin-top:6px; padding:8px 10px; border-radius:8px; background:#f3efe9; border:1.5px solid var(--charcoal); font-size:13px; line-height:1.35; overflow-wrap:anywhere; }
+  .ev-loc-chosen.empty{ color:var(--muted); font-style:italic; }
+  .ev-loc-chosen.missing{ border-color:#c00; }
+  #editLocationSlot gmp-place-autocomplete{ display:block; width:100%; max-width:100%; }
   .footer-admin-corner{ position:absolute; top:14px; right:14px; text-align:right; z-index:5; display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
   .footer-admin-btn{ font-family:'Inter',sans-serif; font-weight:700; font-size:11px; padding:7px 12px; border-radius:999px; border:2px solid var(--charcoal); background:rgba(255,255,255,0.85); color:var(--charcoal); cursor:pointer; box-shadow:2px 2px 0 var(--charcoal); }
   .ev-created-box{ background:#e7f4ec; border:2px solid #5aa276; border-radius:12px; padding:12px; }
@@ -3228,6 +3235,8 @@ function renderEventEditView(){
   const extraDates = Array.isArray(d.extraDates) ? d.extraDates : [];
   const fieldStyle = 'width:100%;padding:8px;border-radius:8px;border:1.5px solid var(--charcoal);margin-top:4px;box-sizing:border-box;';
   const labelStyle = 'font-size:12px;font-weight:700;flex:1;';
+  // labels sitting side-by-side in a row: allow them to wrap onto their own line and shrink instead of overflowing
+  const rowLabelStyle = 'font-size:12px;font-weight:700;flex:1 1 130px;min-width:0;';
   const missing = reviewMode ? missingDetailsFor(d) : [];
   const missingBorder = 'border-color:#c00;';
 
@@ -3259,19 +3268,19 @@ function renderEventEditView(){
       <label style="${labelStyle}">Organized by
         <input id="editOrganizedBy" type="text" value="${escapeCm(d.organizedBy||'')}" style="${fieldStyle}">
       </label>
-      <div style="display:flex;gap:10px;">
-        <label style="${labelStyle}">Event date
+      <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        <label style="${rowLabelStyle}">Event date${createMode ? ' <span style="color:#c00;">*</span>' : ''}
           <input id="editEventDate" type="date" value="${d.eventDate||''}" style="${fieldStyle}">
         </label>
-        <label style="${labelStyle}">End date
+        <label style="${rowLabelStyle}">End date
           <input id="editEndDate" type="date" value="${d.endDate||''}" style="${fieldStyle}">
         </label>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-        <label style="${labelStyle}">Time
+        <label style="${rowLabelStyle}">Time
           <input id="editTime" type="time" value="${d.time||''}" style="${fieldStyle}">
         </label>
-        <label style="${labelStyle}">End time
+        <label style="${rowLabelStyle}">End time
           <input id="editEndTime" type="time" value="${d.endTime||''}" style="${fieldStyle}">
         </label>
         <label style="font-size:12px;display:flex;align-items:center;gap:4px;white-space:nowrap;padding-bottom:9px;"><input type="checkbox" id="editAllDay" ${d.allDay?'checked':''}>All day</label>
@@ -3282,11 +3291,11 @@ function renderEventEditView(){
           ${EVENT_EDIT_WEEKDAYS.map(([v,l]) => `<label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="editDay" value="${v}" ${days.includes(v)?'checked':''}>${l}</label>`).join('')}
         </div>
       </div>
-      <div style="display:flex;gap:10px;">
-        <label style="${labelStyle}">Recurring starts
+      <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        <label style="${rowLabelStyle}">Recurring starts
           <input id="editRecurStart" type="date" value="${d.recurStart||''}" style="${fieldStyle}">
         </label>
-        <label style="${labelStyle}">Recurring ends
+        <label style="${rowLabelStyle}">Recurring ends
           <input id="editRecurEnd" type="date" value="${d.recurEnd||''}" style="${fieldStyle}">
         </label>
       </div>
@@ -3301,15 +3310,18 @@ function renderEventEditView(){
         <button type="button" id="addExtraDateBtn" class="link-btn secondary" style="margin-top:6px;font-size:12px;padding:6px 12px;">+ Add another date</button>
       </div>
       <label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="editVirtual" ${d.virtual?'checked':''}>Virtual/online event (no physical location)</label>
-      <label style="${labelStyle}">Location${missing.includes('Location') ? ' <span style="color:#c00;">— missing</span>' : ''}
-        <input id="editLocation" type="text" value="${escapeCm(d.location||'')}" style="${fieldStyle}${missing.includes('Location') ? missingBorder : ''}">
-      </label>
+      <div id="editLocationBlock" style="display:${d.virtual?'none':'block'};">
+        <div style="font-size:12px;font-weight:700;">Location${createMode ? ' <span style="color:#c00;">*</span>' : ''}${missing.includes('Location') ? ' <span style="color:#c00;">— missing</span>' : ''}</div>
+        <div id="editLocationSlot"></div>
+        <div id="editLocationChosen" class="ev-loc-chosen${d.location ? '' : ' empty'}${missing.includes('Location') ? ' missing' : ''}">${d.location ? '📍 ' + escapeCm(d.location) : 'No location picked yet — search above'}</div>
+        <input id="editLocation" type="hidden" value="${escapeCm(d.location||'')}" style="${fieldStyle}">
+      </div>
       <label style="${labelStyle}">Link (Instagram or WhatsApp)
         <input id="editLink" type="text" value="${escapeCm(d.link||'')}" style="${fieldStyle}">
       </label>
-      <label style="${labelStyle}">Description${missing.includes('Description') ? ' <span style="color:#c00;">— missing</span>' : ''}
+      ${createMode ? '' : `<label style="${labelStyle}">Description${missing.includes('Description') ? ' <span style="color:#c00;">— missing</span>' : ''}
         <textarea id="editDesc" rows="4" style="${fieldStyle}font-family:inherit;${missing.includes('Description') ? missingBorder : ''}">${escapeCm(d.desc||'')}</textarea>
-      </label>
+      </label>`}
       <div id="sportsOnlyFields" style="display:${d.section==='sports' ? '' : 'none'};flex-direction:column;gap:10px;border:1.5px dashed var(--charcoal);border-radius:10px;padding:10px;">
         <div style="font-size:11px;color:#776867;">Sports-only fields</div>
         <label style="${labelStyle}">Sport key (lowercase, one sport only — e.g. "badminton")
@@ -3332,7 +3344,7 @@ function renderEventEditView(){
           ${EVENT_EDIT_ALSOSHOWIN.map(([v,l]) => `<label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="editAlsoShowIn" value="${v}" ${alsoShowIn.includes(v)?'checked':''}>${l}</label>`).join('')}
         </div>
       </div>
-      ${state.eventEditError ? `<p style="color:#c00;font-size:13px;">${escapeCm(state.eventEditError)}</p>` : ''}
+      ${state.eventEditError ? `<p id="eventEditErrorMsg" style="color:#c00;font-size:13px;font-weight:700;">${escapeCm(state.eventEditError)}</p>` : ''}
       ${state.eventEditSaved && state.eventJustCreated ? `
         <div class="ev-created-box">
           <p style="margin:0 0 4px;font-weight:700;color:#2a7a4a;">✓ Event created!</p>
@@ -3360,12 +3372,18 @@ function renderEventEditView(){
   if(eventDoneBtn) eventDoneBtn.addEventListener('click', () => closeEventEdit(false));
   const newEventLink = document.getElementById('eventNewLinkBtn');
   if(newEventLink) newEventLink.addEventListener('click', openEventCreate);
-  attachLocationSearch('editLocation');
+  wireEventLocation();
   const deleteBtn = document.getElementById('eventEditDeleteBtn');
   if(deleteBtn) deleteBtn.addEventListener('click', deleteEventEdit);
   document.getElementById('editSection').addEventListener('change', e => {
     document.getElementById('sportsOnlyFields').style.display = e.target.value === 'sports' ? 'flex' : 'none';
+    mountEventLocationSearch(); // Canada-only, except for trips
   });
+  document.getElementById('editVirtual').addEventListener('change', e => {
+    document.getElementById('editLocationBlock').style.display = e.target.checked ? 'none' : 'block';
+  });
+  const errMsg = document.getElementById('eventEditErrorMsg');
+  if(errMsg) errMsg.scrollIntoView({ block:'center', behavior:'smooth' });
   document.getElementById('addExtraDateBtn').addEventListener('click', () => {
     Object.assign(state.eventEditData, collectEventFormFields());
     state.eventEditData.extraDates.push({date:''});
@@ -3412,7 +3430,7 @@ function collectEventFormFields(){
     virtual: document.getElementById('editVirtual').checked,
     location: document.getElementById('editLocation').value.trim(),
     link: document.getElementById('editLink').value.trim(),
-    desc: document.getElementById('editDesc').value.trim(),
+    desc: document.getElementById('editDesc') ? document.getElementById('editDesc').value.trim() : ((state.eventEditData && state.eventEditData.desc) || ''),
     sportKey: document.getElementById('editSportKey').value.trim(),
     alsoSportKeys,
     alsoShowIn,
@@ -3473,11 +3491,65 @@ async function attachLocationSearch(inputId, onPlace){
   }
 }
 
+/* Event location = search box only (no free typing). Restricted to Canada, except when the
+   event is a Trip. If Google Maps can't load, fall back to a plain text box so an admin is
+   never blocked from saving. */
+let evLocMountSeq = 0;
+async function mountEventLocationSearch(){
+  const slot = document.getElementById('editLocationSlot');
+  const hidden = document.getElementById('editLocation');
+  const chosen = document.getElementById('editLocationChosen');
+  const sectionSel = document.getElementById('editSection');
+  if(!slot || !hidden || !chosen || !sectionSel) return;
+  const seq = ++evLocMountSeq;
+  const isTrip = sectionSel.value === 'trips';
+  try {
+    await loadGoogleMaps();
+    const lib = await google.maps.importLibrary('places');
+    if(seq !== evLocMountSeq || !slot.isConnected) return;
+    slot.innerHTML = `<div style="font-size:11px;color:var(--muted);margin:3px 0;">${isTrip ? 'Search anywhere in the world (Trips):' : 'Search for an address in Canada:'}</div>`;
+    const el = isTrip ? new lib.PlaceAutocompleteElement() : new lib.PlaceAutocompleteElement({ includedRegionCodes:['ca'] });
+    slot.appendChild(el);
+    el.addEventListener('gmp-select', async ev => {
+      const place = ev.placePrediction && ev.placePrediction.toPlace();
+      if(!place) return;
+      try {
+        await place.fetchFields({ fields:['formattedAddress','displayName'] });
+        const addr = place.formattedAddress || '';
+        if(!addr) return;
+        hidden.value = addr;
+        chosen.classList.remove('empty','missing');
+        chosen.textContent = '📍 ' + addr;
+      } catch(err){ console.error('Could not fetch place details', err); }
+    });
+  } catch(err){
+    console.error('Address search unavailable, using plain text:', err);
+    if(seq !== evLocMountSeq) return;
+    hidden.type = 'text';
+    hidden.placeholder = 'Type the address';
+    chosen.style.display = 'none';
+  }
+}
+function wireEventLocation(){ mountEventLocationSearch(); }
+
 async function saveEventEdit(){
   const id = state.eventEditId;
   const createMode = state.eventCreateMode;
   const fields = collectEventFormFields();
   Object.assign(state.eventEditData, fields);
+  if(createMode){
+    let problem = '';
+    if(!fields.title) problem = 'Please enter a title.';
+    else if(!fields.eventDate) problem = 'Please pick the event date — it is required.';
+    else if(!fields.virtual && !fields.location) problem = 'Please search for and pick a location (or tick "Virtual/online event").';
+    if(problem){
+      state.eventEditError = problem;
+      state.eventEditSaved = false;
+      renderEventEditView();
+      return;
+    }
+    if(fields.virtual) fields.location = '';
+  }
   state.eventEditSaving = true;
   state.eventEditError = '';
   state.eventEditSaved = false;
@@ -5832,10 +5904,17 @@ document.getElementById('contextBackButton').addEventListener('click', () => {
   goToTab('events');
 });
 
+// Browsers percent-encode non-ASCII characters in the hash, and many event ids start
+// with an emoji (e.g. "🍂take-a-hike-into-fall"), so decode before looking the id up.
+function eventIdFromHash(){
+  const m = location.hash.match(/^#\/event\/(.+)$/);
+  if(!m) return '';
+  try { return decodeURIComponent(m[1]); } catch(err){ return m[1]; }
+}
 window.addEventListener('hashchange', () => {
-  const match = location.hash.match(/^#\/event\/(.+)$/);
+  const eventId = eventIdFromHash();
   const clubMatch = location.hash.match(/^#\/clubs\/([^/]+)/);
-  if(match) renderDetail(match[1]);
+  if(eventId) renderDetail(eventId);
   else if(clubMatch && clubIdFromSlug(clubMatch[1])) openClubIdeas(clubIdFromSlug(clubMatch[1]));
   else closeDetail();
 });
@@ -5880,8 +5959,8 @@ loadData().then(() => {
   render();
   showLoadWarning();
   checkAdminSession();
-  const initMatch = location.hash.match(/^#\/event\/(.+)$/);
-  if(initMatch) renderDetail(initMatch[1]);
+  const initId = eventIdFromHash();
+  if(initId) renderDetail(initId);
 }).catch(err => {
   document.getElementById('list-view').innerHTML = '<div class="empty">Could not load content — check your connection and refresh.</div>';
   console.error(err);

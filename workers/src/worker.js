@@ -1156,6 +1156,7 @@ export default {
       if (!title) return jsonResponse({ error: "Title is required" }, 400, corsHeaders);
       if (!CALENDAR_SECTIONS.includes(fields.section)) return jsonResponse({ error: "A valid Calendar tab is required" }, 400, corsHeaders);
       if (!isValidDateString(fields.eventDate)) return jsonResponse({ error: "A valid Event date is required" }, 400, corsHeaders);
+      if (!fields.virtual && !String(fields.location || "").trim()) return jsonResponse({ error: "A location is required (or mark the event as virtual)" }, 400, corsHeaders);
 
       const baseSlug = slugify(title);
       if (!CALENDAR_ID_RE.test(baseSlug)) return jsonResponse({ error: "Could not derive a valid id from the title" }, 400, corsHeaders);
