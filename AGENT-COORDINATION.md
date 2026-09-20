@@ -79,7 +79,9 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
-**Last updated:** 2026-09-20 (Support-group events moved to Knowledge; Mental Health = organizations only)
+**Last updated:** 2026-09-20 (Home Travel/About buttons: nav-bar colour, smaller squares)
+
+**2026-09-20 (Home Travel/About buttons: nav-bar colour, smaller squares) — Claude (chat) — `index.html`** — Lujane: Travel and About buttons on Home should match the nav bar colour and be less wide. `.home-quicklinks .club-guide-btn` (and `:last-child`, which had forced light blue) now `background:rgba(201,170,173,0.45)` (identical computed value to `#tabs`) and 150px→108px squares, font 18→16px. Border/shadow unchanged. Checked at 375px.
 
 **2026-09-20 (Support-group events moved to Knowledge; Mental Health = organizations only) — Claude (chat) — `data/calendar/*.json` (6 files), `data/mosquegatherings.json`, `data/supportprograms.json`, `calendar.ics`, `index.html`** — Lujane: put "The Deadly Weight of Honour", "Journey Ahead", "Eldest Daughters", "Building Cultural Competency" and all similar one-time events in Knowledge, and make the Resources > Mental Health tab organizations only. The six items that were the `supportprograms` section (and were injected into Mental Health with `isSupportGroup`) now have `section: "mosqueprograms"`: the-deadly-weight-of-honour, journey-ahead-icco-aug30 (its redundant `alsoShowIn: mosqueprograms` removed), eldest-daughters-support-group, building-cultural-competency-to-support-muslim-women, healing-hearts-muslim-survivors-group, and mental-khalil-navigating-divorce-support-group (the only *recurring* one — every Monday; moved too so Mental Health is orgs-only; say if it should live somewhere else). Ran `scripts/build_content.py` + `generate_calendar.py` locally: supportprograms.json is now empty, mosquegatherings.json 24→30 items, calendar.ics gained those events (they were never in it before). `index.html`: `allResourceItems = [...resourcesData]` (no support programs in any Directory tab) and "Support Groups" removed from the admin Calendar-tab dropdown so new ones can't be filed under an invisible section. Mental Health now = Hello Leena, Inner Voice Therapy, CMC, ISNA Cares, Ruh Care, Salam Psychology. Tested locally. The mg-hia-* "no date" build warnings pre-date this.
 
@@ -590,6 +592,7 @@ npx wrangler deploy
 
 _(most recent first — add new entries to the top, trim past ~15)_
 
+- 2026-09-20 — Claude (chat) — `index.html` — Home Travel/About buttons now nav-bar colour and 108px squares (were 150px, blush/blue).
 - 2026-09-20 — Claude (chat) — `data/calendar/*`, `data/*.json`, `calendar.ics`, `index.html` — Six support-group/one-time events moved from Mental Health into Knowledge; Mental Health tab now organizations only.
 - 2026-09-20 — Claude (chat) — `index.html` — Travel globe: trips sharing a country/coordinates are spread so pins never overlap (render-time only, data untouched).
 - 2026-09-20 — Claude (chat) — `index.html` — Knowledge events back on the main calendar; removed the "not included here" note under it; closed the gap above Subscribe; Travel page now has a Back to Home button.

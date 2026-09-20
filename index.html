@@ -336,7 +336,8 @@
   body.on-events main{ padding-bottom:14px; }
   body.on-home #resourcePagination{ display:none; }
   body.on-home .list-and-pagination{ gap:0; }
-  .home-quicklinks .club-guide-btn{ flex:0 0 150px; width:150px; aspect-ratio:1; padding:10px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:18px; }
+  /* Travel / About buttons: same tan-pink as the nav bar, smaller squares */
+  .home-quicklinks .club-guide-btn, .home-quicklinks .club-guide-btn:last-child{ flex:0 0 108px; width:108px; aspect-ratio:1; padding:8px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:16px; background:rgba(201,170,173,0.45); }
   .home-tiles{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
   .home-tile{ display:block; width:100%; text-align:left; border:2px solid var(--charcoal); border-radius:18px; padding:24px 22px; cursor:pointer; box-shadow:4px 4px 0 var(--charcoal); transition:transform 0.12s ease, box-shadow 0.12s ease; font-family:'Inter',sans-serif; position:relative; }
   .home-tile[data-hometab="homescreen"]{ padding-top:8px; padding-bottom:8px; min-height:auto; align-self:center; justify-self:center; width:100%; grid-column:1 / -1; box-shadow:none; border-color:rgba(55,61,59,0.2); }
