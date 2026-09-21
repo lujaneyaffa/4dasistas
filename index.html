@@ -5709,8 +5709,87 @@ const LAST_TAB_STORAGE_KEY = 'lastAppState';
 // instead of the old #tab=events&cat=all&view=list&... query-string look. The full
 // state (filters, view mode, etc.) still round-trips through localStorage below —
 // only what's actually shown in the URL bar has been simplified.
-const TAB_SLUGS = { events:'calendar', clubs:'clubs', resources:'resources', travel:'travel', rules:'about' };
+const TAB_SLUGS = { events:'calendar', clubs:'clubs', resources:'resources', travel:'travel', rules:'about', homescreen:'add-to-homescreen', subscribe:'subscribe' };
 const SLUG_TO_TAB = Object.fromEntries(Object.entries(TAB_SLUGS).map(([tab, slug]) => [slug, tab]));
+/* Every page and sub-page has its own shareable link (all hash-based, so they work with the static host):
+     #/calendar  #/calendar/sports  #/calendar/sports/badminton  #/calendar/activities/Mississauga
+     #/calendar/knowledge  #/calendar/trips/international  (+ /week /day /list for the view)
+     #/clubs  #/clubs/join (sign-up form)  #/clubs/start  #/clubs/guidelines  #/clubs/<club>  #/clubs/<club>/members
+     #/resources  #/resources/<category>  (+ /list)      #/travel  #/travel/domestic  #/travel/international  (+ /past)
+     #/about  #/subscribe  #/add-to-homescreen  #/event/<id>
+   Older links (#/fallsignup, #/clubstart, #/clubjoin, #/homescreen, #/calendar/mosqueprograms, …) still work. */
+const CLUB_SUBPAGES = { join:'fallsignup', start:'clubstart', guidelines:'clubjoin' };
+const CLUB_SUBPAGE_SLUGS = Object.fromEntries(Object.entries(CLUB_SUBPAGES).map(([slug, tab]) => [tab, slug]));
+const CAT_SLUG_OUT = { mosqueprograms:'knowledge' };
+const CAT_SLUG_IN = { knowledge:'mosqueprograms', mosquegatherings:'activities' };
+const CAL_VIEW_SLUGS = ['week','day'];
+function safeDecode(v){ try { return decodeURIComponent(v); } catch { return v; } }
+
+function currentSlugParts(){
+  const t = state.tab;
+  if(t === 'clubideas' && state.ideasClubId) return ['clubs', clubSlug(state.ideasClubId)];
+  if(t === 'clubmembers' && state.clubMembersId) return ['clubs', clubSlug(state.clubMembersId), 'members'];
+  if(CLUB_SUBPAGE_SLUGS[t]) return ['clubs', CLUB_SUBPAGE_SLUGS[t]];
+  const parts = [TAB_SLUGS[t] || t];
+  if(t === 'events'){
+    const cat = state.categoryFilter;
+    if(cat !== 'all') parts.push(CAT_SLUG_OUT[cat] || cat);
+    if(cat === 'sports' && state.sportFilter !== 'all') parts.push(encodeURIComponent(state.sportFilter));
+    if(cat === 'activities' && state.dayCity !== 'all') parts.push(encodeURIComponent(state.dayCity));
+    if(cat === 'trips' && state.tripType !== 'all') parts.push(state.tripType);
+    if(state.view === 'list') parts.push('list');
+    else if(CAL_VIEW_SLUGS.includes(state.calViewMode)) parts.push(state.calViewMode);
+  } else if(t === 'resources'){
+    if(state.resourceFilter !== 'all') parts.push(state.resourceFilter);
+    if(state.resourceView === 'list') parts.push('list');
+  } else if(t === 'travel'){
+    if(state.tripType !== 'all') parts.push(state.tripType);
+    if(state.tripShowPast) parts.push('past');
+  }
+  return parts;
+}
+
+function applySlugParts(parts){
+  const [slug, ...rest] = parts;
+  let tab = SLUG_TO_TAB[slug] || slug;
+  if(tab === 'clubs' && rest[0]){
+    const sub = rest[0];
+    if(CLUB_SUBPAGES[sub]){ tab = CLUB_SUBPAGES[sub]; }
+    else {
+      const cid = clubIdFromSlug(sub);
+      if(cid){
+        if(rest[1] === 'members'){ tab = 'clubmembers'; state.clubMembersId = cid; state.clubMembersTitle = ''; }
+        else { tab = 'clubideas'; state.ideasClubId = cid; }
+      }
+    }
+  }
+  state.tab = tab;
+  if(tab === 'events'){
+    state.view = 'calendar'; state.calViewMode = 'month';
+    state.categoryFilter = 'all'; state.sportFilter = 'all'; state.dayCity = 'all'; state.tripType = 'all';
+    let i = 0;
+    if(rest[0] && rest[0] !== 'list' && !CAL_VIEW_SLUGS.includes(rest[0])){
+      const cat = safeDecode(rest[0]);
+      state.categoryFilter = CAT_SLUG_IN[cat] || cat; i = 1;
+    }
+    for(; i < rest.length; i++){
+      const seg = safeDecode(rest[i]);
+      if(seg === 'list') state.view = 'list';
+      else if(CAL_VIEW_SLUGS.includes(seg)) state.calViewMode = seg;
+      else if(state.categoryFilter === 'sports') state.sportFilter = seg;
+      else if(state.categoryFilter === 'activities') state.dayCity = seg;
+      else if(state.categoryFilter === 'trips' && (seg === 'domestic' || seg === 'international')) state.tripType = seg;
+    }
+  } else if(tab === 'resources'){
+    state.resourceFilter = 'all'; state.resourceView = 'map';
+    rest.forEach(seg => { seg = safeDecode(seg); if(seg === 'list') state.resourceView = 'list'; else state.resourceFilter = seg; });
+  } else if(tab === 'travel'){
+    state.tripType = 'all'; state.tripShowPast = false;
+    rest.forEach(seg => { if(seg === 'past') state.tripShowPast = true; else if(seg === 'domestic' || seg === 'international') state.tripType = seg; });
+    if(state.tripType === 'domestic') state.tripView = 'list';
+  }
+  normalizeLegacyTab();
+}
 
 function syncStateToHash(){
   if(location.hash.startsWith('#/event/')) return; // don't clobber an open detail page
@@ -5743,10 +5822,7 @@ function syncStateToHash(){
 
   // The visible URL only shows the tab and, where meaningful, the one filter
   // most worth bookmarking/sharing — not the full query-string of every toggle.
-  const slugParts = [TAB_SLUGS[state.tab] || state.tab];
-  if(state.tab === 'clubideas' && state.ideasClubId) slugParts.splice(0, 1, 'clubs', clubSlug(state.ideasClubId));
-  if(state.tab === 'events' && state.categoryFilter !== 'all') slugParts.push(state.categoryFilter);
-  if(state.tab === 'resources' && state.resourceFilter !== 'all') slugParts.push(state.resourceFilter);
+  const slugParts = currentSlugParts();
   history.replaceState(null, '', location.pathname + location.search + '#/' + slugParts.join('/'));
 }
 
@@ -5770,15 +5846,7 @@ function restoreStateFromHash(){
     // Matches the per-tab defaults goToTab() itself would set on a normal nav click,
     // so landing on a clean link behaves the same as clicking the tab — e.g. Calendar
     // always opens in its calendar-grid view, never the list view.
-    const [slug, sub] = hash.slice(2).split('/');
-    state.tab = SLUG_TO_TAB[slug] || slug;
-    if(state.tab === 'clubs' && sub){ const cid = clubIdFromSlug(sub); if(cid){ state.tab = 'clubideas'; state.ideasClubId = cid; } }
-    if(state.tab === 'events'){
-      state.view = 'calendar';
-      if(sub) state.categoryFilter = sub;
-    }
-    if(state.tab === 'resources' && sub) state.resourceFilter = sub;
-    normalizeLegacyTab();
+    applySlugParts(hash.slice(2).split('/').filter(Boolean));
     return;
   }
 
@@ -6064,12 +6132,33 @@ function eventIdFromHash(){
   if(!m) return '';
   try { return decodeURIComponent(m[1]); } catch(err){ return m[1]; }
 }
+// Pages that need their own set-up (not just a state change + render) when reached by link.
+function enterDeepLinkState(){
+  if(state.tab === 'clubmembers' && state.clubMembersId){
+    const club = clubsForGrid().find(c => c.id === state.clubMembersId);
+    openClubMembers(state.clubMembersId, club ? club.title : '');
+    return true;
+  }
+  if(state.tab === 'clubideas' && state.ideasClubId){ openClubIdeas(state.ideasClubId); return true; }
+  return false;
+}
 window.addEventListener('hashchange', () => {
   const eventId = eventIdFromHash();
-  const clubMatch = location.hash.match(/^#\/clubs\/([^/]+)/);
-  if(eventId) renderDetail(eventId);
-  else if(clubMatch && clubIdFromSlug(clubMatch[1])) openClubIdeas(clubIdFromSlug(clubMatch[1]));
-  else closeDetail();
+  if(eventId){ renderDetail(eventId); return; }
+  if(location.hash.startsWith('#/')){
+    // A different page's link was opened (pasted, clicked, or back/forward): show that page.
+    const cur = '#/' + currentSlugParts().map(safeDecode).join('/');
+    if(safeDecode(location.hash) === cur) return; // our own address-bar update
+    document.getElementById('detail-view').classList.remove('open');
+    document.body.style.overflow = '';
+    state.eventEditOpen = false;
+    applySlugParts(location.hash.slice(2).split('/').filter(Boolean));
+    state.page = 1;
+    if(!enterDeepLinkState()) render();
+    window.scrollTo({ top:0, behavior:'smooth' });
+    return;
+  }
+  closeDetail();
 });
 
 /* ============================================================
@@ -6109,7 +6198,7 @@ document.getElementById('subscribeFallback').href = `https://${location.host}/ca
 restoreStateFromHash();
 loadData().then(() => {
   syncToggleButtonClasses();
-  render();
+  if(!enterDeepLinkState()) render();
   showLoadWarning();
   checkAdminSession();
   const initId = eventIdFromHash();
