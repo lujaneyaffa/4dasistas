@@ -219,6 +219,40 @@
     },
     {
       "section": "functions",
+      "title": "Frosh Field",
+      "audienceType": [
+        "Muslim Youth"
+      ],
+      "emoji": "",
+      "organizedBy": "utm msa",
+      "eventDate": "2026-09-27",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "Mississauga, ON, Canada",
+      "link": "https://www.instagram.com/p/DdZPghikTsO/?stkn=MW52cmt6Y2thcHN5MA==",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [
+        "activities"
+      ],
+      "id": "frosh-field",
+      "tag": "Frosh Field"
+    },
+    {
+      "section": "functions",
       "title": "Harvest Fest",
       "audienceType": [
         "Family Event"
