@@ -469,6 +469,39 @@
     },
     {
       "section": "mosqueprograms",
+      "title": "Pathfinders",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "halton sisters",
+      "eventDate": "2026-09-25",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "4310 Fairview St, Burlington, ON L7L 0C4, Canada",
+      "link": "https://www.instagram.com/p/DdhgY6aBaCBhmPmAnrZ94D0NnsaX45-XyOEVlc0/?stkn=NWkzbjM4ajdnMjd6",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [
+        "functions"
+      ],
+      "id": "pathfinders"
+    },
+    {
+      "section": "mosqueprograms",
       "title": "Reflection Halaqah Night",
       "audienceType": [
         "Muslim Women"
