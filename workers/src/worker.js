@@ -25,7 +25,7 @@
  *   GET    /api/clubs/:clubId/events/:eventId/responses     - Every member's availability for one event + aggregate counts
  *   PUT    /api/clubs/:clubId/events/:eventId/responses/:userId - Save own availability for one event (Bearer session token required)
  *   GET    /api/clubs/:clubId/ideas                         - Event-idea board: [{id,title,mapUrl,date,votes,voters:[names],by,voted,mine}] (public; identity headers optional)
- *   POST   /api/clubs/:clubId/ideas                         - Add an option ({title, mapUrl = Google Maps link, both required}). Acting identity = signed-in member (Bearer) OR a
+ *   POST   /api/clubs/:clubId/ideas                         - Add an option ({title, mapUrl = Google Maps link, both required; club-cuisine also requires cuisine}). Acting identity = signed-in member (Bearer) OR a
  *                                                                guest with just a name (X-Guest-Id + X-Guest-Name headers, no password). Creator auto-votes; max 3 per person, 40 per club
  *   POST   /api/clubs/:clubId/ideas/:ideaId/vote            - Toggle your vote (member or guest)
  *   DELETE /api/clubs/:clubId/ideas/:ideaId                 - Remove an option you added
@@ -207,19 +207,29 @@ const clubEventResponsesKey = (clubId, eventId) => `clubeventresponses:${clubId}
 const clubIdeasKey = (clubId) => `clubideas:${clubId}`;
 const IDEAS_MAX_PER_CLUB = 40;
 const IDEAS_MAX_PER_PERSON = 3;
+// The Cuisine club's boards are restaurant picks: every option needs a cuisine type, the place's name (the title)
+// and a Google Maps link.
+const CUISINE_CLUB_ID = "club-cuisine";
+const sanitizeCuisine = (input) => String(input || "").replace(/[\x00-\x1f\x7f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, 30);
 const readClubIdeas = async (env, clubId) => {
   const raw = await env.SITE_DATA.get(clubIdeasKey(clubId));
   try { const d = raw ? JSON.parse(raw) : {}; return Array.isArray(d.ideas) ? d.ideas : []; } catch { return []; }
 };
 const writeClubIdeas = async (env, clubId, ideas) => env.SITE_DATA.put(clubIdeasKey(clubId), JSON.stringify({ ideas }));
 const sanitizePersonName = (input) => String(input || "").replace(/[\x00-\x1f\x7f<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 30);
+// Accepts what people actually paste from Google Maps: the bare link, a link with text around it
+// ("Sultan's Table https://maps.app.goo.gl/…"), or a link with no https:// in front. Always returns an https URL.
 const isGoogleMapsUrl = (input) => {
   try {
-    const u = new URL(String(input || "").trim());
+    let raw = String(input || "").trim();
+    const found = raw.match(/https?:\/\/[^\s<>"']+/i) || raw.match(/(?:www\.google\.[a-z.]{2,6}\/maps|google\.[a-z.]{2,6}\/maps|maps\.app\.goo\.gl|maps\.google\.[a-z.]{2,6}|goo\.gl\/maps|g\.page|share\.google|g\.co\/kgs)[^\s<>"\']*/i);
+    if (found) raw = /^https?:\/\//i.test(found[0]) ? found[0] : "https://" + found[0];
+    const u = new URL(raw.replace(/^http:\/\//i, "https://"));
     if (u.protocol !== "https:") return null;
     const h = u.hostname.toLowerCase();
-    const ok = h === "maps.app.goo.gl" || h === "maps.google.com" || (h === "goo.gl" && u.pathname.startsWith("/maps")) ||
+    const ok = h === "maps.app.goo.gl" || h === "share.google" || h === "g.page" || h === "goo.gl" && u.pathname.startsWith("/maps") ||
       (h === "g.co" && u.pathname.startsWith("/kgs")) ||
+      (/^maps\.google\.[a-z.]{2,6}$/.test(h)) ||
       ((h === "google.com" || h.endsWith(".google.com") || /^(www\.)?google\.[a-z]{2,3}(\.[a-z]{2})?$/.test(h)) && u.pathname.startsWith("/maps"));
     return ok && u.href.length <= 500 ? u.href : null;
   } catch { return null; }
@@ -231,7 +241,7 @@ const ideaPeople = (idea) => ({
 const publicIdea = (idea, me) => {
   const { by, voters } = ideaPeople(idea);
   return {
-    id: idea.id, title: idea.title, mapUrl: idea.mapUrl || "", date: idea.date || "",
+    id: idea.id, title: idea.title, mapUrl: idea.mapUrl || "", date: idea.date || "", cuisine: idea.cuisine || "",
     votes: Math.max(0, voters.length + (idea.adjust || 0)), adjust: idea.adjust || 0,
     voters: voters.map((v) => v.name), by: by.name,
     voted: !!me && voters.some((v) => v.id === me.id), mine: !!me && by.id === me.id,
@@ -682,13 +692,15 @@ export default {
       const title = String(body.title || "").replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim();
       if (title.length < 3 || title.length > 80) return jsonResponse({ error: "The title needs 3–80 characters" }, 400, corsHeaders);
       const mapUrl = isGoogleMapsUrl(body.mapUrl);
-      if (!mapUrl) return jsonResponse({ error: "Please paste a Google Maps link (from Google Maps → Share → Copy link)" }, 400, corsHeaders);
+      if (!mapUrl) return jsonResponse({ error: "That doesn't look like a Google Maps link. In Google Maps tap Share → Copy link, then paste it here." }, 400, corsHeaders);
+      const cuisine = sanitizeCuisine(body.cuisine);
+      if (clubId === CUISINE_CLUB_ID && cuisine.length < 2) return jsonResponse({ error: "Please add the cuisine type (e.g. Lebanese, Korean, Dessert)" }, 400, corsHeaders);
       const ideas = await readClubIdeas(env, clubId);
       if (ideas.length >= IDEAS_MAX_PER_CLUB) return jsonResponse({ error: "This board is full — vote on an existing option instead" }, 400, corsHeaders);
       if (ideas.filter((i) => ideaPeople(i).by.id === who.id).length >= IDEAS_MAX_PER_PERSON) return jsonResponse({ error: `You already added ${IDEAS_MAX_PER_PERSON} options here — remove one to add another` }, 400, corsHeaders);
       if (ideas.some((i) => i.title.toLowerCase() === title.toLowerCase())) return jsonResponse({ error: "Someone already suggested that — go vote for it!" }, 409, corsHeaders);
       refreshName(ideas, who);
-      ideas.push({ id: crypto.randomUUID(), title, mapUrl, date: "", by: who, at: Date.now(), votes: [who], adjust: 0 });
+      ideas.push({ id: crypto.randomUUID(), title, mapUrl, date: "", ...(cuisine ? { cuisine } : {}), by: who, at: Date.now(), votes: [who], adjust: 0 });
       await writeClubIdeas(env, clubId, ideas);
       return jsonResponse({ ideas: sortedPublicIdeas(ideas, who) }, 201, corsHeaders);
     }
@@ -980,6 +992,11 @@ export default {
         const mapUrl = String(body.mapUrl || "").trim() === "" ? "" : isGoogleMapsUrl(body.mapUrl);
         if (mapUrl === null) return jsonResponse({ error: "That isn't a Google Maps link" }, 400, corsHeaders);
         idea.mapUrl = mapUrl;
+      }
+      if (body.cuisine !== undefined) {
+        const cuisine = sanitizeCuisine(body.cuisine);
+        if (clubId === CUISINE_CLUB_ID && cuisine.length < 2) return jsonResponse({ error: "The cuisine type is required for this club" }, 400, corsHeaders);
+        if (cuisine) idea.cuisine = cuisine; else delete idea.cuisine;
       }
       if (body.date !== undefined) {
         const date = String(body.date || "").trim();

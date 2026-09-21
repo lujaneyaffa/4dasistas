@@ -463,6 +463,7 @@
   .ideas-form .club-guide-btn{ padding:12px 20px; text-align:center; }
   .ideas-form .ideas-hint{ margin:0; }
   .ideas-status{ min-height:20px; text-align:center; font-size:13px; margin-bottom:6px; }
+  .ideas-status.ideas-status-err{ color:#c00; font-weight:700; background:#fdecea; border:1.5px solid #c00; border-radius:10px; padding:8px 10px; }
   .ideas-cloud{ display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:10px; padding:8px 0 4px; }
   .idea-bubble{ position:relative; border-radius:50%; border:3px solid var(--line); background:var(--fill); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:14px; box-sizing:border-box; cursor:pointer; font-family:'Inter',sans-serif; color:var(--charcoal); text-align:center; transition:width .4s cubic-bezier(.3,1.5,.5,1), height .4s cubic-bezier(.3,1.5,.5,1), transform .15s, box-shadow .2s; -webkit-tap-highlight-color:transparent; }
   .idea-bubble:active{ transform:scale(.95); }
@@ -474,6 +475,10 @@
   .idea-info{ top:3%; left:8%; font-style:italic; font-family:Georgia,serif; }
   .idea-x{ top:3%; right:8%; }
   .idea-edit{ bottom:3%; right:8%; }
+  .idea-map{ bottom:3%; left:8%; font-size:12px; }
+  .idea-cuisine{ font-size:11px; font-weight:700; margin-bottom:3px; opacity:0.9; text-transform:uppercase; letter-spacing:0.03em; }
+  .idea-pop-cuisine{ display:inline-block; margin:0 0 4px; padding:3px 10px; border-radius:999px; background:#fff; border:1.5px solid var(--charcoal); font-size:12px; font-weight:700; }
+  .idea-pop-maplink{ display:block; margin:4px 0 10px; font-size:12px; color:var(--muted); overflow-wrap:anywhere; }
   .ideas-empty{ text-align:center; padding:26px 0; font-size:14px; color:var(--muted); }
   .ideas-empty-circle{ display:inline-flex; align-items:center; justify-content:center; width:96px; height:96px; border-radius:50%; border:3px dashed #d46a86; background:#ffe0e6; font-size:38px; font-weight:700; color:#d46a86; }
   .idea-pop-card{ text-align:left; max-height:88vh; overflow-y:auto; }
@@ -2408,6 +2413,7 @@ function setupFallSignupForm(){
         : missing.slice(0, -1).join(', ') + ', and ' + missing[missing.length - 1];
       statusEl.textContent = `Before submitting, please ${list}.`;
       statusEl.classList.add('fall-status-error');
+      statusEl.scrollIntoView({ block:'center', behavior:'smooth' });
       return;
     }
 
@@ -2427,6 +2433,7 @@ function setupFallSignupForm(){
     } catch(err){
       statusEl.textContent = err.message;
       statusEl.classList.add('fall-status-error');
+      statusEl.scrollIntoView({ block:'center', behavior:'smooth' });
       submitBtn.disabled = false;
       submitBtn.textContent = 'Submit →';
       return;
@@ -4432,7 +4439,7 @@ const IDEA_FILLS = ['#ffe0e6','#ffe9c7','#fff6bf','#d9f0d8','#d3ecf7','#e2dcf7',
 const IDEA_LINES = ['#d46a86','#e0982b','#c9ae1f','#4f9a4b','#3f95c2','#7a63c9','#c85aa3','#3f9a78'];
 
 function ideaColorIndex(id){ let h = 0; for(let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return h % IDEA_FILLS.length; }
-function ideaSize(votes, title, hasDate){
+function ideaSize(votes, title, hasDate){  // hasDate: also true when the bubble shows an extra line (date / cuisine)
   const byVotes = 112 + 34 * Math.sqrt(Math.max(0, votes - 1));
   const len = (title || '').length;
   const byText = (len > 32 ? 160 : len > 20 ? 136 : 112) + (hasDate ? 14 : 0);
@@ -4492,12 +4499,14 @@ async function ideasLoad(){
 }
 
 function ideaBubbleHtml(idea){
-  const ci = ideaColorIndex(idea.id), size = ideaSize(idea.votes, idea.title, !!idea.date);
+  const ci = ideaColorIndex(idea.id), size = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine));
   const admin = state.cmAdminLoggedIn === true;
   return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${IDEA_FILLS[ci]};--line:${IDEA_LINES[ci]};width:${size}px;height:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}${idea.voted ? ', you voted' : ''}">
     ${idea.date ? `<span class="idea-date">📅 ${escapeCm(ideaDateLabel(idea.date))}</span>` : ''}
+    ${idea.cuisine ? `<span class="idea-cuisine">🍽 ${escapeCm(idea.cuisine)}</span>` : ''}
     <span class="idea-title">${escapeCm(idea.title)}</span>
     <span class="idea-votes">${ideaVotesLabel(idea.votes)}${idea.voted ? ' ✓' : ''}</span>
+    ${safeMapUrl(idea.mapUrl) ? `<span class="idea-mini idea-map" data-ideamap="${escapeCm(idea.id)}" role="link" aria-label="Open ${escapeCm(idea.title)} in Google Maps" title="Open in Google Maps">📍</span>` : ''}
     <span class="idea-mini idea-info" data-ideainfo="${escapeCm(idea.id)}" role="button" aria-label="Details and names" title="Details &amp; who voted">i</span>
     ${(idea.mine || admin) ? `<span class="idea-mini idea-x" data-ideadel="${escapeCm(idea.id)}" role="button" aria-label="Remove option" title="Remove">✕</span>` : ''}
     ${admin ? `<span class="idea-mini idea-edit" data-ideaedit="${escapeCm(idea.id)}" role="button" aria-label="Edit option" title="Edit (admin)">✎</span>` : ''}
@@ -4523,13 +4532,21 @@ function renderClubIdeas(el){
   const whoBlock = (me && !state.ideasRenaming)
     ? `<div class="ideas-who">Voting as <strong>${escapeCm(me.name)}</strong>${me.kind === 'guest' ? ` · <button type="button" class="av-link" id="ideaRenameBtn">change name</button>` : ' (member)'}</div>`
     : joinForm;
-  const addForm = (me && !state.ideasRenaming) ? `
-    <form class="ideas-form" id="ideaForm">
+  const isCuisine = clubId === 'club-cuisine';
+  const addForm = (me && !state.ideasRenaming) ? (isCuisine ? `
+    <form class="ideas-form" id="ideaForm" novalidate>
+      <input id="ideaCuisineInput" type="text" maxlength="30" placeholder="Cuisine type (e.g. Lebanese, Korean, Dessert)" autocomplete="off">
+      <input id="ideaInput" type="text" maxlength="80" placeholder="Name of the place" autocomplete="off">
+      <input id="ideaMapInput" type="text" placeholder="Google Maps link of the place" autocomplete="off" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
+      <button type="submit" class="club-guide-btn" id="ideaAddBtn">Add restaurant</button>
+      <p class="ideas-hint">All three are required. Find the place in Google Maps → Share → Copy link, then paste it here. Everyone can tap 📍 on the bubble to open it in Maps.</p>
+    </form>` : `
+    <form class="ideas-form" id="ideaForm" novalidate>
       <input id="ideaInput" type="text" maxlength="80" placeholder="Event idea (e.g. Pottery night)" autocomplete="off">
-      <input id="ideaMapInput" type="url" placeholder="Google Maps link of the place" autocomplete="off" inputmode="url">
+      <input id="ideaMapInput" type="text" placeholder="Google Maps link of the place" autocomplete="off" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
       <button type="submit" class="club-guide-btn" id="ideaAddBtn">Add option</button>
       <p class="ideas-hint">Both are required. Find the place in Google Maps → Share → Copy link, then paste it here.</p>
-    </form>` : '';
+    </form>`) : '';
 
   el.innerHTML = `
     <button class="back-btn" data-hometab="clubs">← Back to clubs</button>
@@ -4545,7 +4562,26 @@ function renderClubIdeas(el){
   wireClubIdeas();
 }
 
-function ideasSetStatus(msg){ state.ideasStatus = msg; const st = document.getElementById('ideasStatus'); if(st) st.textContent = msg; }
+function ideasSetStatus(msg, isErr){
+  state.ideasStatus = msg;
+  const st = document.getElementById('ideasStatus');
+  if(!st) return;
+  st.textContent = msg;
+  st.classList.toggle('ideas-status-err', !!isErr && !!msg);
+  if(isErr && msg) st.scrollIntoView({ block:'center', behavior:'smooth' }); // make sure a failed submit is never silent
+}
+// Google Maps links get pasted in all sorts of shapes — with the place name in front, without https://, with http://.
+// Pull out the link and tidy it so the field never rejects something that is really a map link.
+function cleanMapLink(raw){
+  let t = String(raw || '').trim();
+  const m = t.match(/https?:\/\/[^\s<>"']+/i);
+  if(m) t = m[0];
+  else {
+    const m2 = t.match(/(?:www\.google\.[a-z.]{2,6}\/maps|google\.[a-z.]{2,6}\/maps|maps\.app\.goo\.gl|maps\.google\.[a-z.]{2,6}|goo\.gl\/maps|g\.page|share\.google|g\.co\/kgs)[^\s<>"\']*/i);
+    if(m2) t = 'https://' + m2[0];
+  }
+  return t.replace(/^http:\/\//i, 'https://');
+}
 function ideasNeedName(){
   ideasSetStatus('Enter your name above to vote — no password needed.');
   const inp = document.getElementById('ideaNameInput');
@@ -4575,22 +4611,33 @@ function wireClubIdeas(){
   if(form) form.addEventListener('submit', async e => {
     e.preventDefault();
     const text = document.getElementById('ideaInput').value.trim();
-    const map = document.getElementById('ideaMapInput').value.trim();
-    if(text.length < 3) return ideasSetStatus('Type a title (at least 3 characters).');
-    if(!map) return ideasSetStatus('Please paste the Google Maps link of the place.');
+    const mapInput = document.getElementById('ideaMapInput');
+    const map = cleanMapLink(mapInput.value);
+    mapInput.value = map;
+    const cuisineInput = document.getElementById('ideaCuisineInput');
+    const cuisine = cuisineInput ? cuisineInput.value.trim() : '';
+    if(cuisineInput && cuisine.length < 2) return ideasSetStatus('Please add the cuisine type (e.g. Lebanese, Korean, Dessert).', true);
+    if(text.length < 3) return ideasSetStatus(cuisineInput ? 'Please add the name of the place (at least 3 characters).' : 'Type a title (at least 3 characters).', true);
+    if(!map) return ideasSetStatus('Please paste the Google Maps link of the place.', true);
     const btn = document.getElementById('ideaAddBtn'); btn.disabled = true;
     try {
-      const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(state.ideasClubId) + '/ideas', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ title: text, mapUrl: map }) });
+      const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(state.ideasClubId) + '/ideas', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ title: text, mapUrl: map, cuisine }) });
       state.ideas = data.ideas; state.ideasStatus = 'Added — thanks! Others can vote on it now.';
       render();
     } catch(err){
       btn.disabled = false;
-      ideasSetStatus(err.message);
+      ideasSetStatus(err.message, true);
     }
   });
   document.querySelectorAll('.idea-bubble').forEach(b => b.addEventListener('click', e => {
     if(e.target.closest('.idea-mini')) return;
     ideaVote(b.dataset.ideaid, b);
+  }));
+  document.querySelectorAll('[data-ideamap]').forEach(x => x.addEventListener('click', e => {
+    e.stopPropagation();
+    const idea = (state.ideas || []).find(i => i.id === x.dataset.ideamap);
+    const url = idea && safeMapUrl(idea.mapUrl);
+    if(url) window.open(url, '_blank', 'noopener');
   }));
   document.querySelectorAll('[data-ideainfo]').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); openIdeaInfo(x.dataset.ideainfo); }));
   document.querySelectorAll('[data-ideadel]').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); ideaRemove(x.dataset.ideadel); }));
@@ -4604,7 +4651,7 @@ async function ideaVote(id, bubble){
   // Optimistic: grow/shrink the bubble right away, then sync with the server.
   idea.voted = !idea.voted; idea.votes += idea.voted ? 1 : -1;
   bubble.classList.toggle('voted', idea.voted);
-  bubble.style.width = bubble.style.height = ideaSize(idea.votes, idea.title, !!idea.date) + 'px';
+  bubble.style.width = bubble.style.height = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine)) + 'px';
   bubble.querySelector('.idea-votes').textContent = ideaVotesLabel(idea.votes) + (idea.voted ? ' ✓' : '');
   try {
     const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(state.ideasClubId) + '/ideas/' + encodeURIComponent(id) + '/vote', { method:'POST', headers: ideaHeaders() });
@@ -4647,8 +4694,10 @@ function openIdeaInfo(id){
   const names = idea.voters || [];
   const { wrap, close } = ideaPopup(`
     ${idea.date ? `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(idea.date))}</p>` : ''}
+    ${idea.cuisine ? `<span class="idea-pop-cuisine">🍽 ${escapeCm(idea.cuisine)}</span>` : ''}
     <h3 style="margin:4px 0 8px;">${escapeCm(idea.title)}</h3>
-    ${map ? `<a class="club-guide-btn idea-pop-map" href="${escapeCm(map)}" target="_blank" rel="noopener">📍 Open in Google Maps</a>` : '<p class="av-msg">No map link yet.</p>'}
+    ${map ? `<a class="club-guide-btn idea-pop-map" href="${escapeCm(map)}" target="_blank" rel="noopener">📍 Open in Google Maps</a>
+    <a class="idea-pop-maplink" href="${escapeCm(map)}" target="_blank" rel="noopener">${escapeCm(map.replace(/^https?:\/\//, ''))}</a>` : '<p class="av-msg">No map link yet.</p>'}
     <p class="idea-pop-by">Added by <strong>${escapeCm(idea.by || 'someone')}</strong></p>
     <p class="idea-pop-h">${ideaVotesLabel(idea.votes)}${names.length ? ' — who voted' : ''}</p>
     <div class="idea-pop-names">${names.length ? names.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('') : '<span class="av-msg">No named votes yet.</span>'}</div>
@@ -4662,8 +4711,9 @@ function openIdeaEdit(id){
   if(!idea || state.cmAdminLoggedIn !== true) return;
   const { wrap, close } = ideaPopup(`
     <h3 style="margin:0 0 10px;">Edit option (admin)</h3>
-    <label class="idea-edit-l">Title<input id="ieTitle" type="text" maxlength="80" value="${escapeCm(idea.title)}"></label>
-    <label class="idea-edit-l">Google Maps link<input id="ieMap" type="url" value="${escapeCm(idea.mapUrl || '')}" placeholder="https://maps.app.goo.gl/…"></label>
+    ${state.ideasClubId === 'club-cuisine' ? `<label class="idea-edit-l">Cuisine type<input id="ieCuisine" type="text" maxlength="30" value="${escapeCm(idea.cuisine || '')}"></label>` : ''}
+    <label class="idea-edit-l">${state.ideasClubId === 'club-cuisine' ? 'Name of the place' : 'Title'}<input id="ieTitle" type="text" maxlength="80" value="${escapeCm(idea.title)}"></label>
+    <label class="idea-edit-l">Google Maps link<input id="ieMap" type="text" inputmode="url" value="${escapeCm(idea.mapUrl || '')}" placeholder="https://maps.app.goo.gl/…"></label>
     <label class="idea-edit-l">Date (shown on top of the bubble)<input id="ieDate" type="date" value="${escapeCm(idea.date || '')}"></label>
     <label class="idea-edit-l">Votes (total shown)<input id="ieVotes" type="number" min="0" max="9999" value="${idea.votes}"></label>
     <p class="ideas-hint" style="text-align:left;">Named voters stay listed; changing the total adds or removes unnamed votes.</p>
@@ -4679,6 +4729,7 @@ function openIdeaEdit(id){
         method:'PUT', headers:{ 'Content-Type':'application/json' }, credentials:'include',
         body: JSON.stringify({
           title: wrap.querySelector('#ieTitle').value, mapUrl: wrap.querySelector('#ieMap').value,
+          ...(wrap.querySelector('#ieCuisine') ? { cuisine: wrap.querySelector('#ieCuisine').value } : {}),
           date: wrap.querySelector('#ieDate').value, votes: Number(wrap.querySelector('#ieVotes').value)
         })
       });
