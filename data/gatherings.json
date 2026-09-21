@@ -253,6 +253,38 @@
     },
     {
       "section": "functions",
+      "title": "Gathering",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "gtanoorsisters",
+      "eventDate": "2026-10-18",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "Toronto, ON, Canada",
+      "link": "https://www.instagram.com/p/DdiGw8HOR0C/?stkn=N2Y1ZGJpZzVhOGVo",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "gathering",
+      "tag": "Gathering"
+    },
+    {
+      "section": "functions",
       "title": "Harvest Fest",
       "audienceType": [
         "Family Event"
