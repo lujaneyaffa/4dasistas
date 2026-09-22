@@ -680,8 +680,13 @@
   /* iPhone: the edit form becomes a full-screen sheet with ONE scroller (a scroller inside a scroller, sized
      with 100vh, hid the Save buttons behind Safari's toolbar and fought the keyboard) */
   @media (max-width:520px){
-    #detail-view.is-form{ padding:0; align-items:stretch; overflow:hidden; height:100vh; height:100dvh; background:#fff; }
-    #detail-view.is-form .detail-modal-wrap{ margin:0; max-width:none; height:100%; display:flex; }
+    /* No explicit height here — the base rule's position:fixed;inset:0 already fills the layout viewport.
+       Adding height:100dvh on TOP of inset:0 is what made the sheet fight iOS Safari's keyboard: as the
+       keyboard animates in, the visual viewport (and dvh) shrinks every frame, so the sheet kept resizing
+       under the keyboard mid-animation, which is what looked like "the keyboard goes up and gets stuck"
+       and blocked pasting into a focused field. inset:0 alone stays anchored and doesn't fight it. */
+    #detail-view.is-form{ padding:0; align-items:stretch; overflow:hidden; background:#fff; }
+    #detail-view.is-form .detail-modal-wrap{ margin:0; max-width:none; height:100%; min-height:0; display:flex; }
     #detail-view.is-form .detail-card{ width:100%; height:100%; max-height:none; border:none; border-radius:0; box-shadow:none; box-sizing:border-box; padding:calc(14px + env(safe-area-inset-top, 0px)) 16px 0; }
     #detail-view.is-form .detail-close-btn{ display:none; } /* the form has its own Cancel buttons; a floating ✕ sat on top of the fields */
     /* 16px inputs stop iOS zooming the page when a field is focused; bigger checkboxes / tap rows */
