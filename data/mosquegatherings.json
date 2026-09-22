@@ -702,6 +702,37 @@
         "functions"
       ],
       "id": "the-womens-roundtable"
+    },
+    {
+      "section": "mosqueprograms",
+      "title": "When it feels unbearable - halaqah",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "Haba sisters",
+      "eventDate": "2026-09-25",
+      "endDate": "",
+      "time": "17:45",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "232 Parliament St, Toronto, ON M5A 2Z4, Canada",
+      "link": "https://www.instagram.com/p/DdkYR2axza1/?stkn=MTd0cDNicW5lZDcwdw==",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "when-it-feels-unbearable-halaqah"
     }
   ]
 }
