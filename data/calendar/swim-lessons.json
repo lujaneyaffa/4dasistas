@@ -1,0 +1,32 @@
+{
+  "section": "sports",
+  "title": "Swim Lessons",
+  "audienceType": [
+    "Muslim Women"
+  ],
+  "emoji": "",
+  "organizedBy": "Musfit",
+  "eventDate": "2026-09-26",
+  "endDate": "",
+  "time": "",
+  "endTime": "",
+  "allDay": false,
+  "days": [
+    "sat"
+  ],
+  "recurFrequency": "",
+  "monthlyType": "weekday",
+  "monthlyWeek": "1",
+  "monthlyDay": "sat",
+  "monthlyDate": "",
+  "recurStart": "",
+  "recurEnd": "2026-11-21",
+  "extraDates": [],
+  "virtual": false,
+  "location": "1330 Montclair Dr, Oakville, ON L6H 1Z5, Canada",
+  "link": "https://www.instagram.com/p/Ddpk0MBiQfC/?img_index=1&stkn=OTZsZ3NidTcxOWx2",
+  "desc": "",
+  "sportKey": "",
+  "alsoSportKeys": [],
+  "alsoShowIn": []
+}
