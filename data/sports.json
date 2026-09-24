@@ -562,6 +562,39 @@
     },
     {
       "section": "sports",
+      "title": "Pilates",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "Tawhid",
+      "eventDate": "2026-09-27",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [
+        "sun"
+      ],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "5585 McAdam Rd, Mississauga, ON L4Z 1P1, Canada",
+      "link": "https://www.instagram.com/p/DdrjU4SzdFp/?stkn=MWs1MWdudmxoOTU3aA==",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "pilates"
+    },
+    {
+      "section": "sports",
       "eventDate": "2026-09-07",
       "sportKey": "pilates",
       "virtual": false,
