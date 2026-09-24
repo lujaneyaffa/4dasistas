@@ -807,6 +807,40 @@
       "section": "functions"
     },
     {
+      "section": "functions",
+      "title": "Swim Lessons",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "muhsin swim school",
+      "eventDate": "2026-10-02",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [
+        "fri"
+      ],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "2026-10-02",
+      "recurEnd": "2026-11-27",
+      "extraDates": [],
+      "virtual": false,
+      "location": "Scarborough, ON, Canada",
+      "link": "https://www.instagram.com/p/DdHa2RCitTU/?stkn=c2ZqcHlpbmxnbDNq",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "swim-lessons-2",
+      "tag": "Swim Lessons"
+    },
+    {
       "eventDate": "2026-08-14",
       "date": "Friday, August 14, 2026 · 7:30–9:00 PM",
       "desc": "SYG Mississauga summer cafe — make your own summer drinks, reflections, activities, and sisterhood. This session's lesson: Shukr (Gratitude Through Obedience). All high school girls welcome.",
