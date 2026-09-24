@@ -889,6 +889,39 @@
       "id": "womens-padel-social"
     },
     {
+      "section": "sports",
+      "title": "Womens Pickleball",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "Tawhid Centre",
+      "eventDate": "2026-10-01",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [
+        "thu"
+      ],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "5585 McAdam Rd, Mississauga, ON L4Z 1P1, Canada",
+      "link": "",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "womens-pickleball"
+    },
+    {
       "alsoSportKeys": [
         "running"
       ],
