@@ -1,0 +1,30 @@
+{
+  "section": "functions",
+  "title": "Book Fair",
+  "audienceType": [
+    "Family Event"
+  ],
+  "emoji": "",
+  "organizedBy": "",
+  "eventDate": "2026-10-31",
+  "endDate": "",
+  "time": "",
+  "endTime": "",
+  "allDay": false,
+  "days": [],
+  "recurFrequency": "",
+  "monthlyType": "weekday",
+  "monthlyWeek": "1",
+  "monthlyDay": "sat",
+  "monthlyDate": "",
+  "recurStart": "",
+  "recurEnd": "",
+  "extraDates": [],
+  "virtual": false,
+  "location": "Mississauga, ON, Canada",
+  "link": "https://www.instagram.com/p/Ddo6mYpB4tu/?stkn=MXJzMG9pYjJxZDRrZg==",
+  "desc": "",
+  "sportKey": "",
+  "alsoSportKeys": [],
+  "alsoShowIn": []
+}
