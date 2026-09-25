@@ -29,6 +29,8 @@
  *                                                                guest with just a name (X-Guest-Id + X-Guest-Name headers, no password). Creator auto-votes; max 3 per person, 40 per club
  *   POST   /api/clubs/:clubId/ideas/:ideaId/vote            - Toggle your vote (member or guest)
  *   DELETE /api/clubs/:clubId/ideas/:ideaId                 - Remove an option you added
+ *   GET    /api/clubs/:clubId/idea-availability              - "Add your availability" on the idea board: your own 10-day availability ({days:{"YYYY-MM-DD":"busy"|["morning","afternoon","evening"]}}); same identity as ideas (member Bearer token OR guest headers)
+ *   PUT    /api/clubs/:clubId/idea-availability              - Replace your own idea-board availability (same identity, same shape)
  *   PUT    /api/admin/club-ideas/:clubId/:ideaId            - Admin edits title / mapUrl / date (YYYY-MM-DD) / votes (sets the displayed total via an adjustment)
  *   DELETE /api/admin/club-ideas/:clubId/:ideaId            - Admin removes any option (session cookie)
  *   GET    /api/members                                     - Signed-in members only (Bearer token): every profile as {id, name, hasPhoto, clubs:[clubId]} (no usernames/PINs)
@@ -211,6 +213,32 @@ const IDEAS_MAX_PER_PERSON = 3;
 // and a Google Maps link.
 const CUISINE_CLUB_ID = "club-cuisine";
 const sanitizeCuisine = (input) => String(input || "").replace(/[\x00-\x1f\x7f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, 30);
+
+// ---- "Add your availability" on each club's idea-board page: a light, 10-day version of the month-view
+// calendar, open to anyone who can vote there (a signed-in member OR a name-only guest), not just full club
+// members. One private document per person per club: { "YYYY-MM-DD": "busy" | ["morning","afternoon","evening"] }.
+// "busy" = the whole day painted red by the Busy-all-day button; an array = only those segments are marked
+// available (an array of all 3 = the same as the Available-all-day button, painted green).
+const IDEA_AVAIL_PARTS = ["morning", "afternoon", "evening"];
+const ideaAvailKey = (clubId, personId) => `ideaavail:${clubId}:${personId}`;
+const sanitizeIdeaAvailDays = (input) => {
+  const out = {};
+  if (!input || typeof input !== "object" || Array.isArray(input)) return out;
+  const today = new Date();
+  const minDate = new Date(today.getTime() - 3 * 86400000).toISOString().slice(0, 10);
+  const maxDate = new Date(today.getTime() + 45 * 86400000).toISOString().slice(0, 10);
+  for (const [date, val] of Object.entries(input)) {
+    if (Object.keys(out).length >= 60) break;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < minDate || date > maxDate) continue;
+    if (Number.isNaN(Date.parse(date + "T00:00:00Z"))) continue;
+    if (val === "busy") { out[date] = "busy"; continue; }
+    if (Array.isArray(val)) {
+      const clean = IDEA_AVAIL_PARTS.filter((p) => val.includes(p));
+      if (clean.length) out[date] = clean;
+    }
+  }
+  return out;
+};
 const readClubIdeas = async (env, clubId) => {
   const raw = await env.SITE_DATA.get(clubIdeasKey(clubId));
   try { const d = raw ? JSON.parse(raw) : {}; return Array.isArray(d.ideas) ? d.ideas : []; } catch { return []; }
@@ -733,6 +761,27 @@ export default {
       const rest = ideas.filter((i) => i.id !== ideaId);
       await writeClubIdeas(env, clubId, rest);
       return jsonResponse({ ideas: sortedPublicIdeas(rest, who) }, 200, corsHeaders);
+    }
+
+    const ideaAvailMatch = path.match(/^\/api\/clubs\/([^/]+)\/idea-availability\/?$/);
+    if (ideaAvailMatch && (request.method === "GET" || request.method === "PUT")) {
+      const clubId = ideaClub(ideaAvailMatch);
+      if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
+      const who = await ideaWho();
+      if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
+      const key = ideaAvailKey(clubId, who.id);
+      if (request.method === "GET") {
+        const raw = await env.SITE_DATA.get(key);
+        let days = {};
+        try { days = raw ? JSON.parse(raw) : {}; } catch { days = {}; }
+        return jsonResponse({ days }, 200, corsHeaders);
+      }
+      if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const days = sanitizeIdeaAvailDays(body.days);
+      await env.SITE_DATA.put(key, JSON.stringify(days));
+      return jsonResponse({ days }, 200, corsHeaders);
     }
 
     // ---- Signed-in members can browse every profile (names + clubs; never usernames or PINs) ----

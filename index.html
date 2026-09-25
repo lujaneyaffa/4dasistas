@@ -481,6 +481,25 @@
   .idea-pop-maplink{ display:block; margin:4px 0 10px; font-size:12px; color:var(--muted); overflow-wrap:anywhere; }
   .ideas-empty{ text-align:center; padding:26px 0; font-size:14px; color:var(--muted); }
   .ideas-empty-circle{ display:inline-flex; align-items:center; justify-content:center; width:96px; height:96px; border-radius:50%; border:3px dashed #d46a86; background:#ffe0e6; font-size:38px; font-weight:700; color:#d46a86; }
+  /* "Add your availability" — a 10-day week grid under each club's idea board */
+  .iav-wrap{ margin-top:22px; padding-top:18px; border-top:1.5px dashed rgba(55,61,59,0.25); }
+  .iav-title{ font-family:'Inter',sans-serif; font-size:16px; margin:0 0 8px; }
+  .iav-status{ min-height:18px; text-align:center; font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .iav-grid-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:2px; }
+  .iav-grid{ display:grid; grid-template-columns:44px repeat(10, minmax(30px,1fr)); gap:3px; min-width:400px; }
+  .iav-corner{ min-height:1px; }
+  .iav-daylabel{ font-size:10px; font-weight:700; text-align:center; line-height:1.15; padding:2px 0; color:var(--charcoal); }
+  .iav-daylabel.today{ color:var(--rose-deep); }
+  .iav-rowlabel{ font-size:10px; font-weight:700; color:var(--muted); display:flex; align-items:center; padding-right:2px; }
+  .iav-cell{ min-height:30px; border:1.5px solid rgba(55,61,59,0.25); border-radius:6px; background:#fff; padding:0; cursor:pointer; touch-action:none; -webkit-tap-highlight-color:transparent; }
+  .iav-cell.on.iav-c-morning{ background:#ffe27a; border-color:#c9a25a; }
+  .iav-cell.on.iav-c-afternoon{ background:#ffb066; border-color:#c98a3a; }
+  .iav-cell.on.iav-c-evening{ background:#8fb8ff; border-color:#4f7fc9; }
+  .iav-cell.iav-full{ background:#d9f0d8; border-color:#4f9a4b; }
+  .iav-cell.iav-busy{ background:#f9dcdc; border-color:#e8b4b4; }
+  .iav-allday{ min-height:32px; border:1.5px solid rgba(55,61,59,0.25); border-radius:6px; background:#fff; font-weight:700; font-size:14px; cursor:pointer; color:var(--muted); }
+  .iav-allday-avail{ background:#d9f0d8; border-color:#4f9a4b; color:#2a7a4a; }
+  .iav-allday-busy{ background:#f9dcdc; border-color:#e8b4b4; color:#b3261e; }
   .idea-pop-card{ text-align:left; max-height:88vh; overflow-y:auto; }
   .idea-pop-date{ margin:0; font-size:13px; font-weight:600; }
   .idea-pop-map{ display:block; text-align:center; text-decoration:none; color:var(--charcoal); margin:6px 0 10px; }
@@ -1137,7 +1156,9 @@ let state = {
   cmAdminOpen:false, cmAdminLoggedIn:null, cmAdminError:'', cmAdminClub:null, cmAdminEvents:null,
   cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
-  availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false, membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
+  availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
+  ideaAvail:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
+  membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventJustCreated:false, eventEditDeleting:false,
   reviewMode:false, reviewQueue:[], reviewTotal:0, eventCreateMode:false,
   resourceEditOpen:false, resourceEditId:null, resourceEditData:null, resourceEditError:'', resourceEditSaving:false, resourceEditSaved:false, resourceCreateMode:false,
@@ -4508,6 +4529,7 @@ function openClubIdeas(clubId){
   state.tab = 'clubideas';
   state.ideasClubId = clubId;
   state.ideas = null; state.ideasError = ''; state.ideasStatus = ''; state.ideasRenaming = false;
+  state.ideaAvail = null; state.ideaAvailLoadedFor = null; state.ideaAvailError = ''; state.ideaAvailStatus = ''; state.ideaAvailDirty = false;
   render();
   window.scrollTo({ top:0, behavior:'smooth' });
 }
@@ -4584,8 +4606,183 @@ function renderClubIdeas(el){
       ${addForm}
       <div class="ideas-status" id="ideasStatus" aria-live="polite">${escapeCm(state.ideasStatus)}</div>
       ${cloud}
+      ${ideaAvailSectionHtml(me)}
     </div>`;
   wireClubIdeas();
+}
+
+/* ============================================================
+   "ADD YOUR AVAILABILITY" — a light, 10-day version of the club-member month
+   calendar, open to anyone who can vote on this idea board (member or guest).
+   Tap or drag across Morning/Afternoon/Evening cells; a per-day button cycles
+   Available all day (green) → Busy all day (red) → clear.
+   ============================================================ */
+const IAV_PARTS = [['morning','Morning'],['afternoon','Afternoon'],['evening','Evening']];
+const IAV_PART_KEYS = IAV_PARTS.map(([k]) => k);
+const IAV_RANGES = { morning:'before 12 PM', afternoon:'12 – 5 PM', evening:'after 5 PM' };
+
+function iavNext10Dates(){
+  const out = [];
+  const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  for(let i = 0; i < 10; i++){
+    const d = new Date(base);
+    d.setDate(base.getDate() + i);
+    out.push(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`);
+  }
+  return out;
+}
+function iavDayValue(date){ return state.ideaAvail ? state.ideaAvail[date] : undefined; }
+function iavDayBusy(date){ return iavDayValue(date) === 'busy'; }
+function iavDayFull(date){ const v = iavDayValue(date); return Array.isArray(v) && v.length === 3; }
+function iavPartOn(date, part){ const v = iavDayValue(date); return Array.isArray(v) && v.includes(part); }
+function iavSetPart(date, part, on){
+  if(!state.ideaAvail) state.ideaAvail = {};
+  const v = state.ideaAvail[date];
+  let arr = Array.isArray(v) ? v.slice() : []; // starting from "busy" or unset both count as nothing on yet
+  if(on){ if(!arr.includes(part)) arr.push(part); } else { arr = arr.filter(p => p !== part); }
+  if(arr.length) state.ideaAvail[date] = IAV_PART_KEYS.filter(k => arr.includes(k));
+  else delete state.ideaAvail[date];
+  state.ideaAvailDirty = true;
+}
+function iavCycleAllDay(date){
+  if(!state.ideaAvail) state.ideaAvail = {};
+  if(iavDayFull(date)) state.ideaAvail[date] = 'busy';
+  else if(iavDayBusy(date)) delete state.ideaAvail[date];
+  else state.ideaAvail[date] = IAV_PART_KEYS.slice();
+  state.ideaAvailDirty = true;
+}
+
+function ideaAvailSectionHtml(me){
+  if(!me) return `<div class="iav-wrap"><h3 class="iav-title">🗓️ Add your availability</h3><p class="av-msg">Enter your name above to add your availability.</p></div>`;
+  let body;
+  if(state.ideaAvailError) body = `<p class="av-msg" style="color:#c00;">${escapeCm(state.ideaAvailError)}</p>`;
+  else if(!state.ideaAvail && state.ideaAvailLoading) body = `<p class="av-msg">Loading your availability…</p>`;
+  else body = `<div class="iav-grid-scroll"><div class="iav-grid" id="iavGridBox">${iavGridInnerHtml()}</div></div>
+    <p class="ideas-hint">Tap or drag across a row to mark <strong>Morning</strong> (${IAV_RANGES.morning}), <strong>Afternoon</strong> (${IAV_RANGES.afternoon}) or <strong>Evening</strong> (${IAV_RANGES.evening}). Tap a day's bottom button to cycle: ✓ available all day (green) → ✕ busy all day (red) → clear.</p>`;
+  return `<div class="iav-wrap">
+    <h3 class="iav-title">🗓️ Add your availability</h3>
+    <div class="iav-status" id="iavStatus" aria-live="polite">${escapeCm(state.ideaAvailStatus)}</div>
+    ${body}
+  </div>`;
+}
+
+function iavGridInnerHtml(){
+  const dates = iavNext10Dates();
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+  let html = '<div class="iav-corner"></div>';
+  html += dates.map(d => {
+    const dt = new Date(d + 'T00:00:00');
+    return `<div class="iav-daylabel${d === todayStr ? ' today' : ''}">${dayLabelsShort[dt.getDay()]}<br>${dt.getDate()}</div>`;
+  }).join('');
+  IAV_PARTS.forEach(([key, label]) => {
+    html += `<div class="iav-rowlabel">${label}</div>`;
+    html += dates.map(d => {
+      const cls = iavDayBusy(d) ? 'iav-busy' : iavDayFull(d) ? 'iav-full' : (iavPartOn(d, key) ? 'on iav-c-' + key : '');
+      return `<button type="button" class="iav-cell ${cls}" data-date="${d}" data-part="${key}" aria-label="${label}, ${d}${iavPartOn(d,key)||iavDayFull(d)?', available':''}"></button>`;
+    }).join('');
+  });
+  html += '<div class="iav-rowlabel">All day</div>';
+  html += dates.map(d => {
+    const full = iavDayFull(d), busy = iavDayBusy(d);
+    const mode = full ? 'avail' : busy ? 'busy' : 'none';
+    const label = full ? '✓' : busy ? '✕' : '·';
+    return `<button type="button" class="iav-allday iav-allday-${mode}" data-alldate="${d}" aria-label="${d} all day: ${full?'available':busy?'busy':'not set'} — tap to change">${label}</button>`;
+  }).join('');
+  return html;
+}
+function renderIavGridInner(){
+  const box = document.getElementById('iavGridBox');
+  if(box) box.innerHTML = iavGridInnerHtml();
+}
+
+function iavSetStatus(msg){
+  state.ideaAvailStatus = msg;
+  const st = document.getElementById('iavStatus');
+  if(st) st.textContent = msg;
+}
+let iavSaveTimer = null;
+function ideaAvailScheduleSave(){
+  clearTimeout(iavSaveTimer);
+  iavSetStatus('Saving…');
+  iavSaveTimer = setTimeout(ideaAvailSave, 700);
+}
+async function ideaAvailLoad(){
+  const clubId = state.ideasClubId;
+  if(!clubId || state.ideaAvailLoading) return;
+  state.ideaAvailLoading = true;
+  state.ideaAvailError = '';
+  try {
+    const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(clubId) + '/idea-availability', { headers: ideaHeaders() });
+    state.ideaAvail = data.days || {};
+    state.ideaAvailLoadedFor = clubId;
+    state.ideaAvailDirty = false;
+  } catch(err){ state.ideaAvailError = err.message; }
+  state.ideaAvailLoading = false;
+  if(state.tab === 'clubideas') render();
+}
+async function ideaAvailSave(){
+  clearTimeout(iavSaveTimer);
+  const clubId = state.ideaAvailLoadedFor;
+  if(!clubId || !state.ideaAvailDirty) return;
+  if(state.ideaAvailSaving){ state.ideaAvailResave = true; return; }
+  const snapshot = JSON.stringify(state.ideaAvail || {});
+  state.ideaAvailSaving = true;
+  iavSetStatus('Saving…');
+  try {
+    await cmApiRaw('/api/clubs/' + encodeURIComponent(clubId) + '/idea-availability', {
+      method:'PUT', headers: ideaHeaders(), body: JSON.stringify({ days: JSON.parse(snapshot) })
+    });
+    if(JSON.stringify(state.ideaAvail || {}) === snapshot){ state.ideaAvailDirty = false; iavSetStatus('Saved ✓'); }
+    else state.ideaAvailResave = true;
+  } catch(err){
+    iavSetStatus('Couldn’t save (' + err.message + ').');
+  }
+  state.ideaAvailSaving = false;
+  if(state.ideaAvailResave){ state.ideaAvailResave = false; ideaAvailSave(); }
+}
+
+function iavCellFromPoint(x, y){
+  const el = document.elementFromPoint(x, y);
+  return el && el.closest ? el.closest('.iav-cell') : null;
+}
+let iavDrag = null;
+function wireIdeaAvailGrid(){
+  const box = document.getElementById('iavGridBox');
+  if(!box) return;
+  if(state.ideaAvail === null && state.ideaAvailLoadedFor !== state.ideasClubId && !state.ideaAvailLoading && !state.ideaAvailError) ideaAvailLoad();
+  if(box.dataset.wired) return;
+  box.dataset.wired = '1';
+  box.addEventListener('pointerdown', e => {
+    const allday = e.target.closest('.iav-allday');
+    if(allday){
+      e.preventDefault();
+      iavCycleAllDay(allday.dataset.alldate);
+      renderIavGridInner();
+      ideaAvailScheduleSave();
+      return;
+    }
+    const cell = e.target.closest('.iav-cell');
+    if(!cell) return;
+    e.preventDefault();
+    const on = !(iavPartOn(cell.dataset.date, cell.dataset.part) || iavDayFull(cell.dataset.date));
+    iavDrag = { on };
+    iavSetPart(cell.dataset.date, cell.dataset.part, on);
+    renderIavGridInner();
+    ideaAvailScheduleSave();
+  });
+  window.addEventListener('pointermove', e => {
+    if(!iavDrag) return;
+    const cell = iavCellFromPoint(e.clientX, e.clientY);
+    if(!cell || !document.getElementById('iavGridBox') || !document.getElementById('iavGridBox').contains(cell)) return;
+    const already = iavPartOn(cell.dataset.date, cell.dataset.part) || (iavDrag.on && iavDayFull(cell.dataset.date));
+    if(already === iavDrag.on) return;
+    iavSetPart(cell.dataset.date, cell.dataset.part, iavDrag.on);
+    renderIavGridInner();
+    ideaAvailScheduleSave();
+  });
+  const endDrag = () => { iavDrag = null; };
+  window.addEventListener('pointerup', endDrag);
+  window.addEventListener('pointercancel', endDrag);
 }
 
 function ideasSetStatus(msg, isErr){
@@ -4616,6 +4813,7 @@ function ideasNeedName(){
 
 function wireClubIdeas(){
   if(state.ideas === null && !state.ideasLoading && !state.ideasError) ideasLoad();
+  wireIdeaAvailGrid();
   const join = document.getElementById('ideaJoinForm');
   if(join) join.addEventListener('submit', e => {
     e.preventDefault();
@@ -4623,7 +4821,9 @@ function wireClubIdeas(){
     if(name.length < 2) return ideasSetStatus('Please enter your name (at least 2 letters).');
     ideaSaveGuest(name);
     state.ideasRenaming = false; state.ideasStatus = 'Welcome, ' + name + '! You can vote and add options now.';
-    state.ideas = null; render();
+    state.ideas = null;
+    state.ideaAvail = null; state.ideaAvailLoadedFor = null; state.ideaAvailStatus = ''; state.ideaAvailDirty = false;
+    render();
   });
   const rename = document.getElementById('ideaRenameBtn');
   if(rename) rename.addEventListener('click', () => { state.ideasRenaming = true; render(); });
