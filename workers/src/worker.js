@@ -1521,7 +1521,20 @@ export default {
 
     // ---- Default ----
 
-    if (env.ASSETS) return env.ASSETS.fetch(request);
+    // The app shell (index.html, and the service worker / manifest that control it) must never be cached
+    // at Cloudflare's edge. It kept coming back "cf-cache-status: HIT" on a stale copy after a deploy, so a
+    // link/routing change that already shipped could still look broken for a while depending which edge
+    // node a visitor hit. Everything else (images, /data/*.json, fonts) keeps its normal caching.
+    if (env.ASSETS) {
+      const res = await env.ASSETS.fetch(request);
+      const isShell = path === "/" || path === "/index.html" || path === "/service-worker.js" || path === "/manifest.webmanifest";
+      if (isShell) {
+        const fresh = new Response(res.body, res);
+        fresh.headers.set("Cache-Control", "no-store, must-revalidate");
+        return fresh;
+      }
+      return res;
+    }
     return new Response("4DASISTAS Worker — use /api/data/:key, /editor, /login, or /logout", {
       headers: { "Content-Type": "text/plain", ...corsHeaders },
     });
