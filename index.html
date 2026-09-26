@@ -1411,6 +1411,7 @@ const CONTINENT_RULES = [
   [/\bmacedonia|kosovo\b/i, 'Europe'], [/\bfinland|lapland\b/i, 'Europe'],
   [/\balberta|muskoka|\bontario\b|\bon,?\s*canada\b|\bcanada\b/i, 'North America'],
   [/\borlando|florida\b/i, 'North America'], [/\bbarbados\b/i, 'North America'],
+  [/\bpatagonia|argentina|chile|peru|brazil|colombia|ecuador\b/i, 'South America'],
 ];
 function tripContinent(item){
   const text = `${item.title || ''} ${item.location || ''}`;
