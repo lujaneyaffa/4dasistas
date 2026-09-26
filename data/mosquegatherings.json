@@ -79,12 +79,14 @@
     {
       "section": "mosqueprograms",
       "title": "Dawah Training",
-      "audienceType": [],
+      "audienceType": [
+        "Muslim Youth"
+      ],
       "emoji": "",
       "organizedBy": "uoftmsa",
-      "eventDate": "2026-09-27",
+      "eventDate": "2026-11-07",
       "endDate": "",
-      "time": "",
+      "time": "17:00",
       "endTime": "",
       "allDay": false,
       "days": [],
@@ -92,7 +94,7 @@
       "recurEnd": "",
       "extraDates": [
         {
-          "date": "2026-10-04"
+          "date": "2026-11-14"
         }
       ],
       "virtual": false,
@@ -104,6 +106,11 @@
       "alsoShowIn": [
         "functions"
       ],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
       "id": "dawah-training"
     },
     {
