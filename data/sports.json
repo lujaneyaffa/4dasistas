@@ -685,7 +685,10 @@
       "id": "pink-track-sunday"
     },
     {
-      "sportKey": "tennis-pickleball",
+      "sportKey": "pickleball",
+      "alsoSportKeys": [
+        "tennis"
+      ],
       "date": "Every Thursday · 8:00 PM",
       "desc": "Weekly drop-in tennis & pickleball with Muslimah Athletic Club.",
       "instagram": "https://www.instagram.com/muslimahathleticclub/",
@@ -980,7 +983,7 @@
       "location": "5585 McAdam Rd, Mississauga, ON L4Z 1P1, Canada",
       "link": "",
       "desc": "",
-      "sportKey": "",
+      "sportKey": "pickleball",
       "alsoSportKeys": [],
       "alsoShowIn": [],
       "id": "womens-pickleball"

@@ -1,5 +1,6 @@
 {
-  "sportKey": "tennis-pickleball",
+  "sportKey": "pickleball",
+  "alsoSportKeys": ["tennis"],
   "date": "Every Thursday · 8:00 PM",
   "desc": "Weekly drop-in tennis & pickleball with Muslimah Athletic Club.",
   "instagram": "https://www.instagram.com/muslimahathleticclub/",

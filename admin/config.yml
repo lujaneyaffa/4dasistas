@@ -263,16 +263,37 @@ collections:
     name: calDate
     widget: hidden
     required: false
-  - label: Sport key (lowercase, ONE sport only, e.g. "badminton" - do NOT put multiple
-      sports here separated by commas)
+  - label: Sport (pick ONE - for a multi-sport event, add the others below instead
+      of combining them here)
     name: sportKey
-    widget: string
+    widget: select
     required: false
+    options: &sportOptions
+    - {label: Badminton, value: badminton}
+    - {label: Pickleball, value: pickleball}
+    - {label: Padel, value: padel}
+    - {label: Ball Hockey, value: ball-hockey}
+    - {label: Basketball, value: basketball}
+    - {label: Soccer, value: soccer}
+    - {label: Volleyball, value: volleyball}
+    - {label: Martial Arts, value: martial-arts}
+    - {label: Boxing, value: boxing}
+    - {label: Running, value: running}
+    - {label: Cycling, value: cycling}
+    - {label: Swimming, value: swimming}
+    - {label: Pilates, value: pilates}
+    - {label: Fitness, value: fitness}
+    - {label: Yoga, value: yoga}
+    - {label: Archery, value: archery}
+    - {label: Climbing, value: climbing}
+    - {label: Skating, value: skating}
   - label: Also list this event under these other sports too (optional, no limit -
       use this for multi-sport events instead of combining them in Sport Key above)
     name: alsoSportKeys
-    widget: list
+    widget: select
+    multiple: true
     required: false
+    options: *sportOptions
   - label: Also show in these other calendars too (optional - no limit, event still
       counts once on "All Events")
     name: alsoShowIn

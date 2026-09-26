@@ -94,6 +94,7 @@
   .search-suggestion:last-child{ border-bottom:0; }
   .search-suggestion strong{ display:block; font-family:'Inter',sans-serif; }
   .search-suggestion span{ display:block; color:var(--muted); font-size:11px; }
+  .search-suggestion-hint{ padding:8px 14px; font-size:11px; color:var(--muted); text-align:center; background:rgba(201,170,173,0.15); }
   .tab-btn{
     flex-shrink:0; font-family:'Inter',sans-serif; font-weight:500; font-size:14px;
     padding:8px 14px; border-radius:0; border:none; border-bottom:2px solid transparent;
@@ -1348,6 +1349,13 @@ const SPORT_EMOJI = {
   'swimming': '🏊‍♀️', 'pilates': '🧘‍♀️', 'fitness': '💪', 'yoga': '🧘‍♀️',
   'archery': '🏹', 'climbing': '🧗‍♀️', 'skating': '⛸️',
 };
+// The canonical picklist for the Sport field below — pick one of these so
+// every event for the same sport gets the same emoji/colour/filter bucket.
+// (tennis-pickleball is deliberately excluded: that was a one-off combined
+// key that fragmented pickleball events into two buckets — use "pickleball"
+// or "tennis" as the primary sport instead, and add the other one under
+// "Also list under these other sports too".)
+const CANONICAL_SPORT_KEYS = Object.keys(SPORT_EMOJI).filter(k => k !== 'tennis-pickleball');
 
 // Ordered [regex, emoji] pairs checked against title+desc — first match wins.
 const KEYWORD_EMOJI_RULES = [
@@ -1397,7 +1405,7 @@ function autoEmoji(item){
   if(!item || !item.section) return ''; // not a calendar event (resource, club listing, etc.)
   if(item.emoji) return item.emoji; // manual Decap override always wins
   const text = `${item.title || ''} ${item.desc || ''}`;
-  if(item.sportKey && SPORT_EMOJI[item.sportKey]) return SPORT_EMOJI[item.sportKey];
+  if(item.sportKey && SPORT_EMOJI[normalizeSportKey(item.sportKey)]) return SPORT_EMOJI[normalizeSportKey(item.sportKey)];
   for(const [re, emoji] of KEYWORD_EMOJI_RULES){ if(re.test(text)) return emoji; }
   if(item.section === 'trips'){
     const tripText = `${item.title || ''} ${item.location || ''}`;
@@ -2102,7 +2110,8 @@ function renderSearchSuggestions(){
   const query = normalizeSearchText(input.value).trim();
   if(!query){ suggestions.innerHTML = ''; suggestions.style.display = 'none'; return; }
   const matches = ALL_ITEMS.filter(item => itemMatchesSearch(item)).slice(0, 8);
-  suggestions.innerHTML = matches.map(item => `<button class="search-suggestion" data-id="${item.id}"><strong>${emojiTitle(item)}</strong><span>${item.type || item.tag || 'Community listing'}</span></button>`).join('');
+  suggestions.innerHTML = matches.map(item => `<button class="search-suggestion" data-id="${item.id}"><strong>${emojiTitle(item)}</strong><span>${item.type || item.tag || 'Community listing'}</span></button>`).join('')
+    + '<div class="search-suggestion-hint">Press Enter to see all results in Calendar view</div>';
   // Render the panel position:fixed so sticky-nav overflow can never clip it.
   if(matches.length){
     const shell = document.querySelector('.top-search-shell');
@@ -3165,7 +3174,7 @@ const EDITABLE_SECTIONS = ['sports','activities','functions','trips','mosqueprog
 function isEditableCalendarItem(e){ return !!e && EDITABLE_SECTIONS.includes(e.section); }
 
 // "Needs details" = missing what the admin form requires: a date, a specific time
-// (unless marked "all day"), and (unless virtual) a location.
+// (unless marked "all day"), (unless virtual) a location, and a link.
 function eventHasDate(e){
   return !!(e.eventDate || e.calDate || isMonthlyItem(e) || (Array.isArray(e.days) && e.days.length) || (Array.isArray(e.extraDates) && e.extraDates.length) || e.recurStart);
 }
@@ -3174,6 +3183,7 @@ function missingDetailsFor(e){
   if(!eventHasDate(e)) missing.push('Date');
   if(!e.allDay && !String(e.time || '').trim()) missing.push('Time');
   if(!e.virtual && (!e.location || !String(e.location).trim())) missing.push('Location');
+  if(!String(e.link || '').trim()) missing.push('Link');
   return missing;
 }
 
@@ -3183,7 +3193,7 @@ function buildMissingDetailsQueue(){
 
 function startMissingDetailsReview(){
   const queue = buildMissingDetailsQueue();
-  if(!queue.length){ alert('Nothing missing — every event has a date, a time (or is marked all day), and a location!'); return; }
+  if(!queue.length){ alert('Nothing missing — every event has a date, a time (or is marked all day), a location, and a link!'); return; }
   state.reviewMode = true;
   state.reviewQueue = queue.slice(1);
   state.reviewTotal = queue.length;
@@ -3306,7 +3316,7 @@ const EVENT_EDIT_WEEKDAYS = [['sun','Sun'],['mon','Mon'],['tue','Tue'],['wed','W
 const EVENT_EDIT_AUDIENCE = ['Muslim Women','Muslim Youth','Hijabi Friendly','Family Event','All Women'];
 const EVENT_EDIT_SECTIONS = [['sports','Sports'],['activities','Activities'],['functions','Functions'],['trips','Trips'],['mosqueprograms','Knowledge']];
 const EVENT_EDIT_ALSOSHOWIN = [['sports','Sports'],['activities','Activities'],['functions','Functions'],['trips','Trips'],['mosqueprograms','Knowledge']];
-const EVENT_CREATE_DEFAULTS = { section:'functions', title:'', audienceType:[], emoji:'', organizedBy:'', eventDate:'', endDate:'', time:'', endTime:'', allDay:false, days:[], recurFrequency:'', monthlyType:'weekday', monthlyWeek:'1', monthlyDay:'sat', monthlyDate:'', recurStart:'', recurEnd:'', extraDates:[], virtual:false, location:'', link:'', desc:'', sportKey:'', alsoSportKeys:[], alsoShowIn:[] };
+const EVENT_CREATE_DEFAULTS = { section:'', title:'', audienceType:[], emoji:'', organizedBy:'', eventDate:'', endDate:'', time:'', endTime:'', allDay:false, days:[], recurFrequency:'', monthlyType:'weekday', monthlyWeek:'1', monthlyDay:'sat', monthlyDate:'', recurStart:'', recurEnd:'', extraDates:[], virtual:false, location:'', link:'', desc:'', sportKey:'', alsoSportKeys:[], alsoShowIn:[] };
 
 async function openEventEdit(id){
   state.eventEditOpen = true;
@@ -3401,8 +3411,9 @@ function renderEventEditView(){
     </div>` : ''}
     <h2 style="margin-bottom:14px;">${createMode ? 'Create Event' : 'Edit Event'}</h2>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <label style="${labelStyle}">Calendar tab
+      <label style="${labelStyle}">Calendar tab${createMode ? ' <span style="color:#c00;">*</span>' : ''}
         <select id="editSection" style="${fieldStyle}">
+          ${createMode ? `<option value="" ${!d.section ? 'selected' : ''}>— Select an event type —</option>` : ''}
           ${EVENT_EDIT_SECTIONS.map(([v,l]) => `<option value="${v}" ${d.section===v?'selected':''}>${l}</option>`).join('')}
         </select>
       </label>
@@ -3504,22 +3515,28 @@ function renderEventEditView(){
         <div id="editLocationChosen" class="ev-loc-chosen${d.location ? '' : ' empty'}${missing.includes('Location') ? ' missing' : ''}">${d.location ? '📍 ' + escapeCm(d.location) : 'No location picked yet — search above'}</div>
         <input id="editLocation" type="hidden" value="${escapeCm(d.location||'')}" style="${fieldStyle}">
       </div>
-      <label style="${labelStyle}">Link (Instagram or WhatsApp)
-        <input id="editLink" type="text" value="${escapeCm(d.link||'')}" style="${fieldStyle}">
+      <label style="${labelStyle}">Add link${missing.includes('Link') ? ' <span style="color:#c00;">— missing</span>' : ''}
+        <input id="editLink" type="text" value="${escapeCm(d.link||'')}" style="${fieldStyle}${missing.includes('Link') ? missingBorder : ''}">
       </label>
       ${createMode ? '' : `<label style="${labelStyle}">Description${missing.includes('Description') ? ' <span style="color:#c00;">— missing</span>' : ''}
         <textarea id="editDesc" rows="4" style="${fieldStyle}font-family:inherit;${missing.includes('Description') ? missingBorder : ''}">${escapeCm(d.desc||'')}</textarea>
       </label>`}
       <div id="sportsOnlyFields" style="display:${d.section==='sports' ? '' : 'none'};flex-direction:column;gap:10px;border:1.5px dashed var(--charcoal);border-radius:10px;padding:10px;">
         <div style="font-size:11px;color:#776867;">Sports-only fields</div>
-        <label style="${labelStyle}">Sport key (lowercase, one sport only — e.g. "badminton")
-          <input id="editSportKey" type="text" value="${escapeCm(d.sportKey||'')}" style="${fieldStyle}">
+        <label style="${labelStyle}">Sport (pick one — for a multi-sport event, add the others below instead of combining them here)
+          <select id="editSportKey" style="${fieldStyle}">
+            <option value="">— Select a sport —</option>
+            ${[...new Set([...CANONICAL_SPORT_KEYS, ...(d.sportKey ? [normalizeSportKey(d.sportKey)] : [])])]
+              .sort((a, b) => a.localeCompare(b))
+              .map(k => `<option value="${escapeCm(k)}" ${normalizeSportKey(d.sportKey) === k ? 'selected' : ''}>${escapeCm(sportFilterLabel(k))}</option>`).join('')}
+          </select>
         </label>
         <div>
           <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Also list under these other sports too</div>
+          <datalist id="sportKeyOptions">${CANONICAL_SPORT_KEYS.map(k => `<option value="${escapeCm(k)}">`).join('')}</datalist>
           <div id="alsoSportKeyRows" style="display:flex;flex-direction:column;gap:6px;">
             ${alsoSportKeys.map((k, i) => `<div style="display:flex;gap:6px;align-items:center;">
-              <input type="text" class="editAlsoSportKey" value="${escapeCm(k)}" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--charcoal);box-sizing:border-box;">
+              <input type="text" class="editAlsoSportKey" list="sportKeyOptions" value="${escapeCm(k)}" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--charcoal);box-sizing:border-box;">
               <button type="button" class="removeAlsoSportKeyBtn link-btn secondary" data-idx="${i}" style="padding:6px 10px;font-size:11px;">Remove</button>
             </div>`).join('')}
           </div>
@@ -3544,7 +3561,7 @@ function renderEventEditView(){
         </div>` : (state.eventEditSaved ? `<p style="color:#2a7a4a;font-size:13px;">${createMode ? 'Created!' : 'Saved!'}${reviewMode ? ' Moving to the next one…' : ' The site rebuilds automatically — this can take a minute or two to appear.'}</p>` : '')}
       <div class="ev-actions">
         <button type="button" class="link-btn primary" id="eventEditSaveBtn" style="flex:1;text-align:center;" ${state.eventEditSaving?'disabled':''}>${state.eventEditSaving?'Saving…':(createMode ? 'Create event' : (reviewMode ? 'Save & next' : 'Save changes'))}</button>
-        <button type="button" class="link-btn secondary" id="eventEditCancelBtn2" style="flex:1;text-align:center;">${reviewMode ? 'Skip this one' : 'Cancel'}</button>
+        ${createMode ? '' : `<button type="button" class="link-btn secondary" id="eventEditCancelBtn2" style="flex:1;text-align:center;">${reviewMode ? 'Skip this one' : 'Cancel'}</button>`}
       </div>
       ${(!createMode && !reviewMode && !state.eventJustCreated) ? `<button type="button" class="link-btn secondary" id="eventNewLinkBtn" style="width:100%;text-align:center;margin-top:10px;">➕ Add a new event</button>` : ''}
       ${createMode ? '' : `<button type="button" id="eventEditDeleteBtn" ${state.eventEditDeleting?'disabled':''} style="margin-top:10px;width:100%;padding:10px;border:2px solid #b3261e;border-radius:10px;background:#fff;color:#b3261e;font-family:'Inter',sans-serif;font-weight:700;font-size:13.5px;cursor:pointer;">${state.eventEditDeleting?'Deleting…':'🗑 Delete this event entirely'}</button>
@@ -3552,7 +3569,8 @@ function renderEventEditView(){
     </div>
   `;
   document.getElementById('eventEditCancelBtn').addEventListener('click', () => reviewMode ? exitReviewMode() : closeEventEdit());
-  document.getElementById('eventEditCancelBtn2').addEventListener('click', () => reviewMode ? advanceReviewQueue() : closeEventEdit());
+  const cancelBtn2 = document.getElementById('eventEditCancelBtn2');
+  if(cancelBtn2) cancelBtn2.addEventListener('click', () => reviewMode ? advanceReviewQueue() : closeEventEdit());
   document.getElementById('eventEditSaveBtn').addEventListener('click', saveEventEdit);
   const addAnotherBtn = document.getElementById('eventAddAnotherBtn');
   if(addAnotherBtn) addAnotherBtn.addEventListener('click', openEventCreate);
@@ -3587,6 +3605,27 @@ function renderEventEditView(){
   updateRecurUi();
   document.getElementById('editVirtual').addEventListener('change', e => {
     document.getElementById('editLocationBlock').style.display = e.target.checked ? 'none' : 'block';
+  });
+  // Picking a new start date carries the end date along with it - single-day
+  // events (the common case) stay in sync automatically; a multi-day event's
+  // existing duration is preserved instead of getting wiped out.
+  document.getElementById('editEventDate').addEventListener('change', e => {
+    const newStart = e.target.value;
+    if(!newStart) return;
+    const endInput = document.getElementById('editEndDate');
+    const oldStart = (state.eventEditData && state.eventEditData.eventDate) || '';
+    const oldEnd = endInput.value;
+    if(!oldEnd || oldEnd === oldStart){
+      endInput.value = newStart;
+    } else {
+      const diffDays = Math.round((new Date(oldEnd + 'T00:00:00') - new Date(oldStart + 'T00:00:00')) / 86400000);
+      if(diffDays > 0){
+        const newEnd = new Date(newStart + 'T00:00:00');
+        newEnd.setDate(newEnd.getDate() + diffDays);
+        endInput.value = `${newEnd.getFullYear()}-${pad(newEnd.getMonth() + 1)}-${pad(newEnd.getDate())}`;
+      }
+    }
+    if(state.eventEditData) state.eventEditData.eventDate = newStart;
   });
   const errMsg = document.getElementById('eventEditErrorMsg');
   if(errMsg) errMsg.scrollIntoView({ block:'center', behavior:'smooth' });
@@ -3643,8 +3682,8 @@ function collectEventFormFields(){
     location: document.getElementById('editLocation').value.trim(),
     link: document.getElementById('editLink').value.trim(),
     desc: document.getElementById('editDesc') ? document.getElementById('editDesc').value.trim() : ((state.eventEditData && state.eventEditData.desc) || ''),
-    sportKey: document.getElementById('editSportKey').value.trim(),
-    alsoSportKeys,
+    sportKey: normalizeSportKey(document.getElementById('editSportKey').value),
+    alsoSportKeys: alsoSportKeys.map(normalizeSportKey),
     alsoShowIn,
   };
 }
@@ -3744,6 +3783,28 @@ async function mountEventLocationSearch(){
 }
 function wireEventLocation(){ mountEventLocationSearch(); }
 
+// Catches an accidental re-add of an event that's already on the site:
+// same date, a title that overlaps, and (if given) a location that overlaps.
+function normalizeForDupeCheck(s){
+  return normalizeSearchText(String(s || '')).replace(/\s+/g, ' ').trim();
+}
+function findLikelyDuplicate(fields, excludeId){
+  if(!fields.title || !fields.eventDate) return null;
+  const t = normalizeForDupeCheck(fields.title);
+  const loc = normalizeForDupeCheck(fields.location);
+  return ALL_ITEMS.find(item => {
+    if(!isEditableCalendarItem(item) || item.id === excludeId) return false;
+    if((item.eventDate || item.calDate || '') !== fields.eventDate) return false;
+    const it = normalizeForDupeCheck(item.title);
+    if(!it || (it !== t && !it.includes(t) && !t.includes(it))) return false;
+    if(loc){
+      const il = normalizeForDupeCheck(item.location);
+      if(il && il !== loc && !il.includes(loc) && !loc.includes(il)) return false;
+    }
+    return true;
+  }) || null;
+}
+
 async function saveEventEdit(){
   const id = state.eventEditId;
   const createMode = state.eventCreateMode;
@@ -3760,7 +3821,8 @@ async function saveEventEdit(){
   }
   if(createMode){
     let problem = '';
-    if(!fields.title) problem = 'Please enter a title.';
+    if(!fields.section) problem = 'Please select an event type (which calendar tab it belongs on).';
+    else if(!fields.title) problem = 'Please enter a title.';
     else if(!fields.eventDate) problem = 'Please pick the event date — it is required.';
     else if(!fields.virtual && !fields.location) problem = 'Please search for and pick a location (or tick "Virtual/online event").';
     if(problem){
@@ -3770,6 +3832,11 @@ async function saveEventEdit(){
       return;
     }
     if(fields.virtual) fields.location = '';
+    const dupe = findLikelyDuplicate(fields, id);
+    if(dupe){
+      const proceed = confirm(`This looks like it might already be on the site:\n\n"${dupe.title}" on ${fields.eventDate}${dupe.location ? ' at ' + dupe.location : ''}\n\nCreate this one anyway?`);
+      if(!proceed) return;
+    }
   }
   state.eventEditSaving = true;
   state.eventEditError = '';
@@ -6546,6 +6613,14 @@ document.getElementById('globalSearch').addEventListener('input', e => {
   state.page = 1;
   renderSearchSuggestions();
   render();
+});
+document.getElementById('globalSearch').addEventListener('keydown', e => {
+  if(e.key !== 'Enter') return;
+  e.preventDefault();
+  const suggestions = document.getElementById('searchSuggestions');
+  if(suggestions) suggestions.style.display = 'none';
+  e.target.blur();
+  goToTab('events'); // events tab's list already live-filters by state.searchQuery
 });
 document.addEventListener('click', e => {
   if(!e.target.closest('#globalSearchShell')){
