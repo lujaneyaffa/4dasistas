@@ -660,6 +660,8 @@
   .travel-trip-list h4{ font-family:'Inter',sans-serif; font-size:15px; margin:0 0 10px; }
   .travel-past-toggle{ display:block; width:100%; margin-bottom:12px; padding:8px 10px; border:1.5px dashed rgba(55,61,59,0.35); border-radius:10px; background:transparent; color:var(--rose-deep); font-family:'Inter',sans-serif; font-weight:700; font-size:12px; cursor:pointer; text-align:center; }
   .travel-past-toggle:hover{ background:rgba(55,61,59,0.06); }
+  .trip-continent-filter{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  .trip-continent-filter .filter-chip{ padding:5px 12px; font-size:11.5px; }
   .travel-trip-list .side-item{ padding:9px 0; border-bottom:1px solid rgba(33,30,28,0.1); cursor:pointer; }
   .travel-trip-list .side-item.trip-list-item{ padding:9px 9px; border-left:6px solid var(--trip-color); }
   .travel-trip-list .side-item:last-child{ border-bottom:0; }
@@ -1160,7 +1162,7 @@ let state = {
   sportFilter:'all', dayCity:'all', clubFilter:'all',
   gatherSort:'hijab', gatherDir:'asc',
   
-  tripType:'all', tripView:'list', tripShowPast:false, resourceFilter:'all', resourceView:'map', resourcePage:1,
+  tripType:'all', tripView:'list', tripShowPast:false, tripContinent:'all', resourceFilter:'all', resourceView:'map', resourcePage:1,
   timeFilter:'upcoming', eventSort:'soonest', todayOffset:0, todayViewMode:'day', page:1,
   calViewMode:'month', calDayOffset:0,
   typeSel:[],
@@ -1395,6 +1397,30 @@ const COUNTRY_FLAG_RULES = [
   [/\bmacedonia\b/i, '🇲🇰'], [/\bkosovo\b/i, '🇽🇰'], [/\begypt\b/i, '🇪🇬'],
   [/\bpalestin/i, '🇵🇸'], [/\bindonesia\b/i, '🇮🇩'], [/\bmalaysia\b/i, '🇲🇾'],
 ];
+
+// Ordered [regex, continent] pairs checked against title+location - drives
+// the continent filter on the trips globe view.
+const CONTINENT_RULES = [
+  [/\bmorocco|toubkal\b/i, 'Africa'],
+  [/\boman\b/i, 'Asia'], [/\bkyrgyzstan\b/i, 'Asia'], [/\bturkey|cappadocia|g[oö]reme\b/i, 'Asia'],
+  [/\bkazakhstan\b/i, 'Asia'], [/\bsaudi\s*arabia|makkah|madinah\b/i, 'Asia'],
+  [/\bchina|yunnan\b/i, 'Asia'], [/\bjapan|osaka|kyoto|tokyo|nara\b/i, 'Asia'],
+  [/\bjordan\b/i, 'Asia'], [/\bindonesia\b/i, 'Asia'], [/\bmalaysia\b/i, 'Asia'],
+  [/\bpalestin/i, 'Asia'], [/\begypt\b/i, 'Africa'],
+  [/\bspain|granada|alpujarra|andalus\b/i, 'Europe'],
+  [/\bmacedonia|kosovo\b/i, 'Europe'], [/\bfinland|lapland\b/i, 'Europe'],
+  [/\balberta|muskoka|\bontario\b|\bon,?\s*canada\b|\bcanada\b/i, 'North America'],
+  [/\borlando|florida\b/i, 'North America'], [/\bbarbados\b/i, 'North America'],
+];
+function tripContinent(item){
+  const text = `${item.title || ''} ${item.location || ''}`;
+  for(const [re, continent] of CONTINENT_RULES){ if(re.test(text)) return continent; }
+  return 'Other';
+}
+function tripContinentOptions(items){
+  const seen = [...new Set(items.map(tripContinent))].sort((a, b) => a.localeCompare(b));
+  return ['all', ...seen];
+}
 
 const SECTION_FALLBACK_EMOJI = {
   sports: '🏅', activities: '🎉', functions: '📅', trips: '✈️',
@@ -2530,12 +2556,24 @@ function renderDirectory(){
   if(state.tab === 'travel'){
     document.getElementById('resourcePagination').innerHTML = '';
     const typeMatched = state.tripType === 'all' ? tripsData : tripsData.filter(item => tripTypeForItem(item) === state.tripType);
-    const travelItems = state.tripShowPast ? typeMatched.filter(isPastItem) : typeMatched.filter(item => !isPastItem(item));
+    const pastMatched = state.tripShowPast ? typeMatched.filter(isPastItem) : typeMatched.filter(item => !isPastItem(item));
+    const continents = tripContinentOptions(pastMatched);
+    if(!continents.includes(state.tripContinent)) state.tripContinent = 'all';
+    const travelItems = (state.tripContinent === 'all' ? pastMatched : pastMatched.filter(item => tripContinent(item) === state.tripContinent))
+      .slice()
+      .sort((a, b) => {
+        const ad = a.eventDate || '', bd = b.eventDate || '';
+        if(!ad && !bd) return String(a.title || '').localeCompare(String(b.title || ''));
+        if(!ad) return 1; // undated trips sort after every dated one
+        if(!bd) return -1;
+        return state.tripShowPast ? bd.localeCompare(ad) : ad.localeCompare(bd);
+      });
     el.innerHTML = `<button class="back-btn" type="button" data-hometab="home" id="travelBackBtn">← Back to Home</button>
     <div class="travel-earth-layout">
       <div class="travel-trip-list">
         <h4>Trips on the globe</h4>
         <button class="travel-past-toggle" id="travelPastToggle" type="button">${state.tripShowPast ? '← View Upcoming' : 'View Past →'}</button>
+        ${continents.length > 2 ? `<div class="trip-continent-filter">${continents.map(c => `<button type="button" class="filter-chip ${state.tripContinent===c?'active':''}" data-continent="${escapeCm(c)}">${c === 'all' ? 'All' : escapeCm(c)}</button>`).join('')}</div>` : ''}
         ${travelItems.map(item => `<div class="side-item trip-list-item" style="--trip-color:${tripColor(item)}" data-id="${item.id}"><strong>${emojiTitle(item)}</strong><span>${item.location || ''} · ${item.date || ''}</span></div>`).join('') || `<div class="side-item"><span>No ${state.tripShowPast ? 'past' : 'upcoming'} trips match this filter.</span></div>`}
       </div>
       <div id="travelEarthView" class="travel-map"><div id="travelEarthMap" class="calendar-map"></div></div>
@@ -2543,6 +2581,12 @@ function renderDirectory(){
     document.getElementById('travelPastToggle').addEventListener('click', () => {
       state.tripShowPast = !state.tripShowPast;
       render();
+    });
+    document.querySelectorAll('.trip-continent-filter [data-continent]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.tripContinent = btn.dataset.continent;
+        render();
+      });
     });
     renderTripEarthView('travelEarthView', 'travelEarthMap', travelItems, false);
   } else if(state.tab === 'clubs'){
