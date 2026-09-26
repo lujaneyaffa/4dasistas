@@ -920,6 +920,38 @@
     },
     {
       "section": "functions",
+      "title": "Table Talks",
+      "audienceType": [
+        "All Women"
+      ],
+      "emoji": "",
+      "organizedBy": "Its her Circle",
+      "eventDate": "2026-09-27",
+      "endDate": "",
+      "time": "12:00",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "54 The Esplanade, Toronto, ON M5E 1A6, Canada",
+      "link": "https://www.instagram.com/p/DdeFEaNEf0C/?stkn=MTE2M3hnMDEzY3g1cg==",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "table-talks",
+      "tag": "Table Talks"
+    },
+    {
+      "section": "functions",
       "title": "The Cozy Cowgirl Club",
       "audienceType": [
         "Muslim Women"
