@@ -3164,13 +3164,15 @@ function firstUrl(value){
 const EDITABLE_SECTIONS = ['sports','activities','functions','trips','mosqueprograms','supportprograms'];
 function isEditableCalendarItem(e){ return !!e && EDITABLE_SECTIONS.includes(e.section); }
 
-// "Needs details" = missing what the admin form requires: a date and (unless virtual) a location.
+// "Needs details" = missing what the admin form requires: a date, a specific time
+// (unless marked "all day"), and (unless virtual) a location.
 function eventHasDate(e){
   return !!(e.eventDate || e.calDate || isMonthlyItem(e) || (Array.isArray(e.days) && e.days.length) || (Array.isArray(e.extraDates) && e.extraDates.length) || e.recurStart);
 }
 function missingDetailsFor(e){
   const missing = [];
   if(!eventHasDate(e)) missing.push('Date');
+  if(!e.allDay && !String(e.time || '').trim()) missing.push('Time');
   if(!e.virtual && (!e.location || !String(e.location).trim())) missing.push('Location');
   return missing;
 }
@@ -3181,7 +3183,7 @@ function buildMissingDetailsQueue(){
 
 function startMissingDetailsReview(){
   const queue = buildMissingDetailsQueue();
-  if(!queue.length){ alert('Nothing missing — every event has a date and a location!'); return; }
+  if(!queue.length){ alert('Nothing missing — every event has a date, a time (or is marked all day), and a location!'); return; }
   state.reviewMode = true;
   state.reviewQueue = queue.slice(1);
   state.reviewTotal = queue.length;
@@ -3428,8 +3430,8 @@ function renderEventEditView(){
         </label>
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
-        <label style="${rowLabelStyle}">Time
-          <input id="editTime" type="time" value="${d.time||''}" style="${fieldStyle}">
+        <label style="${rowLabelStyle}">Time${missing.includes('Time') ? ' <span style="color:#c00;">— missing</span>' : ''}
+          <input id="editTime" type="time" value="${d.time||''}" style="${fieldStyle}${missing.includes('Time') ? missingBorder : ''}">
         </label>
         <label style="${rowLabelStyle}">End time
           <input id="editEndTime" type="time" value="${d.endTime||''}" style="${fieldStyle}">
