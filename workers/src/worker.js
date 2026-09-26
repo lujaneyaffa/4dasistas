@@ -31,6 +31,7 @@
  *   DELETE /api/clubs/:clubId/ideas/:ideaId                 - Remove an option you added
  *   GET    /api/clubs/:clubId/idea-availability              - "Add your availability" on the idea board: your own 10-day availability ({days:{"YYYY-MM-DD":"busy"|["morning","afternoon","evening"]}}); same identity as ideas (member Bearer token OR guest headers)
  *   PUT    /api/clubs/:clubId/idea-availability              - Replace your own idea-board availability (same identity, same shape)
+ *   GET    /api/clubs/:clubId/idea-availability/all          - Everyone's idea-board availability, aggregated: {counts:{"YYYY-MM-DD":{morning,afternoon,evening}}, respondents}; same identity gate as above, no per-person detail returned
  *   PUT    /api/admin/club-ideas/:clubId/:ideaId            - Admin edits title / mapUrl / date (YYYY-MM-DD) / votes (sets the displayed total via an adjustment)
  *   DELETE /api/admin/club-ideas/:clubId/:ideaId            - Admin removes any option (session cookie)
  *   GET    /api/members                                     - Signed-in members only (Bearer token): every profile as {id, name, hasPhoto, clubs:[clubId]} (no usernames/PINs)
@@ -761,6 +762,34 @@ export default {
       const rest = ideas.filter((i) => i.id !== ideaId);
       await writeClubIdeas(env, clubId, rest);
       return jsonResponse({ ideas: sortedPublicIdeas(rest, who) }, 200, corsHeaders);
+    }
+
+    const ideaAvailAllMatch = path.match(/^\/api\/clubs\/([^/]+)\/idea-availability\/all\/?$/);
+    if (ideaAvailAllMatch && request.method === "GET") {
+      const clubId = ideaClub(ideaAvailAllMatch);
+      if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
+      const who = await ideaWho();
+      if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
+      const list = await env.SITE_DATA.list({ prefix: `ideaavail:${clubId}:` });
+      const values = await Promise.all(list.keys.map((k) => env.SITE_DATA.get(k.name)));
+      const counts = {};
+      let respondents = 0;
+      for (const raw of values) {
+        if (!raw) continue;
+        let days;
+        try { days = JSON.parse(raw); } catch { continue; }
+        if (!days || typeof days !== "object") continue;
+        let hasAny = false;
+        for (const [date, v] of Object.entries(days)) {
+          const parts = Array.isArray(v) ? v : [];
+          if (!parts.length) continue;
+          hasAny = true;
+          const slot = (counts[date] = counts[date] || { morning: 0, afternoon: 0, evening: 0 });
+          for (const p of parts) if (slot[p] !== undefined) slot[p]++;
+        }
+        if (hasAny) respondents++;
+      }
+      return jsonResponse({ counts, respondents }, 200, corsHeaders);
     }
 
     const ideaAvailMatch = path.match(/^\/api\/clubs\/([^/]+)\/idea-availability\/?$/);

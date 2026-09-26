@@ -500,6 +500,20 @@
   .iav-allday{ min-height:32px; border:1.5px solid rgba(55,61,59,0.25); border-radius:6px; background:#fff; font-weight:700; font-size:14px; cursor:pointer; color:var(--muted); }
   .iav-allday-avail{ background:#d9f0d8; border-color:#4f9a4b; color:#2a7a4a; }
   .iav-allday-busy{ background:#f9dcdc; border-color:#e8b4b4; color:#b3261e; }
+  /* "Everyone's availability" — read-only heatmap, 5 days per row so it never needs horizontal scroll on a phone */
+  .eav-grid{ display:grid; grid-template-columns:44px repeat(5, minmax(0,1fr)); gap:3px; margin-bottom:8px; }
+  .eav-cell{ min-height:34px; border:1.5px solid rgba(55,61,59,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:var(--charcoal); background:#fff; }
+  .eav-tier-1{ background:#e9f5e6; border-color:#c3e0bc; }
+  .eav-tier-2{ background:#c6e6bd; border-color:#9ecf90; }
+  .eav-tier-3{ background:#93cf85; border-color:#6fb35e; }
+  .eav-tier-4{ background:#57a851; border-color:#3d8a3a; color:#f6f3ea; }
+  .eav-tier-5{ background:#276b34; border-color:#1a4f26; color:#f6f3ea; }
+  .eav-legend{ display:flex; justify-content:center; align-items:center; gap:14px; flex-wrap:wrap; font-size:12px; margin:2px 0 10px; }
+  .eav-legend span{ display:flex; align-items:center; gap:5px; }
+  .eav-sw{ display:inline-block; width:15px; height:15px; border-radius:4px; border:1.5px solid rgba(55,61,59,0.3); }
+  .eav-sw-0{ background:#fff; }
+  .eav-sw-mid{ background:#93cf85; border-color:#6fb35e; }
+  .eav-sw-max{ background:#276b34; border-color:#1a4f26; }
   .idea-pop-card{ text-align:left; max-height:88vh; overflow-y:auto; }
   .idea-pop-date{ margin:0; font-size:13px; font-weight:600; }
   .idea-pop-map{ display:block; text-align:center; text-decoration:none; color:var(--charcoal); margin:6px 0 10px; }
@@ -1158,6 +1172,7 @@ let state = {
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
   ideaAvail:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
+  ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'',
   membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventJustCreated:false, eventEditDeleting:false,
   reviewMode:false, reviewQueue:[], reviewTotal:0, eventCreateMode:false,
@@ -4530,6 +4545,7 @@ function openClubIdeas(clubId){
   state.ideasClubId = clubId;
   state.ideas = null; state.ideasError = ''; state.ideasStatus = ''; state.ideasRenaming = false;
   state.ideaAvail = null; state.ideaAvailLoadedFor = null; state.ideaAvailError = ''; state.ideaAvailStatus = ''; state.ideaAvailDirty = false;
+  state.ideaAvailAll = null; state.ideaAvailAllLoadedFor = null; state.ideaAvailAllError = '';
   render();
   window.scrollTo({ top:0, behavior:'smooth' });
 }
@@ -4607,6 +4623,7 @@ function renderClubIdeas(el){
       <div class="ideas-status" id="ideasStatus" aria-live="polite">${escapeCm(state.ideasStatus)}</div>
       ${cloud}
       ${ideaAvailSectionHtml(me)}
+      ${everyoneAvailSectionHtml(me)}
     </div>`;
   wireClubIdeas();
 }
@@ -4732,13 +4749,84 @@ async function ideaAvailSave(){
     await cmApiRaw('/api/clubs/' + encodeURIComponent(clubId) + '/idea-availability', {
       method:'PUT', headers: ideaHeaders(), body: JSON.stringify({ days: JSON.parse(snapshot) })
     });
-    if(JSON.stringify(state.ideaAvail || {}) === snapshot){ state.ideaAvailDirty = false; iavSetStatus('Saved ✓'); }
+    if(JSON.stringify(state.ideaAvail || {}) === snapshot){ state.ideaAvailDirty = false; iavSetStatus('Saved ✓'); everyoneAvailLoad(true); }
     else state.ideaAvailResave = true;
   } catch(err){
     iavSetStatus('Couldn’t save (' + err.message + ').');
   }
   state.ideaAvailSaving = false;
   if(state.ideaAvailResave){ state.ideaAvailResave = false; ideaAvailSave(); }
+}
+
+/* ============================================================
+   "EVERYONE'S AVAILABILITY" — read-only heatmap of every response on
+   this club's idea board, same 10-day/3-part shape as the grid above
+   but showing headcount as green intensity instead of a personal
+   toggle. Laid out 5 days per row (two stacked mini-grids) so it
+   reads on an iPhone with no horizontal scrolling.
+   ============================================================ */
+function eavTier(count, max){
+  if(!count || max <= 0) return 0;
+  return Math.max(1, Math.min(5, Math.ceil((count / max) * 5)));
+}
+function eavGridHtml(){
+  const dates = iavNext10Dates();
+  const counts = state.ideaAvailAll || {};
+  let max = 0;
+  dates.forEach(d => IAV_PART_KEYS.forEach(k => { const n = (counts[d] && counts[d][k]) || 0; if(n > max) max = n; }));
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+  const rows = [dates.slice(0, 5), dates.slice(5, 10)];
+  return rows.map(rowDates => {
+    let html = '<div class="eav-grid"><div class="iav-corner"></div>';
+    html += rowDates.map(d => {
+      const dt = new Date(d + 'T00:00:00');
+      return `<div class="iav-daylabel${d === todayStr ? ' today' : ''}">${dayLabelsShort[dt.getDay()]}<br>${dt.getDate()}</div>`;
+    }).join('');
+    IAV_PARTS.forEach(([key, label]) => {
+      html += `<div class="iav-rowlabel">${label}</div>`;
+      html += rowDates.map(d => {
+        const n = (counts[d] && counts[d][key]) || 0;
+        const tier = eavTier(n, max);
+        return `<div class="eav-cell eav-tier-${tier}" aria-label="${label}, ${d}, ${n} ${n === 1 ? 'person' : 'people'} available">${n > 0 ? n : ''}</div>`;
+      }).join('');
+    });
+    html += '</div>';
+    return html;
+  }).join('');
+}
+function everyoneAvailSectionHtml(me){
+  if(!me) return '';
+  let body;
+  if(state.ideaAvailAllError) body = `<p class="av-msg" style="color:#c00;">${escapeCm(state.ideaAvailAllError)}</p>`;
+  else if(!state.ideaAvailAll && state.ideaAvailAllLoading) body = `<p class="av-msg">Loading everyone's availability…</p>`;
+  else if(state.ideaAvailAll && !state.ideaAvailAllRespondents) body = `<p class="av-msg">Nobody's added their availability yet — be the first, above!</p>`;
+  else if(!state.ideaAvailAll) body = '';
+  else body = `${eavGridHtml()}
+    <div class="eav-legend"><span><i class="eav-sw eav-sw-0"></i>Nobody</span><span><i class="eav-sw eav-sw-mid"></i>A few people</span><span><i class="eav-sw eav-sw-max"></i>Most people</span></div>
+    <p class="ideas-hint">${state.ideaAvailAllRespondents} ${state.ideaAvailAllRespondents === 1 ? 'person has' : 'people have'} added their availability so far. Darker green = more people free then.</p>`;
+  return `<div class="iav-wrap">
+    <h3 class="iav-title">🌿 Everyone's availability</h3>
+    ${body}
+  </div>`;
+}
+async function everyoneAvailLoad(force){
+  const clubId = state.ideasClubId;
+  if(!clubId || state.ideaAvailAllLoading) return;
+  if(!force && state.ideaAvailAllLoadedFor === clubId) return;
+  if(!ideaMe()) return;
+  state.ideaAvailAllLoading = true;
+  state.ideaAvailAllError = '';
+  try {
+    const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(clubId) + '/idea-availability/all', { headers: ideaHeaders() });
+    state.ideaAvailAll = data.counts || {};
+    state.ideaAvailAllRespondents = data.respondents || 0;
+    state.ideaAvailAllLoadedFor = clubId;
+  } catch(err){ state.ideaAvailAllError = err.message; }
+  state.ideaAvailAllLoading = false;
+  if(state.tab === 'clubideas') render();
+}
+function wireEveryoneAvailGrid(){
+  if(state.ideaAvailAll === null && !state.ideaAvailAllLoading && !state.ideaAvailAllError) everyoneAvailLoad();
 }
 
 function iavCellFromPoint(x, y){
@@ -4814,6 +4902,7 @@ function ideasNeedName(){
 function wireClubIdeas(){
   if(state.ideas === null && !state.ideasLoading && !state.ideasError) ideasLoad();
   wireIdeaAvailGrid();
+  wireEveryoneAvailGrid();
   const join = document.getElementById('ideaJoinForm');
   if(join) join.addEventListener('submit', e => {
     e.preventDefault();
