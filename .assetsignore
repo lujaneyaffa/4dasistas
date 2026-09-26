@@ -5,6 +5,7 @@
 .git
 .kilo
 .claude
+.wrangler
 workers
 scripts
 node_modules
