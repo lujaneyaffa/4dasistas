@@ -267,6 +267,37 @@
       "section": "trips"
     },
     {
+      "section": "trips",
+      "title": "Patagonia",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "Mawa Collective",
+      "eventDate": "2027-01-23",
+      "endDate": "2027-01-29",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "Patagonia",
+      "link": "https://www.instagram.com/p/DdSHhXXH0bi/?stkn=MW9lMGQ0Zml3c2o1dQ==",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "patagonia"
+    },
+    {
       "id": "sakinah-cappadocia-2026",
       "title": "Sakinah Retreats - Cappadocia Turkey",
       "date": "September 24-28, 2026",
