@@ -170,6 +170,37 @@
       "section": "mosqueprograms"
     },
     {
+      "section": "mosqueprograms",
+      "title": "From Conversation To Commitment",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "Being Me Toronto",
+      "eventDate": "2026-10-17",
+      "endDate": "",
+      "time": "13:30",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "Etobicoke, ON, Canada",
+      "link": "https://www.instagram.com/p/Ddp5ubGNNYm/?stkn=M2J2N2R4MTNxazZv",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "from-conversation-to-commitment"
+    },
+    {
       "id": "healing-hearts-muslim-survivors-group",
       "title": "Healing Hearts: Muslim Survivors Group",
       "type": "Support Group",
