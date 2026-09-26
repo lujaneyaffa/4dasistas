@@ -538,6 +538,37 @@
       "section": "sports"
     },
     {
+      "section": "sports",
+      "title": "Pickle & paddle",
+      "audienceType": [
+        "All Women"
+      ],
+      "emoji": "",
+      "organizedBy": "Womens Padel Haus",
+      "eventDate": "2026-10-03",
+      "endDate": "",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "5041 Fairview St, Burlington, ON L7L 4W8, Canada",
+      "link": "https://www.instagram.com/p/DduwdrcpI7A/?stkn=MXZrZXE2eTVpZjJjbQ==",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "pickle-paddle"
+    },
+    {
       "alsoSportKeys": [
         "pilates"
       ],
