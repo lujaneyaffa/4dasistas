@@ -41,6 +41,38 @@
       "category": "functions"
     },
     {
+      "section": "functions",
+      "title": "Autumn Market",
+      "audienceType": [
+        "Family Event"
+      ],
+      "emoji": "",
+      "organizedBy": "Bazm Market",
+      "eventDate": "2026-11-07",
+      "endDate": "",
+      "time": "11:00",
+      "endTime": "",
+      "allDay": true,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "84 S Service Rd, Mississauga, ON L5G 2R9, Canada",
+      "link": "https://www.instagram.com/p/DdvFaATtItD/?stkn=MTdxNjc4MHNxNHc2ag==",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "autumn-market",
+      "tag": "Autumn Market"
+    },
+    {
       "eventDate": "2026-08-15",
       "date": "August 15, 2026 · 12–8 PM",
       "desc": "A curated day of shopping, community, food, and supporting small businesses. Free entry. Vendor applications open.",
