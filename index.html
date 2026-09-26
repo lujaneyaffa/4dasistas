@@ -3402,6 +3402,7 @@ function renderEventEditView(){
   const rowLabelStyle = 'font-size:12px;font-weight:700;flex:1 1 130px;min-width:0;';
   const missing = reviewMode ? missingDetailsFor(d) : [];
   const missingBorder = 'border-color:#c00;';
+  const organizerOptions = [...new Set(ALL_ITEMS.filter(i => isEditableCalendarItem(i) && i.organizedBy).map(i => String(i.organizedBy).trim()))].sort((a, b) => a.localeCompare(b));
 
   card.innerHTML = `
     <button class="back-btn" id="eventEditCancelBtn" type="button">← ${reviewMode ? 'Exit review' : 'Cancel'}</button>
@@ -3430,7 +3431,8 @@ function renderEventEditView(){
         <input id="editEmoji" type="text" maxlength="8" value="${escapeCm(d.emoji||'')}" style="${fieldStyle}">
       </label>
       <label style="${labelStyle}">Organized by
-        <input id="editOrganizedBy" type="text" value="${escapeCm(d.organizedBy||'')}" style="${fieldStyle}">
+        <input id="editOrganizedBy" type="text" list="organizerOptions" value="${escapeCm(d.organizedBy||'')}" style="${fieldStyle}">
+        <datalist id="organizerOptions">${organizerOptions.map(o => `<option value="${escapeCm(o)}">`).join('')}</datalist>
       </label>
       <div style="display:flex;flex-wrap:wrap;gap:10px;">
         <label style="${rowLabelStyle}">Event date${createMode ? ' <span style="color:#c00;">*</span>' : ''}${missing.includes('Date') ? ' <span style="color:#c00;">— missing</span>' : ''}
