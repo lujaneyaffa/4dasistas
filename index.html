@@ -754,6 +754,12 @@
   .ev-loc-chosen.empty{ color:var(--muted); font-style:italic; }
   .ev-loc-chosen.missing{ border-color:#c00; }
   #editLocationSlot gmp-place-autocomplete{ display:block; width:100%; max-width:100%; }
+  .update-banner{ position:fixed; left:12px; right:12px; bottom:14px; z-index:9500; display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--charcoal); color:#fff; padding:10px 14px; padding-bottom:calc(10px + env(safe-area-inset-bottom, 0px)); border-radius:14px; box-shadow:0 4px 16px rgba(0,0,0,0.25); font-family:'Inter',sans-serif; font-size:13px; max-width:420px; margin:0 auto; }
+  .update-banner[hidden]{ display:none; }
+  .update-banner span{ flex:1 1 auto; min-width:0; }
+  .update-banner button{ font-family:inherit; font-weight:700; border-radius:999px; border:none; cursor:pointer; padding:6px 12px; font-size:12.5px; }
+  #updateBannerRefresh{ background:var(--pink); color:var(--charcoal); }
+  #updateBannerDismiss{ background:transparent; color:#fff; opacity:0.7; padding:6px 8px; }
   .footer-admin-corner{ position:absolute; top:14px; right:14px; text-align:right; z-index:5; display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
   .footer-admin-btn{ font-family:'Inter',sans-serif; font-weight:700; font-size:11px; padding:7px 12px; border-radius:999px; border:2px solid var(--charcoal); background:rgba(255,255,255,0.85); color:var(--charcoal); cursor:pointer; box-shadow:2px 2px 0 var(--charcoal); }
   .ev-created-box{ background:#e7f4ec; border:2px solid #5aa276; border-radius:12px; padding:12px; }
@@ -824,6 +830,11 @@
      something elsewhere on the page is broken. Toggle it from the
      CMS (Maintenance Mode collection) or by editing data/maintenance.json.
      ============================================================ -->
+<div id="updateBanner" class="update-banner" hidden>
+  <span>✨ A new version of the site is ready.</span>
+  <button type="button" id="updateBannerRefresh">Refresh</button>
+  <button type="button" id="updateBannerDismiss" aria-label="Dismiss">✕</button>
+</div>
 <div id="maintenanceOverlay" style="display:none; position:fixed; inset:0; z-index:9999; background:#fff7e6; align-items:center; justify-content:center; text-align:center; padding:24px; font-family:sans-serif;">
   <div>
     <div style="font-size:44px; margin-bottom:16px;">🛠️</div>
@@ -2595,8 +2606,9 @@ function renderDirectory(){
     renderTripEarthView('travelEarthView', 'travelEarthMap', travelItems, false);
   } else if(state.tab === 'clubs'){
     document.getElementById('resourcePagination').innerHTML = '';
-el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions">
+el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="flex-direction:column;align-items:center;">
     <button class="fall-cta-btn join-club-btn" data-hometab="fallsignup">JOIN A CLUB!</button>
+    <button type="button" class="av-link" id="clubsLoginOpenBtn" style="margin-top:8px;font-size:12.5px;">Already a member? Log in</button>
     </div>`}
     ${(state.clubsLoginPickerOpen || getCmSession()) ? `
     <div class="rules-content" style="max-width:${getCmSession() && !state.clubsMyClubsPickerOpen ? '760px' : '420px'};margin:0 auto 18px;">
@@ -4614,7 +4626,9 @@ function clubsForGrid(){
   const extra = FALL_SIGNUP_CLUBS.filter(c => !clubsData.some(x => x.id === c.id)).map(c => ({ id:c.id, title:c.title, desc:c.desc }));
   return [...clubsData, ...extra];
 }
-function clubLink(id){ return location.origin + location.pathname + '#/clubs/' + clubSlug(id); }
+// A real path (not just a hash) so the Worker can serve it a proper link-preview title/image when it's
+// pasted into Instagram/WhatsApp/iMessage; opening it in a browser bounces straight into the app (see worker.js).
+function clubLink(id){ return location.origin + '/clubs/' + clubSlug(id); }
 
 const IDEA_FILLS = ['#ffe0e6','#ffe9c7','#fff6bf','#d9f0d8','#d3ecf7','#e2dcf7','#fbd9ef','#dcefe6'];
 const IDEA_LINES = ['#d46a86','#e0982b','#c9ae1f','#4f9a4b','#3f95c2','#7a63c9','#c85aa3','#3f9a78'];
@@ -6654,8 +6668,30 @@ window.addEventListener('hashchange', () => {
 /* ============================================================
    INIT
    ============================================================ */
+function showUpdateBanner(){
+  const el = document.getElementById('updateBanner');
+  if (!el) return;
+  el.hidden = false;
+  const refresh = document.getElementById('updateBannerRefresh');
+  const dismiss = document.getElementById('updateBannerDismiss');
+  if (refresh) refresh.onclick = () => location.reload();
+  if (dismiss) dismiss.onclick = () => { el.hidden = true; };
+}
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
+    // A returning visitor already has a service worker controlling this page from a previous visit — if it
+    // gets replaced by a newer one (I shipped a fix) while they're on the site, "controllerchange" fires and
+    // we offer a refresh instead of them silently sitting on stale JS/HTML. A first-ever visit has no
+    // controller yet at load time, so the listener is simply never armed and never shows this by mistake.
+    const hadControllerAtLoad = !!navigator.serviceWorker.controller;
+    if (hadControllerAtLoad) {
+      let refreshed = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshed) return;
+        refreshed = true;
+        showUpdateBanner();
+      });
+    }
     navigator.serviceWorker.register('/service-worker.js').catch(error => {
       console.warn('Service worker registration failed:', error);
     });

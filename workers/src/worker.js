@@ -115,6 +115,19 @@ const sanitizeUsername = (input) => {
 
 // Clubs people can join through the public Sign Up form (mirrors FALL_SIGNUP_CLUBS in index.html).
 const SIGNUP_CLUB_IDS = new Set(["club-activegaming", "club-adrenaline", "club-theater", "club-cuisine", "club-artscrafts", "club-retreats", "club-adhd"]);
+
+// Mirrors CLUB_SLUGS/FALL_SIGNUP_CLUBS in index.html (kept in sync by hand — 7 clubs, low churn).
+// Used only to give a shared club link (e.g. 4dasistas.ca/clubs/cuisine) its own link-preview title/description
+// when pasted into Instagram/WhatsApp/iMessage, since those crawlers never run the app's JS to read the hash.
+const CLUB_META = {
+  "active-gaming": { title: "Active Gaming", emoji: "🎮", desc: "Escape rooms, VR arenas, challenge venues. For the movers, solvers, competitors." },
+  "adrenaline": { title: "Adrenaline", emoji: "⚡", desc: "Roller-coasters, paintballing, skiing. If it gets your heart racing, we're on it." },
+  "theatre": { title: "Theatre", emoji: "🎭", desc: "Plays, musicals, live shows + our own improv nights. Any excuse to be dramatic." },
+  "cuisine": { title: "Cuisine", emoji: "🍽️", desc: "Group dinners, restaurant crawls, cooking nights & baking workshops." },
+  "arts-crafts": { title: "Arts & Crafts", emoji: "🎨", desc: "Painting nights, DIY, crafternoons. No talent needed, just vibes & glitter." },
+  "field": { title: "Field", emoji: "🏞️", desc: "Hiking, horseback riding, farm days, cabin retreats." },
+  "adhd": { title: "ADHD / Neurodivergence", emoji: "🧠", desc: "A low-pressure space for neurodivergent sisters to connect, vent, and swap strategies." },
+};
 const SIGNUP_MAX_PER_IP_PER_HOUR = 10;
 const SIGNUP_MAX_PER_DAY = 100;
 
@@ -222,6 +235,18 @@ const sanitizeCuisine = (input) => String(input || "").replace(/[\x00-\x1f\x7f<>
 // available (an array of all 3 = the same as the Available-all-day button, painted green).
 const IDEA_AVAIL_PARTS = ["morning", "afternoon", "evening"];
 const ideaAvailKey = (clubId, personId) => `ideaavail:${clubId}:${personId}`;
+// Stored idea-availability docs are either the legacy bare days-map, or {name, days} (added so an admin
+// overview can show WHO is free, not just a count — a guest's name only ever otherwise exists in their own
+// browser's localStorage, never server-side, so it has to be captured at save time).
+const parseIdeaAvailDoc = (raw) => {
+  if (!raw) return { name: "", days: {} };
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { return { name: "", days: {} }; }
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && parsed.days && typeof parsed.days === "object") {
+    return { name: String(parsed.name || ""), days: parsed.days };
+  }
+  return { name: "", days: (parsed && typeof parsed === "object") ? parsed : {} };
+};
 const sanitizeIdeaAvailDays = (input) => {
   const out = {};
   if (!input || typeof input !== "object" || Array.isArray(input)) return out;
@@ -514,6 +539,37 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname;
 
+    // A club's shared link (4dasistas.ca/clubs/<slug>) gets its own preview title/description/image when
+    // pasted into Instagram/WhatsApp/iMessage. Hash routes (#/clubs/<slug>) can't do this — a share-card
+    // crawler fetches the URL and reads its HTML, it never runs JS to see location.hash. This page is a
+    // real, crawlable path only for that purpose; a real visitor gets bounced straight into the app.
+    const clubPathMatch = path.match(/^\/clubs\/([a-z0-9-]+)\/?$/);
+    if (clubPathMatch && request.method === "GET") {
+      const meta = CLUB_META[clubPathMatch[1]];
+      if (meta) {
+        const title = `${meta.emoji} ${meta.title} Club — 4DASISTAS`;
+        const pageUrl = `https://4dasistas.ca/clubs/${clubPathMatch[1]}`;
+        const dest = `/#/clubs/${clubPathMatch[1]}`;
+        const html = `<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(title)}</title>
+<meta name="description" content="${escapeHtml(meta.desc)}">
+<meta property="og:title" content="${escapeHtml(title)}">
+<meta property="og:description" content="${escapeHtml(meta.desc)}">
+<meta property="og:image" content="https://4dasistas.ca/assets/OFFICIAL%20LOGO.png">
+<meta property="og:url" content="${escapeHtml(pageUrl)}">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="${escapeHtml(title)}">
+<meta name="twitter:description" content="${escapeHtml(meta.desc)}">
+<meta http-equiv="refresh" content="0; url=${escapeHtml(dest)}">
+<script>location.replace(${JSON.stringify(dest)});</script>
+</head><body>Opening the ${escapeHtml(meta.title)} Club… <a href="${escapeHtml(dest)}">Tap here</a> if nothing happens.</body></html>`;
+        return new Response(html, { headers: { "Content-Type": "text/html; charset=UTF-8", "Cache-Control": "no-store, must-revalidate", ...corsHeaders } });
+      }
+    }
+
     if (path === "/api/subscribe" && request.method === "POST") {
       let email;
       try { email = String((await request.json()).email || "").trim().toLowerCase(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
@@ -776,8 +832,7 @@ export default {
       let respondents = 0;
       for (const raw of values) {
         if (!raw) continue;
-        let days;
-        try { days = JSON.parse(raw); } catch { continue; }
+        const { days } = parseIdeaAvailDoc(raw);
         if (!days || typeof days !== "object") continue;
         let hasAny = false;
         for (const [date, v] of Object.entries(days)) {
@@ -800,16 +855,14 @@ export default {
       if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
       const key = ideaAvailKey(clubId, who.id);
       if (request.method === "GET") {
-        const raw = await env.SITE_DATA.get(key);
-        let days = {};
-        try { days = raw ? JSON.parse(raw) : {}; } catch { days = {}; }
+        const { days } = parseIdeaAvailDoc(await env.SITE_DATA.get(key));
         return jsonResponse({ days }, 200, corsHeaders);
       }
       if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
       let body;
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       const days = sanitizeIdeaAvailDays(body.days);
-      await env.SITE_DATA.put(key, JSON.stringify(days));
+      await env.SITE_DATA.put(key, JSON.stringify({ name: who.name, days }));
       return jsonResponse({ days }, 200, corsHeaders);
     }
 
@@ -997,7 +1050,7 @@ export default {
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
 
     if (requiresAuth) {
       const token = getSessionToken(request);
@@ -1045,6 +1098,27 @@ export default {
         out[clubId] = (await resolveClubMembers(env, clubId)).map(publicUser);
       }
       return jsonResponse(out, 200, corsHeaders);
+    }
+
+    // ---- Admin: see everyone's idea-board availability by name for one club (the public /all endpoint
+    // above only ever returns anonymous counts) ----
+    const adminIdeaAvailMatch = path.match(/^\/api\/admin\/idea-availability\/([^/]+)\/?$/);
+    if (adminIdeaAvailMatch && request.method === "GET") {
+      const clubId = decodeURIComponent(adminIdeaAvailMatch[1]);
+      const list = await env.SITE_DATA.list({ prefix: `ideaavail:${clubId}:` });
+      const people = [];
+      for (const k of list.keys) {
+        const personId = k.name.slice(`ideaavail:${clubId}:`.length);
+        const { name, days } = parseIdeaAvailDoc(await env.SITE_DATA.get(k.name));
+        if (!days || !Object.keys(days).length) continue;
+        let resolvedName = name;
+        if (!resolvedName && personId.startsWith("m:")) {
+          const user = await readUser(env, personId.slice(2));
+          resolvedName = user ? sanitizePersonName(user.name) : "";
+        }
+        people.push({ id: personId, name: resolvedName || "Someone", days });
+      }
+      return jsonResponse({ people }, 200, corsHeaders);
     }
 
     const adminIdeaMatch = path.match(/^\/api\/admin\/club-ideas\/([^/]+)\/([^/]+)\/?$/);
