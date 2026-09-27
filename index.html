@@ -1567,7 +1567,10 @@ function isPastItem(item){
 }
 
 function normalizeSearchText(value){
-  return String(value || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+  // Collapse+trim whitespace so a trailing/extra space (very easy to type
+  // without noticing) doesn't turn a working query into one that matches
+  // nothing - "pickle" and "pickle " (or "pickle  ball") should behave the same.
+  return String(value || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function itemMatchesSearch(item){
@@ -6131,7 +6134,12 @@ function render(){
   syncToggleButtonClasses();
   const searchShell = document.getElementById('globalSearchShell');
   if(searchShell) searchShell.style.display = 'flex';
-  if(document.getElementById('globalSearch')) document.getElementById('globalSearch').value = state.searchQuery || '';
+  const searchInputEl = document.getElementById('globalSearch');
+  // Only touch .value when it's actually out of sync (e.g. restoring state on
+  // load/navigation) - unconditionally reassigning it on every render() call
+  // while the user is typing can reset the cursor position and, combined
+  // with any trimming upstream, silently eat characters like a trailing space.
+  if(searchInputEl && searchInputEl.value !== (state.searchQuery || '')) searchInputEl.value = state.searchQuery || '';
 
   renderCategoryRow();
   renderPageCta();
@@ -6655,15 +6663,31 @@ if ('serviceWorker' in navigator) {
 }
 
 document.getElementById('list-view').innerHTML = '<div class="empty">Loading…</div>';
+// Two bugs used to live here together, both from this one handler:
+// 1) storing the *trimmed* value then having render() write that trimmed
+//    value straight back into the input on every keystroke meant a typed
+//    trailing space visually vanished the instant you typed it - it always
+//    got trimmed away again before the next frame. Fixed by keeping the
+//    raw (untrimmed) value in state; normalizeSearchText() trims for
+//    matching purposes only, so what's actually compared is unaffected.
+// 2) render() re-renders the *entire* page (calendar grid, filters,
+//    directory...), not just the search results - doing that on every
+//    single keystroke is expensive and was the source of the lag and the
+//    calendar seeming to flicker/disappear while typing, especially on
+//    mobile. The suggestions dropdown updates immediately (it's cheap);
+//    the full re-render is debounced so it only runs once typing pauses.
+let searchRenderTimer = null;
 document.getElementById('globalSearch').addEventListener('input', e => {
-  state.searchQuery = e.target.value.trim();
+  state.searchQuery = e.target.value;
   state.page = 1;
   renderSearchSuggestions();
-  render();
+  clearTimeout(searchRenderTimer);
+  searchRenderTimer = setTimeout(render, 200);
 });
 document.getElementById('globalSearch').addEventListener('keydown', e => {
   if(e.key !== 'Enter') return;
   e.preventDefault();
+  clearTimeout(searchRenderTimer);
   const suggestions = document.getElementById('searchSuggestions');
   if(suggestions) suggestions.style.display = 'none';
   e.target.blur();
