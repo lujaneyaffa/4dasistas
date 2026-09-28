@@ -114,7 +114,7 @@ const sanitizeUsername = (input) => {
 };
 
 // Clubs people can join through the public Sign Up form (mirrors FALL_SIGNUP_CLUBS in index.html).
-const SIGNUP_CLUB_IDS = new Set(["club-activegaming", "club-adrenaline", "club-theater", "club-cuisine", "club-artscrafts", "club-retreats", "club-adhd"]);
+const SIGNUP_CLUB_IDS = new Set(["club-activegaming", "club-adrenaline", "club-theater", "club-cuisine", "club-artscrafts", "club-retreats"]); // club-adhd retired 2026-09-28 ("More to Launch" placeholder shown instead)
 
 // Mirrors CLUB_SLUGS/FALL_SIGNUP_CLUBS in index.html (kept in sync by hand — 7 clubs, low churn).
 // Used only to give a shared club link (e.g. 4dasistas.ca/clubs/cuisine) its own link-preview title/description
@@ -126,7 +126,6 @@ const CLUB_META = {
   "cuisine": { title: "Cuisine", emoji: "🍽️", desc: "Group dinners, restaurant crawls, cooking nights & baking workshops." },
   "arts-crafts": { title: "Arts & Crafts", emoji: "🎨", desc: "Painting nights, DIY, crafternoons. No talent needed, just vibes & glitter." },
   "field": { title: "Field", emoji: "🏞️", desc: "Hiking, horseback riding, farm days, cabin retreats." },
-  "adhd": { title: "ADHD / Neurodivergence", emoji: "🧠", desc: "A low-pressure space for neurodivergent sisters to connect, vent, and swap strategies." },
 };
 const SIGNUP_MAX_PER_IP_PER_HOUR = 10;
 const SIGNUP_MAX_PER_DAY = 100;
@@ -148,7 +147,7 @@ const deleteUser = async (env, userId) => {
 };
 
 const visibleWaitlist = (user, clubs) => (Array.isArray(user.waitlist) ? user.waitlist : []).filter((id) => !clubs.includes(id));
-const publicUser = (u) => ({ id: u.id, name: u.name, username: u.username, photo: u.photo || null });
+const publicUser = (u) => ({ id: u.id, name: u.name, username: u.username, photo: u.photo || null, mustChangePin: !!u.mustChangePin });
 
 // ---- Club membership: each club just holds a list of member userIds ----
 const clubMembersKey = (clubId) => `clubmembers:${clubId}`;
@@ -681,6 +680,12 @@ export default {
       const user = await readUser(env, userId);
       if (!user) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
       if (body.photo !== undefined) user.photo = sanitizePhoto(body.photo);
+      if (body.newPin !== undefined) {
+        const newPin = String(body.newPin || "").trim();
+        if (!/^\d{4}$/.test(newPin)) return jsonResponse({ error: "PIN must be exactly 4 digits" }, 400, corsHeaders);
+        user.pinHash = await sha256Hex(newPin);
+        user.mustChangePin = false;
+      }
       await writeUser(env, user);
       return jsonResponse(publicUser(user), 200, corsHeaders);
     }
@@ -750,6 +755,16 @@ export default {
       let gname = "";
       try { gname = sanitizePersonName(decodeURIComponent(request.headers.get("X-Guest-Name") || "")); } catch { gname = ""; }
       if (/^[A-Za-z0-9_-]{16,64}$/.test(gid) && gname.length >= 2) return { id: `g:${gid}`, name: gname };
+      // The site admin (the same /editor password session, not a club membership) can also vote / mark
+      // availability as themselves, without joining as a guest first — many members don't have accounts
+      // yet and Lujane needs to use these pages herself. Inlined (not the later isValidSession/
+      // getSessionToken helpers below) because this runs earlier in the request than those are defined.
+      const cookieHeader = request.headers.get("Cookie") || "";
+      const sessionMatch = cookieHeader.match(/(?:^|;\s*)session=([^;]+)/);
+      if (sessionMatch) {
+        const raw = await env.SITE_DATA.get(`session:${sessionMatch[1]}`);
+        if (raw) return { id: "admin", name: "Admin" };
+      }
       return null;
     };
     const ideaClub = (m) => { const id = decodeURIComponent(m[1]); return SIGNUP_CLUB_IDS.has(id) ? id : null; };
@@ -1188,10 +1203,11 @@ export default {
 
       const name = String(body.name || "").trim().slice(0, 60);
       if (!name) return jsonResponse({ error: "Name is required" }, 400, corsHeaders);
-      let pin = String(body.pin || "").trim();
-      if (pin && !/^\d{4}$/.test(pin)) return jsonResponse({ error: "PIN must be exactly 4 digits" }, 400, corsHeaders);
-      if (!pin) pin = randomPin();
-      const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, createdAt: Date.now() };
+      // Not everyone has an account yet — admin-created profiles all start on the same PIN 1234 so
+      // Lujane doesn't have to hand out/track a different code per person; the member is required to
+      // pick their own on first sign-in (mustChangePin, enforced client-side right after /api/login).
+      const pin = "1234";
+      const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, createdAt: Date.now(), mustChangePin: true };
       await writeUser(env, user);
       await reserveUsername(env, username, user.id);
       memberIds.push(user.id);

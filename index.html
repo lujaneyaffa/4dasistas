@@ -23,11 +23,14 @@
 <meta name="twitter:description" content="Sports, activities, trips, mosque gatherings, and local resources for Muslim women in the GTA.">
 <link rel="canonical" href="https://4dasistas.ca">
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/assets/OFFICIAL%20LOGO.png" type="image/png">
-<link rel="apple-touch-icon" href="/assets/OFFICIAL%20LOGO.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/assets/OFFICIAL%20LOGO.png">
-<link rel="apple-touch-icon" sizes="192x192" href="/assets/OFFICIAL%20LOGO.png">
-<link rel="apple-touch-icon" sizes="512x512" href="/assets/OFFICIAL%20LOGO.png">
+<!-- Home-screen / browser-tab icons: dedicated square marks with safe padding, NOT the "NOT A CULT" social
+     banner (that image is full-bleed text edge-to-edge, which is exactly what was getting badly cropped by
+     Android's circular adaptive-icon mask and iOS's rounded-corner mask on the home screen). -->
+<link rel="icon" href="/assets/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="192x192" href="/assets/icon-192.png">
+<link rel="apple-touch-icon" sizes="512x512" href="/assets/icon-512.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/globe.gl"></script>
@@ -487,23 +490,24 @@
   .iav-title{ font-family:'Inter',sans-serif; font-size:16px; margin:0 0 8px; }
   .iav-status{ min-height:18px; text-align:center; font-size:12px; color:var(--muted); margin-bottom:4px; }
   .iav-grid-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:2px; }
-  .iav-grid{ display:grid; grid-template-columns:44px repeat(10, minmax(30px,1fr)); gap:3px; min-width:400px; }
+  .iav-grid{ display:grid; grid-template-columns:44px repeat(10, minmax(46px,1fr)); gap:4px; min-width:560px; }
   .iav-corner{ min-height:1px; }
   .iav-daylabel{ font-size:10px; font-weight:700; text-align:center; line-height:1.15; padding:2px 0; color:var(--charcoal); }
   .iav-daylabel.today{ color:var(--rose-deep); }
   .iav-rowlabel{ font-size:10px; font-weight:700; color:var(--muted); display:flex; align-items:center; padding-right:2px; }
-  .iav-cell{ min-height:30px; border:1.5px solid rgba(55,61,59,0.25); border-radius:6px; background:#fff; padding:0; cursor:pointer; touch-action:none; -webkit-tap-highlight-color:transparent; }
+  .iav-cell{ min-height:38px; border:1.5px solid rgba(55,61,59,0.25); border-radius:6px; background:#fff; padding:0; cursor:pointer; touch-action:none; -webkit-tap-highlight-color:transparent; }
   .iav-cell.on.iav-c-morning{ background:#ffe27a; border-color:#c9a25a; }
   .iav-cell.on.iav-c-afternoon{ background:#ffb066; border-color:#c98a3a; }
   .iav-cell.on.iav-c-evening{ background:#8fb8ff; border-color:#4f7fc9; }
   .iav-cell.iav-full{ background:#d9f0d8; border-color:#4f9a4b; }
   .iav-cell.iav-busy{ background:#f9dcdc; border-color:#e8b4b4; }
-  .iav-allday{ min-height:32px; border:1.5px solid rgba(55,61,59,0.25); border-radius:6px; background:#fff; font-weight:700; font-size:14px; cursor:pointer; color:var(--muted); }
+  .iav-allday{ min-height:46px; border:1.5px solid rgba(55,61,59,0.25); border-radius:8px; background:#fff; font-weight:700; font-size:16px; cursor:pointer; color:var(--muted); }
   .iav-allday-avail{ background:#d9f0d8; border-color:#4f9a4b; color:#2a7a4a; }
   .iav-allday-busy{ background:#f9dcdc; border-color:#e8b4b4; color:#b3261e; }
   /* "Everyone's availability" — read-only heatmap, 5 days per row so it never needs horizontal scroll on a phone */
   .eav-grid{ display:grid; grid-template-columns:44px repeat(5, minmax(0,1fr)); gap:3px; margin-bottom:8px; }
   .eav-cell{ min-height:34px; border:1.5px solid rgba(55,61,59,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:var(--charcoal); background:#fff; }
+  .eav-cell.eav-tappable{ cursor:pointer; }
   .eav-tier-1{ background:#e9f5e6; border-color:#c3e0bc; }
   .eav-tier-2{ background:#c6e6bd; border-color:#9ecf90; }
   .eav-tier-3{ background:#93cf85; border-color:#6fb35e; }
@@ -1186,7 +1190,7 @@ let state = {
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
   ideaAvail:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
-  ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'',
+  ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null,
   membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventJustCreated:false, eventEditDeleting:false,
   reviewMode:false, reviewQueue:[], reviewTotal:0, eventCreateMode:false,
@@ -2436,7 +2440,7 @@ function renderResourceMap(){
 const clubColors = {
   'club-activegaming':{bg:'#e1eaf1', fg:'#373d3b'}, 'club-adrenaline':{bg:'#eedcb1', fg:'#373d3b'}, 'club-theater':{bg:'#e5d5e6', fg:'#373d3b'},
   'club-cuisine':{bg:'#f6e3e9', fg:'#373d3b'}, 'club-artscrafts':{bg:'#fdf0f2', fg:'#373d3b'}, 'club-retreats':{bg:'#f8efdb', fg:'#373d3b'},
-  'club-badminton':{bg:'#d5dfe7', fg:'#373d3b'}, 'club-adhd':{bg:'#776867', fg:'#fff7e6'}
+  'club-badminton':{bg:'#d5dfe7', fg:'#373d3b'}
 };
 
 const FALL_SIGNUP_ENDPOINT = 'https://formspree.io/f/mgawqqgk';
@@ -2448,7 +2452,6 @@ const FALL_SIGNUP_CLUBS = [
   {id:'club-cuisine', emoji:'🍽️', title:'Cuisine', desc:'Group dinners, cool restaurant crawls, cooking nights & baking workshops. For the girls who plan their week around food.'},
   {id:'club-artscrafts', emoji:'🎨', title:'Arts & Crafts', desc:'Painting nights, DIY, crafternoons. No talent needed, just vibes & glitter.'},
   {id:'club-retreats', emoji:'🏞️', title:'Field', desc:'Hiking, horseback riding, farm days, cabin retreats.'},
-  {id:'club-adhd', emoji:'🧠', title:'ADHD / Neurodivergence', desc:'A low-pressure space for neurodivergent sisters to connect, vent, swap strategies, and exist without masking.'},
 ];
 
 function setupFallSignupForm(){
@@ -2610,8 +2613,9 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="f
     <button class="fall-cta-btn join-club-btn" data-hometab="fallsignup">JOIN A CLUB!</button>
     <button type="button" class="av-link" id="clubsLoginOpenBtn" style="margin-top:8px;font-size:12.5px;">Already a member? Log in</button>
     </div>`}
-    ${(state.clubsLoginPickerOpen || getCmSession()) ? `
-    <div class="rules-content" style="max-width:${getCmSession() && !state.clubsMyClubsPickerOpen ? '760px' : '420px'};margin:0 auto 18px;">
+    ${getCmSession() ? `<div style="max-width:640px;margin:0 auto;">${clubsWelcomeNoticeHtml(getCmSession())}${getCmSession().mustChangePin ? choosePinHtml() : ''}</div>` : ''}
+    ${(state.clubsLoginPickerOpen && !getCmSession()) || (getCmSession() && state.clubsMyClubsPickerOpen) ? `
+    <div class="rules-content" style="max-width:${getCmSession() ? '760px' : '420px'};margin:0 auto 18px;">
       ${state.clubsMyClubsPickerOpen ? `
         ${(state.cmSessionClubs || []).length ? `
           <p style="font-size:13px;margin-bottom:10px;">Which club do you want to open?</p>
@@ -2620,8 +2624,6 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="f
             return `<button type="button" class="club-guide-btn clubs-my-club-btn" data-club-id="${cid}" style="width:100%;margin-bottom:8px;text-align:left;">${escapeCm(club ? club.title : cid)}</button>`;
           }).join('')}
         ` : `<p style="font-size:13px;">You're not part of any club yet — ask an organizer to add you.</p>`}
-      ` : getCmSession() ? `
-        ${renderAvailabilityPanel(getCmSession())}
       ` : `
         <p style="font-size:13px;margin-bottom:10px;">Sign in with the username and PIN an organizer gave you.</p>
         <div id="clubsLoginError" style="color:#c00;font-size:13px;margin-bottom:8px;"></div>
@@ -2642,7 +2644,15 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="f
         </div>
         <div class="panel-desc">${c.desc}</div>
       </div>`;
-    }).join('')}</div>
+    }).join('')}
+      <a class="panel-card club-card club-card-more" href="https://www.instagram.com/4dasistas.ca/" target="_blank" rel="noopener" style="border-top:6px dashed var(--muted);text-decoration:none;">
+        <div class="panel-top">
+          <div class="monogram" style="background:transparent;border:2px dashed var(--muted);color:var(--muted);">✨</div>
+          <div><h4 style="color:var(--charcoal);">More to Launch</h4></div>
+        </div>
+        <div class="panel-desc">Have an idea? Hit us up!!</div>
+      </a>
+    </div>
     <div style="text-align:center;margin-top:18px;">
       <button type="button" class="link-btn secondary" id="clubAdminOpenBtn" style="font-size:11px;padding:6px 14px;opacity:0.65;">🔒 Admin</button>
     </div>
@@ -2657,6 +2667,10 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="f
         render();
       });
       wireAvailabilityPanel();
+      const welcomeClose = document.getElementById('avWelcomeClose');
+      if(welcomeClose) welcomeClose.addEventListener('click', () => { state.availWelcome = ''; state.clubsNotice = ''; render(); });
+      const cpnSaveBtn = document.getElementById('cpnSaveBtn');
+      if(cpnSaveBtn) cpnSaveBtn.addEventListener('click', cmChoosePin);
       const loginSubmitBtn = document.getElementById('clubsLoginSubmitBtn');
       if(loginSubmitBtn) loginSubmitBtn.addEventListener('click', cmGeneralLogin);
       document.querySelectorAll('.clubs-my-club-btn').forEach(btn => {
@@ -3433,6 +3447,16 @@ function closeEventEdit(returnToDetail){
   }
 }
 
+// New events need at least 4 days' notice — today plus the next 3 days aren't selectable, so the
+// soonest a brand-new event can be scheduled is 4 days out. Editing an already-scheduled event is untouched.
+function minNewEventDate(){
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 4);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+function minNewEventDateLabel(){
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 4);
+  return `${monthNames[d.getMonth()]} ${d.getDate()}`;
+}
 function renderEventEditView(){
   const card = document.getElementById('detailCard');
   if(!card) return;
@@ -3496,7 +3520,8 @@ function renderEventEditView(){
       </label>
       <div style="display:flex;flex-wrap:wrap;gap:10px;">
         <label style="${rowLabelStyle}">Event date${createMode ? ' <span style="color:#c00;">*</span>' : ''}${missing.includes('Date') ? ' <span style="color:#c00;">— missing</span>' : ''}
-          <input id="editEventDate" type="date" value="${d.eventDate||''}" style="${fieldStyle}${missing.includes('Date') ? missingBorder : ''}">
+          <input id="editEventDate" type="date" value="${d.eventDate||''}" ${createMode ? `min="${minNewEventDate()}"` : ''} style="${fieldStyle}${missing.includes('Date') ? missingBorder : ''}">
+          ${createMode ? `<span style="font-size:11px;color:var(--muted);display:block;margin-top:3px;">New events need at least 4 days' notice — soonest is ${minNewEventDateLabel()}.</span>` : ''}
         </label>
         <label style="${rowLabelStyle}">End date
           <input id="editEndDate" type="date" value="${d.endDate||''}" style="${fieldStyle}">
@@ -3886,6 +3911,7 @@ async function saveEventEdit(){
     if(!fields.section) problem = 'Please select an event type (which calendar tab it belongs on).';
     else if(!fields.title) problem = 'Please enter a title.';
     else if(!fields.eventDate) problem = 'Please pick the event date — it is required.';
+    else if(fields.eventDate < minNewEventDate()) problem = `New events need at least 4 days' notice — the soonest is ${minNewEventDateLabel()}.`;
     else if(!fields.virtual && !fields.location) problem = 'Please search for and pick a location (or tick "Virtual/online event").';
     if(problem){
       state.eventEditError = problem;
@@ -4417,6 +4443,54 @@ function avSummary(parts){
   return 'free in the ' + parts.join(' and ');
 }
 
+// Just the one-time notices from a fresh signup (username reminder / waitlist / a failed-send warning) —
+// shown on the Clubs tab regardless of picker state. The "You're a member of X Club" heading + old
+// month-view calendar that used to follow this were removed per Lujane's request; sign out now lives
+// only in the footer.
+function clubsWelcomeNoticeHtml(session){
+  const clubs = session.clubs || [];
+  const waitIds = (session.waitlist || []).filter(id => !clubs.includes(id));
+  const waitNames = waitIds.map(id => `<strong>${escapeCm(avClubTitle(id))}</strong>`);
+  const waitHtml = waitIds.length
+    ? `<div class="av-waitlist">You're on the <strong>standby list</strong> for ${waitNames.length > 1 ? waitNames.slice(0, -1).join(', ') + ' and ' + waitNames[waitNames.length - 1] : waitNames[0]}. An organizer will let you know if a spot opens up.</div>`
+    : '';
+  const welcomeHtml = state.availWelcome
+    ? `<div class="av-welcome"><span>You're in! Your username is <strong>${escapeCm(state.availWelcome)}</strong> — use it with your PIN to log in next time.</span><button type="button" class="av-link" id="avWelcomeClose">Got it</button></div>`
+    : '';
+  const noticeHtml = state.clubsNotice ? `<div class="av-waitlist" style="background:#fbe9e7;">${escapeCm(state.clubsNotice)}</div>` : '';
+  return welcomeHtml + noticeHtml + waitHtml;
+}
+
+// Admin-created profiles all start on PIN 1234 — this prompt is shown right after they sign in until
+// they pick their own, so 1234 never stays their real PIN for long.
+function choosePinHtml(){
+  return `<div class="av-welcome" style="flex-direction:column;align-items:stretch;gap:8px;">
+    <span>You're signed in with the starting PIN <strong>1234</strong> — choose your own 4-digit PIN now.</span>
+    <div style="display:flex;gap:8px;">
+      <input id="cpnNewPin" placeholder="New 4-digit PIN" inputmode="numeric" maxlength="4" style="flex:1;padding:9px;border-radius:10px;border:2px solid var(--charcoal);box-sizing:border-box;">
+      <button type="button" class="club-guide-btn" id="cpnSaveBtn" style="background:var(--lightblue);padding:9px 16px;">Save</button>
+    </div>
+    <div id="cpnStatus" style="font-size:12px;color:#c00;"></div>
+  </div>`;
+}
+async function cmChoosePin(){
+  const session = getCmSession();
+  const newPin = document.getElementById('cpnNewPin').value.trim();
+  const statusEl = document.getElementById('cpnStatus');
+  if(!/^\d{4}$/.test(newPin)) { statusEl.textContent = 'Enter exactly 4 digits.'; return; }
+  try {
+    await cmApiRaw('/api/users/' + encodeURIComponent(session.id), {
+      method:'PUT', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.token },
+      body: JSON.stringify({ newPin })
+    });
+    statusEl.style.color = '#2a7a4a';
+    statusEl.textContent = 'PIN updated ✓';
+    // Brief pause so "PIN updated" is actually visible before this box disappears (mustChangePin
+    // flipping false removes it on the very next render).
+    setTimeout(() => { session.mustChangePin = false; setCmSession(session); render(); }, 900);
+  } catch(err){ statusEl.textContent = err.message; }
+}
+
 function renderAvailabilityPanel(session){
   const clubs = session.clubs || [];
   if(!clubs.length) return `<p style="font-size:13px;">You're not part of any club yet — ask an organizer to add you.</p>`;
@@ -4613,7 +4687,7 @@ async function cmMemberSignOut(){
    ============================================================ */
 const CLUB_SLUGS = {
   'club-activegaming':'active-gaming', 'club-adrenaline':'adrenaline', 'club-theater':'theatre',
-  'club-cuisine':'cuisine', 'club-artscrafts':'arts-crafts', 'club-retreats':'field', 'club-adhd':'adhd'
+  'club-cuisine':'cuisine', 'club-artscrafts':'arts-crafts', 'club-retreats':'field'
 };
 function clubSlug(id){ return CLUB_SLUGS[id] || String(id).replace(/^club-/, ''); }
 function clubIdFromSlug(slug){
@@ -4663,7 +4737,11 @@ function ideaMe(){
   const sess = getCmSession();
   if(sess) return { kind:'member', name: sess.name };
   const g = ideaGuest();
-  return g ? { kind:'guest', name: g.name } : null;
+  if(g) return { kind:'guest', name: g.name };
+  // The site admin can vote / mark availability as themselves too — no need to also join as a guest
+  // (the Worker recognizes the same admin-login cookie the footer's Admin Login uses).
+  if(state.cmAdminLoggedIn === true) return { kind:'admin', name:'Admin' };
+  return null;
 }
 function ideaHeaders(){
   const h = { 'Content-Type':'application/json' };
@@ -4678,6 +4756,7 @@ function openClubIdeas(clubId){
   state.ideasClubId = clubId;
   state.ideas = null; state.ideasError = ''; state.ideasStatus = ''; state.ideasRenaming = false;
   state.ideaAvail = null; state.ideaAvailLoadedFor = null; state.ideaAvailError = ''; state.ideaAvailStatus = ''; state.ideaAvailDirty = false;
+  state.ideaAvailAll = null; state.ideaAvailAllLoadedFor = null; state.ideaAvailAllPeople = null;
   state.ideaAvailAll = null; state.ideaAvailAllLoadedFor = null; state.ideaAvailAllError = '';
   render();
   window.scrollTo({ top:0, behavior:'smooth' });
@@ -4727,7 +4806,7 @@ function renderClubIdeas(el){
     </form>
     <p class="ideas-hint">Enter your name to vote and add options. No account needed.</p>`;
   const whoBlock = (me && !state.ideasRenaming)
-    ? `<div class="ideas-who">Voting as <strong>${escapeCm(me.name)}</strong>${me.kind === 'guest' ? ` · <button type="button" class="av-link" id="ideaRenameBtn">change name</button>` : ' (member)'}</div>`
+    ? `<div class="ideas-who">Voting as <strong>${escapeCm(me.name)}</strong>${me.kind === 'guest' ? ` · <button type="button" class="av-link" id="ideaRenameBtn">change name</button>` : me.kind === 'admin' ? ' (admin)' : ' (member)'}</div>`
     : joinForm;
   const isCuisine = clubId === 'club-cuisine';
   const addForm = (me && !state.ideasRenaming) ? (isCuisine ? `
@@ -4915,12 +4994,14 @@ function eavGridHtml(){
       const dt = new Date(d + 'T00:00:00');
       return `<div class="iav-daylabel${d === todayStr ? ' today' : ''}">${dayLabelsShort[dt.getDay()]}<br>${dt.getDate()}</div>`;
     }).join('');
+    const isAdmin = state.cmAdminLoggedIn === true;
     IAV_PARTS.forEach(([key, label]) => {
       html += `<div class="iav-rowlabel">${label}</div>`;
       html += rowDates.map(d => {
         const n = (counts[d] && counts[d][key]) || 0;
         const tier = eavTier(n, max);
-        return `<div class="eav-cell eav-tier-${tier}" aria-label="${label}, ${d}, ${n} ${n === 1 ? 'person' : 'people'} available">${n > 0 ? n : ''}</div>`;
+        const tapHint = isAdmin && n > 0 ? ' — tap to see who' : '';
+        return `<div class="eav-cell eav-tier-${tier}${isAdmin ? ' eav-tappable' : ''}" data-date="${d}" data-part="${key}" aria-label="${label}, ${d}, ${n} ${n === 1 ? 'person' : 'people'} available${tapHint}">${n > 0 ? n : ''}</div>`;
       }).join('');
     });
     html += '</div>';
@@ -4936,7 +5017,7 @@ function everyoneAvailSectionHtml(me){
   else if(!state.ideaAvailAll) body = '';
   else body = `${eavGridHtml()}
     <div class="eav-legend"><span><i class="eav-sw eav-sw-0"></i>Nobody</span><span><i class="eav-sw eav-sw-mid"></i>A few people</span><span><i class="eav-sw eav-sw-max"></i>Most people</span></div>
-    <p class="ideas-hint">${state.ideaAvailAllRespondents} ${state.ideaAvailAllRespondents === 1 ? 'person has' : 'people have'} added their availability so far. Darker green = more people free then.</p>`;
+    <p class="ideas-hint">${state.ideaAvailAllRespondents} ${state.ideaAvailAllRespondents === 1 ? 'person has' : 'people have'} added their availability so far. Darker green = more people free then.${state.cmAdminLoggedIn === true ? ' Tap a square to see who by name.' : ''}</p>`;
   return `<div class="iav-wrap">
     <h3 class="iav-title">🌿 Everyone's availability</h3>
     ${body}
@@ -4954,12 +5035,41 @@ async function everyoneAvailLoad(force){
     state.ideaAvailAll = data.counts || {};
     state.ideaAvailAllRespondents = data.respondents || 0;
     state.ideaAvailAllLoadedFor = clubId;
+    // Admin also gets everyone's name (not just the anonymous count) so tapping a square can list who.
+    if(state.cmAdminLoggedIn === true){
+      try {
+        const nameData = await cmApiRaw('/api/admin/idea-availability/' + encodeURIComponent(clubId), { credentials:'include' });
+        state.ideaAvailAllPeople = nameData.people || [];
+      } catch { state.ideaAvailAllPeople = null; }
+    } else state.ideaAvailAllPeople = null;
   } catch(err){ state.ideaAvailAllError = err.message; }
   state.ideaAvailAllLoading = false;
   if(state.tab === 'clubideas') render();
 }
+function eavNamesFor(date, part){
+  const people = state.ideaAvailAllPeople || [];
+  const names = [];
+  people.forEach(p => {
+    const v = p.days && p.days[date];
+    const has = v === 'busy' ? false : Array.isArray(v) && v.includes(part);
+    if(has) names.push(p.name);
+  });
+  return names;
+}
 function wireEveryoneAvailGrid(){
   if(state.ideaAvailAll === null && !state.ideaAvailAllLoading && !state.ideaAvailAllError) everyoneAvailLoad();
+  if(state.cmAdminLoggedIn === true){
+    document.querySelectorAll('.eav-cell.eav-tappable').forEach(cell => cell.addEventListener('click', () => {
+      const { date, part } = cell.dataset;
+      const label = (IAV_PARTS.find(([k]) => k === part) || [null, part])[1];
+      const dt = new Date(date + 'T00:00:00');
+      const names = eavNamesFor(date, part);
+      ideaPopup(`
+        <h3 style="margin:4px 0 8px;">${escapeCm(label)}, ${escapeCm(monthNames[dt.getMonth()])} ${dt.getDate()}</h3>
+        <div class="idea-pop-names">${names.length ? names.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('') : '<span class="av-msg">Nobody’s free then yet.</span>'}</div>
+      `);
+    }));
+  }
 }
 
 function iavCellFromPoint(x, y){
@@ -5755,7 +5865,15 @@ async function openClubAdmin(){
     const data = await res.json();
     state.cmAdminLoggedIn = !!data.loggedIn;
   } catch { state.cmAdminLoggedIn = false; }
-  if(state.cmAdminLoggedIn) await cmAdminLoadAllMembers();
+  if(state.cmAdminLoggedIn){
+    await cmAdminLoadAllMembers();
+  } else {
+    // One admin login site-wide — reuse the footer's password modal instead of a second inline
+    // form here; footerAdminForm's submit handler picks up cmAdminOpenPending afterwards.
+    state.cmAdminOpenPending = true;
+    const footerBtn = document.getElementById('footerAdminBtn');
+    if(footerBtn) footerBtn.click();
+  }
   render();
 }
 
@@ -5961,11 +6079,9 @@ function renderClubAdminPanel(){
     return `<div class="rules-content" style="max-width:360px;margin:16px auto;">Loading…</div>`;
   }
   if(!state.cmAdminLoggedIn){
+    // One admin login site-wide, in the footer — openClubAdmin() already opened that modal for us.
     return `<div class="rules-content" style="max-width:360px;margin:16px auto;text-align:center;">
-      <h3>Admin Login</h3>
-      ${state.cmAdminError ? `<p style="color:#c00;font-size:13px;">${escapeCm(state.cmAdminError)}</p>` : ''}
-      <input type="password" id="cmAdminPassword" placeholder="Admin password" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);margin-bottom:10px;box-sizing:border-box;">
-      <button class="club-guide-btn" id="cmAdminLoginBtn" style="width:100%;">Log In</button>
+      ${state.cmAdminError ? `<p style="color:#c00;font-size:13px;">${escapeCm(state.cmAdminError)}</p>` : `<p style="font-size:13px;">Log in with the Admin Login button in the footer.</p>`}
     </div>`;
   }
   const clubId = state.cmAdminClub;
@@ -5980,7 +6096,7 @@ function renderClubAdminPanel(){
       <div style="display:flex;flex-direction:column;gap:8px;">
         <input id="cpName" placeholder="Name" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
         <input id="cpUsername" placeholder="Username (letters, numbers, _)" autocapitalize="none" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
-        <input id="cpPin" placeholder="PIN (optional — blank = auto-generate)" inputmode="numeric" maxlength="4" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
+        <p style="font-size:11px;color:#776867;margin:0;">Their PIN starts as <strong>1234</strong> — they'll be asked to pick their own the first time they sign in.</p>
         <div class="cp-clubs">${adminClubChoices().map(c => `<label class="cp-club"><input type="checkbox" class="cp-club-check" value="${escapeCm(c.id)}"> ${escapeCm(c.title)}</label>`).join('')}</div>
         <button class="club-guide-btn" id="cpCreateBtn" style="background:var(--blush);">Create profile</button>
         <span id="cpStatus" style="font-size:12px;color:#c00;"></span>
@@ -6037,22 +6153,20 @@ function adminClubChoices(){
 async function cmAdminCreateProfile(){
   const name = document.getElementById('cpName').value.trim();
   const username = document.getElementById('cpUsername').value.trim().toLowerCase();
-  const pin = document.getElementById('cpPin').value.trim();
   const clubIds = [...document.querySelectorAll('.cp-club-check:checked')].map(c => c.value);
   const status = document.getElementById('cpStatus');
   status.style.color = '#c00';
   if(!name) return status.textContent = 'Enter a name.';
   if(!/^[a-z0-9_]{3,20}$/.test(username)) return status.textContent = 'Username: 3–20 letters, numbers or _.';
-  if(pin && !/^\d{4}$/.test(pin)) return status.textContent = 'PIN must be exactly 4 digits (or leave blank).';
   if(!clubIds.length) return status.textContent = 'Tick at least one club.';
   status.textContent = 'Creating…';
   const done = [];
-  let finalPin = pin, existed = false;
+  let finalPin = '1234', existed = false;
   try {
     for(let i = 0; i < clubIds.length; i++){
       const res = await fetch('/api/admin/club-members/' + encodeURIComponent(clubIds[i]), {
         method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
-        body: JSON.stringify(i === 0 ? { name, username, pin: pin || undefined } : { username })
+        body: JSON.stringify(i === 0 ? { name, username } : { username })
       });
       const data = await res.json();
       if(!res.ok) throw new Error(data.error || 'Could not create profile');
@@ -6063,7 +6177,7 @@ async function cmAdminCreateProfile(){
     const clubNames = done.map(id => avClubTitle(id)).join(', ');
     alert(existed
       ? `@${username} already had an account — added to: ${clubNames}. Their existing PIN still works.`
-      : `Created ${name} (@${username}) with PIN ${finalPin} — give them this PIN so they can sign in. Clubs: ${clubNames}.`);
+      : `Created ${name} (@${username}) with PIN ${finalPin} — they'll be asked to choose their own PIN the first time they sign in. Clubs: ${clubNames}.`);
     await cmAdminLoadAllMembers();
     state.membersList = null;
     render();
@@ -6599,6 +6713,7 @@ document.getElementById('footerAdminCancelBtn').addEventListener('click', () => 
   document.getElementById('footerAdminModalOverlay').classList.remove('open');
   document.getElementById('footerAdminPassword').value = '';
   document.getElementById('footerAdminError').textContent = '';
+  state.cmAdminOpenPending = false;
 });
 document.getElementById('footerAdminModalOverlay').addEventListener('click', e => {
   if(e.target.id === 'footerAdminModalOverlay') document.getElementById('footerAdminCancelBtn').click();
@@ -6617,6 +6732,10 @@ document.getElementById('footerAdminForm').addEventListener('submit', async e =>
     document.getElementById('footerAdminModalOverlay').classList.remove('open');
     document.getElementById('footerAdminPassword').value = '';
     errEl.textContent = '';
+    if(state.cmAdminOpenPending){
+      state.cmAdminOpenPending = false;
+      await cmAdminLoadAllMembers();
+    }
     render();
   } catch(err){ errEl.textContent = err.message; }
   submitBtn.disabled = false;
