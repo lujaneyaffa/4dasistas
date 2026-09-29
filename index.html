@@ -331,6 +331,8 @@
   .cat-block .cat-desc{ font-size:13.5px; color:var(--muted); margin-bottom:14px; }
 
 .clubs-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
+.club-card-more{ display:block; width:min(100%,420px); margin:14px auto 0; padding:10px 16px; border:1.5px dashed var(--muted); border-radius:999px; text-align:center; text-decoration:none; color:var(--charcoal); font-size:12.5px; background:var(--card); }
+.club-card-more strong{ font-weight:700; }
   .clubs-grid .club-card{ width:100%; }
   .panel-card{ background:var(--card); border:2px solid var(--charcoal); border-radius:16px; padding:18px; margin-bottom:16px; box-shadow:3px 3px 0 var(--charcoal); text-align:left; position:relative; }
   .resource-photo{ width:100%; height:180px; object-fit:cover; display:block; margin:-2px 0 14px; border-radius:10px; background:var(--lightblue); }
@@ -2611,7 +2613,7 @@ function renderDirectory(){
     document.getElementById('resourcePagination').innerHTML = '';
 el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="flex-direction:column;align-items:center;">
     <button class="fall-cta-btn join-club-btn" data-hometab="fallsignup">JOIN A CLUB!</button>
-    <button type="button" class="av-link" id="clubsLoginOpenBtn" style="margin-top:8px;font-size:12.5px;">Already a member? Log in</button>
+    <button type="button" class="av-link" id="clubsLoginOpenBtn" style="margin-top:10px;font-size:16px;font-weight:700;">Already a member? Log in</button>
     </div>`}
     ${getCmSession() ? `<div style="max-width:640px;margin:0 auto;">${clubsWelcomeNoticeHtml(getCmSession())}${getCmSession().mustChangePin ? choosePinHtml() : ''}</div>` : ''}
     ${(state.clubsLoginPickerOpen && !getCmSession()) || (getCmSession() && state.clubsMyClubsPickerOpen) ? `
@@ -2637,7 +2639,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="f
       const col = clubColors[c.id] || {bg:'#373d3b', fg:'#fff7e6'};
       const monogramHtml = c.logo ? `<div class="monogram"><img src="${c.logo}" alt="${c.title} logo"></div>` : `<div class="monogram" style="background:${col.bg};color:${col.fg}">${c.title.charAt(0)}</div>`;
       return `
-      <div class="panel-card club-card" style="border-top:6px solid ${col.bg}" data-club-id="${c.id}" tabindex="0" role="button" aria-label="Open the ${c.title} idea board">
+      <div class="panel-card club-card" style="border:2px solid ${col.bg};border-top-width:6px;" data-club-id="${c.id}" tabindex="0" role="button" aria-label="Open the ${c.title} idea board">
         <div class="panel-top">
                   ${monogramHtml}
           <div><h4>${c.title}</h4></div>
@@ -2645,18 +2647,11 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="f
         <div class="panel-desc">${c.desc}</div>
       </div>`;
     }).join('')}
-      <a class="panel-card club-card club-card-more" href="https://www.instagram.com/4dasistas.ca/" target="_blank" rel="noopener" style="border-top:6px dashed var(--muted);text-decoration:none;">
-        <div class="panel-top">
-          <div class="monogram" style="background:transparent;border:2px dashed var(--muted);color:var(--muted);">✨</div>
-          <div><h4 style="color:var(--charcoal);">More to Launch</h4></div>
-        </div>
-        <div class="panel-desc">Have an idea? Hit us up!!</div>
-      </a>
     </div>
-    <div style="text-align:center;margin-top:18px;">
-      <button type="button" class="link-btn secondary" id="clubAdminOpenBtn" style="font-size:11px;padding:6px 14px;opacity:0.65;">🔒 Admin</button>
-    </div>
-    ${renderClubAdminPanel()}`;
+    <a class="club-card-more" href="https://www.instagram.com/4dasistas.ca/" target="_blank" rel="noopener">
+      <span>✨</span> <strong>More to Launch</strong> — Have an idea? Hit us up!!
+    </a>
+    ${state.cmAdminLoggedIn === true ? renderClubAdminPanel() : ''}`;
     setTimeout(() => {
       const loginBtn = document.getElementById('clubsLoginOpenBtn');
       if(loginBtn) loginBtn.addEventListener('click', () => {
@@ -2682,8 +2677,9 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="f
           openClubMembers(cid, club ? club.title : '');
         });
       });
-      const adminBtn = document.getElementById('clubAdminOpenBtn');
-      if(adminBtn) adminBtn.addEventListener('click', openClubAdmin);
+      // One admin login site-wide (the footer's) — once you're signed in there, the Create-a-profile /
+      // All Members panel just appears at the bottom of Clubs, no separate button to press.
+      if(state.cmAdminLoggedIn === true && !state.cmAdminOpen) openClubAdmin();
       wireClubAdminPanel();
     }, 0);
   } else if(state.tab === 'clubideas'){
