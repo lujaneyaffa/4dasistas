@@ -1188,6 +1188,7 @@ let state = {
   clubMembersId:null, clubMembersTitle:'', cmView:'auth', cmError:'', cmMembers:[], cmMe:null,
   cmEvents:[], cmEventData:null, cmEventMode:'mine', cmMySlots:[], cmSuggestedSlots:[],
   cmAdminOpen:false, cmAdminLoggedIn:null, cmAdminError:'', cmAdminClub:null, cmAdminEvents:null,
+  cmAdminClubDirEditing:null, cmAdminClubDirDraft:null, cmAdminClubDirError:'', cmAdminClubDirSaving:false,
   cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
@@ -6069,6 +6070,48 @@ function renderAdminAllMembersPanels(){
   }).join('')}</div>`;
 }
 
+function clubDirEditFormHtml(){
+  const editing = state.cmAdminClubDirEditing;
+  if(!editing) return '';
+  const isNew = editing === 'new';
+  const club = isNew ? null : clubsData.find(c => c.id === editing);
+  const draft = state.cmAdminClubDirDraft || { title:'', desc:'', logo:'', signup:'' };
+  return `<div class="cp-box" style="margin-top:10px;">
+    <h4 style="margin:0 0 6px;">${isNew ? 'Add a new club' : 'Edit ' + escapeCm((club && club.title) || editing)}</h4>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <input id="cdTitle" placeholder="Club title" value="${escapeCm(draft.title || '')}" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
+      <textarea id="cdDesc" placeholder="Description" rows="3" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);font-family:inherit;">${escapeCm(draft.desc || '')}</textarea>
+      <input id="cdSignup" placeholder="Signup link (WhatsApp/Instagram, optional)" value="${escapeCm(draft.signup || '')}" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${draft.logo ? `<img src="${draft.logo}" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--charcoal);">` : ''}
+        <label class="club-guide-btn" style="font-size:12px;padding:8px 12px;cursor:pointer;">Choose photo<input id="cdLogoFile" type="file" accept="image/*" style="display:none;"></label>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="club-guide-btn" id="cdSaveBtn" style="background:var(--blush);flex:1;" ${state.cmAdminClubDirSaving ? 'disabled' : ''}>${state.cmAdminClubDirSaving ? 'Saving…' : (isNew ? 'Create club' : 'Save changes')}</button>
+        <button class="club-guide-btn" id="cdCancelBtn" style="flex:1;">Cancel</button>
+      </div>
+      ${!isNew ? `<button id="cdDeleteBtn" style="background:#c00;color:#fff;border:none;border-radius:8px;padding:8px;cursor:pointer;" ${state.cmAdminClubDirSaving ? 'disabled' : ''}>Delete this club</button>` : ''}
+      ${state.cmAdminClubDirError ? `<span style="font-size:12px;color:#c00;">${escapeCm(state.cmAdminClubDirError)}</span>` : ''}
+    </div>
+  </div>`;
+}
+
+function clubDirListHtml(){
+  return `<h3>Club Directory</h3>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
+      ${clubsData.map(c => `
+        <div style="display:flex;justify-content:space-between;align-items:center;border:2px solid var(--charcoal);border-radius:10px;padding:10px;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+            ${c.logo ? `<img src="${c.logo}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none;">` : ''}
+            <strong style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeCm(c.title)}</strong>
+          </div>
+          <button class="cd-edit-btn" data-club-id="${c.id}" style="padding:6px 10px;font-size:12px;border-radius:8px;border:2px solid var(--charcoal);background:transparent;cursor:pointer;flex:none;">Edit</button>
+        </div>`).join('')}
+    </div>
+    <button class="club-guide-btn" id="cdAddBtn" style="width:100%;">+ Add a new club</button>
+    ${clubDirEditFormHtml()}`;
+}
+
 function renderClubAdminPanel(){
   if(!state.cmAdminOpen) return '';
   if(state.cmAdminLoggedIn === undefined || state.cmAdminLoggedIn === null){
@@ -6086,6 +6129,7 @@ function renderClubAdminPanel(){
       <h3 style="margin:0;">All Members</h3>
       <button class="club-guide-btn" id="cmAdminLogoutBtn" style="padding:6px 12px;font-size:12px;">Log Out</button>
     </div>
+    ${clubDirListHtml()}
     <div class="cp-box">
       <h4 style="margin:0 0 6px;">Create a profile</h4>
       <p style="font-size:11px;color:#776867;margin:0 0 10px;">Makes the member and puts them in every club you tick. A username that already exists is just added to those clubs.</p>
@@ -6182,6 +6226,95 @@ async function cmAdminCreateProfile(){
   }
 }
 
+function clubDirStartCreate(){
+  state.cmAdminClubDirEditing = 'new';
+  state.cmAdminClubDirDraft = { title:'', desc:'', logo:'', signup:'' };
+  state.cmAdminClubDirError = '';
+  render();
+}
+function clubDirStartEdit(id){
+  const club = clubsData.find(c => c.id === id) || {};
+  state.cmAdminClubDirEditing = id;
+  state.cmAdminClubDirDraft = { title: club.title || '', desc: club.desc || '', logo: club.logo || '', signup: club.signup || '' };
+  state.cmAdminClubDirError = '';
+  render();
+}
+function clubDirCancel(){
+  state.cmAdminClubDirEditing = null;
+  state.cmAdminClubDirDraft = null;
+  state.cmAdminClubDirError = '';
+  render();
+}
+function clubDirLogoChange(e){
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  if(file.size > 4 * 1024 * 1024){ state.cmAdminClubDirError = 'Photo is too large (max ~4MB).'; render(); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    if(!state.cmAdminClubDirDraft) state.cmAdminClubDirDraft = { title:'', desc:'', logo:'', signup:'' };
+    state.cmAdminClubDirDraft.logo = reader.result;
+    render();
+  };
+  reader.readAsDataURL(file);
+}
+async function clubDirSave(){
+  const editing = state.cmAdminClubDirEditing;
+  if(!editing) return;
+  const isNew = editing === 'new';
+  const title = document.getElementById('cdTitle').value.trim();
+  const desc = document.getElementById('cdDesc').value.trim();
+  const signup = document.getElementById('cdSignup').value.trim();
+  if(!title){ state.cmAdminClubDirError = 'Title is required.'; render(); return; }
+  if(!desc){ state.cmAdminClubDirError = 'Description is required.'; render(); return; }
+  const fields = { title, desc, signup };
+  if(state.cmAdminClubDirDraft && state.cmAdminClubDirDraft.logo && state.cmAdminClubDirDraft.logo.startsWith('data:')) fields.logo = state.cmAdminClubDirDraft.logo;
+  state.cmAdminClubDirSaving = true;
+  state.cmAdminClubDirError = '';
+  render();
+  try {
+    const res = await fetch(isNew ? '/api/admin/clubs' : '/api/admin/clubs/' + encodeURIComponent(editing), {
+      method: isNew ? 'POST' : 'PUT',
+      headers: { 'Content-Type':'application/json' }, credentials:'include',
+      body: JSON.stringify({ fields })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Could not save club');
+    state.cmAdminClubDirEditing = null;
+    state.cmAdminClubDirDraft = null;
+    state.cmAdminClubDirSaving = false;
+    render();
+    alert((isNew ? 'Club created' : 'Club updated') + ' — the site rebuilds automatically, it can take a minute or two to appear.');
+    return;
+  } catch(err){
+    state.cmAdminClubDirError = err.message;
+  }
+  state.cmAdminClubDirSaving = false;
+  render();
+}
+async function clubDirDelete(){
+  const editing = state.cmAdminClubDirEditing;
+  if(!editing || editing === 'new') return;
+  const club = clubsData.find(c => c.id === editing);
+  if(!confirm('Remove "' + (club ? club.title : editing) + '" from the club directory? This cannot be undone.')) return;
+  state.cmAdminClubDirSaving = true;
+  render();
+  try {
+    const res = await fetch('/api/admin/clubs/' + encodeURIComponent(editing), { method:'DELETE', credentials:'include' });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || 'Could not remove club');
+    state.cmAdminClubDirEditing = null;
+    state.cmAdminClubDirDraft = null;
+    state.cmAdminClubDirSaving = false;
+    render();
+    alert('Club removed — the site rebuilds automatically, it can take a minute or two to appear.');
+    return;
+  } catch(err){
+    state.cmAdminClubDirError = err.message;
+  }
+  state.cmAdminClubDirSaving = false;
+  render();
+}
+
 function wireClubAdminPanel(){
   if(!state.cmAdminOpen) return;
   const cpBtn = document.getElementById('cpCreateBtn');
@@ -6214,6 +6347,19 @@ function wireClubAdminPanel(){
   document.querySelectorAll('.cm-admin-delete-member').forEach(btn => {
     btn.addEventListener('click', () => cmAdminDeleteMember(btn.dataset.clubId, btn.dataset.memberId));
   });
+  const cdAddBtn = document.getElementById('cdAddBtn');
+  if(cdAddBtn) cdAddBtn.addEventListener('click', clubDirStartCreate);
+  document.querySelectorAll('.cd-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => clubDirStartEdit(btn.dataset.clubId));
+  });
+  const cdLogoFile = document.getElementById('cdLogoFile');
+  if(cdLogoFile) cdLogoFile.addEventListener('change', clubDirLogoChange);
+  const cdSaveBtn = document.getElementById('cdSaveBtn');
+  if(cdSaveBtn) cdSaveBtn.addEventListener('click', clubDirSave);
+  const cdCancelBtn = document.getElementById('cdCancelBtn');
+  if(cdCancelBtn) cdCancelBtn.addEventListener('click', clubDirCancel);
+  const cdDeleteBtn = document.getElementById('cdDeleteBtn');
+  if(cdDeleteBtn) cdDeleteBtn.addEventListener('click', clubDirDelete);
 }
 
 

@@ -74,6 +74,11 @@
  *   PUT    /api/admin/resource/:id                          - Merge fields and commit
  *   GET    /api/admin/sitetext                              - Read data/sitetext.json (page copy, home-tile text, About page content)
  *   PUT    /api/admin/sitetext                               - Merge fields and commit
+ *   GET    /api/admin/clubs                                  - Read data/clubs.json (one array, unlike calendar/resources' per-entry files)
+ *   POST   /api/admin/clubs                                  - Add a club ({fields:{title,desc,logo,signup}}) - derives a unique "club-slug" id, appends, commits
+ *   PUT    /api/admin/clubs/:id                               - Merge fields into that one club and commit. logo is only touched when the submitted
+ *                                                                value is a genuinely new data: URL upload - an unchanged plain-path logo is left alone
+ *   DELETE /api/admin/clubs/:id                               - Remove that club from the array and commit
  *
  * Required secrets (wrangler secret put <name>):
  *   ADMIN_PASSWORD    - admin login for /editor and the in-site Club Events / calendar-event admin panels
@@ -1509,6 +1514,99 @@ export default {
         return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
       }
       return jsonResponse({ ok: true, content: updated }, 200, corsHeaders);
+    }
+
+    // Admin: the Clubs directory (data/clubs.json - one array file, not per-entry
+    // like calendar/resources, since there are only a handful and low churn).
+    const CLUBS_FILE_PATH = "data/clubs.json";
+    if (path === "/api/admin/clubs" && (request.method === "GET" || request.method === "POST")) {
+      if (!env.GITHUB_TOKEN) return jsonResponse({ error: "Server misconfigured: GITHUB_TOKEN is not set" }, 500, corsHeaders);
+      const file = await githubGetFile(env, CLUBS_FILE_PATH);
+      if (!file) return jsonResponse({ error: "clubs.json not found" }, 404, corsHeaders);
+      const clubs = Array.isArray(file.content) ? file.content : [];
+
+      if (request.method === "GET") return jsonResponse({ clubs }, 200, corsHeaders);
+
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const fields = body.fields;
+      if (!fields || typeof fields !== "object") return jsonResponse({ error: "fields object is required" }, 400, corsHeaders);
+      const title = String(fields.title || "").trim();
+      if (!title) return jsonResponse({ error: "Title is required" }, 400, corsHeaders);
+      const desc = String(fields.desc || "").trim();
+      if (!desc) return jsonResponse({ error: "Description is required" }, 400, corsHeaders);
+
+      const baseSlug = `club-${slugify(title)}`;
+      let finalId = baseSlug;
+      for (let n = 2; clubs.some((c) => c.id === finalId); n++) {
+        if (n > 50) return jsonResponse({ error: "Could not find a unique id for this title" }, 500, corsHeaders);
+        finalId = `${baseSlug}-${n}`;
+      }
+
+      const newClub = { id: finalId, title, desc };
+      if (typeof fields.logo === "string" && fields.logo.startsWith("data:")) {
+        const photo = sanitizePhoto(fields.logo);
+        if (fields.logo && !photo) return jsonResponse({ error: "Logo image is too large or not a supported format" }, 400, corsHeaders);
+        if (photo) newClub.logo = photo;
+      }
+      if (String(fields.signup || "").trim()) newClub.signup = String(fields.signup).trim();
+
+      const updated = [...clubs, newClub];
+      const res = await githubPutFile(env, CLUBS_FILE_PATH, updated, file.sha, `Add club "${title}" via site admin editor`);
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
+      }
+      return jsonResponse({ ok: true, id: finalId, club: newClub }, 201, corsHeaders);
+    }
+
+    const adminClubMatch = path.match(/^\/api\/admin\/clubs\/([^/]+)\/?$/);
+    if (adminClubMatch && (request.method === "PUT" || request.method === "DELETE")) {
+      if (!env.GITHUB_TOKEN) return jsonResponse({ error: "Server misconfigured: GITHUB_TOKEN is not set" }, 500, corsHeaders);
+      const id = decodeURIComponent(adminClubMatch[1]);
+      const file = await githubGetFile(env, CLUBS_FILE_PATH);
+      if (!file) return jsonResponse({ error: "clubs.json not found" }, 404, corsHeaders);
+      const clubs = Array.isArray(file.content) ? file.content : [];
+      const idx = clubs.findIndex((c) => c.id === id);
+      if (idx === -1) return jsonResponse({ error: "Club not found" }, 404, corsHeaders);
+
+      if (request.method === "DELETE") {
+        const removed = clubs[idx];
+        const updated = clubs.filter((c) => c.id !== id);
+        const res = await githubPutFile(env, CLUBS_FILE_PATH, updated, file.sha, `Remove club "${removed.title || id}" via site admin editor`);
+        if (!res.ok) {
+          const detail = await res.text().catch(() => "");
+          return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
+        }
+        return jsonResponse({ ok: true, deleted: id }, 200, corsHeaders);
+      }
+
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      if (!body.fields || typeof body.fields !== "object") return jsonResponse({ error: "fields object is required" }, 400, corsHeaders);
+      const fields = { ...body.fields };
+      delete fields.id; // immutable once created
+      // Only touch logo when the submitted value is an actual new upload (a
+      // data: URL) - an edit form re-sending the existing plain-path value
+      // unchanged must never silently null it out.
+      if (fields.logo !== undefined) {
+        if (typeof fields.logo === "string" && fields.logo.startsWith("data:")) {
+          const photo = sanitizePhoto(fields.logo);
+          if (!photo) return jsonResponse({ error: "Logo image is too large or not a supported format" }, 400, corsHeaders);
+          fields.logo = photo;
+        } else {
+          delete fields.logo;
+        }
+      }
+      const updatedClub = { ...clubs[idx], ...fields };
+      const updated = clubs.slice();
+      updated[idx] = updatedClub;
+      const res = await githubPutFile(env, CLUBS_FILE_PATH, updated, file.sha, `Edit club "${updatedClub.title || id}" via site admin editor`);
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
+      }
+      return jsonResponse({ ok: true, club: updatedClub }, 200, corsHeaders);
     }
 
     if (path.startsWith("/api/data/")) {
