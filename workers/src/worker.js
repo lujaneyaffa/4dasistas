@@ -74,7 +74,7 @@
  *   PUT    /api/admin/resource/:id                          - Merge fields and commit
  *   GET    /api/admin/sitetext                              - Read data/sitetext.json (page copy, home-tile text, About page content)
  *   PUT    /api/admin/sitetext                               - Merge fields and commit
- *   GET    /api/admin/clubs                                  - Read data/clubs.json (one array, unlike calendar/resources' per-entry files)
+ *   GET    /api/admin/clubs                                  - Read data/clubs.json ({items:[...]}, one file, unlike calendar/resources' per-entry files)
  *   POST   /api/admin/clubs                                  - Add a club ({fields:{title,desc,logo,signup}}) - derives a unique "club-slug" id, appends, commits
  *   PUT    /api/admin/clubs/:id                               - Merge fields into that one club and commit. logo is only touched when the submitted
  *                                                                value is a genuinely new data: URL upload - an unchanged plain-path logo is left alone
@@ -1523,7 +1523,8 @@ export default {
       if (!env.GITHUB_TOKEN) return jsonResponse({ error: "Server misconfigured: GITHUB_TOKEN is not set" }, 500, corsHeaders);
       const file = await githubGetFile(env, CLUBS_FILE_PATH);
       if (!file) return jsonResponse({ error: "clubs.json not found" }, 404, corsHeaders);
-      const clubs = Array.isArray(file.content) ? file.content : [];
+      // The file on disk is { items: [...] }, not a bare array.
+      const clubs = Array.isArray(file.content?.items) ? file.content.items : (Array.isArray(file.content) ? file.content : []);
 
       if (request.method === "GET") return jsonResponse({ clubs }, 200, corsHeaders);
 
@@ -1552,7 +1553,7 @@ export default {
       if (String(fields.signup || "").trim()) newClub.signup = String(fields.signup).trim();
 
       const updated = [...clubs, newClub];
-      const res = await githubPutFile(env, CLUBS_FILE_PATH, updated, file.sha, `Add club "${title}" via site admin editor`);
+      const res = await githubPutFile(env, CLUBS_FILE_PATH, { items: updated }, file.sha, `Add club "${title}" via site admin editor`);
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
         return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
@@ -1566,14 +1567,15 @@ export default {
       const id = decodeURIComponent(adminClubMatch[1]);
       const file = await githubGetFile(env, CLUBS_FILE_PATH);
       if (!file) return jsonResponse({ error: "clubs.json not found" }, 404, corsHeaders);
-      const clubs = Array.isArray(file.content) ? file.content : [];
+      // The file on disk is { items: [...] }, not a bare array.
+      const clubs = Array.isArray(file.content?.items) ? file.content.items : (Array.isArray(file.content) ? file.content : []);
       const idx = clubs.findIndex((c) => c.id === id);
       if (idx === -1) return jsonResponse({ error: "Club not found" }, 404, corsHeaders);
 
       if (request.method === "DELETE") {
         const removed = clubs[idx];
         const updated = clubs.filter((c) => c.id !== id);
-        const res = await githubPutFile(env, CLUBS_FILE_PATH, updated, file.sha, `Remove club "${removed.title || id}" via site admin editor`);
+        const res = await githubPutFile(env, CLUBS_FILE_PATH, { items: updated }, file.sha, `Remove club "${removed.title || id}" via site admin editor`);
         if (!res.ok) {
           const detail = await res.text().catch(() => "");
           return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
@@ -1601,7 +1603,7 @@ export default {
       const updatedClub = { ...clubs[idx], ...fields };
       const updated = clubs.slice();
       updated[idx] = updatedClub;
-      const res = await githubPutFile(env, CLUBS_FILE_PATH, updated, file.sha, `Edit club "${updatedClub.title || id}" via site admin editor`);
+      const res = await githubPutFile(env, CLUBS_FILE_PATH, { items: updated }, file.sha, `Edit club "${updatedClub.title || id}" via site admin editor`);
       if (!res.ok) {
         const detail = await res.text().catch(() => "");
         return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
