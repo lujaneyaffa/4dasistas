@@ -15,13 +15,6 @@
       "signup": "https://chat.whatsapp.com/KWoZU7Wl69eJSWOKw3mgT9?mode=gi_t"
     },
     {
-      "id": "club-theater",
-      "logo": "assets/theatre.png",
-      "title": "Theatre",
-      "desc": "We catch plays, musicals, and live shows around the city, plus run our own improv nights. Basically any excuse to be dramatic.",
-      "signup": "https://chat.whatsapp.com/KXGjx4wT15E9hdzqkAevOR?mode=gi_t"
-    },
-    {
       "id": "club-cuisine",
       "logo": "assets/logos/club-cuisine.png",
       "title": "Cuisine",
