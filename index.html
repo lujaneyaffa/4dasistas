@@ -5905,6 +5905,7 @@ async function cmAdminLoadAllMembers(){
 
 async function cmAdminSelectClub(clubId){
   state.cmAdminClub = clubId;
+  if(!clubId){ state.cmAdminEvents = null; render(); return; }
   state.cmAdminEvents = null;
   render();
   try {
@@ -6142,13 +6143,11 @@ function renderClubAdminPanel(){
         <span id="cpStatus" style="font-size:12px;color:#c00;"></span>
       </div>
     </div>
-    <div style="margin:14px 0 26px;">${renderAdminAllMembersPanels()}</div>
-
-    <h3>Club Events Admin</h3>
-    <select id="cmAdminClubSelect" style="width:100%;padding:10px;margin:12px 0;border-radius:10px;border:2px solid var(--charcoal);">
-      <option value="">-- Choose a club --</option>
-      ${clubsData.map(c => `<option value="${c.id}" ${clubId===c.id?'selected':''}>${escapeCm(c.title)}</option>`).join('')}
-    </select>
+    <h3 style="margin-top:20px;">Club Events Admin</h3>
+    <p style="font-size:11px;color:#776867;margin-top:-6px;">Pick a club to manage its members and events.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;">
+      ${clubsData.map(c => `<button type="button" class="club-guide-btn cm-admin-club-pick" data-club-id="${escapeCm(c.id)}" style="padding:8px 14px;font-size:12px;${clubId===c.id?'background:var(--blush);':'background:transparent;'}">${escapeCm(c.title)}</button>`).join('')}
+    </div>
     ${clubId ? `
       <h4>Create Member</h4>
       <p style="font-size:11px;color:#776867;margin-top:-4px;">Typing an existing username just adds that person to this club too — they keep their current PIN.</p>
@@ -6182,6 +6181,7 @@ function renderClubAdminPanel(){
         <span id="cmAdminCreateStatus" style="font-size:12px;color:#c00;"></span>
       </div>
     ` : ''}
+    <div style="margin:14px 0 26px;">${renderAdminAllMembersPanels()}</div>
   </div>`;
 }
 
@@ -6257,6 +6257,19 @@ function clubDirLogoChange(e){
   };
   reader.readAsDataURL(file);
 }
+async function clubDirCheckResponse(res){
+  // /api/admin/* returns a plain-text "Unauthorized" (not JSON) on an expired/missing
+  // session, which crashed res.json() with a raw parse error - handle that specifically,
+  // and don't blow up on any other non-JSON body either.
+  let data = null;
+  try { data = await res.json(); } catch(e) {}
+  if(res.status === 401){
+    state.cmAdminLoggedIn = false;
+    throw new Error('Your admin session expired — please log in again.');
+  }
+  if(!res.ok) throw new Error((data && data.error) || ('Request failed (status ' + res.status + ')'));
+  return data;
+}
 async function clubDirSave(){
   const editing = state.cmAdminClubDirEditing;
   if(!editing) return;
@@ -6277,8 +6290,7 @@ async function clubDirSave(){
       headers: { 'Content-Type':'application/json' }, credentials:'include',
       body: JSON.stringify({ fields })
     });
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.error || 'Could not save club');
+    await clubDirCheckResponse(res);
     state.cmAdminClubDirEditing = null;
     state.cmAdminClubDirDraft = null;
     state.cmAdminClubDirSaving = false;
@@ -6300,8 +6312,7 @@ async function clubDirDelete(){
   render();
   try {
     const res = await fetch('/api/admin/clubs/' + encodeURIComponent(editing), { method:'DELETE', credentials:'include' });
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.error || 'Could not remove club');
+    await clubDirCheckResponse(res);
     state.cmAdminClubDirEditing = null;
     state.cmAdminClubDirDraft = null;
     state.cmAdminClubDirSaving = false;
@@ -6323,8 +6334,9 @@ function wireClubAdminPanel(){
   if(loginBtn) loginBtn.addEventListener('click', cmAdminLogin);
   const logoutBtn = document.getElementById('cmAdminLogoutBtn');
   if(logoutBtn) logoutBtn.addEventListener('click', cmAdminLogout);
-  const select = document.getElementById('cmAdminClubSelect');
-  if(select) select.addEventListener('change', () => cmAdminSelectClub(select.value));
+  document.querySelectorAll('.cm-admin-club-pick').forEach(btn => {
+    btn.addEventListener('click', () => cmAdminSelectClub(btn.dataset.clubId === state.cmAdminClub ? '' : btn.dataset.clubId));
+  });
   const createBtn = document.getElementById('cmAdminCreateBtn');
   if(createBtn) createBtn.addEventListener('click', cmAdminCreateEvent);
   document.querySelectorAll('.cm-admin-delete-event').forEach(btn => {
