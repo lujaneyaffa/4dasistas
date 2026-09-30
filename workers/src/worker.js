@@ -119,7 +119,7 @@ const sanitizeUsername = (input) => {
 };
 
 // Clubs people can join through the public Sign Up form (mirrors FALL_SIGNUP_CLUBS in index.html).
-const SIGNUP_CLUB_IDS = new Set(["club-activegaming", "club-adrenaline", "club-theater", "club-cuisine", "club-artscrafts", "club-retreats"]); // club-adhd retired 2026-09-28 ("More to Launch" placeholder shown instead)
+const SIGNUP_CLUB_IDS = new Set(["club-activegaming", "club-adrenaline", "club-cuisine", "club-artscrafts", "club-retreats"]); // club-adhd retired 2026-09-28; club-theater deleted via admin 2026-09-30 ("More to Launch" placeholder shown instead)
 
 // Mirrors CLUB_SLUGS/FALL_SIGNUP_CLUBS in index.html (kept in sync by hand — 7 clubs, low churn).
 // Used only to give a shared club link (e.g. 4dasistas.ca/clubs/cuisine) its own link-preview title/description
@@ -127,7 +127,6 @@ const SIGNUP_CLUB_IDS = new Set(["club-activegaming", "club-adrenaline", "club-t
 const CLUB_META = {
   "active-gaming": { title: "Active Gaming", emoji: "🎮", desc: "Escape rooms, VR arenas, challenge venues. For the movers, solvers, competitors." },
   "adrenaline": { title: "Adrenaline", emoji: "⚡", desc: "Roller-coasters, paintballing, skiing. If it gets your heart racing, we're on it." },
-  "theatre": { title: "Theatre", emoji: "🎭", desc: "Plays, musicals, live shows + our own improv nights. Any excuse to be dramatic." },
   "cuisine": { title: "Cuisine", emoji: "🍽️", desc: "Group dinners, restaurant crawls, cooking nights & baking workshops." },
   "arts-crafts": { title: "Arts & Crafts", emoji: "🎨", desc: "Painting nights, DIY, crafternoons. No talent needed, just vibes & glitter." },
   "field": { title: "Field", emoji: "🏞️", desc: "Hiking, horseback riding, farm days, cabin retreats." },

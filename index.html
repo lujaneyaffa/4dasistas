@@ -503,9 +503,7 @@
   .iav-daylabel.today{ color:var(--rose-deep); }
   .iav-rowlabel{ font-size:10px; font-weight:700; color:var(--muted); display:flex; align-items:center; padding-right:2px; }
   .iav-cell{ min-height:48px; border:1.5px solid rgba(55,61,59,0.25); border-radius:6px; background:#fff; padding:0; cursor:pointer; touch-action:none; -webkit-tap-highlight-color:transparent; }
-  .iav-cell.on.iav-c-morning{ background:#ffe27a; border-color:#c9a25a; }
-  .iav-cell.on.iav-c-afternoon{ background:#ffb066; border-color:#c98a3a; }
-  .iav-cell.on.iav-c-evening{ background:#8fb8ff; border-color:#4f7fc9; }
+  .iav-cell.on{ background:#d9f0d8; border-color:#4f9a4b; }
   .iav-cell.iav-full{ background:#d9f0d8; border-color:#4f9a4b; }
   .iav-cell.iav-busy{ background:#f9dcdc; border-color:#e8b4b4; }
   .iav-cell.iav-readonly{ cursor:default; }
@@ -2450,7 +2448,7 @@ function renderResourceMap(){
 }
 
 const clubColors = {
-  'club-activegaming':{bg:'#e1eaf1', fg:'#373d3b'}, 'club-adrenaline':{bg:'#eedcb1', fg:'#373d3b'}, 'club-theater':{bg:'#e5d5e6', fg:'#373d3b'},
+  'club-activegaming':{bg:'#e1eaf1', fg:'#373d3b'}, 'club-adrenaline':{bg:'#eedcb1', fg:'#373d3b'},
   'club-cuisine':{bg:'#f6e3e9', fg:'#373d3b'}, 'club-artscrafts':{bg:'#fdf0f2', fg:'#373d3b'}, 'club-retreats':{bg:'#f8efdb', fg:'#373d3b'},
   'club-badminton':{bg:'#d5dfe7', fg:'#373d3b'}
 };
@@ -2460,7 +2458,6 @@ const FALL_SIGNUP_ENDPOINT = 'https://formspree.io/f/mgawqqgk';
 const FALL_SIGNUP_CLUBS = [
   {id:'club-activegaming', emoji:'🎮', title:'Active Gaming', desc:'Escape rooms, VR arenas, challenge venues (Activate, CUBE, VR Vibe). For the movers, solvers, competitors.'},
   {id:'club-adrenaline', emoji:'⚡', title:'Adrenaline', desc:"Roller-coasters, paintballing, skiing. If it gets your heart racing, we're on it."},
-  {id:'club-theater', emoji:'🎭', title:'Theatre', desc:'Plays, musicals, live shows + our own improv nights. Any excuse to be dramatic.'},
   {id:'club-cuisine', emoji:'🍽️', title:'Cuisine', desc:'Group dinners, cool restaurant crawls, cooking nights & baking workshops. For the girls who plan their week around food.'},
   {id:'club-artscrafts', emoji:'🎨', title:'Arts & Crafts', desc:'Painting nights, DIY, crafternoons. No talent needed, just vibes & glitter.'},
   {id:'club-retreats', emoji:'🏞️', title:'Field', desc:'Hiking, horseback riding, farm days, cabin retreats.'},
@@ -4692,7 +4689,7 @@ async function cmMemberSignOut(){
    date (shown on top of the bubble) and vote total. Data: /api/clubs/:id/ideas
    ============================================================ */
 const CLUB_SLUGS = {
-  'club-activegaming':'active-gaming', 'club-adrenaline':'adrenaline', 'club-theater':'theatre',
+  'club-activegaming':'active-gaming', 'club-adrenaline':'adrenaline',
   'club-cuisine':'cuisine', 'club-artscrafts':'arts-crafts', 'club-retreats':'field'
 };
 function clubSlug(id){ return CLUB_SLUGS[id] || String(id).replace(/^club-/, ''); }
@@ -4847,10 +4844,10 @@ function renderClubIdeas(el){
       <div class="ideas-link"><span>🔗 ${escapeCm(clubLink(clubId).replace(/^https?:\/\//, ''))}</span><button type="button" class="av-link" id="ideaCopyBtn">Copy link</button></div>
       <p class="ideas-sub">Add an event you'd love to do. <strong>Tap a bubble to vote</strong> — the more votes, the bigger it grows! Tap the <strong>i</strong> on a bubble to see the place and who voted.</p>
       ${whoBlock}
-      ${addForm}
-      <div class="ideas-status" id="ideasStatus" aria-live="polite">${escapeCm(state.ideasStatus)}</div>
       ${cloud}
       ${ideaAvailSectionHtml(me)}
+      ${addForm}
+      <div class="ideas-status" id="ideasStatus" aria-live="polite">${escapeCm(state.ideasStatus)}</div>
       ${everyoneAvailSectionHtml(me)}
     </div>`;
   wireClubIdeas();
@@ -4866,9 +4863,11 @@ const IAV_PARTS = [['morning','Morning'],['afternoon','Afternoon'],['evening','E
 const IAV_PART_KEYS = IAV_PARTS.map(([k]) => k);
 const IAV_RANGES = { morning:'before 12 PM', afternoon:'12 – 5 PM', evening:'after 5 PM' };
 
+// Today and the next 3 days never show here — the soonest a day is offered is 4 days out
+// (matches the same rule new events follow — see minNewEventDate()).
 function iavNext10Dates(){
   const out = [];
-  const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const base = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 4);
   for(let i = 0; i < 10; i++){
     const d = new Date(base);
     d.setDate(base.getDate() + i);
