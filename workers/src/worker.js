@@ -231,6 +231,7 @@ const IDEAS_MAX_PER_PERSON = 3;
 // and a Google Maps link.
 const CUISINE_CLUB_ID = "club-cuisine";
 const sanitizeCuisine = (input) => String(input || "").replace(/[\x00-\x1f\x7f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, 30);
+const sanitizePrice = (input) => String(input || "").replace(/[\x00-\x1f\x7f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, 20);
 
 // ---- "Add your availability" on each club's idea-board page: a light, 10-day version of the month-view
 // calendar, open to anyone who can vote there (a signed-in member OR a name-only guest), not just full club
@@ -250,6 +251,22 @@ const parseIdeaAvailDoc = (raw) => {
     return { name: String(parsed.name || ""), days: parsed.days };
   }
   return { name: "", days: (parsed && typeof parsed === "object") ? parsed : {} };
+};
+const readIdeaAvailPeople = async (env, clubId) => {
+  const list = await env.SITE_DATA.list({ prefix: `ideaavail:${clubId}:` });
+  const people = [];
+  for (const k of list.keys) {
+    const personId = k.name.slice(`ideaavail:${clubId}:`.length);
+    const { name, days } = parseIdeaAvailDoc(await env.SITE_DATA.get(k.name));
+    if (!days || !Object.keys(days).length) continue;
+    let resolvedName = name;
+    if (!resolvedName && personId.startsWith("m:")) {
+      const user = await readUser(env, personId.slice(2));
+      resolvedName = user ? sanitizePersonName(user.name) : "";
+    }
+    people.push({ id: personId, name: resolvedName || "Someone", days });
+  }
+  return people;
 };
 const sanitizeIdeaAvailDays = (input) => {
   const out = {};
@@ -299,7 +316,7 @@ const ideaPeople = (idea) => ({
 const publicIdea = (idea, me) => {
   const { by, voters } = ideaPeople(idea);
   return {
-    id: idea.id, title: idea.title, mapUrl: idea.mapUrl || "", date: idea.date || "", cuisine: idea.cuisine || "",
+    id: idea.id, title: idea.title, mapUrl: idea.mapUrl || "", date: idea.date || "", cuisine: idea.cuisine || "", price: idea.price || "",
     votes: Math.max(0, voters.length + (idea.adjust || 0)), adjust: idea.adjust || 0,
     voters: voters.map((v) => v.name), by: by.name,
     voted: !!me && voters.some((v) => v.id === me.id), mine: !!me && by.id === me.id,
@@ -800,12 +817,13 @@ export default {
       if (!mapUrl) return jsonResponse({ error: "That doesn't look like a Google Maps link. In Google Maps tap Share → Copy link, then paste it here." }, 400, corsHeaders);
       const cuisine = sanitizeCuisine(body.cuisine);
       if (clubId === CUISINE_CLUB_ID && cuisine.length < 2) return jsonResponse({ error: "Please add the cuisine type (e.g. Lebanese, Korean, Dessert)" }, 400, corsHeaders);
+      const price = sanitizePrice(body.price);
       const ideas = await readClubIdeas(env, clubId);
       if (ideas.length >= IDEAS_MAX_PER_CLUB) return jsonResponse({ error: "This board is full — vote on an existing option instead" }, 400, corsHeaders);
       if (ideas.filter((i) => ideaPeople(i).by.id === who.id).length >= IDEAS_MAX_PER_PERSON) return jsonResponse({ error: `You already added ${IDEAS_MAX_PER_PERSON} options here — remove one to add another` }, 400, corsHeaders);
       if (ideas.some((i) => i.title.toLowerCase() === title.toLowerCase())) return jsonResponse({ error: "Someone already suggested that — go vote for it!" }, 409, corsHeaders);
       refreshName(ideas, who);
-      ideas.push({ id: crypto.randomUUID(), title, mapUrl, date: "", ...(cuisine ? { cuisine } : {}), by: who, at: Date.now(), votes: [who], adjust: 0 });
+      ideas.push({ id: crypto.randomUUID(), title, mapUrl, date: "", ...(cuisine ? { cuisine } : {}), ...(price ? { price } : {}), by: who, at: Date.now(), votes: [who], adjust: 0 });
       await writeClubIdeas(env, clubId, ideas);
       return jsonResponse({ ideas: sortedPublicIdeas(ideas, who) }, 201, corsHeaders);
     }
@@ -846,25 +864,24 @@ export default {
       if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
       const who = await ideaWho();
       if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
-      const list = await env.SITE_DATA.list({ prefix: `ideaavail:${clubId}:` });
-      const values = await Promise.all(list.keys.map((k) => env.SITE_DATA.get(k.name)));
+      const people = await readIdeaAvailPeople(env, clubId);
       const counts = {};
       let respondents = 0;
-      for (const raw of values) {
-        if (!raw) continue;
-        const { days } = parseIdeaAvailDoc(raw);
-        if (!days || typeof days !== "object") continue;
+      for (const p of people) {
         let hasAny = false;
-        for (const [date, v] of Object.entries(days)) {
+        for (const [date, v] of Object.entries(p.days)) {
           const parts = Array.isArray(v) ? v : [];
           if (!parts.length) continue;
           hasAny = true;
           const slot = (counts[date] = counts[date] || { morning: 0, afternoon: 0, evening: 0 });
-          for (const p of parts) if (slot[p] !== undefined) slot[p]++;
+          for (const part of parts) if (slot[part] !== undefined) slot[part]++;
         }
         if (hasAny) respondents++;
       }
-      return jsonResponse({ counts, respondents }, 200, corsHeaders);
+      // Signed-in members (and the site admin) see who's free by name when they tap a square; a
+      // name-only guest still only sees the anonymous counts/colour intensity.
+      const showNames = !who.id.startsWith("g:");
+      return jsonResponse({ counts, respondents, ...(showNames ? { people } : {}) }, 200, corsHeaders);
     }
 
     const ideaAvailMatch = path.match(/^\/api\/clubs\/([^/]+)\/idea-availability\/?$/);
@@ -1125,20 +1142,7 @@ export default {
     const adminIdeaAvailMatch = path.match(/^\/api\/admin\/idea-availability\/([^/]+)\/?$/);
     if (adminIdeaAvailMatch && request.method === "GET") {
       const clubId = decodeURIComponent(adminIdeaAvailMatch[1]);
-      const list = await env.SITE_DATA.list({ prefix: `ideaavail:${clubId}:` });
-      const people = [];
-      for (const k of list.keys) {
-        const personId = k.name.slice(`ideaavail:${clubId}:`.length);
-        const { name, days } = parseIdeaAvailDoc(await env.SITE_DATA.get(k.name));
-        if (!days || !Object.keys(days).length) continue;
-        let resolvedName = name;
-        if (!resolvedName && personId.startsWith("m:")) {
-          const user = await readUser(env, personId.slice(2));
-          resolvedName = user ? sanitizePersonName(user.name) : "";
-        }
-        people.push({ id: personId, name: resolvedName || "Someone", days });
-      }
-      return jsonResponse({ people }, 200, corsHeaders);
+      return jsonResponse({ people: await readIdeaAvailPeople(env, clubId) }, 200, corsHeaders);
     }
 
     const adminIdeaMatch = path.match(/^\/api\/admin\/club-ideas\/([^/]+)\/([^/]+)\/?$/);
@@ -1174,6 +1178,10 @@ export default {
         const date = String(body.date || "").trim();
         if (date && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date + "T00:00:00Z")))) return jsonResponse({ error: "Date must look like 2026-10-03" }, 400, corsHeaders);
         idea.date = date;
+      }
+      if (body.price !== undefined) {
+        const price = sanitizePrice(body.price);
+        if (price) idea.price = price; else delete idea.price;
       }
       if (body.votes !== undefined) {
         const want = Number(body.votes);

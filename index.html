@@ -466,6 +466,10 @@
   .ideas-join .club-guide-btn{ padding:0 20px; text-align:center; }
   .ideas-hint{ font-size:12px; color:var(--muted); text-align:center; margin:4px 0 10px; line-height:1.4; }
   .ideas-form{ display:flex; flex-direction:column; gap:8px; margin-bottom:8px; padding:12px; border:2px dashed var(--charcoal); border-radius:14px; }
+  .idea-price-quick{ display:flex; gap:8px; margin-top:-2px; }
+  .idea-price-btn{ flex:1; padding:8px; border-radius:10px; border:1.5px solid var(--charcoal); background:#fff; font-family:'Inter',sans-serif; font-weight:700; font-size:13px; cursor:pointer; color:var(--charcoal); }
+  .idea-price-btn.active{ background:var(--pink); }
+  .idea-pop-price{ display:inline-block; margin:0 6px 4px 0; padding:3px 10px; border-radius:999px; background:#fff; border:1.5px solid var(--charcoal); font-size:12px; font-weight:700; }
   .ideas-form .club-guide-btn{ padding:12px 20px; text-align:center; }
   .ideas-form .ideas-hint{ margin:0; }
   .ideas-status{ min-height:20px; text-align:center; font-size:13px; margin-bottom:6px; }
@@ -491,21 +495,26 @@
   .iav-wrap{ margin-top:22px; padding-top:18px; border-top:1.5px dashed rgba(55,61,59,0.25); }
   .iav-title{ font-family:'Inter',sans-serif; font-size:16px; margin:0 0 8px; }
   .iav-status{ min-height:18px; text-align:center; font-size:12px; color:var(--muted); margin-bottom:4px; }
-  .iav-grid-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:2px; }
-  .iav-grid{ display:grid; grid-template-columns:44px repeat(10, minmax(46px,1fr)); gap:4px; min-width:560px; }
+  /* Two 5-day rows stacked (not one endlessly-scrolling 10-wide row) so the whole thing fits a phone screen at once. */
+  .iav-grid-rows{ display:flex; flex-direction:column; gap:10px; }
+  .iav-grid{ display:grid; grid-template-columns:44px repeat(5, minmax(0,1fr)); gap:4px; }
   .iav-corner{ min-height:1px; }
   .iav-daylabel{ font-size:10px; font-weight:700; text-align:center; line-height:1.15; padding:2px 0; color:var(--charcoal); }
   .iav-daylabel.today{ color:var(--rose-deep); }
   .iav-rowlabel{ font-size:10px; font-weight:700; color:var(--muted); display:flex; align-items:center; padding-right:2px; }
-  .iav-cell{ min-height:38px; border:1.5px solid rgba(55,61,59,0.25); border-radius:6px; background:#fff; padding:0; cursor:pointer; touch-action:none; -webkit-tap-highlight-color:transparent; }
+  .iav-cell{ min-height:48px; border:1.5px solid rgba(55,61,59,0.25); border-radius:6px; background:#fff; padding:0; cursor:pointer; touch-action:none; -webkit-tap-highlight-color:transparent; }
   .iav-cell.on.iav-c-morning{ background:#ffe27a; border-color:#c9a25a; }
   .iav-cell.on.iav-c-afternoon{ background:#ffb066; border-color:#c98a3a; }
   .iav-cell.on.iav-c-evening{ background:#8fb8ff; border-color:#4f7fc9; }
   .iav-cell.iav-full{ background:#d9f0d8; border-color:#4f9a4b; }
   .iav-cell.iav-busy{ background:#f9dcdc; border-color:#e8b4b4; }
-  .iav-allday{ min-height:46px; border:1.5px solid rgba(55,61,59,0.25); border-radius:8px; background:#fff; font-weight:700; font-size:16px; cursor:pointer; color:var(--muted); }
+  .iav-cell.iav-readonly{ cursor:default; }
+  .iav-allday{ min-height:48px; border:1.5px solid rgba(55,61,59,0.25); border-radius:8px; background:#fff; font-weight:700; font-size:16px; cursor:pointer; color:var(--muted); }
   .iav-allday-avail{ background:#d9f0d8; border-color:#4f9a4b; color:#2a7a4a; }
   .iav-allday-busy{ background:#f9dcdc; border-color:#e8b4b4; color:#b3261e; }
+  .iav-allday.iav-readonly{ cursor:default; }
+  .iav-edit-btn{ display:block; width:100%; margin-top:10px; padding:13px; border-radius:12px; border:2px solid var(--charcoal); background:var(--pink); color:var(--charcoal); font-family:'Inter',sans-serif; font-weight:700; font-size:15px; cursor:pointer; }
+  .iav-done-btn{ display:block; width:100%; margin-bottom:10px; padding:11px; border-radius:12px; border:2px solid var(--charcoal); background:var(--charcoal); color:var(--cream); font-family:'Inter',sans-serif; font-weight:700; font-size:14px; cursor:pointer; }
   /* "Everyone's availability" — read-only heatmap, 5 days per row so it never needs horizontal scroll on a phone */
   .eav-grid{ display:grid; grid-template-columns:44px repeat(5, minmax(0,1fr)); gap:3px; margin-bottom:8px; }
   .eav-cell{ min-height:34px; border:1.5px solid rgba(55,61,59,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:var(--charcoal); background:#fff; }
@@ -1193,7 +1202,7 @@ let state = {
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
   ideaAvail:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
-  ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null,
+  ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, iavEditing:false,
   membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventJustCreated:false, eventEditDeleting:false,
   reviewMode:false, reviewQueue:[], reviewTotal:0, eventCreateMode:false,
@@ -4752,7 +4761,7 @@ function openClubIdeas(clubId){
   state.tab = 'clubideas';
   state.ideasClubId = clubId;
   state.ideas = null; state.ideasError = ''; state.ideasStatus = ''; state.ideasRenaming = false;
-  state.ideaAvail = null; state.ideaAvailLoadedFor = null; state.ideaAvailError = ''; state.ideaAvailStatus = ''; state.ideaAvailDirty = false;
+  state.ideaAvail = null; state.ideaAvailLoadedFor = null; state.ideaAvailError = ''; state.ideaAvailStatus = ''; state.ideaAvailDirty = false; state.iavEditing = false;
   state.ideaAvailAll = null; state.ideaAvailAllLoadedFor = null; state.ideaAvailAllPeople = null;
   state.ideaAvailAll = null; state.ideaAvailAllLoadedFor = null; state.ideaAvailAllError = '';
   render();
@@ -4772,12 +4781,13 @@ async function ideasLoad(){
 }
 
 function ideaBubbleHtml(idea){
-  const ci = ideaColorIndex(idea.id), size = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine));
+  const ci = ideaColorIndex(idea.id), size = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine || idea.price));
   const admin = state.cmAdminLoggedIn === true;
   return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${IDEA_FILLS[ci]};--line:${IDEA_LINES[ci]};width:${size}px;height:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}${idea.voted ? ', you voted' : ''}">
     ${idea.date ? `<span class="idea-date">📅 ${escapeCm(ideaDateLabel(idea.date))}</span>` : ''}
     ${idea.cuisine ? `<span class="idea-cuisine">🍽 ${escapeCm(idea.cuisine)}</span>` : ''}
     <span class="idea-title">${escapeCm(idea.title)}</span>
+    ${idea.price ? `<span class="idea-cuisine">💸 ${escapeCm(idea.price)}</span>` : ''}
     <span class="idea-votes">${ideaVotesLabel(idea.votes)}${idea.voted ? ' ✓' : ''}</span>
     ${safeMapUrl(idea.mapUrl) ? `<span class="idea-mini idea-map" data-ideamap="${escapeCm(idea.id)}" role="link" aria-label="Open ${escapeCm(idea.title)} in Google Maps" title="Open in Google Maps">📍</span>` : ''}
     <span class="idea-mini idea-info" data-ideainfo="${escapeCm(idea.id)}" role="button" aria-label="Details and names" title="Details &amp; who voted">i</span>
@@ -4806,25 +4816,34 @@ function renderClubIdeas(el){
     ? `<div class="ideas-who">Voting as <strong>${escapeCm(me.name)}</strong>${me.kind === 'guest' ? ` · <button type="button" class="av-link" id="ideaRenameBtn">change name</button>` : me.kind === 'admin' ? ' (admin)' : ' (member)'}</div>`
     : joinForm;
   const isCuisine = clubId === 'club-cuisine';
+  const priceFieldHtml = `
+      <input id="ideaPriceInput" type="text" maxlength="20" placeholder="Price (optional)" autocomplete="off" inputmode="text">
+      <div class="idea-price-quick">
+        <button type="button" class="idea-price-btn" data-price="Free">Free</button>
+        <button type="button" class="idea-price-btn" data-price="$20">$20</button>
+        <button type="button" class="idea-price-btn" data-price="$50">$50</button>
+      </div>`;
   const addForm = (me && !state.ideasRenaming) ? (isCuisine ? `
     <form class="ideas-form" id="ideaForm" novalidate>
       <input id="ideaCuisineInput" type="text" maxlength="30" placeholder="Cuisine type (e.g. Lebanese, Korean, Dessert)" autocomplete="off">
       <input id="ideaInput" type="text" maxlength="80" placeholder="Name of the place" autocomplete="off">
       <input id="ideaMapInput" type="text" placeholder="Google Maps link of the place" autocomplete="off" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
+      ${priceFieldHtml}
       <button type="submit" class="club-guide-btn" id="ideaAddBtn">Add restaurant</button>
-      <p class="ideas-hint">All three are required. Find the place in Google Maps → Share → Copy link, then paste it here. Everyone can tap 📍 on the bubble to open it in Maps.</p>
+      <p class="ideas-hint">The first three are required. Find the place in Google Maps → Share → Copy link, then paste it here. Everyone can tap 📍 on the bubble to open it in Maps.</p>
     </form>` : `
     <form class="ideas-form" id="ideaForm" novalidate>
       <input id="ideaInput" type="text" maxlength="80" placeholder="Event idea (e.g. Pottery night)" autocomplete="off">
       <input id="ideaMapInput" type="text" placeholder="Google Maps link of the place" autocomplete="off" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
+      ${priceFieldHtml}
       <button type="submit" class="club-guide-btn" id="ideaAddBtn">Add option</button>
-      <p class="ideas-hint">Both are required. Find the place in Google Maps → Share → Copy link, then paste it here.</p>
+      <p class="ideas-hint">Title and map link are required. Find the place in Google Maps → Share → Copy link, then paste it here.</p>
     </form>`) : '';
 
   el.innerHTML = `
     <button class="back-btn" data-hometab="clubs">← Back to clubs</button>
     <div class="ideas-wrap">
-      <h2 class="ideas-title">Ideas for the ${escapeCm(title)}</h2>
+      <h2 class="ideas-title">THE ${escapeCm(title).toUpperCase()}</h2>
       <div class="ideas-link"><span>🔗 ${escapeCm(clubLink(clubId).replace(/^https?:\/\//, ''))}</span><button type="button" class="av-link" id="ideaCopyBtn">Copy link</button></div>
       <p class="ideas-sub">Add an event you'd love to do. <strong>Tap a bubble to vote</strong> — the more votes, the bigger it grows! Tap the <strong>i</strong> on a bubble to see the place and who voted.</p>
       ${whoBlock}
@@ -4883,8 +4902,13 @@ function ideaAvailSectionHtml(me){
   let body;
   if(state.ideaAvailError) body = `<p class="av-msg" style="color:#c00;">${escapeCm(state.ideaAvailError)}</p>`;
   else if(!state.ideaAvail && state.ideaAvailLoading) body = `<p class="av-msg">Loading your availability…</p>`;
-  else body = `<div class="iav-grid-scroll"><div class="iav-grid" id="iavGridBox">${iavGridInnerHtml()}</div></div>
+  else if(state.iavEditing) body = `
+    <button type="button" class="iav-done-btn" id="iavDoneBtn">✓ Done editing</button>
+    <div class="iav-grid-rows" id="iavGridBox">${iavGridRowsHtml(true)}</div>
     <p class="ideas-hint">Tap or drag across a row to mark <strong>Morning</strong> (${IAV_RANGES.morning}), <strong>Afternoon</strong> (${IAV_RANGES.afternoon}) or <strong>Evening</strong> (${IAV_RANGES.evening}). Tap a day's bottom button to cycle: ✓ available all day (green) → ✕ busy all day (red) → clear.</p>`;
+  else body = `
+    <div class="iav-grid-rows">${iavGridRowsHtml(false)}</div>
+    <button type="button" class="iav-edit-btn" id="iavEditBtn">✏️ Edit my availability</button>`;
   return `<div class="iav-wrap">
     <h3 class="iav-title">🗓️ Add your availability</h3>
     <div class="iav-status" id="iavStatus" aria-live="polite">${escapeCm(state.ideaAvailStatus)}</div>
@@ -4892,19 +4916,21 @@ function ideaAvailSectionHtml(me){
   </div>`;
 }
 
-function iavGridInnerHtml(){
-  const dates = iavNext10Dates();
-  const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+// editable=true: live, tappable cells (used while state.iavEditing). editable=false: the same grid
+// rendered read-only (plain divs, no click handling) behind a big "Edit" button.
+function iavOneGridHtml(dates, todayStr, editable){
   let html = '<div class="iav-corner"></div>';
   html += dates.map(d => {
     const dt = new Date(d + 'T00:00:00');
     return `<div class="iav-daylabel${d === todayStr ? ' today' : ''}">${dayLabelsShort[dt.getDay()]}<br>${dt.getDate()}</div>`;
   }).join('');
+  const tag = editable ? 'button' : 'div';
   IAV_PARTS.forEach(([key, label]) => {
     html += `<div class="iav-rowlabel">${label}</div>`;
     html += dates.map(d => {
       const cls = iavDayBusy(d) ? 'iav-busy' : iavDayFull(d) ? 'iav-full' : (iavPartOn(d, key) ? 'on iav-c-' + key : '');
-      return `<button type="button" class="iav-cell ${cls}" data-date="${d}" data-part="${key}" aria-label="${label}, ${d}${iavPartOn(d,key)||iavDayFull(d)?', available':''}"></button>`;
+      const type = editable ? ' type="button"' : '';
+      return `<${tag}${type} class="iav-cell ${cls}${editable ? '' : ' iav-readonly'}" data-date="${d}" data-part="${key}" aria-label="${label}, ${d}${iavPartOn(d,key)||iavDayFull(d)?', available':''}"></${tag}>`;
     }).join('');
   });
   html += '<div class="iav-rowlabel">All day</div>';
@@ -4912,10 +4938,19 @@ function iavGridInnerHtml(){
     const full = iavDayFull(d), busy = iavDayBusy(d);
     const mode = full ? 'avail' : busy ? 'busy' : 'none';
     const label = full ? '✓' : busy ? '✕' : '·';
-    return `<button type="button" class="iav-allday iav-allday-${mode}" data-alldate="${d}" aria-label="${d} all day: ${full?'available':busy?'busy':'not set'} — tap to change">${label}</button>`;
+    const type = editable ? ' type="button"' : '';
+    return `<${tag}${type} class="iav-allday iav-allday-${mode}${editable ? '' : ' iav-readonly'}" data-alldate="${d}" aria-label="${d} all day: ${full?'available':busy?'busy':'not set'}${editable ? ' — tap to change' : ''}">${label}</${tag}>`;
   }).join('');
   return html;
 }
+function iavGridRowsHtml(editable){
+  const dates = iavNext10Dates();
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+  const rows = [dates.slice(0, 5), dates.slice(5, 10)];
+  return rows.map(rowDates => `<div class="iav-grid">${iavOneGridHtml(rowDates, todayStr, editable)}</div>`).join('');
+}
+// Kept for the pointer-drag code, which only ever runs while state.iavEditing is true (editable grid).
+function iavGridInnerHtml(){ return iavGridRowsHtml(true); }
 function renderIavGridInner(){
   const box = document.getElementById('iavGridBox');
   if(box) box.innerHTML = iavGridInnerHtml();
@@ -4991,14 +5026,14 @@ function eavGridHtml(){
       const dt = new Date(d + 'T00:00:00');
       return `<div class="iav-daylabel${d === todayStr ? ' today' : ''}">${dayLabelsShort[dt.getDay()]}<br>${dt.getDate()}</div>`;
     }).join('');
-    const isAdmin = state.cmAdminLoggedIn === true;
+    const canSeeNames = !!state.ideaAvailAllPeople; // any signed-in member/admin — not a name-only guest
     IAV_PARTS.forEach(([key, label]) => {
       html += `<div class="iav-rowlabel">${label}</div>`;
       html += rowDates.map(d => {
         const n = (counts[d] && counts[d][key]) || 0;
         const tier = eavTier(n, max);
-        const tapHint = isAdmin && n > 0 ? ' — tap to see who' : '';
-        return `<div class="eav-cell eav-tier-${tier}${isAdmin ? ' eav-tappable' : ''}" data-date="${d}" data-part="${key}" aria-label="${label}, ${d}, ${n} ${n === 1 ? 'person' : 'people'} available${tapHint}">${n > 0 ? n : ''}</div>`;
+        const tapHint = canSeeNames && n > 0 ? ' — tap to see who' : '';
+        return `<div class="eav-cell eav-tier-${tier}${canSeeNames ? ' eav-tappable' : ''}" data-date="${d}" data-part="${key}" aria-label="${label}, ${d}, ${n} ${n === 1 ? 'person' : 'people'} available${tapHint}">${n > 0 ? n : ''}</div>`;
       }).join('');
     });
     html += '</div>';
@@ -5014,7 +5049,7 @@ function everyoneAvailSectionHtml(me){
   else if(!state.ideaAvailAll) body = '';
   else body = `${eavGridHtml()}
     <div class="eav-legend"><span><i class="eav-sw eav-sw-0"></i>Nobody</span><span><i class="eav-sw eav-sw-mid"></i>A few people</span><span><i class="eav-sw eav-sw-max"></i>Most people</span></div>
-    <p class="ideas-hint">${state.ideaAvailAllRespondents} ${state.ideaAvailAllRespondents === 1 ? 'person has' : 'people have'} added their availability so far. Darker green = more people free then.${state.cmAdminLoggedIn === true ? ' Tap a square to see who by name.' : ''}</p>`;
+    <p class="ideas-hint">${state.ideaAvailAllRespondents} ${state.ideaAvailAllRespondents === 1 ? 'person has' : 'people have'} added their availability so far. Darker green = more people free then.${state.ideaAvailAllPeople ? ' Tap a square to see who by name.' : ''}</p>`;
   return `<div class="iav-wrap">
     <h3 class="iav-title">🌿 Everyone's availability</h3>
     ${body}
@@ -5032,13 +5067,9 @@ async function everyoneAvailLoad(force){
     state.ideaAvailAll = data.counts || {};
     state.ideaAvailAllRespondents = data.respondents || 0;
     state.ideaAvailAllLoadedFor = clubId;
-    // Admin also gets everyone's name (not just the anonymous count) so tapping a square can list who.
-    if(state.cmAdminLoggedIn === true){
-      try {
-        const nameData = await cmApiRaw('/api/admin/idea-availability/' + encodeURIComponent(clubId), { credentials:'include' });
-        state.ideaAvailAllPeople = nameData.people || [];
-      } catch { state.ideaAvailAllPeople = null; }
-    } else state.ideaAvailAllPeople = null;
+    // Any signed-in member (or the site admin) also gets everyone's name, not just the anonymous count,
+    // so tapping a square can list who — a name-only guest still only sees counts (data.people is absent).
+    state.ideaAvailAllPeople = data.people || null;
   } catch(err){ state.ideaAvailAllError = err.message; }
   state.ideaAvailAllLoading = false;
   if(state.tab === 'clubideas') render();
@@ -5055,7 +5086,7 @@ function eavNamesFor(date, part){
 }
 function wireEveryoneAvailGrid(){
   if(state.ideaAvailAll === null && !state.ideaAvailAllLoading && !state.ideaAvailAllError) everyoneAvailLoad();
-  if(state.cmAdminLoggedIn === true){
+  if(state.ideaAvailAllPeople){
     document.querySelectorAll('.eav-cell.eav-tappable').forEach(cell => cell.addEventListener('click', () => {
       const { date, part } = cell.dataset;
       const label = (IAV_PARTS.find(([k]) => k === part) || [null, part])[1];
@@ -5075,9 +5106,13 @@ function iavCellFromPoint(x, y){
 }
 let iavDrag = null;
 function wireIdeaAvailGrid(){
+  if(state.ideaAvail === null && state.ideaAvailLoadedFor !== state.ideasClubId && !state.ideaAvailLoading && !state.ideaAvailError) ideaAvailLoad();
+  const editBtn = document.getElementById('iavEditBtn');
+  if(editBtn) editBtn.addEventListener('click', () => { state.iavEditing = true; render(); });
+  const doneBtn = document.getElementById('iavDoneBtn');
+  if(doneBtn) doneBtn.addEventListener('click', () => { state.iavEditing = false; render(); });
   const box = document.getElementById('iavGridBox');
   if(!box) return;
-  if(state.ideaAvail === null && state.ideaAvailLoadedFor !== state.ideasClubId && !state.ideaAvailLoading && !state.ideaAvailError) ideaAvailLoad();
   if(box.dataset.wired) return;
   box.dataset.wired = '1';
   box.addEventListener('pointerdown', e => {
@@ -5162,6 +5197,16 @@ function wireClubIdeas(){
     try { await navigator.clipboard.writeText(link); ideasSetStatus('Link copied — share it anywhere!'); }
     catch { window.prompt('Copy this link:', link); }
   });
+  document.querySelectorAll('.idea-price-btn').forEach(btn => btn.addEventListener('click', () => {
+    const input = document.getElementById('ideaPriceInput');
+    const already = input.value.trim() === btn.dataset.price;
+    input.value = already ? '' : btn.dataset.price;
+    document.querySelectorAll('.idea-price-btn').forEach(b => b.classList.toggle('active', !already && b === btn));
+  }));
+  const priceInput = document.getElementById('ideaPriceInput');
+  if(priceInput) priceInput.addEventListener('input', () => {
+    document.querySelectorAll('.idea-price-btn').forEach(b => b.classList.toggle('active', b.dataset.price === priceInput.value.trim()));
+  });
   const form = document.getElementById('ideaForm');
   if(form) form.addEventListener('submit', async e => {
     e.preventDefault();
@@ -5171,12 +5216,13 @@ function wireClubIdeas(){
     mapInput.value = map;
     const cuisineInput = document.getElementById('ideaCuisineInput');
     const cuisine = cuisineInput ? cuisineInput.value.trim() : '';
+    const price = document.getElementById('ideaPriceInput').value.trim();
     if(cuisineInput && cuisine.length < 2) return ideasSetStatus('Please add the cuisine type (e.g. Lebanese, Korean, Dessert).', true);
     if(text.length < 3) return ideasSetStatus(cuisineInput ? 'Please add the name of the place (at least 3 characters).' : 'Type a title (at least 3 characters).', true);
     if(!map) return ideasSetStatus('Please paste the Google Maps link of the place.', true);
     const btn = document.getElementById('ideaAddBtn'); btn.disabled = true;
     try {
-      const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(state.ideasClubId) + '/ideas', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ title: text, mapUrl: map, cuisine }) });
+      const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(state.ideasClubId) + '/ideas', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ title: text, mapUrl: map, cuisine, price }) });
       state.ideas = data.ideas; state.ideasStatus = 'Added — thanks! Others can vote on it now.';
       render();
     } catch(err){
@@ -5250,6 +5296,7 @@ function openIdeaInfo(id){
   const { wrap, close } = ideaPopup(`
     ${idea.date ? `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(idea.date))}</p>` : ''}
     ${idea.cuisine ? `<span class="idea-pop-cuisine">🍽 ${escapeCm(idea.cuisine)}</span>` : ''}
+    ${idea.price ? `<span class="idea-pop-price">💸 ${escapeCm(idea.price)}</span>` : ''}
     <h3 style="margin:4px 0 8px;">${escapeCm(idea.title)}</h3>
     ${map ? `<a class="club-guide-btn idea-pop-map" href="${escapeCm(map)}" target="_blank" rel="noopener">📍 Open in Google Maps</a>
     <a class="idea-pop-maplink" href="${escapeCm(map)}" target="_blank" rel="noopener">${escapeCm(map.replace(/^https?:\/\//, ''))}</a>` : '<p class="av-msg">No map link yet.</p>'}
@@ -5269,6 +5316,7 @@ function openIdeaEdit(id){
     ${state.ideasClubId === 'club-cuisine' ? `<label class="idea-edit-l">Cuisine type<input id="ieCuisine" type="text" maxlength="30" value="${escapeCm(idea.cuisine || '')}"></label>` : ''}
     <label class="idea-edit-l">${state.ideasClubId === 'club-cuisine' ? 'Name of the place' : 'Title'}<input id="ieTitle" type="text" maxlength="80" value="${escapeCm(idea.title)}"></label>
     <label class="idea-edit-l">Google Maps link<input id="ieMap" type="text" inputmode="url" value="${escapeCm(idea.mapUrl || '')}" placeholder="https://maps.app.goo.gl/…"></label>
+    <label class="idea-edit-l">Price (optional)<input id="iePrice" type="text" maxlength="20" value="${escapeCm(idea.price || '')}" placeholder="Free, $20, $50…"></label>
     <label class="idea-edit-l">Date (shown on top of the bubble)<input id="ieDate" type="date" value="${escapeCm(idea.date || '')}"></label>
     <label class="idea-edit-l">Votes (total shown)<input id="ieVotes" type="number" min="0" max="9999" value="${idea.votes}"></label>
     <p class="ideas-hint" style="text-align:left;">Named voters stay listed; changing the total adds or removes unnamed votes.</p>
@@ -5285,6 +5333,7 @@ function openIdeaEdit(id){
         body: JSON.stringify({
           title: wrap.querySelector('#ieTitle').value, mapUrl: wrap.querySelector('#ieMap').value,
           ...(wrap.querySelector('#ieCuisine') ? { cuisine: wrap.querySelector('#ieCuisine').value } : {}),
+          price: wrap.querySelector('#iePrice').value,
           date: wrap.querySelector('#ieDate').value, votes: Number(wrap.querySelector('#ieVotes').value)
         })
       });
