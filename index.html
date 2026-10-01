@@ -70,7 +70,7 @@
   .header-disclaimer{ font-size:11px; color:var(--muted); max-width:440px; margin:8px auto 0; line-height:1.5; text-align:center; }
 
   .wa-fixed-btn{
-    position:fixed; top:14px; right:14px; z-index:60;
+    position:fixed; top:calc(14px + env(safe-area-inset-top, 0px)); right:14px; z-index:60;
     display:flex; align-items:center; justify-content:center;
     width:38px; height:38px; border-radius:50%;
     background:var(--wa-green); border:2px solid var(--charcoal);
@@ -6745,7 +6745,8 @@ const SLUG_TO_TAB = Object.fromEntries(Object.entries(TAB_SLUGS).map(([tab, slug
 /* Every page and sub-page has its own shareable link (all hash-based, so they work with the static host):
      #/calendar  #/calendar/sports  #/calendar/sports/badminton  #/calendar/activities/Mississauga
      #/calendar/knowledge  #/calendar/trips/international  (+ /week /day /list for the view)
-     #/clubs  #/clubs/join (sign-up form)  #/clubs/start  #/clubs/guidelines  #/clubs/<club>  #/clubs/<club>/members
+     #/clubs  #/clubs/join (sign-up form)  #/clubs/quicklogin (already filled a form, just need a login)
+     #/clubs/start  #/clubs/guidelines  #/clubs/<club>  #/clubs/<club>/members
      #/resources  #/resources/<category>  (+ /list)      #/travel  #/travel/domestic  #/travel/international  (+ /past)
      #/about  #/subscribe  #/add-to-homescreen  #/event/<id>
    Older links (#/fallsignup, #/clubstart, #/clubjoin, #/homescreen, #/calendar/mosqueprograms, …) still work. */
@@ -6760,6 +6761,7 @@ function currentSlugParts(){
   const t = state.tab;
   if(t === 'clubideas' && state.ideasClubId) return ['clubs', clubSlug(state.ideasClubId)];
   if(t === 'clubmembers' && state.clubMembersId) return ['clubs', clubSlug(state.clubMembersId), 'members'];
+  if(t === 'fallsignup' && state.fallQuickLogin) return ['clubs', 'quicklogin'];
   if(CLUB_SUBPAGE_SLUGS[t]) return ['clubs', CLUB_SUBPAGE_SLUGS[t]];
   const parts = [TAB_SLUGS[t] || t];
   if(t === 'events'){
@@ -6785,7 +6787,8 @@ function applySlugParts(parts){
   let tab = SLUG_TO_TAB[slug] || slug;
   if(tab === 'clubs' && rest[0]){
     const sub = rest[0];
-    if(CLUB_SUBPAGES[sub]){ tab = CLUB_SUBPAGES[sub]; }
+    if(sub === 'quicklogin'){ tab = 'fallsignup'; state.fallQuickLogin = true; }
+    else if(CLUB_SUBPAGES[sub]){ tab = CLUB_SUBPAGES[sub]; if(tab === 'fallsignup') state.fallQuickLogin = false; }
     else {
       const cid = clubIdFromSlug(sub);
       if(cid){
