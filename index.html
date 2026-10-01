@@ -2628,7 +2628,7 @@ function renderDirectory(){
     renderTripEarthView('travelEarthView', 'travelEarthMap', travelItems, false);
   } else if(state.tab === 'clubs'){
     document.getElementById('resourcePagination').innerHTML = '';
-el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="flex-direction:column;align-items:center;">
+el.innerHTML = `${isAdminViewer() ? '' : `<div class="clubs-top-actions" style="flex-direction:column;align-items:center;">
     <button class="fall-cta-btn join-club-btn" data-hometab="fallsignup">JOIN A CLUB!</button>
     <button type="button" class="av-link" id="clubsLoginOpenBtn" style="margin-top:10px;font-size:16px;font-weight:700;">Already a member? Log in</button>
     </div>`}
@@ -5114,7 +5114,7 @@ function iavCellFromPoint(x, y){
 }
 let iavDrag = null;
 function wireIdeaAvailGrid(){
-  if(state.ideaAvail === null && state.ideaAvailLoadedFor !== state.ideasClubId && !state.ideaAvailLoading && !state.ideaAvailError) ideaAvailLoad();
+  if(ideaMe() && state.ideaAvail === null && state.ideaAvailLoadedFor !== state.ideasClubId && !state.ideaAvailLoading && !state.ideaAvailError) ideaAvailLoad();
   const editBtn = document.getElementById('iavEditBtn');
   if(editBtn) editBtn.addEventListener('click', () => { state.iavEditing = true; render(); });
   const doneBtn = document.getElementById('iavDoneBtn');
@@ -5194,7 +5194,7 @@ function wireClubIdeas(){
     ideaSaveGuest(name);
     state.ideasRenaming = false; state.ideasStatus = 'Welcome, ' + name + '! You can vote and add options now.';
     state.ideas = null;
-    state.ideaAvail = null; state.ideaAvailLoadedFor = null; state.ideaAvailStatus = ''; state.ideaAvailDirty = false;
+    state.ideaAvail = null; state.ideaAvailLoadedFor = null; state.ideaAvailError = ''; state.ideaAvailStatus = ''; state.ideaAvailDirty = false;
     render();
   });
   const rename = document.getElementById('ideaRenameBtn');
