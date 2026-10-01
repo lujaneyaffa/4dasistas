@@ -2528,10 +2528,8 @@ function setupFallSignupForm(){
     const missing = [];
     const checkedClubCount = checks.filter(c => c.checked).length;
     const enteredName = (form.elements['name'].value || '').trim();
-    const enteredUsername = (document.getElementById('fallUsername').value || '').replace(/[^0-9]/g, '');
     const enteredPin = (document.getElementById('fallPin').value || '').trim();
-    if(!enteredName) missing.push('add your name');
-    if(!/^\d{10,15}$/.test(enteredUsername)) missing.push('enter a valid phone number to log in with');
+    if(!enteredName || enteredName.trim().split(/\s+/).length < 2) missing.push('add your first name and last initial (e.g. Amina K.)');
     if(!/^\d{4}$/.test(enteredPin)) missing.push('choose a 4-digit PIN');
     if(checkedClubCount !== 3) missing.push('select exactly 3 clubs above');
     if(!form.whatsapp.value.trim()) missing.push('add your WhatsApp number');
@@ -2557,7 +2555,7 @@ function setupFallSignupForm(){
     let account;
     try {
       account = await cmApiRaw('/api/signup', { method:'POST', body: JSON.stringify({
-        name: enteredName, username: enteredUsername, pin: enteredPin,
+        name: enteredName, pin: enteredPin,
         clubId: firstClub.id, waitlist: rankedClubs.slice(1).map(c => c.id)
       }) });
     } catch(err){
@@ -2580,7 +2578,7 @@ function setupFallSignupForm(){
     setCmSession(account);
     availReset();
     state.availClubId = firstClub.id;
-    state.availWelcome = enteredUsername;
+    state.availWelcome = account.username;
     state.clubsNotice = sent ? '' : "Your login is ready, but we couldn't send the rest of your form to the organizers. Please DM us on Instagram so they see your picks.";
     state.clubsLoginPickerOpen = true;
     state.clubsMyClubsPickerOpen = false;
@@ -2644,9 +2642,9 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="f
           }).join('')}
         ` : `<p style="font-size:13px;">You're not part of any club yet — ask an organizer to add you.</p>`}
       ` : `
-        <p style="font-size:13px;margin-bottom:10px;">Sign in with your phone number and the PIN an organizer gave you.</p>
+        <p style="font-size:13px;margin-bottom:10px;">Sign in with your username and the PIN an organizer gave you.</p>
         <div id="clubsLoginError" style="color:#c00;font-size:13px;margin-bottom:8px;"></div>
-        <input id="clubsLoginUsername" type="tel" inputmode="tel" placeholder="Phone number" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);margin-bottom:10px;box-sizing:border-box;">
+        <input id="clubsLoginUsername" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);margin-bottom:10px;box-sizing:border-box;">
         <input id="clubsLoginPin" placeholder="PIN" inputmode="numeric" maxlength="4" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);margin-bottom:10px;box-sizing:border-box;">
         <button class="club-guide-btn" id="clubsLoginSubmitBtn" style="width:100%;background:var(--lightblue);">Sign In</button>
         <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;">Forgot your PIN? An admin can reset it for you — just message us.</p>
@@ -2761,19 +2759,19 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="f
       <div class="fall-signup">
         <div class="fall-hero">
           <h2>Pick Your Clubs — Fall Season 🌸</h2>
-          <p><strong>Enter your phone number + a PIN below and you'll be signed in to your #1 pick straight away</strong> — your other picks go on the standby list. Fill out the form to choose your club(s) for the season! Max 2 clubs for now — a 3rd can open after 1 month of activity. Not ready to commit to one of your picks yet? Mention it in the notes below and we'll put you on <strong>STANDBY</strong> for it instead of a firm YES.</p>
+          <p><strong>Enter your name + a PIN below and you'll be signed in to your #1 pick straight away</strong> — your other picks go on the standby list. Fill out the form to choose your club(s) for the season! Max 2 clubs for now — a 3rd can open after 1 month of activity. Not ready to commit to one of your picks yet? Mention it in the notes below and we'll put you on <strong>STANDBY</strong> for it instead of a firm YES.</p>
         </div>
         <form id="fallSignupForm">
           <input type="text" name="_gotcha" class="hp-field" tabindex="-1" autocomplete="off">
           <div class="fall-section">
             <h3>Name</h3>
             <input type="text" name="name" placeholder="First name + last initial (e.g. Amina K.)" class="fall-text-input">
+            <p class="fall-hint" style="margin:8px 0 0;">Your login will be your first name + last initial (e.g. amina.k).</p>
           </div>
           <div class="fall-section fall-login-box">
-            <h3>Create your login</h3>
-            <p class="fall-hint" style="margin:0 0 10px;">You'll use these to log in and fill in your availability. As soon as you submit, you're signed in to your #1 club.</p>
-            <input type="tel" name="username" id="fallUsername" placeholder="Your phone number (used to log in)" class="fall-text-input" autocomplete="tel" inputmode="tel" maxlength="24">
-            <input type="tel" id="fallPin" placeholder="Choose a 4-digit PIN (remember it!)" class="fall-text-input" inputmode="numeric" maxlength="4" autocomplete="off" style="margin-top:10px;">
+            <h3>Choose a PIN</h3>
+            <p class="fall-hint" style="margin:0 0 10px;">You'll use your name + this PIN to log in and fill in your availability. As soon as you submit, you're signed in to your #1 club.</p>
+            <input type="tel" id="fallPin" placeholder="Choose a 4-digit PIN (remember it!)" class="fall-text-input" inputmode="numeric" maxlength="4" autocomplete="off">
             <p class="fall-hint" style="margin:8px 0 0;">Forgot your PIN? No stress — an admin can reset it for you.</p>
           </div>
           <div class="fall-section">
@@ -4468,7 +4466,7 @@ function clubsWelcomeNoticeHtml(session){
     ? `<div class="av-waitlist">You're on the <strong>standby list</strong> for ${waitNames.length > 1 ? waitNames.slice(0, -1).join(', ') + ' and ' + waitNames[waitNames.length - 1] : waitNames[0]}. An organizer will let you know if a spot opens up.</div>`
     : '';
   const welcomeHtml = state.availWelcome
-    ? `<div class="av-welcome"><span>You're in! Use your phone number and PIN to log in next time.</span><button type="button" class="av-link" id="avWelcomeClose">Got it</button></div>`
+    ? `<div class="av-welcome"><span>You're in! Your username is <strong>${escapeCm(state.availWelcome)}</strong> — use it with your PIN to log in next time.</span><button type="button" class="av-link" id="avWelcomeClose">Got it</button></div>`
     : '';
   const noticeHtml = state.clubsNotice ? `<div class="av-waitlist" style="background:#fbe9e7;">${escapeCm(state.clubsNotice)}</div>` : '';
   return welcomeHtml + noticeHtml + waitHtml;
@@ -4515,7 +4513,7 @@ function renderAvailabilityPanel(session){
     ? `<div class="av-waitlist">You're on the <strong>standby list</strong> for ${waitNames.length > 1 ? waitNames.slice(0, -1).join(', ') + ' and ' + waitNames[waitNames.length - 1] : waitNames[0]}. An organizer will let you know if a spot opens up.</div>`
     : '';
   const welcomeHtml = state.availWelcome
-    ? `<div class="av-welcome"><span>You're in! Use your phone number and PIN to log in next time.</span><button type="button" class="av-link" id="avWelcomeClose">Got it</button></div>`
+    ? `<div class="av-welcome"><span>You're in! Your username is <strong>${escapeCm(state.availWelcome)}</strong> — use it with your PIN to log in next time.</span><button type="button" class="av-link" id="avWelcomeClose">Got it</button></div>`
     : '';
   const noticeHtml = state.clubsNotice ? `<div class="av-waitlist" style="background:#fbe9e7;">${escapeCm(state.clubsNotice)}</div>` : '';
   const heading = welcomeHtml + noticeHtml + `<div class="av-headrow"><p class="av-heading">You're a member of the <strong>${escapeCm(avClubTitle(clubId))}</strong></p><button type="button" class="av-signout" id="avSignOutBtn">Sign out</button></div>` + waitHtml;
@@ -5494,7 +5492,7 @@ async function cmGeneralLogin(){
   const username = document.getElementById('clubsLoginUsername').value.trim();
   const pin = document.getElementById('clubsLoginPin').value.trim();
   const errEl = document.getElementById('clubsLoginError');
-  if(!username || !pin){ if(errEl) errEl.textContent = 'Enter your phone number and PIN.'; return; }
+  if(!username || !pin){ if(errEl) errEl.textContent = 'Enter your username and PIN.'; return; }
   try {
     const data = await cmApiRaw('/api/login', { method:'POST', body: JSON.stringify({ username, pin }) });
     setCmSession(data);
@@ -5565,10 +5563,10 @@ function renderClubMembersView(el){
       <button class="back-btn" data-hometab="clubs">← Back to GALS CLUBS</button>
       <div class="rules-content" style="max-width:420px;margin:0 auto;">
         <h2 style="margin-bottom:4px;">${title} — Club Members Schedule</h2>
-        <p class="rules-lead">Sign in with your phone number and the PIN an organizer gave you.</p>
+        <p class="rules-lead">Sign in with your username and the PIN an organizer gave you.</p>
         ${state.cmError ? `<p style="color:#c00;margin-bottom:10px;">${escapeCm(state.cmError)}</p>` : ''}
         <div style="display:flex; flex-direction:column; gap:10px;">
-          <input id="cmUsernameLoginInput" type="tel" inputmode="tel" placeholder="Phone number" style="padding:12px;border-radius:10px;border:2px solid var(--charcoal);font-size:15px;">
+          <input id="cmUsernameLoginInput" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="padding:12px;border-radius:10px;border:2px solid var(--charcoal);font-size:15px;">
           <input id="cmPinInput" placeholder="PIN" inputmode="numeric" maxlength="4" style="padding:12px;border-radius:10px;border:2px solid var(--charcoal);font-size:15px;">
           <button class="club-guide-btn" id="cmSignInBtn" style="background:var(--lightblue);">Sign In</button>
         </div>
@@ -5880,7 +5878,7 @@ async function cmDoSignIn(){
   const clubId = state.clubMembersId;
   const username = document.getElementById('cmUsernameLoginInput').value.trim();
   const pin = document.getElementById('cmPinInput').value.trim();
-  if(!username || !pin){ state.cmError = 'Enter your phone number and PIN.'; render(); return; }
+  if(!username || !pin){ state.cmError = 'Enter your username and PIN.'; render(); return; }
   try {
     const data = await cmApiRaw('/api/login', {
       method:'POST',
@@ -5975,22 +5973,18 @@ async function cmAdminSelectClub(clubId){
 async function cmAdminCreateMember(){
   const clubId = state.cmAdminClub;
   const name = document.getElementById('cmAdminMemberName').value.trim();
-  const username = document.getElementById('cmAdminMemberUsername').value.trim();
-  const pin = document.getElementById('cmAdminMemberPin').value.trim();
   const status = document.getElementById('cmAdminMemberCreateStatus');
+  if(!name || name.split(/\s+/).length < 2) return status.textContent = 'Enter a first name and last initial (e.g. Amina K.).';
   try {
     const res = await fetch('/api/admin/club-members/' + encodeURIComponent(clubId), {
       method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
-      body: JSON.stringify({ name, username, pin: pin || undefined })
+      body: JSON.stringify({ name })
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Could not create member');
     status.textContent = '';
-    if(data.addedExisting){
-      alert(data.name + ' (' + data.username + ') already has an account — added them to this club too. Their existing PIN still works.');
-    } else {
-      alert('Created ' + data.name + ' (' + data.username + ') with PIN ' + data.pin + ' — give this PIN to them so they can sign in.');
-    }
+    alert('Created ' + data.name + ' (' + data.username + ') with PIN ' + data.pin + ' — give this PIN to them so they can sign in.');
+    document.getElementById('cmAdminMemberName').value = '';
     await cmAdminLoadAllMembers();
     render();
   } catch(err){
@@ -6099,7 +6093,7 @@ function renderAdminAllMembersPanels(){
       const memberClubs = new Set(cmAdminMemberClubs(m.id));
       return `<div class="panel-card" style="text-align:left;">
         <input id="cmAdminEditName" value="${escapeCm(m.name)}" placeholder="Name" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--charcoal);box-sizing:border-box;">
-        <input id="cmAdminEditUsername" type="tel" inputmode="tel" value="${escapeCm(m.username)}" placeholder="Phone number" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--charcoal);box-sizing:border-box;">
+        <input id="cmAdminEditUsername" value="${escapeCm(m.username)}" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--charcoal);box-sizing:border-box;">
         <input id="cmAdminEditPin" placeholder="New 4-digit PIN (leave blank to keep current)" inputmode="numeric" maxlength="4" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--charcoal);box-sizing:border-box;">
         <p style="font-size:11px;color:#776867;margin:6px 0 4px;">Clubs this member belongs to:</p>
         <div id="cmAdminEditClubs" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;max-height:140px;overflow-y:auto;">
@@ -6197,10 +6191,9 @@ function renderClubAdminPanel(){
     ${clubDirListHtml()}
     <div class="cp-box">
       <h4 style="margin:0 0 6px;">Create a profile</h4>
-      <p style="font-size:11px;color:#776867;margin:0 0 10px;">Makes the member and puts them in every club you tick. A phone number that already exists is just added to those clubs.</p>
+      <p style="font-size:11px;color:#776867;margin:0 0 10px;">Makes the member and puts them in every club you tick. Their username (e.g. amina.k) is made automatically from their name.</p>
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <input id="cpName" placeholder="Name" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
-        <input id="cpUsername" type="tel" inputmode="tel" placeholder="Phone number" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
+        <input id="cpName" placeholder="Name (first name + last initial, e.g. Amina K.)" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
         <p style="font-size:11px;color:#776867;margin:0;">Their PIN starts as <strong>1234</strong> — they'll be asked to pick their own the first time they sign in.</p>
         <div class="cp-clubs">${adminClubChoices().map(c => `<label class="cp-club"><input type="checkbox" class="cp-club-check" value="${escapeCm(c.id)}"> ${escapeCm(c.title)}</label>`).join('')}</div>
         <button class="club-guide-btn" id="cpCreateBtn" style="background:var(--blush);">Create profile</button>
@@ -6214,10 +6207,9 @@ function renderClubAdminPanel(){
     </div>
     ${clubId ? `
       <h4>Create Member</h4>
-      <p style="font-size:11px;color:#776867;margin-top:-4px;">Typing an existing phone number just adds that person to this club too — they keep their current PIN.</p>
+      <p style="font-size:11px;color:#776867;margin-top:-4px;">Their username (e.g. amina.k) is made automatically from their name. To add someone who's already a member elsewhere, use their profile's club checkboxes instead.</p>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;">
-        <input id="cmAdminMemberName" placeholder="Name" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
-        <input id="cmAdminMemberUsername" type="tel" inputmode="tel" placeholder="Phone number" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
+        <input id="cmAdminMemberName" placeholder="Name (first name + last initial, e.g. Amina K.)" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
         <input id="cmAdminMemberPin" placeholder="PIN (optional — leave blank to auto-generate)" inputmode="numeric" maxlength="4" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
         <button class="club-guide-btn" id="cmAdminMemberCreateBtn" style="background:var(--blush);">Create Member</button>
         <span id="cmAdminMemberCreateStatus" style="font-size:12px;color:#c00;"></span>
@@ -6256,32 +6248,30 @@ function adminClubChoices(){
 
 async function cmAdminCreateProfile(){
   const name = document.getElementById('cpName').value.trim();
-  const username = document.getElementById('cpUsername').value.replace(/[^0-9]/g, '');
   const clubIds = [...document.querySelectorAll('.cp-club-check:checked')].map(c => c.value);
   const status = document.getElementById('cpStatus');
   status.style.color = '#c00';
-  if(!name) return status.textContent = 'Enter a name.';
-  if(!/^\d{10,15}$/.test(username)) return status.textContent = 'Enter a valid phone number.';
+  if(!name || name.split(/\s+/).length < 2) return status.textContent = 'Enter a first name and last initial (e.g. Amina K.).';
   if(!clubIds.length) return status.textContent = 'Tick at least one club.';
   status.textContent = 'Creating…';
   const done = [];
-  let finalPin = '1234', existed = false;
+  let finalPin = '1234', finalUsername = '', userId = null;
   try {
     for(let i = 0; i < clubIds.length; i++){
       const res = await fetch('/api/admin/club-members/' + encodeURIComponent(clubIds[i]), {
         method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include',
-        body: JSON.stringify(i === 0 ? { name, username } : { username })
+        body: JSON.stringify(i === 0 ? { name } : { existingUserId: userId })
       });
       const data = await res.json();
       if(!res.ok) throw new Error(data.error || 'Could not create profile');
-      if(i === 0){ finalPin = data.pin || finalPin; existed = !!data.addedExisting; }
+      if(i === 0){ finalPin = data.pin || finalPin; finalUsername = data.username; userId = data.id; }
       done.push(clubIds[i]);
     }
     status.textContent = '';
     const clubNames = done.map(id => avClubTitle(id)).join(', ');
-    alert(existed
-      ? `${username} already had an account — added to: ${clubNames}. Their existing PIN still works.`
-      : `Created ${name} (${username}) with PIN ${finalPin} — they'll be asked to choose their own PIN the first time they sign in. Clubs: ${clubNames}.`);
+    alert(`Created ${name} (${finalUsername}) with PIN ${finalPin} — they'll be asked to choose their own PIN the first time they sign in. Clubs: ${clubNames}.`);
+    document.getElementById('cpName').value = '';
+    document.querySelectorAll('.cp-club-check:checked').forEach(c => { c.checked = false; });
     await cmAdminLoadAllMembers();
     state.membersList = null;
     render();

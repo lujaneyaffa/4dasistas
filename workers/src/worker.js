@@ -116,14 +116,29 @@ const sanitizePhoto = (photo) => {
   return photo;
 };
 
-// Usernames are phone numbers — normalize away any formatting (spaces, dashes,
-// parens, a leading +) so "416-555-1234" and "(416) 555-1234" land on the same
-// account instead of silently creating two. Also strip a leading North American
-// country code (+1) so "+1 416 555 1234" matches the same 10-digit number too.
+// Usernames are auto-generated from the member's own name as "firstname.initial"
+// (e.g. "Amina K." -> "amina.k") - nobody picks or types an arbitrary username,
+// they just log back in with their first name + last initial. A numeric suffix
+// is appended on a collision (a second "amina.k" becomes "amina.k2").
 const sanitizeUsername = (input) => {
-  let digits = String(input || "").replace(/[^0-9]/g, "");
-  if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
-  return /^\d{10,15}$/.test(digits) ? digits : null;
+  const u = String(input || "").trim().toLowerCase();
+  return /^[a-z]+\.[a-z][a-z0-9]*$/.test(u) ? u : null;
+};
+const usernameBaseFromName = (name) => {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return null;
+  const first = parts[0].toLowerCase().replace(/[^a-z]/g, "");
+  if (!first) return null;
+  const lastWord = parts.length > 1 ? parts[parts.length - 1] : "";
+  const initial = lastWord.replace(/[^a-zA-Z]/g, "").slice(0, 1).toLowerCase();
+  return initial ? `${first}.${initial}` : null;
+};
+const generateUniqueUsername = async (env, name) => {
+  const base = usernameBaseFromName(name);
+  if (!base) return null;
+  let candidate = base;
+  for (let n = 2; await findUserIdByUsername(env, candidate); n++) candidate = `${base}${n}`;
+  return candidate;
 };
 
 // ---- Club roster: ONE source of truth (data/clubs.json, committed via the admin editor below),
@@ -652,11 +667,11 @@ export default {
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       const username = sanitizeUsername(body.username);
       const pin = String(body.pin || "").trim();
-      if (!username || !pin) return jsonResponse({ error: "Phone number and PIN are required" }, 400, corsHeaders);
+      if (!username || !pin) return jsonResponse({ error: "Username and PIN are required" }, 400, corsHeaders);
       const userId = await findUserIdByUsername(env, username);
       const user = userId ? await readUser(env, userId) : null;
       if (!user || user.pinHash !== await sha256Hex(pin)) {
-        return jsonResponse({ error: "Phone number or PIN is incorrect" }, 401, corsHeaders);
+        return jsonResponse({ error: "Username or PIN is incorrect" }, 401, corsHeaders);
       }
       const token = await createMemberSession(env, user.id);
       const clubs = await allClubIdsContaining(env, user.id);
@@ -668,11 +683,11 @@ export default {
       let body;
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       const name = String(body.name || "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 60);
-      const username = sanitizeUsername(body.username);
       const pin = String(body.pin || "").trim();
       const clubId = String(body.clubId || "");
       if (!name) return jsonResponse({ error: "Please enter your name" }, 400, corsHeaders);
-      if (!username) return jsonResponse({ error: "Please enter a valid phone number" }, 400, corsHeaders);
+      const username = await generateUniqueUsername(env, name);
+      if (!username) return jsonResponse({ error: "Please enter your first name and last initial (e.g. Amina K.)" }, 400, corsHeaders);
       if (!/^\d{4}$/.test(pin)) return jsonResponse({ error: "PIN must be exactly 4 digits" }, 400, corsHeaders);
       const clubIds = new Set((await readClubRoster(env)).map((c) => c.id));
       if (!clubIds.has(clubId)) return jsonResponse({ error: "Please pick a club from the list" }, 400, corsHeaders);
@@ -684,7 +699,7 @@ export default {
       if (Number(ipCount || 0) >= SIGNUP_MAX_PER_IP_PER_HOUR) return jsonResponse({ error: "Too many sign-ups from this connection — please try again in an hour" }, 429, corsHeaders);
       if (Number(dayCount || 0) >= SIGNUP_MAX_PER_DAY) return jsonResponse({ error: "Sign-ups are very busy right now — please message us on Instagram" }, 429, corsHeaders);
 
-      if (await findUserIdByUsername(env, username)) return jsonResponse({ error: "That username is taken — try another (add a number or your last initial)" }, 409, corsHeaders);
+      if (await findUserIdByUsername(env, username)) return jsonResponse({ error: "That login was just taken — please try submitting again" }, 409, corsHeaders);
 
       const waitlist = [...new Set((Array.isArray(body.waitlist) ? body.waitlist : []).map(String))].filter((id) => clubIds.has(id) && id !== clubId).slice(0, 2);
       const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, waitlist, createdAt: Date.now() };
@@ -1224,18 +1239,16 @@ export default {
       const clubId = decodeURIComponent(adminClubMembersCreateMatch[1]);
       let body;
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
-      const username = sanitizeUsername(body.username);
-      if (!username) return jsonResponse({ error: "Please enter a valid phone number" }, 400, corsHeaders);
-
-      const existingUserId = await findUserIdByUsername(env, username);
       const memberIds = await readClubMemberIds(env, clubId);
 
-      if (existingUserId) {
-        // This person already has an account elsewhere — just add them to this club too.
-        const user = await readUser(env, existingUserId);
-        if (!user) return jsonResponse({ error: "That phone number exists but its record is missing — contact support" }, 500, corsHeaders);
-        if (!memberIds.includes(existingUserId)) {
-          memberIds.push(existingUserId);
+      // Adding someone who already has a profile (picked from the existing-members list) just
+      // puts them in this club too - the username/login/edit tools are where their clubs get
+      // changed, so this form only ever creates brand-new people now.
+      if (body.existingUserId) {
+        const user = await readUser(env, String(body.existingUserId));
+        if (!user) return jsonResponse({ error: "That member no longer exists" }, 404, corsHeaders);
+        if (!memberIds.includes(user.id)) {
+          memberIds.push(user.id);
           await writeClubMemberIds(env, clubId, memberIds);
         }
         return jsonResponse({ id: user.id, name: user.name, username: user.username, addedExisting: true }, 200, corsHeaders);
@@ -1243,6 +1256,8 @@ export default {
 
       const name = String(body.name || "").trim().slice(0, 60);
       if (!name) return jsonResponse({ error: "Name is required" }, 400, corsHeaders);
+      const username = await generateUniqueUsername(env, name);
+      if (!username) return jsonResponse({ error: "Please enter a first name and last initial (e.g. Amina K.)" }, 400, corsHeaders);
       // Not everyone has an account yet — admin-created profiles all start on the same PIN 1234 so
       // Lujane doesn't have to hand out/track a different code per person; the member is required to
       // pick their own on first sign-in (mustChangePin, enforced client-side right after /api/login).
@@ -1269,9 +1284,9 @@ export default {
       }
       if (body.username !== undefined) {
         const username = sanitizeUsername(body.username);
-        if (!username) return jsonResponse({ error: "Please enter a valid phone number" }, 400, corsHeaders);
+        if (!username) return jsonResponse({ error: "Username must look like firstname.initial (e.g. amina.k)" }, 400, corsHeaders);
         if (username !== user.username) {
-          if (await findUserIdByUsername(env, username)) return jsonResponse({ error: "That phone number is already registered" }, 409, corsHeaders);
+          if (await findUserIdByUsername(env, username)) return jsonResponse({ error: "That username is already taken" }, 409, corsHeaders);
           await releaseUsername(env, user.username);
           await reserveUsername(env, username, user.id);
           user.username = username;
