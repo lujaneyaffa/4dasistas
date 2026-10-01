@@ -331,6 +331,9 @@
   .cat-block .cat-desc{ font-size:13.5px; color:var(--muted); margin-bottom:14px; }
 
 .clubs-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
+.clubs-grid-row{ display:flex; gap:14px; overflow-x:auto; padding-bottom:6px; -webkit-overflow-scrolling:touch; }
+.clubs-grid-row .club-card{ flex:0 0 200px; width:200px; }
+.clubs-popular-title{ font-family:'Inter',sans-serif; font-size:16px; font-weight:800; letter-spacing:0.03em; text-align:center; margin:22px 0 10px; }
 .club-card-more{ display:block; width:min(100%,420px); margin:14px auto 0; padding:10px 16px; border:1.5px dashed var(--muted); border-radius:999px; text-align:center; text-decoration:none; color:var(--charcoal); font-size:12.5px; background:var(--card); }
 .club-card-more strong{ font-weight:700; }
   .clubs-grid .club-card{ width:100%; }
@@ -1216,6 +1219,7 @@ let state = {
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
   ideaAvail:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
+  publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
   ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, iavEditing:false,
   membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventJustCreated:false, eventEditDeleting:false,
@@ -2470,6 +2474,18 @@ function clubCol(id){
   const c = clubsData.find(x => x.id === id);
   return (c && c.colour) ? { bg:c.colour, fg:'#373d3b' } : { bg:'#373d3b', fg:'#fff7e6' };
 }
+function clubCardHtml(c){
+  const col = clubCol(c.id);
+  const monogramHtml = c.logo ? `<div class="monogram"><img src="${c.logo}" alt="${c.title} logo"></div>` : `<div class="monogram" style="background:${col.bg};color:${col.fg}">${c.title.charAt(0)}</div>`;
+  return `
+  <div class="panel-card club-card" style="border:2px solid ${col.bg};border-top-width:6px;" data-club-id="${c.id}" tabindex="0" role="button" aria-label="Open the ${c.title} idea board">
+    <div class="panel-top">
+              ${monogramHtml}
+      <div><h4>${c.title}</h4></div>
+    </div>
+    <div class="panel-desc">${c.desc}</div>
+  </div>`;
+}
 
 const FALL_SIGNUP_ENDPOINT = 'https://formspree.io/f/mgawqqgk';
 
@@ -2626,9 +2642,10 @@ function renderDirectory(){
     renderTripEarthView('travelEarthView', 'travelEarthMap', travelItems, false);
   } else if(state.tab === 'clubs'){
     document.getElementById('resourcePagination').innerHTML = '';
-el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="flex-direction:column;align-items:center;">
-    <button class="fall-cta-btn join-club-btn" data-hometab="fallsignup">JOIN A CLUB!</button>
-    <button type="button" class="av-link" id="clubsLoginOpenBtn" style="margin-top:10px;font-size:16px;font-weight:700;">Already a member? Log in</button>
+    const anon = !getCmSession() && state.cmAdminLoggedIn !== true;
+el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="justify-content:center;gap:14px;">
+    <button type="button" class="club-guide-btn" id="clubsLoginOpenBtn" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;font-size:15px;text-align:center;">Log In</button>
+    <button class="fall-cta-btn join-club-btn" data-hometab="fallsignup" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;">Sign Up</button>
     </div>`}
     ${getCmSession() ? `<div style="max-width:640px;margin:0 auto;">${clubsWelcomeNoticeHtml(getCmSession())}${getCmSession().mustChangePin ? choosePinHtml() : ''}</div>` : ''}
     ${(state.clubsLoginPickerOpen && !getCmSession()) || (getCmSession() && state.clubsMyClubsPickerOpen) ? `
@@ -2650,22 +2667,12 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="f
         <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;">Forgot your PIN? An admin can reset it for you — just message us.</p>
       `}
     </div>` : ''}
-    <div class="clubs-grid">${clubsForGrid().map(c => {
-      const col = clubCol(c.id);
-      const monogramHtml = c.logo ? `<div class="monogram"><img src="${c.logo}" alt="${c.title} logo"></div>` : `<div class="monogram" style="background:${col.bg};color:${col.fg}">${c.title.charAt(0)}</div>`;
-      return `
-      <div class="panel-card club-card" style="border:2px solid ${col.bg};border-top-width:6px;" data-club-id="${c.id}" tabindex="0" role="button" aria-label="Open the ${c.title} idea board">
-        <div class="panel-top">
-                  ${monogramHtml}
-          <div><h4>${c.title}</h4></div>
-        </div>
-        <div class="panel-desc">${c.desc}</div>
-      </div>`;
-    }).join('')}
-    </div>
+    ${anon ? `<h3 class="clubs-popular-title">MOST POPULAR CLUBS</h3>` : ''}
+    <div class="clubs-grid${anon ? ' clubs-grid-row' : ''}">${clubsForGrid().map(clubCardHtml).join('')}</div>
     <a class="club-card-more" href="https://www.instagram.com/4dasistas.ca/" target="_blank" rel="noopener">
       <span>✨</span> <strong>More to Launch</strong> — Have an idea? Hit us up!!
     </a>
+    ${anon ? `<div class="public-ideas-section">${renderPublicIdeasFeedHtml()}</div>` : ''}
     ${state.cmAdminLoggedIn === true ? renderClubAdminPanel() : ''}`;
     setTimeout(() => {
       const loginBtn = document.getElementById('clubsLoginOpenBtn');
@@ -2696,6 +2703,10 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="f
       // All Members panel just appears at the bottom of Clubs, no separate button to press.
       if(state.cmAdminLoggedIn === true && !state.cmAdminOpen) openClubAdmin();
       wireClubAdminPanel();
+      if(anon){
+        if(state.publicIdeasAll === null && !state.publicIdeasAllLoading) publicIdeasLoadAll();
+        wirePublicIdeasFeed();
+      }
     }, 0);
   } else if(state.tab === 'clubideas'){
     document.getElementById('resourcePagination').innerHTML = '';
@@ -4798,6 +4809,120 @@ function ideaBubbleHtml(idea){
     ${(idea.mine || admin) ? `<span class="idea-mini idea-x" data-ideadel="${escapeCm(idea.id)}" role="button" aria-label="Remove option" title="Remove">✕</span>` : ''}
     ${admin ? `<span class="idea-mini idea-edit" data-ideaedit="${escapeCm(idea.id)}" role="button" aria-label="Edit option" title="Edit (admin)">✎</span>` : ''}
   </button>`;
+}
+
+/* ============================================================
+   PUBLIC CLUBS OVERVIEW — a combined, view-only feed of every club's idea
+   bubbles shown on the main Clubs tab to a logged-out visitor. Anyone can
+   see/info/map; voting or adding requires a real account (no guest-by-name
+   here, unlike the per-club idea board), and prompts Sign Up / Log In.
+   ============================================================ */
+function publicIdeaCanInteract(){
+  return !!(getCmSession() || state.cmAdminLoggedIn === true);
+}
+function promptJoinToVote(){
+  const { wrap, close } = ideaPopup(`
+    <h3 style="margin:0 0 10px;">Want to vote or add an idea?</h3>
+    <p class="av-msg" style="margin-bottom:14px;">Sign up or log in first — it only takes a sec.</p>
+    <div style="display:flex;gap:10px;">
+      <button type="button" class="club-guide-btn" id="publicPromptLogin" style="flex:1;">Log In</button>
+      <button type="button" class="fall-cta-btn join-club-btn" id="publicPromptSignup" style="flex:1;">Sign Up</button>
+    </div>`);
+  const loginBtn = wrap.querySelector('#publicPromptLogin');
+  const signupBtn = wrap.querySelector('#publicPromptSignup');
+  if(loginBtn) loginBtn.addEventListener('click', () => {
+    close();
+    state.clubsLoginPickerOpen = true;
+    state.clubsMyClubsPickerOpen = false;
+    render();
+  });
+  if(signupBtn) signupBtn.addEventListener('click', () => { close(); goToTab('fallsignup'); });
+}
+async function publicIdeasLoadAll(){
+  if(state.publicIdeasAllLoading) return;
+  state.publicIdeasAllLoading = true;
+  state.publicIdeasAllError = '';
+  try {
+    const lists = await Promise.all(clubsForGrid().map(async c => {
+      try {
+        const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(c.id) + '/ideas', { headers: ideaHeaders() });
+        return (data.ideas || []).map(i => Object.assign({}, i, { _clubId: c.id, _clubTitle: c.title, _clubColour: clubCol(c.id).bg }));
+      } catch { return []; }
+    }));
+    state.publicIdeasAll = lists.flat().sort((a, b) => b.votes - a.votes);
+  } catch(err){ state.publicIdeasAllError = err.message; }
+  state.publicIdeasAllLoading = false;
+  if(state.tab === 'clubs') render();
+}
+function publicIdeaBubbleHtml(idea){
+  const ci = ideaColorIndex(idea.id), size = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine || idea.price));
+  return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${IDEA_FILLS[ci]};--line:${IDEA_LINES[ci]};width:${size}px;height:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}, from ${escapeCm(idea._clubTitle)}">
+    <span class="idea-cuisine">🏷 ${escapeCm(idea._clubTitle)}</span>
+    ${idea.date ? `<span class="idea-date">📅 ${escapeCm(ideaDateLabel(idea.date))}</span>` : ''}
+    <span class="idea-title">${escapeCm(idea.title)}</span>
+    ${idea.price ? `<span class="idea-cuisine">💸 ${escapeCm(idea.price)}</span>` : ''}
+    <span class="idea-votes">${ideaVotesLabel(idea.votes)}${idea.voted ? ' ✓' : ''}</span>
+    ${safeMapUrl(idea.mapUrl) ? `<span class="idea-mini idea-map" data-ideamap="${escapeCm(idea.id)}" role="link" aria-label="Open ${escapeCm(idea.title)} in Google Maps" title="Open in Google Maps">📍</span>` : ''}
+    <span class="idea-mini idea-info" data-ideainfo="${escapeCm(idea.id)}" role="button" aria-label="Details" title="Details">i</span>
+  </button>`;
+}
+function renderPublicIdeasFeedHtml(){
+  let cloud;
+  if(state.publicIdeasAllError) cloud = `<p class="av-msg" style="color:#c00;text-align:center;">${escapeCm(state.publicIdeasAllError)}</p>`;
+  else if(!state.publicIdeasAll) cloud = `<p class="av-msg" style="text-align:center;">Loading ideas from every club…</p>`;
+  else if(!state.publicIdeasAll.length) cloud = `<p class="av-msg" style="text-align:center;">No ideas yet — sign up and be the first!</p>`;
+  else cloud = `<div class="ideas-cloud" id="publicIdeasCloud">${state.publicIdeasAll.map(publicIdeaBubbleHtml).join('')}</div>`;
+  return `<h3 class="clubs-popular-title">WHAT EVERYONE'S VOTING ON</h3>
+    <p class="ideas-hint" style="text-align:center;margin:0 0 10px;">Tap a bubble to vote. Sign up or log in to add your own idea.</p>
+    ${cloud}`;
+}
+function openPublicIdeaInfo(id){
+  const idea = (state.publicIdeasAll || []).find(i => i.id === id);
+  if(!idea) return;
+  const map = safeMapUrl(idea.mapUrl);
+  const names = idea.voters || [];
+  ideaPopup(`
+    <p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(idea._clubTitle)}</p>
+    ${idea.date ? `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(idea.date))}</p>` : ''}
+    ${idea.cuisine ? `<span class="idea-pop-cuisine">🍽 ${escapeCm(idea.cuisine)}</span>` : ''}
+    ${idea.price ? `<span class="idea-pop-price">💸 ${escapeCm(idea.price)}</span>` : ''}
+    <h3 style="margin:4px 0 8px;">${escapeCm(idea.title)}</h3>
+    ${map ? `<a class="club-guide-btn idea-pop-map" href="${escapeCm(map)}" target="_blank" rel="noopener">📍 Open in Google Maps</a>
+    <a class="idea-pop-maplink" href="${escapeCm(map)}" target="_blank" rel="noopener">${escapeCm(map.replace(/^https?:\/\//, ''))}</a>` : '<p class="av-msg">No map link yet.</p>'}
+    <p class="idea-pop-by">Added by <strong>${escapeCm(idea.by || 'someone')}</strong></p>
+    <p class="idea-pop-h">${ideaVotesLabel(idea.votes)}${names.length ? ' — who voted' : ''}</p>
+    <div class="idea-pop-names">${names.length ? names.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('') : '<span class="av-msg">No named votes yet.</span>'}</div>`);
+}
+async function publicIdeaVoteAttempt(id, bubble){
+  if(!publicIdeaCanInteract()){ promptJoinToVote(); return; }
+  const idea = (state.publicIdeasAll || []).find(i => i.id === id);
+  if(!idea) return;
+  idea.voted = !idea.voted; idea.votes += idea.voted ? 1 : -1;
+  bubble.classList.toggle('voted', idea.voted);
+  bubble.style.width = bubble.style.height = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine || idea.price)) + 'px';
+  const votesEl = bubble.querySelector('.idea-votes');
+  if(votesEl) votesEl.textContent = ideaVotesLabel(idea.votes) + (idea.voted ? ' ✓' : '');
+  try {
+    await cmApiRaw('/api/clubs/' + encodeURIComponent(idea._clubId) + '/ideas/' + encodeURIComponent(id) + '/vote', { method:'POST', headers: ideaHeaders() });
+  } catch(err){
+    idea.voted = !idea.voted; idea.votes += idea.voted ? 1 : -1;
+    render();
+  }
+}
+function wirePublicIdeasFeed(){
+  const box = document.getElementById('publicIdeasCloud');
+  if(!box) return;
+  box.querySelectorAll('.idea-bubble').forEach(b => b.addEventListener('click', e => {
+    if(e.target.closest('.idea-mini')) return;
+    publicIdeaVoteAttempt(b.dataset.ideaid, b);
+  }));
+  box.querySelectorAll('[data-ideamap]').forEach(x => x.addEventListener('click', e => {
+    e.stopPropagation();
+    const idea = (state.publicIdeasAll || []).find(i => i.id === x.dataset.ideamap);
+    const url = idea && safeMapUrl(idea.mapUrl);
+    if(url) window.open(url, '_blank', 'noopener');
+  }));
+  box.querySelectorAll('[data-ideainfo]').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); openPublicIdeaInfo(x.dataset.ideainfo); }));
 }
 
 function renderClubIdeas(el){
