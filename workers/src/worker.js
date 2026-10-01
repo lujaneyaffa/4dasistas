@@ -116,9 +116,14 @@ const sanitizePhoto = (photo) => {
   return photo;
 };
 
+// Usernames are phone numbers — normalize away any formatting (spaces, dashes,
+// parens, a leading +) so "416-555-1234" and "(416) 555-1234" land on the same
+// account instead of silently creating two. Also strip a leading North American
+// country code (+1) so "+1 416 555 1234" matches the same 10-digit number too.
 const sanitizeUsername = (input) => {
-  const u = String(input || "").trim().toLowerCase();
-  return /^[a-z0-9_]{3,20}$/.test(u) ? u : null;
+  let digits = String(input || "").replace(/[^0-9]/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
+  return /^\d{10,15}$/.test(digits) ? digits : null;
 };
 
 // ---- Club roster: ONE source of truth (data/clubs.json, committed via the admin editor below),
@@ -647,11 +652,11 @@ export default {
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       const username = sanitizeUsername(body.username);
       const pin = String(body.pin || "").trim();
-      if (!username || !pin) return jsonResponse({ error: "Username and PIN are required" }, 400, corsHeaders);
+      if (!username || !pin) return jsonResponse({ error: "Phone number and PIN are required" }, 400, corsHeaders);
       const userId = await findUserIdByUsername(env, username);
       const user = userId ? await readUser(env, userId) : null;
       if (!user || user.pinHash !== await sha256Hex(pin)) {
-        return jsonResponse({ error: "Username or PIN is incorrect" }, 401, corsHeaders);
+        return jsonResponse({ error: "Phone number or PIN is incorrect" }, 401, corsHeaders);
       }
       const token = await createMemberSession(env, user.id);
       const clubs = await allClubIdsContaining(env, user.id);
@@ -667,7 +672,7 @@ export default {
       const pin = String(body.pin || "").trim();
       const clubId = String(body.clubId || "");
       if (!name) return jsonResponse({ error: "Please enter your name" }, 400, corsHeaders);
-      if (!username) return jsonResponse({ error: "Username must be 3-20 characters: letters, numbers and underscore only" }, 400, corsHeaders);
+      if (!username) return jsonResponse({ error: "Please enter a valid phone number" }, 400, corsHeaders);
       if (!/^\d{4}$/.test(pin)) return jsonResponse({ error: "PIN must be exactly 4 digits" }, 400, corsHeaders);
       const clubIds = new Set((await readClubRoster(env)).map((c) => c.id));
       if (!clubIds.has(clubId)) return jsonResponse({ error: "Please pick a club from the list" }, 400, corsHeaders);
@@ -1220,7 +1225,7 @@ export default {
       let body;
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       const username = sanitizeUsername(body.username);
-      if (!username) return jsonResponse({ error: "Username must be 3-20 characters: letters, numbers, underscore only" }, 400, corsHeaders);
+      if (!username) return jsonResponse({ error: "Please enter a valid phone number" }, 400, corsHeaders);
 
       const existingUserId = await findUserIdByUsername(env, username);
       const memberIds = await readClubMemberIds(env, clubId);
@@ -1228,7 +1233,7 @@ export default {
       if (existingUserId) {
         // This person already has an account elsewhere — just add them to this club too.
         const user = await readUser(env, existingUserId);
-        if (!user) return jsonResponse({ error: "That username exists but its record is missing — contact support" }, 500, corsHeaders);
+        if (!user) return jsonResponse({ error: "That phone number exists but its record is missing — contact support" }, 500, corsHeaders);
         if (!memberIds.includes(existingUserId)) {
           memberIds.push(existingUserId);
           await writeClubMemberIds(env, clubId, memberIds);
@@ -1264,9 +1269,9 @@ export default {
       }
       if (body.username !== undefined) {
         const username = sanitizeUsername(body.username);
-        if (!username) return jsonResponse({ error: "Username must be 3-20 characters: letters, numbers, underscore only" }, 400, corsHeaders);
+        if (!username) return jsonResponse({ error: "Please enter a valid phone number" }, 400, corsHeaders);
         if (username !== user.username) {
-          if (await findUserIdByUsername(env, username)) return jsonResponse({ error: "That username is already taken" }, 409, corsHeaders);
+          if (await findUserIdByUsername(env, username)) return jsonResponse({ error: "That phone number is already registered" }, 409, corsHeaders);
           await releaseUsername(env, user.username);
           await reserveUsername(env, username, user.id);
           user.username = username;
