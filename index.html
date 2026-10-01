@@ -494,7 +494,7 @@
   .idea-pop-maplink{ display:block; margin:4px 0 10px; font-size:12px; color:var(--muted); overflow-wrap:anywhere; }
   .ideas-empty{ text-align:center; padding:26px 0; font-size:14px; color:var(--muted); }
   .ideas-empty-circle{ display:inline-flex; align-items:center; justify-content:center; width:96px; height:96px; border-radius:50%; border:3px dashed #d46a86; background:#ffe0e6; font-size:38px; font-weight:700; color:#d46a86; }
-  /* "Add your availability" — a 10-day week grid under each club's idea board */
+  /* "Add your availability" — a 15-day week grid under each club's idea board */
   .iav-wrap{ margin-top:22px; padding-top:18px; border-top:1.5px dashed rgba(55,61,59,0.25); }
   .iav-title{ font-family:'Inter',sans-serif; font-size:16px; margin:0 0 8px; }
   .iav-status{ min-height:18px; text-align:center; font-size:12px; color:var(--muted); margin-bottom:4px; }
@@ -5046,7 +5046,7 @@ function renderClubIdeas(el){
 }
 
 /* ============================================================
-   "ADD YOUR AVAILABILITY" — a light, 10-day version of the club-member month
+   "ADD YOUR AVAILABILITY" — a light, 15-day version of the club-member month
    calendar, open to anyone who can vote on this idea board (member or guest).
    Tap or drag across Morning/Afternoon/Evening cells; a per-day button cycles
    Available all day (green) → Busy all day (red) → clear.
@@ -5057,10 +5057,10 @@ const IAV_RANGES = { morning:'before 12 PM', afternoon:'12 – 5 PM', evening:'a
 
 // Today and the next 3 days never show here — the soonest a day is offered is 4 days out
 // (matches the same rule new events follow — see minNewEventDate()).
-function iavNext10Dates(){
+function iavNext15Dates(){
   const out = [];
   const base = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 4);
-  for(let i = 0; i < 10; i++){
+  for(let i = 0; i < 15; i++){
     const d = new Date(base);
     d.setDate(base.getDate() + i);
     out.push(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`);
@@ -5135,9 +5135,9 @@ function iavOneGridHtml(dates, todayStr, editable){
   return html;
 }
 function iavGridRowsHtml(editable){
-  const dates = iavNext10Dates();
+  const dates = iavNext15Dates();
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
-  const rows = [dates.slice(0, 5), dates.slice(5, 10)];
+  const rows = [dates.slice(0, 5), dates.slice(5, 10), dates.slice(10, 15)];
   return rows.map(rowDates => `<div class="iav-grid">${iavOneGridHtml(rowDates, todayStr, editable)}</div>`).join('');
 }
 // Kept for the pointer-drag code, which only ever runs while state.iavEditing is true (editable grid).
@@ -5195,7 +5195,7 @@ async function ideaAvailSave(){
 
 /* ============================================================
    "EVERYONE'S AVAILABILITY" — read-only heatmap of every response on
-   this club's idea board, same 10-day/3-part shape as the grid above
+   this club's idea board, same 15-day/3-part shape as the grid above
    but showing headcount as green intensity instead of a personal
    toggle. Laid out 5 days per row (two stacked mini-grids) so it
    reads on an iPhone with no horizontal scrolling.
@@ -5205,12 +5205,12 @@ function eavTier(count, max){
   return Math.max(1, Math.min(5, Math.ceil((count / max) * 5)));
 }
 function eavGridHtml(){
-  const dates = iavNext10Dates();
+  const dates = iavNext15Dates();
   const counts = state.ideaAvailAll || {};
   let max = 0;
   dates.forEach(d => IAV_PART_KEYS.forEach(k => { const n = (counts[d] && counts[d][k]) || 0; if(n > max) max = n; }));
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
-  const rows = [dates.slice(0, 5), dates.slice(5, 10)];
+  const rows = [dates.slice(0, 5), dates.slice(5, 10), dates.slice(10, 15)];
   return rows.map(rowDates => {
     let html = '<div class="eav-grid"><div class="iav-corner"></div>';
     html += rowDates.map(d => {
