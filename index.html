@@ -1215,7 +1215,7 @@ let state = {
   cmEvents:[], cmEventData:null, cmEventMode:'mine', cmMySlots:[], cmSuggestedSlots:[],
   cmAdminOpen:false, cmAdminLoggedIn:null, cmAdminError:'', cmAdminClub:null, cmAdminEvents:null,
   cmAdminClubDirEditing:null, cmAdminClubDirDraft:null, cmAdminClubDirError:'', cmAdminClubDirSaving:false,
-  cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false,
+  cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false, fallQuickLogin:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
   ideaAvail:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
@@ -2489,6 +2489,47 @@ function clubCardHtml(c){
 
 const FALL_SIGNUP_ENDPOINT = 'https://formspree.io/f/mgawqqgk';
 
+function setupFallQuickLoginForm(){
+  const form = document.getElementById('fallQuickLoginForm');
+  if(!form) return;
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if(form.querySelector('[name="_gotcha"]').value) return; // honeypot tripped, silently drop
+    const statusEl = document.getElementById('fallQuickStatus');
+    const submitBtn = form.querySelector('.fall-submit-btn');
+    statusEl.textContent = '';
+    statusEl.classList.remove('fall-status-error');
+    const name = document.getElementById('fallQuickName').value.trim();
+    const pin = document.getElementById('fallQuickPin').value.trim();
+    if(!name || name.split(/\s+/).length < 2){
+      statusEl.textContent = 'Please enter your first name and last initial (e.g. Amina K.).';
+      statusEl.classList.add('fall-status-error');
+      return;
+    }
+    if(!/^\d{4}$/.test(pin)){
+      statusEl.textContent = 'Choose a 4-digit PIN.';
+      statusEl.classList.add('fall-status-error');
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating your login…';
+    try {
+      const account = await cmApiRaw('/api/signup', { method:'POST', body: JSON.stringify({ name, pin }) });
+      setCmSession(account);
+      state.fallQuickLogin = false;
+      state.clubsNotice = "You're logged in — an organizer will add you to your club(s) once they match you up.";
+      state.clubsLoginPickerOpen = false;
+      state.clubsMyClubsPickerOpen = false;
+      goToTab('clubs');
+    } catch(err){
+      statusEl.textContent = err.message;
+      statusEl.classList.add('fall-status-error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Create my login →';
+    }
+  });
+}
+
 function setupFallSignupForm(){
   const form = document.getElementById('fallSignupForm');
   if(!form) return;
@@ -2770,8 +2811,25 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       <div class="fall-signup">
         <div class="fall-hero">
           <h2>Pick Your Clubs — Fall Season 🌸</h2>
-          <p><strong>Enter your name + a PIN below and you'll be signed in to your #1 pick straight away</strong> — your other picks go on the standby list. Fill out the form to choose your club(s) for the season! Max 2 clubs for now — a 3rd can open after 1 month of activity. Not ready to commit to one of your picks yet? Mention it in the notes below and we'll put you on <strong>STANDBY</strong> for it instead of a firm YES.</p>
+          ${state.fallQuickLogin ? `<p><strong>Already filled out a form (DM, paper, WhatsApp)?</strong> Just set up your login below — an organizer will add you to your club(s) once they match you up.</p>` : `<p><strong>Enter your name + a PIN below and you'll be signed in to your #1 pick straight away</strong> — your other picks go on the standby list. Fill out the form to choose your club(s) for the season! Max 2 clubs for now — a 3rd can open after 1 month of activity. Not ready to commit to one of your picks yet? Mention it in the notes below and we'll put you on <strong>STANDBY</strong> for it instead of a firm YES.</p>`}
+          <button type="button" class="av-link" id="fallQuickLoginToggle" style="font-size:14px;margin-top:6px;">${state.fallQuickLogin ? '← Back to the full sign-up form' : 'Already filled out a form? Just set up your login →'}</button>
         </div>
+        ${state.fallQuickLogin ? `
+        <form id="fallQuickLoginForm">
+          <input type="text" name="_gotcha" class="hp-field" tabindex="-1" autocomplete="off">
+          <div class="fall-section">
+            <h3>Name</h3>
+            <input type="text" id="fallQuickName" placeholder="First name + last initial (e.g. Amina K.)" class="fall-text-input">
+            <p class="fall-hint" style="margin:8px 0 0;">Your login will be your first name + last initial (e.g. amina.k).</p>
+          </div>
+          <div class="fall-section fall-login-box">
+            <h3>Choose a PIN</h3>
+            <p class="fall-hint" style="margin:0 0 10px;">You'll use your name + this PIN to log in next time.</p>
+            <input type="tel" id="fallQuickPin" placeholder="Choose a 4-digit PIN (remember it!)" class="fall-text-input" inputmode="numeric" maxlength="4" autocomplete="off">
+          </div>
+          <button type="submit" class="fall-submit-btn">Create my login →</button>
+          <p class="fall-submit-status" id="fallQuickStatus"></p>
+        </form>` : `
         <form id="fallSignupForm">
           <input type="text" name="_gotcha" class="hp-field" tabindex="-1" autocomplete="off">
           <div class="fall-section">
@@ -2852,9 +2910,11 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         <div class="fall-thankyou" id="fallThankYou" style="display:none;">
           <div class="fall-thankyou-emoji">💌</div>
           <p>Thank you! You'll receive an invite to your club group chat once it's ready 💌</p>
-        </div>
+        </div>`}
       </div>`;
-    setupFallSignupForm();
+    const quickToggle = document.getElementById('fallQuickLoginToggle');
+    if(quickToggle) quickToggle.addEventListener('click', () => { state.fallQuickLogin = !state.fallQuickLogin; render(); });
+    if(state.fallQuickLogin) setupFallQuickLoginForm(); else setupFallSignupForm();
   } else if(state.tab === 'resources'){
     if(state.resourceView === 'map' && !NON_MAPPABLE_RESOURCES.includes(state.resourceFilter)){
       document.getElementById('resourcePagination').innerHTML = '';

@@ -690,7 +690,10 @@ export default {
       if (!username) return jsonResponse({ error: "Please enter your first name and last initial (e.g. Amina K.)" }, 400, corsHeaders);
       if (!/^\d{4}$/.test(pin)) return jsonResponse({ error: "PIN must be exactly 4 digits" }, 400, corsHeaders);
       const clubIds = new Set((await readClubRoster(env)).map((c) => c.id));
-      if (!clubIds.has(clubId)) return jsonResponse({ error: "Please pick a club from the list" }, 400, corsHeaders);
+      // clubId is optional - someone who already told us their club picks some other way (a paper/DM
+      // form, or they're just not ready to pick yet) can create a login with no club attached; an
+      // admin assigns their club(s) afterward from the member-edit screen.
+      if (clubId && !clubIds.has(clubId)) return jsonResponse({ error: "Please pick a club from the list" }, 400, corsHeaders);
 
       const ip = request.headers.get("CF-Connecting-IP") || "unknown";
       const ipKey = `signuprate:${ip}:${Math.floor(Date.now() / 3600000)}`;
@@ -701,13 +704,15 @@ export default {
 
       if (await findUserIdByUsername(env, username)) return jsonResponse({ error: "That login was just taken — please try submitting again" }, 409, corsHeaders);
 
-      const waitlist = [...new Set((Array.isArray(body.waitlist) ? body.waitlist : []).map(String))].filter((id) => clubIds.has(id) && id !== clubId).slice(0, 2);
+      const waitlist = clubId ? [...new Set((Array.isArray(body.waitlist) ? body.waitlist : []).map(String))].filter((id) => clubIds.has(id) && id !== clubId).slice(0, 2) : [];
       const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, waitlist, createdAt: Date.now() };
       await writeUser(env, user);
       await reserveUsername(env, username, user.id);
-      const memberIds = await readClubMemberIds(env, clubId);
-      memberIds.push(user.id);
-      await writeClubMemberIds(env, clubId, memberIds);
+      if (clubId) {
+        const memberIds = await readClubMemberIds(env, clubId);
+        memberIds.push(user.id);
+        await writeClubMemberIds(env, clubId, memberIds);
+      }
       await Promise.all([
         env.SITE_DATA.put(ipKey, String(Number(ipCount || 0) + 1), { expirationTtl: 3700 }),
         env.SITE_DATA.put(dayKey, String(Number(dayCount || 0) + 1), { expirationTtl: 90000 }),
