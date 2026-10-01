@@ -170,6 +170,8 @@ const writeClubRoster = async (env, roster) => env.SITE_DATA.put(CLUB_ROSTER_KV_
 const isKnownClubId = async (env, clubId) => (await readClubRoster(env)).some((c) => c.id === clubId);
 const SIGNUP_MAX_PER_IP_PER_HOUR = 10;
 const SIGNUP_MAX_PER_DAY = 100;
+const LOGIN_MAX_ATTEMPTS_PER_IP_PER_HOUR = 20;
+const LOGIN_MAX_ATTEMPTS_PER_USERNAME_PER_HOUR = 10;
 
 // ---- Global member identity: one person, one username, can belong to several clubs ----
 const userKey = (userId) => `user:${userId}`;
@@ -671,6 +673,28 @@ export default {
       const username = sanitizeUsername(body.username);
       const pin = String(body.pin || "").trim();
       if (!username || !pin) return jsonResponse({ error: "Username and PIN are required" }, 400, corsHeaders);
+
+      // Usernames are now predictable (firstname.initial), and PINs are only 4 digits - without a
+      // limit here, an unlimited number of guesses would make the PIN effectively no protection at
+      // all. Cap both by IP (stops one attacker hammering many accounts) and by the username itself
+      // (stops many IPs/a botnet focusing on one account) - every attempt counts, not just failures,
+      // so the limit can't be probed around by checking which responses increment it.
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+      const hourSlot = Math.floor(Date.now() / 3600000);
+      const loginIpKey = `loginrate:ip:${ip}:${hourSlot}`;
+      const loginUserKey = `loginrate:user:${username}:${hourSlot}`;
+      const [loginIpCount, loginUserCount] = await Promise.all([env.SITE_DATA.get(loginIpKey), env.SITE_DATA.get(loginUserKey)]);
+      if (Number(loginIpCount || 0) >= LOGIN_MAX_ATTEMPTS_PER_IP_PER_HOUR) {
+        return jsonResponse({ error: "Too many login attempts from this connection — please try again in an hour" }, 429, corsHeaders);
+      }
+      if (Number(loginUserCount || 0) >= LOGIN_MAX_ATTEMPTS_PER_USERNAME_PER_HOUR) {
+        return jsonResponse({ error: "Too many attempts for this account — please try again in an hour, or ask an admin to reset your PIN" }, 429, corsHeaders);
+      }
+      await Promise.all([
+        env.SITE_DATA.put(loginIpKey, String(Number(loginIpCount || 0) + 1), { expirationTtl: 3700 }),
+        env.SITE_DATA.put(loginUserKey, String(Number(loginUserCount || 0) + 1), { expirationTtl: 3700 }),
+      ]);
+
       const userId = await findUserIdByUsername(env, username);
       const user = userId ? await readUser(env, userId) : null;
       if (!user || user.pinHash !== await sha256Hex(pin)) {
