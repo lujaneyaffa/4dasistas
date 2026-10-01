@@ -11,16 +11,6 @@
       "signup": "https://chat.whatsapp.com/CPWlv3mhoxkC8ZNWbLganS?mode=gi_t"
     },
     {
-      "id": "club-adrenaline",
-      "slug": "adrenaline",
-      "emoji": "⚡",
-      "colour": "#eedcb1",
-      "logo": "assets/logos/club-adrenaline.png",
-      "title": "Adrenaline",
-      "desc": "Waterparks, karting, paintballing, skiing, — if it gets your heart racing, we're probably already planning it.",
-      "signup": "https://chat.whatsapp.com/KWoZU7Wl69eJSWOKw3mgT9?mode=gi_t"
-    },
-    {
       "id": "club-cuisine",
       "slug": "cuisine",
       "emoji": "🍽️",
