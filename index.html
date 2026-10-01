@@ -1037,6 +1037,22 @@ async function fetchDataWithFallback(key, localPath){
     return [];
   }
 }
+// Clubs are the one content type an admin needs to see change WITHOUT waiting for a full site
+// rebuild/deploy (the static data/*.json files only update on the next deploy) — try the live,
+// KV-backed roster first; if that fails for any reason, fall back to the static file exactly like
+// everything else, so the clubs tab is never worse off than before this existed.
+async function fetchClubsLive(){
+  try {
+    const res = await fetch('/api/clubs', { cache: 'no-store' });
+    if (!res.ok) throw new Error(`/api/clubs returned ${res.status}`);
+    const data = await res.json();
+    if (Array.isArray(data.clubs)) return data.clubs;
+    throw new Error('Unexpected /api/clubs response shape');
+  } catch (e) {
+    console.warn('Live club roster unavailable, falling back to data/clubs.json:', e);
+    return fetchDataWithFallback('clubs', 'data/clubs.json');
+  }
+}
 
 // Visible warning when any data file failed to load — content silently
 // going missing is how outages used to go unnoticed on this site.
@@ -1095,7 +1111,7 @@ const [mosqueGatherings, sports, gatherings, dayactivities, trips, clubs, resour
     fetchDataWithFallback('gatherings', 'data/gatherings.json'),
     fetchDataWithFallback('dayactivities', 'data/dayactivities.json'),
     fetchDataWithFallback('trips', 'data/trips.json'),
-    fetchDataWithFallback('clubs', 'data/clubs.json'),
+    fetchClubsLive(),
     fetchDataWithFallback('resources', 'data/resources.json'),
     fetchDataWithFallback('supportprograms', 'data/supportprograms.json'),
     fetchSiteText(),
@@ -2447,21 +2463,15 @@ function renderResourceMap(){
       });
 }
 
-const clubColors = {
-  'club-activegaming':{bg:'#e1eaf1', fg:'#373d3b'}, 'club-adrenaline':{bg:'#eedcb1', fg:'#373d3b'},
-  'club-cuisine':{bg:'#f6e3e9', fg:'#373d3b'}, 'club-artscrafts':{bg:'#fdf0f2', fg:'#373d3b'}, 'club-retreats':{bg:'#f8efdb', fg:'#373d3b'},
-  'club-badminton':{bg:'#d5dfe7', fg:'#373d3b'}
-};
+// Club data (title/desc/logo/emoji/colour/signup) now lives ONLY in clubsData (data/clubs.json via
+// the admin editor, mirrored to KV) — no more hardcoded club lists to fall out of sync when a club is
+// added/edited/removed. clubCol(id) gives every card a consistent colour whether or not one is set.
+function clubCol(id){
+  const c = clubsData.find(x => x.id === id);
+  return (c && c.colour) ? { bg:c.colour, fg:'#373d3b' } : { bg:'#373d3b', fg:'#fff7e6' };
+}
 
 const FALL_SIGNUP_ENDPOINT = 'https://formspree.io/f/mgawqqgk';
-
-const FALL_SIGNUP_CLUBS = [
-  {id:'club-activegaming', emoji:'🎮', title:'Active Gaming', desc:'Escape rooms, VR arenas, challenge venues (Activate, CUBE, VR Vibe). For the movers, solvers, competitors.'},
-  {id:'club-adrenaline', emoji:'⚡', title:'Adrenaline', desc:"Roller-coasters, paintballing, skiing. If it gets your heart racing, we're on it."},
-  {id:'club-cuisine', emoji:'🍽️', title:'Cuisine', desc:'Group dinners, cool restaurant crawls, cooking nights & baking workshops. For the girls who plan their week around food.'},
-  {id:'club-artscrafts', emoji:'🎨', title:'Arts & Crafts', desc:'Painting nights, DIY, crafternoons. No talent needed, just vibes & glitter.'},
-  {id:'club-retreats', emoji:'🏞️', title:'Field', desc:'Hiking, horseback riding, farm days, cabin retreats.'},
-];
 
 function setupFallSignupForm(){
   const form = document.getElementById('fallSignupForm');
@@ -2542,7 +2552,7 @@ function setupFallSignupForm(){
 
     // 1) Create the login first (so a taken username can be fixed before anything is sent to organizers).
     //    Their #1 listed club = member now; their other listed picks = standby.
-    const rankedClubs = clubOrder.map(cb => FALL_SIGNUP_CLUBS.find(c => c.title === cb.value)).filter(Boolean);
+    const rankedClubs = clubOrder.map(cb => clubsData.find(c => c.title === cb.value)).filter(Boolean);
     const firstClub = rankedClubs[0];
     let account;
     try {
@@ -2643,7 +2653,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="f
       `}
     </div>` : ''}
     <div class="clubs-grid">${clubsForGrid().map(c => {
-      const col = clubColors[c.id] || {bg:'#373d3b', fg:'#fff7e6'};
+      const col = clubCol(c.id);
       const monogramHtml = c.logo ? `<div class="monogram"><img src="${c.logo}" alt="${c.title} logo"></div>` : `<div class="monogram" style="background:${col.bg};color:${col.fg}">${c.title.charAt(0)}</div>`;
       return `
       <div class="panel-card club-card" style="border:2px solid ${col.bg};border-top-width:6px;" data-club-id="${c.id}" tabindex="0" role="button" aria-label="Open the ${c.title} idea board">
@@ -2773,11 +2783,11 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="f
           <div class="fall-section">
             <h3>Which club(s) are you interested in? <span class="fall-hint">(tap 3 in order — 1st tap = most wanted, 3rd = least desirable)</span></h3>
             <input type="hidden" name="clubsRanked" id="fallClubsRanked">
-            <div class="fall-checkbox-grid" id="fallClubChecks">${FALL_SIGNUP_CLUBS.map(c => `
+            <div class="fall-checkbox-grid" id="fallClubChecks">${clubsData.map(c => `
               <label class="fall-option">
                 <input type="checkbox" name="clubs" value="${c.title}">
                 <span class="fall-rank-badge"></span>
-                <span class="fall-option-emoji">${c.emoji}</span>
+                <span class="fall-option-emoji">${c.emoji || '✨'}</span>
                 <span class="fall-option-text"><strong>${c.title}</strong> — ${c.desc}</span>
               </label>`).join('')}
               <div class="fall-option-wrap" id="fallOtherOption">
@@ -4431,7 +4441,7 @@ function availReset(){
   state.availYear = t.getFullYear(); state.availMonth = t.getMonth();
 }
 function avClubTitle(id){
-  const c = clubsData.find(x => x.id === id) || FALL_SIGNUP_CLUBS.find(x => x.id === id);
+  const c = clubsData.find(x => x.id === id);
   const t = c ? c.title : id;
   return /club$/i.test(t) ? t : t + ' Club';
 }
@@ -4688,21 +4698,20 @@ async function cmMemberSignOut(){
    count under the title. The admin can edit an option's title, map link,
    date (shown on top of the bubble) and vote total. Data: /api/clubs/:id/ideas
    ============================================================ */
-const CLUB_SLUGS = {
-  'club-activegaming':'active-gaming', 'club-adrenaline':'adrenaline',
-  'club-cuisine':'cuisine', 'club-artscrafts':'arts-crafts', 'club-retreats':'field'
-};
-function clubSlug(id){ return CLUB_SLUGS[id] || String(id).replace(/^club-/, ''); }
+// Every club's slug lives on its own record now (data/clubs.json, set once at creation, immutable —
+// changing it would break an already-shared link). Falls back to stripping "club-" for any pre-migration
+// record that somehow has no slug field yet.
+function clubSlug(id){
+  const c = clubsData.find(x => x.id === id);
+  return (c && c.slug) || String(id).replace(/^club-/, '');
+}
 function clubIdFromSlug(slug){
-  const hit = Object.entries(CLUB_SLUGS).find(([, s]) => s === slug);
-  if(hit) return hit[0];
+  const hit = clubsData.find(c => c.slug === slug);
+  if(hit) return hit.id;
   const guess = 'club-' + slug;
   return clubsData.some(c => c.id === guess) ? guess : null;
 }
-function clubsForGrid(){
-  const extra = FALL_SIGNUP_CLUBS.filter(c => !clubsData.some(x => x.id === c.id)).map(c => ({ id:c.id, title:c.title, desc:c.desc }));
-  return [...clubsData, ...extra];
-}
+function clubsForGrid(){ return clubsData; }
 // A real path (not just a hash) so the Worker can serve it a proper link-preview title/image when it's
 // pasted into Instagram/WhatsApp/iMessage; opening it in a browser bounces straight into the app (see worker.js).
 function clubLink(id){ return location.origin + '/clubs/' + clubSlug(id); }
@@ -6124,13 +6133,20 @@ function clubDirEditFormHtml(){
   if(!editing) return '';
   const isNew = editing === 'new';
   const club = isNew ? null : clubsData.find(c => c.id === editing);
-  const draft = state.cmAdminClubDirDraft || { title:'', desc:'', logo:'', signup:'' };
+  const draft = state.cmAdminClubDirDraft || { title:'', desc:'', logo:'', signup:'', emoji:'', colour:'#e1eaf1' };
   return `<div class="cp-box" style="margin-top:10px;">
     <h4 style="margin:0 0 6px;">${isNew ? 'Add a new club' : 'Edit ' + escapeCm((club && club.title) || editing)}</h4>
     <div style="display:flex;flex-direction:column;gap:8px;">
       <input id="cdTitle" placeholder="Club title" value="${escapeCm(draft.title || '')}" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
       <textarea id="cdDesc" placeholder="Description" rows="3" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);font-family:inherit;">${escapeCm(draft.desc || '')}</textarea>
       <input id="cdSignup" placeholder="Signup link (WhatsApp/Instagram, optional)" value="${escapeCm(draft.signup || '')}" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
+      <div style="display:flex;gap:8px;">
+        <input id="cdEmoji" placeholder="Emoji (optional)" maxlength="8" value="${escapeCm(draft.emoji || '')}" style="width:90px;padding:10px;border-radius:10px;border:2px solid var(--charcoal);text-align:center;">
+        <label style="flex:1;display:flex;align-items:center;gap:8px;font-size:12px;color:#776867;">Card colour
+          <input id="cdColour" type="color" value="${escapeCm(draft.colour || '#e1eaf1')}" style="width:44px;height:38px;padding:0;border-radius:8px;border:2px solid var(--charcoal);cursor:pointer;">
+        </label>
+      </div>
+      ${!isNew ? `<p style="font-size:11px;color:#776867;margin:0;">Link: 4dasistas.ca/clubs/${escapeCm((club && club.slug) || '')} (fixed once created)</p>` : `<p style="font-size:11px;color:#776867;margin:0;">Its link will be 4dasistas.ca/clubs/&lt;title-as-a-slug&gt;, fixed once you create it.</p>`}
       <div style="display:flex;align-items:center;gap:10px;">
         ${draft.logo ? `<img src="${draft.logo}" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--charcoal);">` : ''}
         <label class="club-guide-btn" style="font-size:12px;padding:8px 12px;cursor:pointer;">Choose photo<input id="cdLogoFile" type="file" accept="image/*" style="display:none;"></label>
@@ -6235,7 +6251,7 @@ function renderClubAdminPanel(){
 
 function adminClubChoices(){
   const seen = new Set();
-  return [...clubsData, ...FALL_SIGNUP_CLUBS].filter(c => !seen.has(c.id) && seen.add(c.id));
+  return clubsData.filter(c => !seen.has(c.id) && seen.add(c.id));
 }
 
 async function cmAdminCreateProfile(){
@@ -6276,14 +6292,14 @@ async function cmAdminCreateProfile(){
 
 function clubDirStartCreate(){
   state.cmAdminClubDirEditing = 'new';
-  state.cmAdminClubDirDraft = { title:'', desc:'', logo:'', signup:'' };
+  state.cmAdminClubDirDraft = { title:'', desc:'', logo:'', signup:'', emoji:'', colour:'#e1eaf1' };
   state.cmAdminClubDirError = '';
   render();
 }
 function clubDirStartEdit(id){
   const club = clubsData.find(c => c.id === id) || {};
   state.cmAdminClubDirEditing = id;
-  state.cmAdminClubDirDraft = { title: club.title || '', desc: club.desc || '', logo: club.logo || '', signup: club.signup || '' };
+  state.cmAdminClubDirDraft = { title: club.title || '', desc: club.desc || '', logo: club.logo || '', signup: club.signup || '', emoji: club.emoji || '', colour: club.colour || '#e1eaf1' };
   state.cmAdminClubDirError = '';
   render();
 }
@@ -6325,9 +6341,11 @@ async function clubDirSave(){
   const title = document.getElementById('cdTitle').value.trim();
   const desc = document.getElementById('cdDesc').value.trim();
   const signup = document.getElementById('cdSignup').value.trim();
+  const emoji = document.getElementById('cdEmoji').value.trim();
+  const colour = document.getElementById('cdColour').value.trim();
   if(!title){ state.cmAdminClubDirError = 'Title is required.'; render(); return; }
   if(!desc){ state.cmAdminClubDirError = 'Description is required.'; render(); return; }
-  const fields = { title, desc, signup };
+  const fields = { title, desc, signup, emoji, colour };
   if(state.cmAdminClubDirDraft && state.cmAdminClubDirDraft.logo && state.cmAdminClubDirDraft.logo.startsWith('data:')) fields.logo = state.cmAdminClubDirDraft.logo;
   state.cmAdminClubDirSaving = true;
   state.cmAdminClubDirError = '';
@@ -6342,8 +6360,11 @@ async function clubDirSave(){
     state.cmAdminClubDirEditing = null;
     state.cmAdminClubDirDraft = null;
     state.cmAdminClubDirSaving = false;
+    // The live roster (what clubsForGrid/signup/idea-boards all read) updates instantly — no site
+    // rebuild to wait for. Re-fetch it now so this stays open on the up-to-date list.
+    clubsData = await fetchClubsLive();
     render();
-    alert((isNew ? 'Club created' : 'Club updated') + ' — the site rebuilds automatically, it can take a minute or two to appear.');
+    alert((isNew ? 'Club created' : 'Club updated') + ' — it is live everywhere on the site right away, including links/voting/availability. (The change is also committed to GitHub for the record.)');
     return;
   } catch(err){
     state.cmAdminClubDirError = err.message;
@@ -6364,8 +6385,9 @@ async function clubDirDelete(){
     state.cmAdminClubDirEditing = null;
     state.cmAdminClubDirDraft = null;
     state.cmAdminClubDirSaving = false;
+    clubsData = await fetchClubsLive();
     render();
-    alert('Club removed — the site rebuilds automatically, it can take a minute or two to appear.');
+    alert('Club removed — it is gone everywhere on the site right away (its link, signup, idea board and availability all stop working immediately).');
     return;
   } catch(err){
     state.cmAdminClubDirError = err.message;

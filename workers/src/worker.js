@@ -74,8 +74,11 @@
  *   PUT    /api/admin/resource/:id                          - Merge fields and commit
  *   GET    /api/admin/sitetext                              - Read data/sitetext.json (page copy, home-tile text, About page content)
  *   PUT    /api/admin/sitetext                               - Merge fields and commit
+ *   GET    /api/clubs                                        - Public: the live club roster ({clubs:[...]}) - mirrored into KV on every admin write, source of
+ *                                                                truth for the frontend, idea-board access, and the /clubs/:slug link-preview page below
  *   GET    /api/admin/clubs                                  - Read data/clubs.json ({items:[...]}, one file, unlike calendar/resources' per-entry files)
- *   POST   /api/admin/clubs                                  - Add a club ({fields:{title,desc,logo,signup}}) - derives a unique "club-slug" id, appends, commits
+ *   POST   /api/admin/clubs                                  - Add a club ({fields:{title,desc,logo,signup,emoji,colour}}) - derives a unique "club-slug"
+ *                                                                id + slug, appends, commits to GitHub, and mirrors the result into KV
  *   PUT    /api/admin/clubs/:id                               - Merge fields into that one club and commit. logo is only touched when the submitted
  *                                                                value is a genuinely new data: URL upload - an unchanged plain-path logo is left alone
  *   DELETE /api/admin/clubs/:id                               - Remove that club from the array and commit
@@ -118,19 +121,30 @@ const sanitizeUsername = (input) => {
   return /^[a-z0-9_]{3,20}$/.test(u) ? u : null;
 };
 
-// Clubs people can join through the public Sign Up form (mirrors FALL_SIGNUP_CLUBS in index.html).
-const SIGNUP_CLUB_IDS = new Set(["club-activegaming", "club-adrenaline", "club-cuisine", "club-artscrafts", "club-retreats"]); // club-adhd retired 2026-09-28; club-theater deleted via admin 2026-09-30 ("More to Launch" placeholder shown instead)
-
-// Mirrors CLUB_SLUGS/FALL_SIGNUP_CLUBS in index.html (kept in sync by hand — 7 clubs, low churn).
-// Used only to give a shared club link (e.g. 4dasistas.ca/clubs/cuisine) its own link-preview title/description
-// when pasted into Instagram/WhatsApp/iMessage, since those crawlers never run the app's JS to read the hash.
-const CLUB_META = {
-  "active-gaming": { title: "Active Gaming", emoji: "🎮", desc: "Escape rooms, VR arenas, challenge venues. For the movers, solvers, competitors." },
-  "adrenaline": { title: "Adrenaline", emoji: "⚡", desc: "Roller-coasters, paintballing, skiing. If it gets your heart racing, we're on it." },
-  "cuisine": { title: "Cuisine", emoji: "🍽️", desc: "Group dinners, restaurant crawls, cooking nights & baking workshops." },
-  "arts-crafts": { title: "Arts & Crafts", emoji: "🎨", desc: "Painting nights, DIY, crafternoons. No talent needed, just vibes & glitter." },
-  "field": { title: "Field", emoji: "🏞️", desc: "Hiking, horseback riding, farm days, cabin retreats." },
+// ---- Club roster: ONE source of truth (data/clubs.json, committed via the admin editor below),
+// mirrored into KV on every write so the rest of the site can check "is this a real club?" or look up
+// a club's title/slug/colour instantly, without a slow GitHub fetch and without waiting for the site's
+// static index.html/worker.js to redeploy. This replaces what used to be five separate hardcoded lists
+// (FALL_SIGNUP_CLUBS/CLUB_SLUGS/clubColors in index.html, SIGNUP_CLUB_IDS/CLUB_META here) that nothing
+// kept in sync — deleting a club used to only edit data/clubs.json, so it silently reappeared everywhere
+// else (bit Lujane twice: club-adhd, then club-theater).
+const CLUB_ROSTER_KV_KEY = "clubRoster";
+const CLUBS_FILE_PATH_CONST = "data/clubs.json";
+const sanitizeColour = (input) => {
+  const c = String(input || "").trim();
+  return /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(c) ? c : "";
 };
+const readClubRoster = async (env) => {
+  const raw = await env.SITE_DATA.get(CLUB_ROSTER_KV_KEY);
+  if (raw) { try { const arr = JSON.parse(raw); if (Array.isArray(arr)) return arr; } catch {} }
+  // First run since this feature shipped, or KV got cleared: seed from the committed file.
+  const file = await githubGetFile(env, CLUBS_FILE_PATH_CONST).catch(() => null);
+  const clubs = file && Array.isArray(file.content?.items) ? file.content.items : [];
+  if (clubs.length) await env.SITE_DATA.put(CLUB_ROSTER_KV_KEY, JSON.stringify(clubs)).catch(() => {});
+  return clubs;
+};
+const writeClubRoster = async (env, roster) => env.SITE_DATA.put(CLUB_ROSTER_KV_KEY, JSON.stringify(roster));
+const isKnownClubId = async (env, clubId) => (await readClubRoster(env)).some((c) => c.id === clubId);
 const SIGNUP_MAX_PER_IP_PER_HOUR = 10;
 const SIGNUP_MAX_PER_DAY = 100;
 
@@ -565,7 +579,8 @@ export default {
     // real, crawlable path only for that purpose; a real visitor gets bounced straight into the app.
     const clubPathMatch = path.match(/^\/clubs\/([a-z0-9-]+)\/?$/);
     if (clubPathMatch && request.method === "GET") {
-      const meta = CLUB_META[clubPathMatch[1]];
+      const club = (await readClubRoster(env)).find((c) => c.slug === clubPathMatch[1]);
+      const meta = club ? { title: club.title, emoji: club.emoji || "✨", desc: club.desc || "" } : null;
       if (meta) {
         const title = `${meta.emoji} ${meta.title} Club — 4DASISTAS`;
         const pageUrl = `https://4dasistas.ca/clubs/${clubPathMatch[1]}`;
@@ -588,6 +603,13 @@ export default {
 </head><body>Opening the ${escapeHtml(meta.title)} Club… <a href="${escapeHtml(dest)}">Tap here</a> if nothing happens.</body></html>`;
         return new Response(html, { headers: { "Content-Type": "text/html; charset=UTF-8", "Cache-Control": "no-store, must-revalidate", ...corsHeaders } });
       }
+    }
+
+    // Public, live club roster — the frontend uses this instead of (or as a freshness check against)
+    // the static data/clubs.json, so an admin's add/edit/remove shows up immediately, not only after
+    // the next full site deploy.
+    if (path === "/api/clubs" && request.method === "GET") {
+      return jsonResponse({ clubs: await readClubRoster(env) }, 200, corsHeaders);
     }
 
     if (path === "/api/subscribe" && request.method === "POST") {
@@ -647,7 +669,8 @@ export default {
       if (!name) return jsonResponse({ error: "Please enter your name" }, 400, corsHeaders);
       if (!username) return jsonResponse({ error: "Username must be 3-20 characters: letters, numbers and underscore only" }, 400, corsHeaders);
       if (!/^\d{4}$/.test(pin)) return jsonResponse({ error: "PIN must be exactly 4 digits" }, 400, corsHeaders);
-      if (!SIGNUP_CLUB_IDS.has(clubId)) return jsonResponse({ error: "Please pick a club from the list" }, 400, corsHeaders);
+      const clubIds = new Set((await readClubRoster(env)).map((c) => c.id));
+      if (!clubIds.has(clubId)) return jsonResponse({ error: "Please pick a club from the list" }, 400, corsHeaders);
 
       const ip = request.headers.get("CF-Connecting-IP") || "unknown";
       const ipKey = `signuprate:${ip}:${Math.floor(Date.now() / 3600000)}`;
@@ -658,7 +681,7 @@ export default {
 
       if (await findUserIdByUsername(env, username)) return jsonResponse({ error: "That username is taken — try another (add a number or your last initial)" }, 409, corsHeaders);
 
-      const waitlist = [...new Set((Array.isArray(body.waitlist) ? body.waitlist : []).map(String))].filter((id) => SIGNUP_CLUB_IDS.has(id) && id !== clubId).slice(0, 2);
+      const waitlist = [...new Set((Array.isArray(body.waitlist) ? body.waitlist : []).map(String))].filter((id) => clubIds.has(id) && id !== clubId).slice(0, 2);
       const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, waitlist, createdAt: Date.now() };
       await writeUser(env, user);
       await reserveUsername(env, username, user.id);
@@ -788,7 +811,7 @@ export default {
       }
       return null;
     };
-    const ideaClub = (m) => { const id = decodeURIComponent(m[1]); return SIGNUP_CLUB_IDS.has(id) ? id : null; };
+    const ideaClub = async (m) => { const id = decodeURIComponent(m[1]); return (await isKnownClubId(env, id)) ? id : null; };
     const refreshName = (ideas, who) => {
       for (const i of ideas) {
         if (i.by && typeof i.by === "object" && i.by.id === who.id) i.by.name = who.name;
@@ -798,12 +821,12 @@ export default {
     const ideaIp = request.headers.get("CF-Connecting-IP") || "unknown";
 
     if (ideasListMatch && request.method === "GET") {
-      const clubId = ideaClub(ideasListMatch);
+      const clubId = await ideaClub(ideasListMatch);
       if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
       return jsonResponse({ ideas: sortedPublicIdeas(await readClubIdeas(env, clubId), await ideaWho()) }, 200, corsHeaders);
     }
     if (ideasListMatch && request.method === "POST") {
-      const clubId = ideaClub(ideasListMatch);
+      const clubId = await ideaClub(ideasListMatch);
       if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
       const who = await ideaWho();
       if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
@@ -827,7 +850,7 @@ export default {
       return jsonResponse({ ideas: sortedPublicIdeas(ideas, who) }, 201, corsHeaders);
     }
     if (ideaVoteMatch && request.method === "POST") {
-      const clubId = ideaClub(ideaVoteMatch);
+      const clubId = await ideaClub(ideaVoteMatch);
       if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
       const who = await ideaWho();
       if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
@@ -843,7 +866,7 @@ export default {
       return jsonResponse({ ideas: sortedPublicIdeas(ideas, who) }, 200, corsHeaders);
     }
     if (ideaOneMatch && request.method === "DELETE") {
-      const clubId = ideaClub(ideaOneMatch);
+      const clubId = await ideaClub(ideaOneMatch);
       if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
       const who = await ideaWho();
       if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
@@ -859,7 +882,7 @@ export default {
 
     const ideaAvailAllMatch = path.match(/^\/api\/clubs\/([^/]+)\/idea-availability\/all\/?$/);
     if (ideaAvailAllMatch && request.method === "GET") {
-      const clubId = ideaClub(ideaAvailAllMatch);
+      const clubId = await ideaClub(ideaAvailAllMatch);
       if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
       const who = await ideaWho();
       if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
@@ -885,7 +908,7 @@ export default {
 
     const ideaAvailMatch = path.match(/^\/api\/clubs\/([^/]+)\/idea-availability\/?$/);
     if (ideaAvailMatch && (request.method === "GET" || request.method === "PUT")) {
-      const clubId = ideaClub(ideaAvailMatch);
+      const clubId = await ideaClub(ideaAvailMatch);
       if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
       const who = await ideaWho();
       if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
@@ -1544,14 +1567,21 @@ export default {
       const desc = String(fields.desc || "").trim();
       if (!desc) return jsonResponse({ error: "Description is required" }, 400, corsHeaders);
 
-      const baseSlug = `club-${slugify(title)}`;
+      const shortSlug = slugify(title);
+      const baseSlug = `club-${shortSlug}`;
       let finalId = baseSlug;
-      for (let n = 2; clubs.some((c) => c.id === finalId); n++) {
+      let finalSlug = shortSlug;
+      for (let n = 2; clubs.some((c) => c.id === finalId || c.slug === finalSlug); n++) {
         if (n > 50) return jsonResponse({ error: "Could not find a unique id for this title" }, 500, corsHeaders);
         finalId = `${baseSlug}-${n}`;
+        finalSlug = `${shortSlug}-${n}`;
       }
 
-      const newClub = { id: finalId, title, desc };
+      const newClub = { id: finalId, slug: finalSlug, title, desc };
+      const emoji = String(fields.emoji || "").trim().slice(0, 8);
+      if (emoji) newClub.emoji = emoji;
+      const colour = sanitizeColour(fields.colour);
+      if (colour) newClub.colour = colour;
       if (typeof fields.logo === "string" && fields.logo.startsWith("data:")) {
         const photo = sanitizePhoto(fields.logo);
         if (fields.logo && !photo) return jsonResponse({ error: "Logo image is too large or not a supported format" }, 400, corsHeaders);
@@ -1565,6 +1595,7 @@ export default {
         const detail = await res.text().catch(() => "");
         return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
       }
+      await writeClubRoster(env, updated);
       return jsonResponse({ ok: true, id: finalId, club: newClub }, 201, corsHeaders);
     }
 
@@ -1587,6 +1618,7 @@ export default {
           const detail = await res.text().catch(() => "");
           return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
         }
+        await writeClubRoster(env, updated);
         return jsonResponse({ ok: true, deleted: id }, 200, corsHeaders);
       }
 
@@ -1595,6 +1627,13 @@ export default {
       if (!body.fields || typeof body.fields !== "object") return jsonResponse({ error: "fields object is required" }, 400, corsHeaders);
       const fields = { ...body.fields };
       delete fields.id; // immutable once created
+      delete fields.slug; // immutable once created — shared links point at it
+      if (fields.emoji !== undefined) fields.emoji = String(fields.emoji || "").trim().slice(0, 8);
+      if (fields.colour !== undefined) {
+        const colour = sanitizeColour(fields.colour);
+        if (fields.colour && !colour) return jsonResponse({ error: "Colour must look like #rrggbb" }, 400, corsHeaders);
+        fields.colour = colour;
+      }
       // Only touch logo when the submitted value is an actual new upload (a
       // data: URL) - an edit form re-sending the existing plain-path value
       // unchanged must never silently null it out.
@@ -1615,6 +1654,7 @@ export default {
         const detail = await res.text().catch(() => "");
         return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
       }
+      await writeClubRoster(env, updated);
       return jsonResponse({ ok: true, club: updatedClub }, 200, corsHeaders);
     }
 
