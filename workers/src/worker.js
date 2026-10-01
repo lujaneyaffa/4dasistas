@@ -116,13 +116,16 @@ const sanitizePhoto = (photo) => {
   return photo;
 };
 
-// Usernames are auto-generated from the member's own name as "firstname.initial"
-// (e.g. "Amina K." -> "amina.k") - nobody picks or types an arbitrary username,
-// they just log back in with their first name + last initial. A numeric suffix
-// is appended on a collision (a second "amina.k" becomes "amina.k2").
+// New accounts get an auto-generated "firstname.initial" username (see
+// generateUniqueUsername below) - but this function is also used to validate
+// a *login* attempt and an admin's manual edit, and both of those have to
+// keep working for accounts created under this site's older username rules
+// (free-text handles, then briefly phone numbers) - changing their structure
+// retroactively would just lock people out. So this stays permissive: accept
+// whatever shape a username already is, only normalize case/whitespace.
 const sanitizeUsername = (input) => {
   const u = String(input || "").trim().toLowerCase();
-  return /^[a-z]+\.[a-z][a-z0-9]*$/.test(u) ? u : null;
+  return /^[a-z0-9._-]{2,40}$/.test(u) ? u : null;
 };
 const usernameBaseFromName = (name) => {
   const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
