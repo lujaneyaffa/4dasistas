@@ -388,7 +388,10 @@ const publicIdea = (idea, me) => {
   return {
     id: idea.id, title: idea.title, mapUrl: idea.mapUrl || "", date: idea.date || "", cuisine: idea.cuisine || "", price: idea.price || "",
     votes: Math.max(0, voters.length + (idea.adjust || 0)), adjust: idea.adjust || 0,
-    voters: voters.map((v) => v.name), by: by.name,
+    // Only signed-in members and the admin see who added / voted; the public (and name-only guests) get a flag instead.
+    namesHidden: !(me && (me.id === "admin" || me.id.startsWith("m:"))),
+    voters: me && (me.id === "admin" || me.id.startsWith("m:")) ? voters.map((v) => v.name) : [],
+    by: me && (me.id === "admin" || me.id.startsWith("m:")) ? by.name : "",
     voted: !!me && voters.some((v) => v.id === me.id), mine: !!me && by.id === me.id,
   };
 };
@@ -920,6 +923,14 @@ export default {
       }
     };
     const ideaIp = request.headers.get("CF-Connecting-IP") || "unknown";
+    // Only people actually IN a club (or the admin) may add options / vote on its board. Guests and
+    // members of other clubs can still look at the board.
+    const canActInClub = async (who, clubId) => {
+      if (who.id === "admin") return true;
+      if (!who.id.startsWith("m:")) return false;
+      return (await readClubMemberIds(env, clubId)).includes(who.id.slice(2));
+    };
+    const NOT_IN_CLUB = "Only members of this club can vote or add ideas";
 
     if (ideasListMatch && request.method === "GET") {
       const clubId = await ideaClub(ideasListMatch);
@@ -931,6 +942,7 @@ export default {
       if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
       const who = await ideaWho();
       if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
+      if (!(await canActInClub(who, clubId))) return jsonResponse({ error: NOT_IN_CLUB }, 403, corsHeaders);
       if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
       let body;
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
@@ -955,6 +967,7 @@ export default {
       if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
       const who = await ideaWho();
       if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
+      if (!(await canActInClub(who, clubId))) return jsonResponse({ error: NOT_IN_CLUB }, 403, corsHeaders);
       if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
       const ideaId = decodeURIComponent(ideaVoteMatch[2]);
       const ideas = await readClubIdeas(env, clubId);

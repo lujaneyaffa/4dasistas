@@ -4876,6 +4876,11 @@ function ideaSaveGuest(name){
   try { localStorage.setItem('ideaGuest', JSON.stringify(g)); } catch {}
   return g;
 }
+function ideaCanActInClub(clubId){
+  const sess = getCmSession();
+  if(sess) return (sess.clubs || []).includes(clubId);
+  return state.cmAdminLoggedIn === true;
+}
 function ideaMe(){
   const sess = getCmSession();
   if(sess) return { kind:'member', name: sess.name };
@@ -5162,8 +5167,7 @@ function renderMyClubsSectionHtml(){
   return `${topRow}${pendingBanner}
     <h3 class="clubs-popular-title">CLUBS YOU'RE IN</h3>
     <div class="clubs-grid clubs-grid-row">${myClubs.map(c => clubCardHtml(c, true)).join('')}</div>
-    <div class="my-avail-section" style="max-width:640px;margin:18px auto 0;">${ideaAvailSectionHtml(ideaMe())}</div>
-    <div class="public-ideas-section">${renderPublicIdeasFeedHtml('VOTE ON IDEAS', 'Tap a bubble to vote. Open a club above to add an idea.', 'No ideas yet in your club(s) — open one above and add the first!')}</div>
+    <div class="my-avail-section" style="max-width:640px;margin:18px auto 0;">${ideaAvailSectionHtml(ideaMe())}${everyoneAvailSectionHtml(ideaMe())}</div>
     ${requestSection}${clubsWhatsappDisclaimerHtml()}`;
 }
 function openPublicIdeaInfo(id){
@@ -5179,9 +5183,9 @@ function openPublicIdeaInfo(id){
     <h3 style="margin:4px 0 8px;">${escapeCm(idea.title)}</h3>
     ${map ? `<a class="club-guide-btn idea-pop-map" href="${escapeCm(map)}" target="_blank" rel="noopener">📍 Open in Google Maps</a>
     <a class="idea-pop-maplink" href="${escapeCm(map)}" target="_blank" rel="noopener">${escapeCm(map.replace(/^https?:\/\//, ''))}</a>` : '<p class="av-msg">No map link yet.</p>'}
-    <p class="idea-pop-by">Added by <strong>${escapeCm(idea.by || 'someone')}</strong></p>
+    ${idea.namesHidden ? `<p class="idea-pop-h">${ideaVotesLabel(idea.votes)}</p><p class="av-msg">🔒 Names hidden for privacy.</p>` : `<p class="idea-pop-by">Added by <strong>${escapeCm(idea.by || 'someone')}</strong></p>
     <p class="idea-pop-h">${ideaVotesLabel(idea.votes)}${names.length ? ' — who voted' : ''}</p>
-    <div class="idea-pop-names">${names.length ? names.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('') : '<span class="av-msg">No named votes yet.</span>'}</div>`);
+    <div class="idea-pop-names">${names.length ? names.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('') : '<span class="av-msg">No named votes yet.</span>'}</div>`}`);
 }
 async function publicIdeaVoteAttempt(id, bubble){
   if(!publicIdeaCanInteract()){ promptJoinToVote(); return; }
@@ -5242,7 +5246,7 @@ function renderClubIdeas(el){
         <button type="button" class="idea-price-btn" data-price="$20">$20</button>
         <button type="button" class="idea-price-btn" data-price="$50">$50</button>
       </div>`;
-  const addForm = (me && !state.ideasRenaming) ? (isCuisine ? `
+  const addForm = (me && !state.ideasRenaming && !ideaCanActInClub(clubId)) ? `<p class="ideas-hint" style="text-align:center;">Only members of this club can vote or add ideas.</p>` : (me && !state.ideasRenaming) ? (isCuisine ? `
     <form class="ideas-form" id="ideaForm" novalidate>
       <input id="ideaCuisineInput" type="text" maxlength="30" placeholder="Cuisine type (e.g. Lebanese, Korean, Dessert)" autocomplete="off">
       <input id="ideaInput" type="text" maxlength="80" placeholder="Name of the place" autocomplete="off">
@@ -5267,10 +5271,10 @@ function renderClubIdeas(el){
       <p class="ideas-sub">Add an event you'd love to do. <strong>Tap a bubble to vote</strong> — the more votes, the bigger it grows! Tap the <strong>i</strong> on a bubble to see the place and who voted.</p>
       ${whoBlock}
       ${cloud}
-      ${ideaAvailSectionHtml(me)}
+      ${getCmSession() ? '' : ideaAvailSectionHtml(me)}
       ${addForm}
       <div class="ideas-status" id="ideasStatus" aria-live="polite">${escapeCm(state.ideasStatus)}</div>
-      ${everyoneAvailSectionHtml(me)}
+      ${getCmSession() ? '' : everyoneAvailSectionHtml(me)}
     </div>`;
   wireClubIdeas();
 }
@@ -5666,6 +5670,7 @@ function wireClubIdeas(){
 
 async function ideaVote(id, bubble){
   if(!ideaMe()){ ideasNeedName(); return; }
+  if(!ideaCanActInClub(state.ideasClubId)){ ideasSetStatus('Only members of this club can vote or add ideas.'); return; }
   const idea = state.ideas.find(i => i.id === id);
   if(!idea) return;
   // Optimistic: grow/shrink the bubble right away, then sync with the server.
@@ -5719,9 +5724,9 @@ function openIdeaInfo(id){
     <h3 style="margin:4px 0 8px;">${escapeCm(idea.title)}</h3>
     ${map ? `<a class="club-guide-btn idea-pop-map" href="${escapeCm(map)}" target="_blank" rel="noopener">📍 Open in Google Maps</a>
     <a class="idea-pop-maplink" href="${escapeCm(map)}" target="_blank" rel="noopener">${escapeCm(map.replace(/^https?:\/\//, ''))}</a>` : '<p class="av-msg">No map link yet.</p>'}
-    <p class="idea-pop-by">Added by <strong>${escapeCm(idea.by || 'someone')}</strong></p>
+    ${idea.namesHidden ? `<p class="idea-pop-h">${ideaVotesLabel(idea.votes)}</p><p class="av-msg">🔒 Names hidden for privacy.</p>` : `<p class="idea-pop-by">Added by <strong>${escapeCm(idea.by || 'someone')}</strong></p>
     <p class="idea-pop-h">${ideaVotesLabel(idea.votes)}${names.length ? ' — who voted' : ''}</p>
-    <div class="idea-pop-names">${names.length ? names.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('') : '<span class="av-msg">No named votes yet.</span>'}</div>
+    <div class="idea-pop-names">${names.length ? names.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('') : '<span class="av-msg">No named votes yet.</span>'}</div>`}
     ${admin ? `<div class="idea-pop-admin"><button type="button" class="club-guide-btn" id="ideaPopEdit">✎ Edit (admin)</button></div>` : ''}`);
   const edit = wrap.querySelector('#ideaPopEdit');
   if(edit) edit.addEventListener('click', () => { close(); openIdeaEdit(id); });
