@@ -2764,6 +2764,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         wirePublicIdeasFeed();
       } else {
         wireMyClubsPicker();
+        wireIdeaAvailGrid();
         const picks = state.myClubPicks;
         if(!state.myClubPicksEditing && picks && picks.length){
           if(state.publicIdeasAll === null && !state.publicIdeasAllLoading) publicIdeasLoadAll(clubsForGrid().filter(c => picks.includes(c.id)));
@@ -4993,6 +4994,7 @@ function myClubsPickerHtml(preChecked){
         </label>`).join('')}
     </div>
     <p id="myClubsPickError" style="color:#c00;font-size:13px;margin:10px 0 0;"></p>
+    ${clubsWhatsappDisclaimerHtml()}
     <button type="button" class="club-guide-btn" id="myClubsPickSaveBtn" style="width:100%;margin-top:10px;background:var(--lightblue);">Save</button>
   </div>`;
 }
@@ -5015,6 +5017,9 @@ function wireMyClubsPicker(){
   const editBtn = document.getElementById('myClubsEditBtn');
   if(editBtn) editBtn.addEventListener('click', () => { state.myClubPicksEditing = true; render(); });
 }
+function clubsWhatsappDisclaimerHtml(){
+  return `<p class="ideas-hint" style="max-width:520px;margin:18px auto 0;text-align:center;line-height:1.5;">⚠️ Please only pick clubs you're actually in the WhatsApp group chat for. If you picked a club in the form you originally filled out and you're still not in its group chat, <a href="${IG_DM_URL}" target="_blank" rel="noopener" style="font-weight:700;">contact an admin</a>.</p>`;
+}
 function renderMyClubsSectionHtml(){
   if(state.myClubPicks === null) state.myClubPicks = loadMyClubPicks();
   const picks = state.myClubPicks;
@@ -5026,8 +5031,11 @@ function renderMyClubsSectionHtml(){
     <div style="text-align:center;margin-bottom:14px;">
       <button type="button" class="av-link" id="myClubsEditBtn" style="font-size:14px;">✏️ Edit which club(s) you're in</button>
     </div>
+    <h3 class="clubs-popular-title">CLUBS YOU'RE IN</h3>
     <div class="clubs-grid clubs-grid-row">${pickedClubs.map(clubCardHtml).join('')}</div>
-    <div class="public-ideas-section">${renderPublicIdeasFeedHtml('YOUR CLUBS’ ACTIVITY', 'Tap a bubble to vote. Open a club above to add an idea or set your availability.', 'No ideas yet in your club(s) — open one above and add the first!')}</div>`;
+    <div class="my-avail-section" style="max-width:640px;margin:18px auto 0;">${ideaAvailSectionHtml(ideaMe())}</div>
+    <div class="public-ideas-section">${renderPublicIdeasFeedHtml('VOTE ON IDEAS', 'Tap a bubble to vote. Open a club above to add an idea.', 'No ideas yet in your club(s) — open one above and add the first!')}</div>
+    ${clubsWhatsappDisclaimerHtml()}`;
 }
 function openPublicIdeaInfo(id){
   const idea = (state.publicIdeasAll || []).find(i => i.id === id);
@@ -5263,7 +5271,7 @@ async function ideaAvailLoad(){
     state.ideaAvailDirty = false;
   } catch(err){ state.ideaAvailError = err.message; }
   state.ideaAvailLoading = false;
-  if(state.tab === 'clubideas') render();
+  if(state.tab === 'clubideas' || state.tab === 'clubs') render();
 }
 async function ideaAvailSave(){
   clearTimeout(iavSaveTimer);
@@ -5354,7 +5362,7 @@ async function everyoneAvailLoad(force){
     state.ideaAvailAllPeople = data.people || null;
   } catch(err){ state.ideaAvailAllError = err.message; }
   state.ideaAvailAllLoading = false;
-  if(state.tab === 'clubideas') render();
+  if(state.tab === 'clubideas' || state.tab === 'clubs') render();
 }
 function eavNamesFor(date, part){
   const people = state.ideaAvailAllPeople || [];
