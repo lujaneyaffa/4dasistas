@@ -5017,20 +5017,80 @@ async function refreshMe(){
 async function requestToJoinClub(clubId){
   const session = getCmSession();
   if(!session) return;
+  // Mark it requested right away and only ever ADD to the list: two quick taps send two requests, and a
+  // slow first response (which only knows about the first club) must not wipe the other one out again.
+  if(!(state.myPending || []).includes(clubId)) state.myPending = (state.myPending || []).concat(clubId);
+  state.joinReqError = '';
+  render();
   try {
     const d = await cmApiRaw('/api/clubs/' + encodeURIComponent(clubId) + '/join-request', { method:'POST', headers:{ 'Authorization':'Bearer ' + session.token } });
-    state.myPending = d.pending || [];
-    state.joinReqError = '';
-  } catch(err){ state.joinReqError = err.message; }
+    state.myPending = Array.from(new Set((state.myPending || []).concat(d.pending || [])));
+  } catch(err){
+    state.myPending = (state.myPending || []).filter(id => id !== clubId);
+    state.joinReqError = err.message;
+  }
   render();
 }
 function wireMyClubsSection(){
-  const pinBtn = document.getElementById('myChangePinBtn');
-  if(pinBtn) pinBtn.addEventListener('click', openChangePinPopup);
+  const profBtn = document.getElementById('myEditProfileBtn');
+  if(profBtn) profBtn.addEventListener('click', openEditProfilePopup);
+  const outBtn = document.getElementById('mySignOutBtn');
+  if(outBtn) outBtn.addEventListener('click', cmMemberSignOut);
   document.querySelectorAll('.join-req-btn').forEach(b => b.addEventListener('click', () => { b.disabled = true; requestToJoinClub(b.dataset.clubId); }));
 }
 function changePinButtonHtml(){
-  return `<button type="button" class="av-link" id="myChangePinBtn" style="font-size:14px;">🔑 Change my PIN</button>`;
+  const pill = 'min-height:44px;padding:10px 20px;border-radius:999px;border:2px solid var(--charcoal);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;';
+  return `<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+    <button type="button" id="myEditProfileBtn" style="${pill}background:var(--lightblue);color:var(--charcoal);">✏️ Edit profile</button>
+    <button type="button" id="mySignOutBtn" style="${pill}background:transparent;color:var(--charcoal);">Sign out</button>
+  </div>`;
+}
+function openEditProfilePopup(){
+  const session = getCmSession();
+  if(!session) return;
+  const photoHtml = () => { const sess = getCmSession() || session; return sess.photo ? `<img src="${escapeCm(sess.photo)}" alt="" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:2px solid var(--charcoal);">` : `<div class="monogram" style="width:96px;height:96px;font-size:36px;margin:0 auto;">${escapeCm((session.name||'?').charAt(0).toUpperCase())}</div>`; };
+  const rowStyle = 'display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #0001;font-size:15px;';
+  const pill = 'min-height:44px;padding:10px 18px;border-radius:999px;border:2px solid var(--charcoal);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;background:var(--lightblue);color:var(--charcoal);';
+  const { wrap, close } = ideaPopup(`
+    <h3 style="margin:0 0 12px;text-align:center;">Edit profile</h3>
+    <div id="epPhoto" style="text-align:center;margin-bottom:10px;">${photoHtml()}</div>
+    <div style="text-align:center;margin-bottom:12px;"><button type="button" id="epPhotoBtn" style="${pill}">📷 ${session.photo ? 'Change' : 'Add'} photo</button><input id="epPhotoInput" type="file" accept="image/*" style="display:none;"></div>
+    <div style="${rowStyle}"><span style="color:var(--muted);">Name</span><strong>${escapeCm(session.name || '')}</strong></div>
+    <div style="${rowStyle}"><span style="color:var(--muted);">Username</span><strong>${escapeCm(session.username || '')}</strong></div>
+    <div style="${rowStyle}"><span style="color:var(--muted);">PIN</span><strong>••••</strong></div>
+    <p class="ideas-hint" style="margin:8px 0 12px;">Your PIN is stored scrambled, so it can't be shown to you or anyone else. You can set a new one below.</p>
+    <div id="epStatus" style="font-size:13px;color:#c00;min-height:18px;text-align:center;"></div>
+    <div style="text-align:center;"><button type="button" id="epPinBtn" style="${pill}">🔑 Change my PIN</button></div>`);
+  wrap.querySelector('#epPinBtn').addEventListener('click', () => { close(); openChangePinPopup(); });
+  const input = wrap.querySelector('#epPhotoInput'), status = wrap.querySelector('#epStatus');
+  wrap.querySelector('#epPhotoBtn').addEventListener('click', () => input.click());
+  input.addEventListener('change', () => {
+    const file = input.files && input.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = async () => {
+        const size = 200, canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        const scale = Math.max(size / img.width, size / img.height);
+        canvas.getContext('2d').drawImage(img, (size - img.width * scale) / 2, (size - img.height * scale) / 2, img.width * scale, img.height * scale);
+        status.textContent = 'Saving…';
+        try {
+          const updated = await cmApiRaw('/api/users/' + encodeURIComponent(session.id), {
+            method:'PUT', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.token },
+            body: JSON.stringify({ photo: canvas.toDataURL('image/jpeg', 0.75) })
+          });
+          setCmSession(Object.assign({}, getCmSession(), { photo: updated.photo }));
+          wrap.querySelector('#epPhoto').innerHTML = photoHtml();
+          status.style.color = '#2a7a4a'; status.textContent = 'Photo saved ✓';
+        } catch(err){ status.style.color = '#c00'; status.textContent = 'Could not save photo: ' + err.message; }
+      };
+      img.onerror = () => { status.textContent = "That file couldn't be read as an image."; };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 function openChangePinPopup(){
   const session = getCmSession();
@@ -5084,7 +5144,7 @@ function renderMyClubsSectionHtml(){
     <p class="ideas-hint" style="text-align:center;margin:0 0 10px;">An admin approves every request.</p>
     ${state.joinReqError ? `<p style="color:#c00;font-size:13px;text-align:center;margin:0 0 8px;">${escapeCm(state.joinReqError)}</p>` : ''}
     <div style="max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:8px;">${rows}</div>` : '';
-  const topRow = `<div style="text-align:center;margin-bottom:14px;">${changePinButtonHtml()}</div>`;
+  const topRow = `<div style="margin-bottom:14px;">${changePinButtonHtml()}</div>`;
   if(!myClubs.length){
     return `${topRow}${pendingBanner}
       <p class="ideas-hint" style="max-width:520px;margin:0 auto;text-align:center;">You're not in a club yet. Request the club(s) you're part of below — an admin will approve them.</p>
