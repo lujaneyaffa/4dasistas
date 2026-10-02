@@ -15,5 +15,24 @@
   "section": "sports",
   "audienceType": [
     "All Women"
-  ]
+  ],
+  "emoji": "",
+  "organizedBy": "",
+  "eventDate": "",
+  "endDate": "",
+  "time": "",
+  "endTime": "",
+  "allDay": false,
+  "recurFrequency": "",
+  "monthlyType": "weekday",
+  "monthlyWeek": "1",
+  "monthlyDay": "sat",
+  "monthlyDate": "",
+  "recurStart": "",
+  "recurEnd": "2026-08-29",
+  "extraDates": [],
+  "virtual": true,
+  "link": "",
+  "alsoSportKeys": [],
+  "alsoShowIn": []
 }
