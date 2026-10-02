@@ -510,12 +510,14 @@
   .iav-daylabel{ font-size:10px; font-weight:700; text-align:center; line-height:1.15; padding:2px 0; color:var(--charcoal); }
   .iav-daylabel.today{ color:var(--rose-deep); }
   .iav-rowlabel{ font-size:10px; font-weight:700; color:var(--muted); display:flex; align-items:center; padding-right:2px; }
-  .iav-cell{ min-height:48px; border:1.5px solid rgba(55,61,59,0.25); border-radius:6px; background:#fff; padding:0; cursor:pointer; touch-action:none; -webkit-tap-highlight-color:transparent; }
+  .iav-cell{ min-height:48px; border:1.5px solid rgba(55,61,59,0.25); border-radius:6px; background:#fff; padding:0; cursor:pointer; touch-action:pan-y; -webkit-tap-highlight-color:transparent; }
+  .iav-cell.iav-na{ background:repeating-linear-gradient(45deg,#f3eeeb,#f3eeeb 4px,#faf6f3 4px,#faf6f3 8px); border-style:dashed; cursor:default; }
+  .iav-cell.iav-readonly{ touch-action:auto; }
   .iav-cell.on{ background:#d9f0d8; border-color:#4f9a4b; }
   .iav-cell.iav-full{ background:#d9f0d8; border-color:#4f9a4b; }
   .iav-cell.iav-busy{ background:#f9dcdc; border-color:#e8b4b4; }
   .iav-cell.iav-readonly{ cursor:default; }
-  .iav-allday{ min-height:48px; border:1.5px solid rgba(55,61,59,0.25); border-radius:8px; background:#fff; font-weight:700; font-size:16px; cursor:pointer; color:var(--muted); }
+  .iav-allday{ min-height:48px; touch-action:manipulation; border:1.5px solid rgba(55,61,59,0.25); border-radius:8px; background:#fff; font-weight:700; font-size:16px; cursor:pointer; color:var(--muted); }
   .iav-allday-avail{ background:#d9f0d8; border-color:#4f9a4b; color:#2a7a4a; }
   .iav-allday-busy{ background:#f9dcdc; border-color:#e8b4b4; color:#b3261e; }
   .iav-allday.iav-readonly{ cursor:default; }
@@ -525,6 +527,7 @@
   .eav-grid{ display:grid; grid-template-columns:44px repeat(5, minmax(0,1fr)); gap:3px; margin-bottom:8px; }
   .eav-cell{ min-height:34px; border:1.5px solid rgba(55,61,59,0.2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:var(--charcoal); background:#fff; }
   .eav-cell.eav-tappable{ cursor:pointer; }
+  .eav-cell.iav-na{ background:repeating-linear-gradient(45deg,#f3eeeb,#f3eeeb 4px,#faf6f3 4px,#faf6f3 8px); border-style:dashed; }
   .eav-tier-1{ background:#e9f5e6; border-color:#c3e0bc; }
   .eav-tier-2{ background:#c6e6bd; border-color:#9ecf90; }
   .eav-tier-3{ background:#93cf85; border-color:#6fb35e; }
@@ -767,7 +770,7 @@
   .link-btn.primary{ background:var(--charcoal); color:var(--cream); }
   .link-btn.secondary{ background:white; color:var(--charcoal); }
 
-  footer{ position:relative; text-align:center; padding:32px 20px calc(40px + env(safe-area-inset-bottom)); border-top:1px solid rgba(33,30,28,0.12); margin-top:16px; background:#ce8491; }
+  footer{ position:relative; text-align:center; padding:18px 20px calc(22px + env(safe-area-inset-bottom)); border-top:1px solid rgba(33,30,28,0.12); margin-top:16px; background:#ce8491; }
   /* Admin event form: keep native date/time pickers inside the card (iOS Safari gives them a wide intrinsic size) */
   #detailCard input[type=date], #detailCard input[type=time]{ display:block; width:100%; min-width:0; max-width:100%; box-sizing:border-box; min-height:44px; background:#fff; font-family:inherit; }
   #detailCard select, #detailCard input[type=text], #detailCard textarea{ max-width:100%; }
@@ -797,7 +800,7 @@
     .footer-admin-corner{ position:static; flex-direction:row; flex-wrap:wrap; justify-content:center; align-items:center; margin:0 0 12px; }
     .footer-admin-btn{ font-size:10px; padding:6px 10px; }
   }
-  .footer-btns{ display:flex; justify-content:center; flex-wrap:nowrap; gap:10px; margin:14px 0; }
+  .footer-btns{ display:flex; justify-content:center; flex-wrap:nowrap; gap:10px; margin:10px 0; }
   .wa-btn{ display:inline-flex; align-items:center; justify-content:center; gap:9px; font-family:'Inter',sans-serif; font-weight:700; font-size:14px; line-height:1; background:var(--wa-green); color:white; width:44px; height:44px; padding:0; border-radius:999px; text-decoration:none; }
   .wa-btn svg{ width:20px; height:20px; flex-shrink:0; display:block; }
   .ig-btn{ display:inline-flex; align-items:center; justify-content:center; gap:9px; font-family:'Inter',sans-serif; font-weight:700; font-size:14px; line-height:1; background:linear-gradient(135deg,#f58529,#dd2a7b,#8134af,#515bd4); color:white; width:44px; height:44px; padding:0; border-radius:999px; text-decoration:none; }
@@ -807,7 +810,7 @@
   .resource-owner strong{ color:var(--charcoal); font-family:'Inter',sans-serif; }
   .disclaimer{ font-size:11px; color:#fff7e6; max-width:440px; margin:0 auto; line-height:1.5; }
   .page-disclaimer{ max-width:760px; margin:20px auto 0; padding:0 20px; font-size:11px; color:var(--muted); line-height:1.5; text-align:center; }
-  .footer-logo{ display:block; width:min(360px,88vw); height:180px; margin:0 auto; object-fit:cover; object-position:center 68%; image-rendering:auto; }
+  .footer-logo{ display:block; width:min(300px,80vw); height:120px; margin:0 auto; object-fit:cover; object-position:center 68%; image-rendering:auto; }
 
   .suggest-btn{ display:inline-block; font-family:'Inter',sans-serif; font-weight:600; font-size:13px; background:var(--blush); border:1.5px solid var(--charcoal); color:var(--charcoal); padding:9px 18px; border-radius:999px; cursor:pointer; margin-bottom:2px; text-decoration:none; }
   .hp-field{ position:absolute; left:-9999px; }
@@ -1016,7 +1019,6 @@
     </a>
   </div>
   <img class="footer-logo" src="assets/OFFICIAL%20LOGO.png" alt="Not a cult (Yet)">
-  <button type="button" class="suggest-btn" id="footerLogoutBtn" style="display:none;margin-top:14px;">Sign Out</button>
 </footer>
 
 <div class="footer-admin-modal-overlay" id="footerAdminModalOverlay">
@@ -5380,11 +5382,15 @@ function iavNext15Dates(){
   }
   return out;
 }
+// Mornings are Sat/Sun only; weekdays are afternoon + evening.
+function iavIsWeekend(date){ const d = new Date(date + 'T12:00:00').getDay(); return d === 0 || d === 6; }
+function iavPartsFor(date){ return iavIsWeekend(date) ? IAV_PART_KEYS : IAV_PART_KEYS.filter(k => k !== 'morning'); }
 function iavDayValue(date){ return state.ideaAvail ? state.ideaAvail[date] : undefined; }
 function iavDayBusy(date){ return iavDayValue(date) === 'busy'; }
-function iavDayFull(date){ const v = iavDayValue(date); return Array.isArray(v) && v.length === 3; }
+function iavDayFull(date){ const v = iavDayValue(date); return Array.isArray(v) && iavPartsFor(date).every(k => v.includes(k)); }
 function iavPartOn(date, part){ const v = iavDayValue(date); return Array.isArray(v) && v.includes(part); }
 function iavSetPart(date, part, on){
+  if(!iavPartsFor(date).includes(part)) return;
   if(!state.ideaAvail) state.ideaAvail = {};
   const v = state.ideaAvail[date];
   let arr = Array.isArray(v) ? v.slice() : []; // starting from "busy" or unset both count as nothing on yet
@@ -5397,7 +5403,7 @@ function iavCycleAllDay(date){
   if(!state.ideaAvail) state.ideaAvail = {};
   if(iavDayFull(date)) state.ideaAvail[date] = 'busy';
   else if(iavDayBusy(date)) delete state.ideaAvail[date];
-  else state.ideaAvail[date] = IAV_PART_KEYS.slice();
+  else state.ideaAvail[date] = iavPartsFor(date).slice();
   state.ideaAvailDirty = true;
 }
 
@@ -5411,8 +5417,8 @@ function ideaAvailSectionHtml(me){
     <div class="iav-grid-rows" id="iavGridBox">${iavGridRowsHtml(true)}</div>
     <p class="ideas-hint">Tap or drag across a row to mark <strong>Morning</strong> (${IAV_RANGES.morning}), <strong>Afternoon</strong> (${IAV_RANGES.afternoon}) or <strong>Evening</strong> (${IAV_RANGES.evening}). Tap a day's bottom button to cycle: ✓ available all day (green) → ✕ busy all day (red) → clear.</p>`;
   else body = `
-    <div class="iav-grid-rows">${iavGridRowsHtml(false)}</div>
-    <button type="button" class="iav-edit-btn" id="iavEditBtn">✏️ Edit my availability</button>`;
+    <button type="button" class="iav-edit-btn" id="iavEditBtn" style="margin:0 0 10px;">✏️ Edit my availability</button>
+    <div class="iav-grid-rows">${iavGridRowsHtml(false)}</div>`;
   return `<div class="iav-wrap">
     <h3 class="iav-title">🗓️ Add your availability</h3>
     <p class="ideas-hint" style="margin-top:-6px;">This is your one general availability — the same everywhere, not a separate one per club.</p>
@@ -5433,6 +5439,7 @@ function iavOneGridHtml(dates, todayStr, editable){
   IAV_PARTS.forEach(([key, label]) => {
     html += `<div class="iav-rowlabel">${label}</div>`;
     html += dates.map(d => {
+      if(!iavPartsFor(d).includes(key)) return `<div class="iav-cell iav-na" aria-hidden="true"></div>`;
       const cls = iavDayBusy(d) ? 'iav-busy' : iavDayFull(d) ? 'iav-full' : (iavPartOn(d, key) ? 'on iav-c-' + key : '');
       const type = editable ? ' type="button"' : '';
       return `<${tag}${type} class="iav-cell ${cls}${editable ? '' : ' iav-readonly'}" data-date="${d}" data-part="${key}" aria-label="${label}, ${d}${iavPartOn(d,key)||iavDayFull(d)?', available':''}"></${tag}>`;
@@ -5520,7 +5527,7 @@ function eavGridHtml(){
   const dates = iavNext15Dates();
   const counts = state.ideaAvailAll || {};
   let max = 0;
-  dates.forEach(d => IAV_PART_KEYS.forEach(k => { const n = (counts[d] && counts[d][k]) || 0; if(n > max) max = n; }));
+  dates.forEach(d => iavPartsFor(d).forEach(k => { const n = (counts[d] && counts[d][k]) || 0; if(n > max) max = n; }));
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
   const rows = [dates.slice(0, 5), dates.slice(5, 10), dates.slice(10, 15)];
   return rows.map(rowDates => {
@@ -5533,6 +5540,7 @@ function eavGridHtml(){
     IAV_PARTS.forEach(([key, label]) => {
       html += `<div class="iav-rowlabel">${label}</div>`;
       html += rowDates.map(d => {
+        if(!iavPartsFor(d).includes(key)) return `<div class="eav-cell iav-na" aria-hidden="true"></div>`;
         const n = (counts[d] && counts[d][key]) || 0;
         const tier = eavTier(n, max);
         const tapHint = canSeeNames && n > 0 ? ' — tap to see who' : '';
@@ -5543,6 +5551,21 @@ function eavGridHtml(){
     return html;
   }).join('');
 }
+function eavBestWorstHtml(){
+  const counts = state.ideaAvailAll || {};
+  const slots = [];
+  iavNext15Dates().forEach(d => iavPartsFor(d).forEach(k => {
+    const dt = new Date(d + 'T12:00:00');
+    slots.push({ n: (counts[d] && counts[d][k]) || 0, d, label: `${dayLabelsShort[dt.getDay()]} ${monthNames[dt.getMonth()].slice(0,3)} ${dt.getDate()} ${k}` });
+  }));
+  if(!slots.length || !state.ideaAvailAllRespondents) return '';
+  const fmt = list => list.map(x => `<strong>${escapeCm(x.label)}</strong> (${x.n} free)`).join(' · ');
+  const best = slots.slice().sort((a, b) => b.n - a.n || a.d.localeCompare(b.d)).slice(0, 3);
+  const worst = slots.slice().sort((a, b) => a.n - b.n || a.d.localeCompare(b.d)).slice(0, 3);
+  return `<div style="margin:6px 0 10px;padding:12px 14px;border-radius:12px;background:#f2d8d7;color:#76220b;font-size:14px;line-height:1.55;">
+    <div>🌟 <strong>Best timing for everyone:</strong> ${fmt(best)}</div>
+    <div style="margin-top:6px;">⚠️ <strong>Worst timing for everyone:</strong> ${fmt(worst)}</div></div>`;
+}
 function everyoneAvailSectionHtml(me){
   if(!me) return '';
   let body;
@@ -5550,7 +5573,7 @@ function everyoneAvailSectionHtml(me){
   else if(!state.ideaAvailAll && state.ideaAvailAllLoading) body = `<p class="av-msg">Loading everyone's availability…</p>`;
   else if(state.ideaAvailAll && !state.ideaAvailAllRespondents) body = `<p class="av-msg">Nobody's added their availability yet — be the first, above!</p>`;
   else if(!state.ideaAvailAll) body = '';
-  else body = `${eavGridHtml()}
+  else body = `${eavBestWorstHtml()}${eavGridHtml()}
     <div class="eav-legend"><span><i class="eav-sw eav-sw-0"></i>Nobody</span><span><i class="eav-sw eav-sw-mid"></i>A few people</span><span><i class="eav-sw eav-sw-max"></i>Most people</span></div>
     <p class="ideas-hint">${state.ideaAvailAllRespondents} ${state.ideaAvailAllRespondents === 1 ? 'person has' : 'people have'} added their availability so far. Darker green = more people free then.${state.ideaAvailAllPeople ? ' Tap a square to see who by name.' : ''}</p>`;
   return `<div class="iav-wrap">
@@ -5617,17 +5640,31 @@ function wireIdeaAvailGrid(){
   if(!box) return;
   if(box.dataset.wired) return;
   box.dataset.wired = '1';
+  // Mouse/pen: press-and-drag paints immediately. Touch: the grid must stay scrollable, so a plain tap toggles a
+  // cell, a vertical swipe scrolls the page (the browser takes over), and a clearly HORIZONTAL swipe paints across
+  // the row. (Before, every cell swallowed touches, which made scrolling the page from the grid impossible.)
+  let iavTouch = null;
+  const iavRefreshDateDom = date => {
+    document.querySelectorAll('#iavGridBox .iav-cell[data-date="' + date + '"]').forEach(c => {
+      if(c.classList.contains('iav-na')) return;
+      const k = c.dataset.part;
+      c.className = 'iav-cell ' + (iavDayBusy(date) ? 'iav-busy' : iavDayFull(date) ? 'iav-full' : (iavPartOn(date, k) ? 'on iav-c-' + k : ''));
+    });
+  };
   box.addEventListener('pointerdown', e => {
     const allday = e.target.closest('.iav-allday');
     if(allday){
-      e.preventDefault();
       iavCycleAllDay(allday.dataset.alldate);
       renderIavGridInner();
       ideaAvailScheduleSave();
       return;
     }
     const cell = e.target.closest('.iav-cell');
-    if(!cell) return;
+    if(!cell || cell.classList.contains('iav-na')) return;
+    if(e.pointerType === 'touch'){
+      iavTouch = { cell, x:e.clientX, y:e.clientY, painting:false, scrolled:false, on:false };
+      return;
+    }
     e.preventDefault();
     const on = !(iavPartOn(cell.dataset.date, cell.dataset.part) || iavDayFull(cell.dataset.date));
     iavDrag = { on };
@@ -5636,9 +5673,29 @@ function wireIdeaAvailGrid(){
     ideaAvailScheduleSave();
   });
   window.addEventListener('pointermove', e => {
+    if(iavTouch){
+      const dx = e.clientX - iavTouch.x, dy = e.clientY - iavTouch.y;
+      if(!iavTouch.painting && !iavTouch.scrolled){
+        if(Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.3){
+          iavTouch.painting = true;
+          const c0 = iavTouch.cell;
+          iavTouch.on = !(iavPartOn(c0.dataset.date, c0.dataset.part) || iavDayFull(c0.dataset.date));
+          iavSetPart(c0.dataset.date, c0.dataset.part, iavTouch.on);
+          iavRefreshDateDom(c0.dataset.date);
+        } else if(Math.abs(dy) > 10) iavTouch.scrolled = true;
+      }
+      if(iavTouch && iavTouch.painting){
+        const cell = iavCellFromPoint(e.clientX, e.clientY);
+        if(cell && !cell.classList.contains('iav-na') && document.getElementById('iavGridBox') && document.getElementById('iavGridBox').contains(cell)){
+          const already = iavPartOn(cell.dataset.date, cell.dataset.part) || (iavTouch.on && iavDayFull(cell.dataset.date));
+          if(already !== iavTouch.on){ iavSetPart(cell.dataset.date, cell.dataset.part, iavTouch.on); iavRefreshDateDom(cell.dataset.date); }
+        }
+      }
+      return;
+    }
     if(!iavDrag) return;
     const cell = iavCellFromPoint(e.clientX, e.clientY);
-    if(!cell || !document.getElementById('iavGridBox') || !document.getElementById('iavGridBox').contains(cell)) return;
+    if(!cell || cell.classList.contains('iav-na') || !document.getElementById('iavGridBox') || !document.getElementById('iavGridBox').contains(cell)) return;
     const already = iavPartOn(cell.dataset.date, cell.dataset.part) || (iavDrag.on && iavDayFull(cell.dataset.date));
     if(already === iavDrag.on) return;
     iavSetPart(cell.dataset.date, cell.dataset.part, iavDrag.on);
@@ -5646,8 +5703,24 @@ function wireIdeaAvailGrid(){
     ideaAvailScheduleSave();
   });
   const endDrag = () => { iavDrag = null; };
-  window.addEventListener('pointerup', endDrag);
-  window.addEventListener('pointercancel', endDrag);
+  window.addEventListener('pointerup', e => {
+    if(iavTouch){
+      const t = iavTouch; iavTouch = null;
+      if(t.painting){ renderIavGridInner(); ideaAvailScheduleSave(); }
+      else if(!t.scrolled && Math.abs(e.clientX - t.x) < 10 && Math.abs(e.clientY - t.y) < 10 && document.body.contains(t.cell)){
+        const on = !(iavPartOn(t.cell.dataset.date, t.cell.dataset.part) || iavDayFull(t.cell.dataset.date));
+        iavSetPart(t.cell.dataset.date, t.cell.dataset.part, on);
+        renderIavGridInner();
+        ideaAvailScheduleSave();
+      }
+    }
+    endDrag();
+  });
+  window.addEventListener('pointercancel', () => {
+    // the browser took the gesture over to scroll the page: nothing was meant as a tap
+    if(iavTouch && iavTouch.painting){ renderIavGridInner(); ideaAvailScheduleSave(); }
+    iavTouch = null; endDrag();
+  });
 }
 
 function ideasSetStatus(msg, isErr){
@@ -7582,15 +7655,6 @@ typePanel.querySelectorAll('[data-typemulti-action]').forEach(btn => btn.addEven
 updateTypeMultiUI();
 
 document.getElementById('detailCloseBtn').addEventListener('click', closeDetail);
-document.getElementById('footerLogoutBtn').addEventListener('click', async () => {
-  const wasAdmin = state.cmAdminLoggedIn === true;
-  if(getCmSession()) clearCmSession();
-  availReset();
-  state.clubsLoginPickerOpen = false; state.clubsMyClubsPickerOpen = false;
-  if(wasAdmin) await cmAdminLogout();
-  state.cmView = 'auth'; state.cmMe = null;
-  render();
-});
 document.getElementById('footerAdminBtn').addEventListener('click', async () => {
   if(state.cmAdminLoggedIn){
     await cmAdminLogout();

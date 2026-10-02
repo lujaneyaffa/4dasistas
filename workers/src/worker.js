@@ -356,6 +356,9 @@ const readIdeaAvailPeople = async (env) => {
   }
   return people;
 };
+// Weekday mornings aren't offered (work/school) - mornings exist for Sat/Sun only.
+const isWeekendDate = (date) => { const d = new Date(date + "T12:00:00Z").getUTCDay(); return d === 0 || d === 6; };
+const allowedAvailParts = (date) => (isWeekendDate(date) ? IDEA_AVAIL_PARTS : IDEA_AVAIL_PARTS.filter((p) => p !== "morning"));
 const sanitizeIdeaAvailDays = (input) => {
   const out = {};
   if (!input || typeof input !== "object" || Array.isArray(input)) return out;
@@ -368,7 +371,8 @@ const sanitizeIdeaAvailDays = (input) => {
     if (Number.isNaN(Date.parse(date + "T00:00:00Z"))) continue;
     if (val === "busy") { out[date] = "busy"; continue; }
     if (Array.isArray(val)) {
-      const clean = IDEA_AVAIL_PARTS.filter((p) => val.includes(p));
+      const allowed = allowedAvailParts(date);
+      const clean = allowed.filter((p) => val.includes(p));
       if (clean.length) out[date] = clean;
     }
   }
@@ -1045,7 +1049,7 @@ export default {
           if (!parts.length) continue;
           hasAny = true;
           const slot = (counts[date] = counts[date] || { morning: 0, afternoon: 0, evening: 0 });
-          for (const part of parts) if (slot[part] !== undefined) slot[part]++;
+          for (const part of parts) if (slot[part] !== undefined && allowedAvailParts(date).includes(part)) slot[part]++;
         }
         if (hasAny) respondents++;
       }
