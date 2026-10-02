@@ -153,6 +153,12 @@ const generateUniqueUsername = async (env, name) => {
 // else (bit Lujane twice: club-adhd, then club-theater).
 const CLUB_ROSTER_KV_KEY = "clubRoster";
 const CLUBS_FILE_PATH_CONST = "data/clubs.json";
+// Phone / WhatsApp number: stored only on the user record and only ever returned to the admin.
+const sanitizePhone = (v) => {
+  const t = String(v || "").replace(/[^\d+()\-.\s]/g, "").replace(/\s+/g, " ").trim().slice(0, 25);
+  const digits = t.replace(/\D/g, "");
+  return digits.length >= 7 && digits.length <= 15 ? t : "";
+};
 const sanitizeColour = (input) => {
   const c = String(input || "").trim();
   return /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(c) ? c : "";
@@ -780,6 +786,8 @@ export default {
 
       const waitlist = clubId ? [...new Set((Array.isArray(body.waitlist) ? body.waitlist : []).map(String))].filter((id) => clubIds.has(id) && id !== clubId).slice(0, 1) : []; // 2 clubs total: the #1 pick (requested) + one on standby
       const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, waitlist, createdAt: Date.now() };
+      const phone = sanitizePhone(body.phone);
+      if (phone) user.phone = phone;
       await writeUser(env, user);
       await reserveUsername(env, username, user.id);
       // Signing up no longer drops anyone straight into a club - their #1 pick becomes a request an admin
@@ -1343,7 +1351,7 @@ export default {
       const out = {};
       for (const key of list.keys) {
         const clubId = key.name.replace("clubmembers:", "");
-        out[clubId] = (await resolveClubMembers(env, clubId)).map(publicUser);
+        out[clubId] = (await resolveClubMembers(env, clubId)).map((u) => ({ ...publicUser(u), phone: u.phone || "" })); // phone: admin-only
       }
       return jsonResponse(out, 200, corsHeaders);
     }
@@ -1513,6 +1521,11 @@ export default {
         const pin = String(body.pin || "").trim();
         if (!/^\d{4}$/.test(pin)) return jsonResponse({ error: "PIN must be exactly 4 digits" }, 400, corsHeaders);
         user.pinHash = await sha256Hex(pin);
+      }
+      if (body.phone !== undefined) {
+        const phone = sanitizePhone(body.phone);
+        if (body.phone && !phone) return jsonResponse({ error: "That doesn't look like a phone number" }, 400, corsHeaders);
+        if (phone) user.phone = phone; else delete user.phone;
       }
       await writeUser(env, user);
       return jsonResponse(publicUser(user), 200, corsHeaders);

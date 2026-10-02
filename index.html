@@ -902,7 +902,6 @@
   <a href="#" class="wordmark-link" aria-label="Go to homepage">
     <img class="wordmark-img" src="assets/logo-4ds.png" alt="4DASISTAS" width="520" height="416">
   </a>
-  <div class="header-disclaimer">#1st and only community bringing together ALL muslim gals events in GTA to one Calendar (+ unique clubs to join) ↓</div>
 </header>
 
 <nav class="tabs" id="tabs">
@@ -1241,7 +1240,7 @@ let state = {
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
   ideaAvail:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
   publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
-  myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, cmAdminEventSugs:null,
+  myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, clubsLoginPrefill:false, cmAdminEventSugs:null,
   ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, iavEditing:false,
   membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventJustCreated:false, eventEditDeleting:false,
@@ -2534,6 +2533,11 @@ function setupFallQuickLoginForm(){
       statusEl.classList.add('fall-status-error');
       return;
     }
+    if(pin !== (document.getElementById('fallQuickPin2').value || '').trim()){
+      statusEl.textContent = "The two PINs don't match — please type the same PIN twice.";
+      statusEl.classList.add('fall-status-error');
+      return;
+    }
     submitBtn.disabled = true;
     submitBtn.textContent = 'Creating your login…';
     try {
@@ -2602,6 +2606,7 @@ function setupFallSignupForm(){
     const enteredPin = (document.getElementById('fallPin').value || '').trim();
     if(!enteredName || enteredName.trim().split(/\s+/).length < 2) missing.push('add your first name and last initial (e.g. Amina K.)');
     if(!/^\d{4}$/.test(enteredPin)) missing.push('choose a 4-digit PIN');
+    else if(enteredPin !== (document.getElementById('fallPin2').value || '').trim()) missing.push("type the same PIN twice (the two PINs don't match)");
     if(checkedClubCount !== 2) missing.push('select exactly 2 clubs above');
     if(!form.whatsapp.value.trim()) missing.push('add your WhatsApp number');
     if(!form.terms.checked) missing.push('agree to the community terms & conditions');
@@ -2625,7 +2630,7 @@ function setupFallSignupForm(){
     let account;
     try {
       account = await cmApiRaw('/api/signup', { method:'POST', body: JSON.stringify({
-        name: enteredName, pin: enteredPin,
+        name: enteredName, pin: enteredPin, phone: form.whatsapp.value.trim(),
         clubId: firstClub.id, waitlist: rankedClubs.slice(1).map(c => c.id)
       }) });
     } catch(err){
@@ -2723,7 +2728,7 @@ function renderDirectory(){
   } else if(state.tab === 'clubs'){
     document.getElementById('resourcePagination').innerHTML = '';
     const anon = !getCmSession(); // the "which club are you in" picker is for signed-in members only; public and admin-only views get the public layout
-el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="justify-content:center;gap:14px;">
+el.innerHTML = `${getCmSession() ? '' : `${getLastLogin() ? `<div style="text-align:center;margin-bottom:12px;"><button type="button" id="clubsLoginAsBtn" style="min-height:46px;padding:11px 22px;border-radius:999px;border:2px solid #76220b;background:#ce8491;color:#fff;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;">Log in as ${escapeCm(getLastLogin().name || getLastLogin().username)}</button><div><button type="button" id="clubsLoginForgetBtn" class="av-link" style="font-size:12px;margin-top:4px;">Not you?</button></div></div>` : ''}<div class="clubs-top-actions" style="justify-content:center;gap:14px;">
     <button type="button" class="club-guide-btn" id="clubsLoginOpenBtn" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;font-size:15px;text-align:center;">Log In</button>
     <button class="fall-cta-btn join-club-btn" data-hometab="fallsignup" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;">Sign Up</button>
     </div>`}
@@ -2741,8 +2746,8 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       ` : `
         <p style="font-size:13px;margin-bottom:10px;">Sign in with your username and the PIN an organizer gave you.</p>
         <div id="clubsLoginError" style="color:#c00;font-size:13px;margin-bottom:8px;"></div>
-        <input id="clubsLoginUsername" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);margin-bottom:10px;box-sizing:border-box;">
-        <input id="clubsLoginPin" placeholder="PIN" inputmode="numeric" maxlength="4" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);margin-bottom:10px;box-sizing:border-box;">
+        <input id="clubsLoginUsername" value="${state.clubsLoginPrefill && getLastLogin() ? escapeCm(getLastLogin().username) : ''}" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);margin-bottom:10px;box-sizing:border-box;">
+        <input id="clubsLoginPin" type="password" autocomplete="current-password" placeholder="PIN" inputmode="numeric" maxlength="4" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);margin-bottom:10px;box-sizing:border-box;">
         <button class="club-guide-btn" id="clubsLoginSubmitBtn" style="width:100%;background:var(--lightblue);">Sign In</button>
         <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;">Forgot your PIN? An admin can reset it for you — just message us.</p>
       `}
@@ -2770,6 +2775,14 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       if(welcomeClose) welcomeClose.addEventListener('click', () => { state.availWelcome = ''; state.clubsNotice = ''; render(); });
       const cpnSaveBtn = document.getElementById('cpnSaveBtn');
       if(cpnSaveBtn) cpnSaveBtn.addEventListener('click', cmChoosePin);
+      const loginAsBtn = document.getElementById('clubsLoginAsBtn');
+      if(loginAsBtn) loginAsBtn.addEventListener('click', () => {
+        state.clubsMyClubsPickerOpen = false; state.clubsLoginPickerOpen = true; state.clubsLoginPrefill = true;
+        render();
+        setTimeout(() => { const pin = document.getElementById('clubsLoginPin'); if(pin){ pin.scrollIntoView({ block:'center' }); pin.focus(); } }, 50);
+      });
+      const loginForgetBtn = document.getElementById('clubsLoginForgetBtn');
+      if(loginForgetBtn) loginForgetBtn.addEventListener('click', () => { try { localStorage.removeItem('lastLogin'); } catch {} state.clubsLoginPrefill = false; render(); });
       const loginSubmitBtn = document.getElementById('clubsLoginSubmitBtn');
       if(loginSubmitBtn) loginSubmitBtn.addEventListener('click', cmGeneralLogin);
       document.querySelectorAll('.clubs-my-club-btn').forEach(btn => {
@@ -2885,7 +2898,8 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
           <div class="fall-section fall-login-box">
             <h3>Choose a PIN</h3>
             <p class="fall-hint" style="margin:0 0 10px;">You'll use your name + this PIN to log in next time.</p>
-            <input type="tel" id="fallQuickPin" placeholder="Choose a 4-digit PIN (remember it!)" class="fall-text-input" inputmode="numeric" maxlength="4" autocomplete="off">
+            <input type="password" id="fallQuickPin" placeholder="Choose a 4-digit PIN (remember it!)" class="fall-text-input" inputmode="numeric" maxlength="4" autocomplete="new-password">
+            <input type="password" id="fallQuickPin2" placeholder="Type your PIN again to confirm" class="fall-text-input" inputmode="numeric" maxlength="4" autocomplete="new-password" style="margin-top:8px;">
           </div>
           <button type="submit" class="fall-submit-btn">Create my login →</button>
           <p class="fall-submit-status" id="fallQuickStatus"></p>
@@ -2900,7 +2914,8 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
           <div class="fall-section fall-login-box">
             <h3>Choose a PIN</h3>
             <p class="fall-hint" style="margin:0 0 10px;">You'll use your name + this PIN to log in and fill in your availability. As soon as you submit, you're signed in, and an admin approves your #1 club.</p>
-            <input type="tel" id="fallPin" placeholder="Choose a 4-digit PIN (remember it!)" class="fall-text-input" inputmode="numeric" maxlength="4" autocomplete="off">
+            <input type="password" id="fallPin" placeholder="Choose a 4-digit PIN (remember it!)" class="fall-text-input" inputmode="numeric" maxlength="4" autocomplete="new-password">
+            <input type="password" id="fallPin2" placeholder="Type your PIN again to confirm" class="fall-text-input" inputmode="numeric" maxlength="4" autocomplete="new-password" style="margin-top:8px;">
             <p class="fall-hint" style="margin:8px 0 0;">Forgot your PIN? No stress — an admin can reset it for you.</p>
           </div>
           <div class="fall-section">
@@ -4556,7 +4571,13 @@ function cmSessionKey(){ return 'cmSession'; }
 function getCmSession(){
   try { return JSON.parse(localStorage.getItem(cmSessionKey()) || 'null'); } catch { return null; }
 }
-function setCmSession(session){ localStorage.setItem(cmSessionKey(), JSON.stringify(session)); }
+function setCmSession(session){
+  localStorage.setItem(cmSessionKey(), JSON.stringify(session));
+  // Remember WHO last signed in on this browser (name + username only, never the PIN or token) so the
+  // login screen can offer a one-tap "Log in as …" that only needs the PIN.
+  try { if(session && session.username) localStorage.setItem('lastLogin', JSON.stringify({ name: session.name || '', username: session.username })); } catch {}
+}
+function getLastLogin(){ try { const l = JSON.parse(localStorage.getItem('lastLogin') || 'null'); return l && l.username ? l : null; } catch { return null; } }
 function clearCmSession(){ localStorage.removeItem(cmSessionKey()); }
 
 function escapeCm(s){
@@ -4638,7 +4659,7 @@ function choosePinHtml(){
   return `<div class="av-welcome" style="flex-direction:column;align-items:stretch;gap:8px;">
     <span>You're signed in with the starting PIN <strong>1234</strong> — choose your own 4-digit PIN now.</span>
     <div style="display:flex;gap:8px;">
-      <input id="cpnNewPin" placeholder="New 4-digit PIN" inputmode="numeric" maxlength="4" style="flex:1;padding:9px;border-radius:10px;border:2px solid var(--charcoal);box-sizing:border-box;">
+      <input id="cpnNewPin" type="password" autocomplete="new-password" placeholder="New 4-digit PIN" inputmode="numeric" maxlength="4" style="flex:1;padding:9px;border-radius:10px;border:2px solid var(--charcoal);box-sizing:border-box;">
       <button type="button" class="club-guide-btn" id="cpnSaveBtn" style="background:var(--lightblue);padding:9px 16px;">Save</button>
     </div>
     <div id="cpnStatus" style="font-size:12px;color:#c00;"></div>
@@ -4839,8 +4860,9 @@ function wireMembersDirectory(){
 }
 
 async function cmMemberSignOut(){
-  if(state.availDirty) await availSave();
+  try { if(state.availDirty) await availSave(); } catch {}
   clearCmSession();
+  state.myPending = []; state.meLoadedFor = null; state.meLoading = false;
   availReset();
   state.clubsLoginPickerOpen = false; state.clubsMyClubsPickerOpen = false;
   state.cmView = 'auth'; state.cmMe = null;
@@ -5077,8 +5099,11 @@ async function refreshMe(){
   try {
     const me = await cmApiRaw('/api/me', { headers:{ 'Authorization':'Bearer ' + session.token } });
     const changed = JSON.stringify(me.clubs || []) !== JSON.stringify(session.clubs || []);
+    // The person may have logged out while this request was in flight — never write the session back.
+    const cur = getCmSession();
+    if(!cur || cur.token !== session.token){ state.meLoading = false; return; }
     state.myPending = me.pending || [];
-    setCmSession(Object.assign({}, session, { clubs: me.clubs || [], waitlist: me.waitlist || [] }));
+    setCmSession(Object.assign({}, cur, { clubs: me.clubs || [], waitlist: me.waitlist || [] }));
     if(changed) state.publicIdeasAll = null;
   } catch(err){ /* e.g. expired session — keep what's cached, don't retry in a loop */ }
   state.meLoadedFor = session.token;
@@ -5154,7 +5179,7 @@ function openEditProfilePopup(){
             method:'PUT', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.token },
             body: JSON.stringify({ photo: canvas.toDataURL('image/jpeg', 0.75) })
           });
-          setCmSession(Object.assign({}, getCmSession(), { photo: updated.photo }));
+          if(getCmSession()) setCmSession(Object.assign({}, getCmSession(), { photo: updated.photo }));
           wrap.querySelector('#epPhoto').innerHTML = photoHtml();
           status.style.color = '#2a7a4a'; status.textContent = 'Photo saved ✓';
         } catch(err){ status.style.color = '#c00'; status.textContent = 'Could not save photo: ' + err.message; }
@@ -6032,7 +6057,7 @@ function renderClubMembersView(el){
         ${state.cmError ? `<p style="color:#c00;margin-bottom:10px;">${escapeCm(state.cmError)}</p>` : ''}
         <div style="display:flex; flex-direction:column; gap:10px;">
           <input id="cmUsernameLoginInput" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="padding:12px;border-radius:10px;border:2px solid var(--charcoal);font-size:15px;">
-          <input id="cmPinInput" placeholder="PIN" inputmode="numeric" maxlength="4" style="padding:12px;border-radius:10px;border:2px solid var(--charcoal);font-size:15px;">
+          <input id="cmPinInput" type="password" autocomplete="current-password" placeholder="PIN" inputmode="numeric" maxlength="4" style="padding:12px;border-radius:10px;border:2px solid var(--charcoal);font-size:15px;">
           <button class="club-guide-btn" id="cmSignInBtn" style="background:var(--lightblue);">Sign In</button>
         </div>
         <p style="font-size:11px;color:#776867;margin-top:12px;">Don't have a login yet? Ask an organizer to add you.</p>
@@ -6327,7 +6352,7 @@ function cmHandleProfilePhotoPick(input){
           body: JSON.stringify({ photo: dataUri })
         });
         state.cmMe.photo = updated.photo;
-        setCmSession(Object.assign({}, getCmSession(), { photo: updated.photo }));
+        if(getCmSession()) setCmSession(Object.assign({}, getCmSession(), { photo: updated.photo }));
         await cmLoadRoster(clubId);
         render();
       } catch(err){
@@ -6511,7 +6536,7 @@ async function cmAdminSaveMemberEdit(clubId, id){
   const pin = document.getElementById('cmAdminEditPin').value.trim();
   const selectedClubs = [...document.querySelectorAll('.cm-admin-edit-club-cb:checked')].map(cb => cb.value);
   const status = document.getElementById('cmAdminEditStatus');
-  const body = { name, username };
+  const body = { name, username, phone: (document.getElementById('cmAdminEditPhone') || { value:'' }).value.trim() };
   if(pin) body.pin = pin;
   try {
     const res = await fetch('/api/admin/club-members/' + encodeURIComponent(clubId) + '/' + encodeURIComponent(id), {
@@ -6606,7 +6631,8 @@ function renderAdminAllMembersPanels(){
       return `<div class="panel-card" style="text-align:left;">
         <input id="cmAdminEditName" value="${escapeCm(m.name)}" placeholder="Name" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--charcoal);box-sizing:border-box;">
         <input id="cmAdminEditUsername" value="${escapeCm(m.username)}" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--charcoal);box-sizing:border-box;">
-        <input id="cmAdminEditPin" placeholder="New 4-digit PIN (leave blank to keep current)" inputmode="numeric" maxlength="4" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--charcoal);box-sizing:border-box;">
+        <input id="cmAdminEditPhone" type="tel" value="${escapeCm(m.phone || '')}" placeholder="Phone / WhatsApp number" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--charcoal);box-sizing:border-box;">
+        <input id="cmAdminEditPin" type="password" autocomplete="new-password" placeholder="New 4-digit PIN (leave blank to keep current)" inputmode="numeric" maxlength="4" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--charcoal);box-sizing:border-box;">
         <p style="font-size:11px;color:#776867;margin:6px 0 4px;">Clubs this member belongs to:</p>
         <div id="cmAdminEditClubs" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;max-height:140px;overflow-y:auto;">
           ${clubsData.map(c => `<label style="display:flex;align-items:center;gap:6px;font-size:12px;">
@@ -6627,7 +6653,8 @@ function renderAdminAllMembersPanels(){
     return `<div class="panel-card" style="text-align:center;">
       ${m.photo ? `<img src="${escapeCm(m.photo)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;margin:0 auto 8px;display:block;">` : `<div class="monogram" style="margin:0 auto 8px;">${escapeCm((m.name || '?').charAt(0).toUpperCase())}</div>`}
       <h4 style="font-size:14px;margin-bottom:2px;">${escapeCm(m.name)}</h4>
-      <div style="font-size:11px;color:#776867;margin-bottom:8px;">${escapeCm(m.username)}</div>
+      <div style="font-size:11px;color:#776867;margin-bottom:4px;">${escapeCm(m.username)}</div>
+      <div style="font-size:12px;margin-bottom:8px;">${m.phone ? `📞 <a href="tel:${escapeCm(m.phone.replace(/[^\d+]/g, ''))}">${escapeCm(m.phone)}</a>` : '<span style="color:#776867;">No phone on file</span>'}</div>
       <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;">${tags}</div>
       <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
         <button class="cm-admin-edit-member" data-club-id="${firstClub}" data-member-id="${m.id}" style="padding:6px 10px;border-radius:8px;border:2px solid var(--charcoal);background:transparent;cursor:pointer;font-size:11px;">Edit</button>
@@ -6731,7 +6758,7 @@ function renderClubAdminPanel(){
       <p style="font-size:11px;color:#776867;margin-top:-4px;">Their username (e.g. amina.k) is made automatically from their name. To add someone who's already a member elsewhere, use their profile's club checkboxes instead.</p>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;">
         <input id="cmAdminMemberName" placeholder="Name (first name + last initial, e.g. Amina K.)" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
-        <input id="cmAdminMemberPin" placeholder="PIN (optional — leave blank to auto-generate)" inputmode="numeric" maxlength="4" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
+        <input id="cmAdminMemberPin" type="password" autocomplete="new-password" placeholder="PIN (optional — leave blank to auto-generate)" inputmode="numeric" maxlength="4" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
         <button class="club-guide-btn" id="cmAdminMemberCreateBtn" style="background:var(--blush);">Create Member</button>
         <span id="cmAdminMemberCreateStatus" style="font-size:12px;color:#c00;"></span>
       </div>
