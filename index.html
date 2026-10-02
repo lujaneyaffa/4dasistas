@@ -2881,7 +2881,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         <div class="fall-hero">
           <h2>Pick Your Clubs — Fall Season 🌸</h2>
           ${state.fallQuickLogin ? `<p><strong>Already filled out a form (DM, paper, WhatsApp)?</strong> Just set up your login below — an organizer will add you to your club(s) once they match you up.</p>` : `<p><strong>Enter your name + a PIN below and you'll be signed in right away; an admin then approves your #1 pick</strong> — your other picks go on the standby list. Fill out the form to choose your club(s) for the season! Max 2 clubs for now — a 3rd can open after 1 month of activity. Not ready to commit to one of your picks yet? Mention it in the notes below and we'll put you on <strong>STANDBY</strong> for it instead of a firm YES.</p>`}
-          <button type="button" class="av-link" id="fallQuickLoginToggle" style="font-size:14px;margin-top:6px;">${state.fallQuickLogin ? '← Back to the full sign-up form' : 'Already filled out a form? Just set up your login →'}</button>
+          ${state.fallQuickLogin ? `<button type="button" class="av-link" id="fallQuickLoginToggle" style="font-size:14px;margin-top:6px;">← Back to the full sign-up form</button>` : ''}
         </div>
         ${state.fallQuickLogin ? `
         <form id="fallQuickLoginForm">
@@ -2981,7 +2981,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
           <p>Thank you! You'll receive an invite to your club group chat once it's ready 💌</p>
         </div>`}
       </div>`;
-    const quickToggle = document.getElementById('fallQuickLoginToggle');
+    const quickToggle = document.getElementById('fallQuickLoginToggle'); // only present on the old-members page (#/clubs/quicklogin)
     if(quickToggle) quickToggle.addEventListener('click', () => { state.fallQuickLogin = !state.fallQuickLogin; render(); });
     if(state.fallQuickLogin) setupFallQuickLoginForm(); else setupFallSignupForm();
   } else if(state.tab === 'resources'){
