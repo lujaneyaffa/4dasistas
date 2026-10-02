@@ -840,9 +840,12 @@
   /* ---- Phone usability (iPhone + Android): finger-sized tap targets, and 16px text in fields so iOS
      doesn't zoom the page when one is tapped. Measured against real rendered sizes, not guessed. ---- */
   @media (max-width:700px){
-    .tab-btn{ min-height:44px; font-size:12.5px; }
+    .tabs{ gap:2px; padding-left:4px; padding-right:4px; }
+    .tab-btn{ min-height:44px; font-size:12.5px; padding-left:5px; padding-right:5px; }
     input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not(.hp-field), select, textarea{ font-size:16px !important; }
     #globalSearch{ min-height:24px; }
+    .tab-btn .the{ display:none; } /* 5 tabs don't fit one phone-width row with "The " in front of each */
+    .squads-grid{ grid-template-columns:1fr; }
     .back-btn, .av-link{ min-height:44px; display:inline-flex; align-items:center; }
     .footer-admin-btn{ min-height:44px; padding-left:16px; padding-right:16px; }
     .idea-price-btn{ min-height:44px; }
@@ -899,9 +902,10 @@
 
 <nav class="tabs" id="tabs">
   <button class="tab-btn active" data-tab="home">Home</button>
-  <button class="tab-btn" data-tab="events">The Calendar</button>
-  <button class="tab-btn" data-tab="clubs">The Clubs</button>
-  <button class="tab-btn" data-tab="resources">The Directory</button>
+  <button class="tab-btn" data-tab="events"><span class="the">The </span>Calendar</button>
+  <button class="tab-btn" data-tab="clubs"><span class="the">The </span>Clubs</button>
+  <button class="tab-btn" data-tab="squads"><span class="the">The </span>Squads</button>
+  <button class="tab-btn" data-tab="resources"><span class="the">The </span>Directory</button>
   <div class="top-search-wrap" id="globalSearchShell" style="display:none;">
     <div class="top-search-shell">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M16 16L21 21"></path></svg>
@@ -1249,6 +1253,7 @@ const introText = {
   trips: "Women-friendly trips, retreats, and group travel beyond the GTA.",
   mosqueprograms: "Mosque events, prayers, classes, and community gatherings.",
   clubs: "Special-interest clubs the community runs together — sign up to join one.",
+  squads: "Smaller crews built around one regular thing — find yours.",
   resources: "A directory of Muslim women-owned and Muslim-supporting resources across the GTA.",
   home: "",
   travel: "Women-friendly trips, retreats, and group travel beyond the GTA.",
@@ -2656,8 +2661,31 @@ function setupFallSignupForm(){
   });
 }
 
+const SQUADS = [
+  { id:'quran',     emoji:'📖', colour:'#e1eaf1', title:'Quran',     desc:'Recite, review and reflect together — a consistent circle for staying close to the Quran.' },
+  { id:'badminton', emoji:'🏸', colour:'#eedcb1', title:'Badminton', desc:'Regular court time with the girls — all levels welcome, rackets and good vibes required.' },
+  { id:'cowork',    emoji:'💻', colour:'#f6e3e9', title:'Cowork',    desc:'Show up, plug in and get your work done alongside other women — cafés, libraries, shared tables.' },
+  { id:'steps',     emoji:'👟', colour:'#f8efdb', title:'Steps',     desc:'Walks and step-count challenges — fresh air, easy pace, and someone to keep you moving.' },
+];
+function squadCardHtml(q){
+  return `<div class="panel-card squad-card" style="border:2px solid ${q.colour};border-top-width:6px;">
+    <div class="panel-top">
+      <div class="monogram" style="background:${q.colour};font-size:26px;">${q.emoji}</div>
+      <div><h4>${escapeCm(q.title)}</h4></div>
+    </div>
+    <div class="panel-desc">${escapeCm(q.desc)}</div>
+  </div>`;
+}
+
 function renderDirectory(){
   const el = document.getElementById('directory-view');
+  if(state.tab === 'squads'){
+    document.getElementById('resourcePagination').innerHTML = '';
+    el.innerHTML = `<h3 class="clubs-popular-title">THE SQUADS</h3>
+      <div class="clubs-grid squads-grid">${SQUADS.map(squadCardHtml).join('')}</div>
+      <a class="club-card-more" href="${IG_DM_URL}" target="_blank" rel="noopener"><span>✨</span> <strong>Want in?</strong> — DM us and we'll add you to a squad.</a>`;
+    return;
+  }
   if(state.tab === 'travel'){
     document.getElementById('resourcePagination').innerHTML = '';
     const typeMatched = state.tripType === 'all' ? tripsData : tripsData.filter(item => tripTypeForItem(item) === state.tripType);
@@ -4472,7 +4500,7 @@ async function saveAboutEdit(){
 /* ============================================================
    MAIN RENDER
    ============================================================ */
-const DIRECTORY_TABS = ['clubs','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','clubmembers','clubideas'];
+const DIRECTORY_TABS = ['clubs','squads','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','clubmembers','clubideas'];
 
 /* ============================================================
    CLUB MEMBERS SCHEDULE (private per-club sign-in + per-event availability)
@@ -6839,7 +6867,7 @@ const LAST_TAB_STORAGE_KEY = 'lastAppState';
 // instead of the old #tab=events&cat=all&view=list&... query-string look. The full
 // state (filters, view mode, etc.) still round-trips through localStorage below —
 // only what's actually shown in the URL bar has been simplified.
-const TAB_SLUGS = { events:'calendar', clubs:'clubs', resources:'resources', travel:'travel', rules:'about', homescreen:'add-to-homescreen', subscribe:'subscribe' };
+const TAB_SLUGS = { events:'calendar', clubs:'clubs', squads:'squads', resources:'resources', travel:'travel', rules:'about', homescreen:'add-to-homescreen', subscribe:'subscribe' };
 const SLUG_TO_TAB = Object.fromEntries(Object.entries(TAB_SLUGS).map(([tab, slug]) => [slug, tab]));
 /* Every page and sub-page has its own shareable link (all hash-based, so they work with the static host):
      #/calendar  #/calendar/sports  #/calendar/sports/badminton  #/calendar/activities/Mississauga
