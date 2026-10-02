@@ -4846,9 +4846,9 @@ function openClubIdeas(clubId){
   state.tab = 'clubideas';
   state.ideasClubId = clubId;
   state.ideas = null; state.ideasError = ''; state.ideasStatus = ''; state.ideasRenaming = false;
-  state.ideaAvail = null; state.ideaAvailLoadedFor = null; state.ideaAvailError = ''; state.ideaAvailStatus = ''; state.ideaAvailDirty = false; state.iavEditing = false;
-  state.ideaAvailAll = null; state.ideaAvailAllLoadedFor = null; state.ideaAvailAllPeople = null;
-  state.ideaAvailAll = null; state.ideaAvailAllLoadedFor = null; state.ideaAvailAllError = '';
+  // Availability is one general record per person shared across every club, not reloaded per
+  // club visit - only reset the UI editing mode, never the data itself, here.
+  state.iavEditing = false;
   render();
   window.scrollTo({ top:0, behavior:'smooth' });
 }
@@ -5183,6 +5183,7 @@ function ideaAvailSectionHtml(me){
     <button type="button" class="iav-edit-btn" id="iavEditBtn">✏️ Edit my availability</button>`;
   return `<div class="iav-wrap">
     <h3 class="iav-title">🗓️ Add your availability</h3>
+    <p class="ideas-hint" style="margin-top:-6px;">This is your one general availability — the same everywhere, not a separate one per club.</p>
     <div class="iav-status" id="iavStatus" aria-live="polite">${escapeCm(state.ideaAvailStatus)}</div>
     ${body}
   </div>`;
@@ -5240,14 +5241,13 @@ function ideaAvailScheduleSave(){
   iavSaveTimer = setTimeout(ideaAvailSave, 700);
 }
 async function ideaAvailLoad(){
-  const clubId = state.ideasClubId;
-  if(!clubId || state.ideaAvailLoading) return;
+  if(state.ideaAvailLoading) return;
   state.ideaAvailLoading = true;
   state.ideaAvailError = '';
   try {
-    const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(clubId) + '/idea-availability', { headers: ideaHeaders() });
+    const data = await cmApiRaw('/api/idea-availability', { headers: ideaHeaders() });
     state.ideaAvail = data.days || {};
-    state.ideaAvailLoadedFor = clubId;
+    state.ideaAvailLoadedFor = true;
     state.ideaAvailDirty = false;
   } catch(err){ state.ideaAvailError = err.message; }
   state.ideaAvailLoading = false;
@@ -5255,14 +5255,13 @@ async function ideaAvailLoad(){
 }
 async function ideaAvailSave(){
   clearTimeout(iavSaveTimer);
-  const clubId = state.ideaAvailLoadedFor;
-  if(!clubId || !state.ideaAvailDirty) return;
+  if(!state.ideaAvailDirty) return;
   if(state.ideaAvailSaving){ state.ideaAvailResave = true; return; }
   const snapshot = JSON.stringify(state.ideaAvail || {});
   state.ideaAvailSaving = true;
   iavSetStatus('Saving…');
   try {
-    await cmApiRaw('/api/clubs/' + encodeURIComponent(clubId) + '/idea-availability', {
+    await cmApiRaw('/api/idea-availability', {
       method:'PUT', headers: ideaHeaders(), body: JSON.stringify({ days: JSON.parse(snapshot) })
     });
     if(JSON.stringify(state.ideaAvail || {}) === snapshot){ state.ideaAvailDirty = false; iavSetStatus('Saved ✓'); everyoneAvailLoad(true); }
@@ -5328,17 +5327,16 @@ function everyoneAvailSectionHtml(me){
   </div>`;
 }
 async function everyoneAvailLoad(force){
-  const clubId = state.ideasClubId;
-  if(!clubId || state.ideaAvailAllLoading) return;
-  if(!force && state.ideaAvailAllLoadedFor === clubId) return;
+  if(state.ideaAvailAllLoading) return;
+  if(!force && state.ideaAvailAllLoadedFor) return;
   if(!ideaMe()) return;
   state.ideaAvailAllLoading = true;
   state.ideaAvailAllError = '';
   try {
-    const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(clubId) + '/idea-availability/all', { headers: ideaHeaders() });
+    const data = await cmApiRaw('/api/idea-availability/all', { headers: ideaHeaders() });
     state.ideaAvailAll = data.counts || {};
     state.ideaAvailAllRespondents = data.respondents || 0;
-    state.ideaAvailAllLoadedFor = clubId;
+    state.ideaAvailAllLoadedFor = true;
     // Any signed-in member (or the site admin) also gets everyone's name, not just the anonymous count,
     // so tapping a square can list who — a name-only guest still only sees counts (data.people is absent).
     state.ideaAvailAllPeople = data.people || null;
@@ -5378,7 +5376,7 @@ function iavCellFromPoint(x, y){
 }
 let iavDrag = null;
 function wireIdeaAvailGrid(){
-  if(ideaMe() && state.ideaAvail === null && state.ideaAvailLoadedFor !== state.ideasClubId && !state.ideaAvailLoading && !state.ideaAvailError) ideaAvailLoad();
+  if(ideaMe() && state.ideaAvail === null && !state.ideaAvailLoadedFor && !state.ideaAvailLoading && !state.ideaAvailError) ideaAvailLoad();
   const editBtn = document.getElementById('iavEditBtn');
   if(editBtn) editBtn.addEventListener('click', () => { state.iavEditing = true; render(); });
   const doneBtn = document.getElementById('iavDoneBtn');

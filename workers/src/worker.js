@@ -29,9 +29,9 @@
  *                                                                guest with just a name (X-Guest-Id + X-Guest-Name headers, no password). Creator auto-votes; max 3 per person, 40 per club
  *   POST   /api/clubs/:clubId/ideas/:ideaId/vote            - Toggle your vote (member or guest)
  *   DELETE /api/clubs/:clubId/ideas/:ideaId                 - Remove an option you added
- *   GET    /api/clubs/:clubId/idea-availability              - "Add your availability" on the idea board: your own 10-day availability ({days:{"YYYY-MM-DD":"busy"|["morning","afternoon","evening"]}}); same identity as ideas (member Bearer token OR guest headers)
- *   PUT    /api/clubs/:clubId/idea-availability              - Replace your own idea-board availability (same identity, same shape)
- *   GET    /api/clubs/:clubId/idea-availability/all          - Everyone's idea-board availability, aggregated: {counts:{"YYYY-MM-DD":{morning,afternoon,evening}}, respondents}; same identity gate as above, no per-person detail returned
+ *   GET    /api/idea-availability                           - "Add your availability" on the idea board: your own general 15-day availability, ONE record shared across every club (not per-club) ({days:{"YYYY-MM-DD":"busy"|["morning","afternoon","evening"]}}); same identity as ideas (member Bearer token OR guest headers)
+ *   PUT    /api/idea-availability                           - Replace your own general availability (same identity, same shape)
+ *   GET    /api/idea-availability/all                       - Everyone's general availability, aggregated: {counts:{"YYYY-MM-DD":{morning,afternoon,evening}}, respondents, people? (names, for any signed-in requester)}; same identity gate as above
  *   PUT    /api/admin/club-ideas/:clubId/:ideaId            - Admin edits title / mapUrl / date (YYYY-MM-DD) / votes (sets the displayed total via an adjustment)
  *   DELETE /api/admin/club-ideas/:clubId/:ideaId            - Admin removes any option (session cookie)
  *   GET    /api/members                                     - Signed-in members only (Bearer token): every profile as {id, name, hasPhoto, clubs:[clubId]} (no usernames/PINs)
@@ -277,7 +277,10 @@ const sanitizePrice = (input) => String(input || "").replace(/[\x00-\x1f\x7f<>]/
 // "busy" = the whole day painted red by the Busy-all-day button; an array = only those segments are marked
 // available (an array of all 3 = the same as the Available-all-day button, painted green).
 const IDEA_AVAIL_PARTS = ["morning", "afternoon", "evening"];
-const ideaAvailKey = (clubId, personId) => `ideaavail:${clubId}:${personId}`;
+// One availability record per person, shared across every club — not a separate one per
+// club someone belongs to. Being free Tuesday evening doesn't depend on which club's page
+// you're looking at it from.
+const ideaAvailKey = (personId) => `ideaavail:${personId}`;
 // Stored idea-availability docs are either the legacy bare days-map, or {name, days} (added so an admin
 // overview can show WHO is free, not just a count — a guest's name only ever otherwise exists in their own
 // browser's localStorage, never server-side, so it has to be captured at save time).
@@ -290,11 +293,11 @@ const parseIdeaAvailDoc = (raw) => {
   }
   return { name: "", days: (parsed && typeof parsed === "object") ? parsed : {} };
 };
-const readIdeaAvailPeople = async (env, clubId) => {
-  const list = await env.SITE_DATA.list({ prefix: `ideaavail:${clubId}:` });
+const readIdeaAvailPeople = async (env) => {
+  const list = await env.SITE_DATA.list({ prefix: `ideaavail:` });
   const people = [];
   for (const k of list.keys) {
-    const personId = k.name.slice(`ideaavail:${clubId}:`.length);
+    const personId = k.name.slice(`ideaavail:`.length);
     const { name, days } = parseIdeaAvailDoc(await env.SITE_DATA.get(k.name));
     if (!days || !Object.keys(days).length) continue;
     let resolvedName = name;
@@ -932,13 +935,13 @@ export default {
       return jsonResponse({ ideas: sortedPublicIdeas(rest, who) }, 200, corsHeaders);
     }
 
-    const ideaAvailAllMatch = path.match(/^\/api\/clubs\/([^/]+)\/idea-availability\/all\/?$/);
+    // Availability is one general schedule per person, shared across every club (not a separate
+    // one per club) - these two routes are intentionally NOT nested under /api/clubs/:clubId/.
+    const ideaAvailAllMatch = path.match(/^\/api\/idea-availability\/all\/?$/);
     if (ideaAvailAllMatch && request.method === "GET") {
-      const clubId = await ideaClub(ideaAvailAllMatch);
-      if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
       const who = await ideaWho();
       if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
-      const people = await readIdeaAvailPeople(env, clubId);
+      const people = await readIdeaAvailPeople(env);
       const counts = {};
       let respondents = 0;
       for (const p of people) {
@@ -958,13 +961,11 @@ export default {
       return jsonResponse({ counts, respondents, ...(showNames ? { people } : {}) }, 200, corsHeaders);
     }
 
-    const ideaAvailMatch = path.match(/^\/api\/clubs\/([^/]+)\/idea-availability\/?$/);
+    const ideaAvailMatch = path.match(/^\/api\/idea-availability\/?$/);
     if (ideaAvailMatch && (request.method === "GET" || request.method === "PUT")) {
-      const clubId = await ideaClub(ideaAvailMatch);
-      if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
       const who = await ideaWho();
       if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
-      const key = ideaAvailKey(clubId, who.id);
+      const key = ideaAvailKey(who.id);
       if (request.method === "GET") {
         const { days } = parseIdeaAvailDoc(await env.SITE_DATA.get(key));
         return jsonResponse({ days }, 200, corsHeaders);
@@ -1211,12 +1212,12 @@ export default {
       return jsonResponse(out, 200, corsHeaders);
     }
 
-    // ---- Admin: see everyone's idea-board availability by name for one club (the public /all endpoint
-    // above only ever returns anonymous counts) ----
-    const adminIdeaAvailMatch = path.match(/^\/api\/admin\/idea-availability\/([^/]+)\/?$/);
+    // ---- Admin: see everyone's general availability by name (the public /all endpoint above
+    // already returns names to any signed-in member too - this is kept for a pre-login/guest-cookie
+    // admin view) ----
+    const adminIdeaAvailMatch = path.match(/^\/api\/admin\/idea-availability\/?$/);
     if (adminIdeaAvailMatch && request.method === "GET") {
-      const clubId = decodeURIComponent(adminIdeaAvailMatch[1]);
-      return jsonResponse({ people: await readIdeaAvailPeople(env, clubId) }, 200, corsHeaders);
+      return jsonResponse({ people: await readIdeaAvailPeople(env) }, 200, corsHeaders);
     }
 
     const adminIdeaMatch = path.match(/^\/api\/admin\/club-ideas\/([^/]+)\/([^/]+)\/?$/);
