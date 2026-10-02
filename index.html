@@ -2664,9 +2664,9 @@ function setupFallSignupForm(){
 
 const SQUADS = [
   { id:'quran',     emoji:'📖', colour:'#e1eaf1', title:'Quran',     desc:'Recite, review and reflect together — a consistent circle for staying close to the Quran.' },
-  { id:'badminton', emoji:'🏸', colour:'#eedcb1', title:'Badminton', desc:'Regular court time with the girls — all levels welcome, rackets and good vibes required.' },
-  { id:'cowork',    emoji:'💻', colour:'#f6e3e9', title:'Cowork',    desc:'Show up, plug in and get your work done alongside other women — cafés, libraries, shared tables.' },
-  { id:'steps',     emoji:'👟', colour:'#f8efdb', title:'Steps',     desc:'Walks and step-count challenges — fresh air, easy pace, and someone to keep you moving.' },
+  { id:'badminton', emoji:'🏸', colour:'#eedcb1', title:'Badminton', desc:'Casual badminton plans, drop-ins, and games for girls who want to play, improve, and actually find people to play with.' },
+  { id:'cowork',    emoji:'💻', colour:'#f6e3e9', title:'Cowork',    desc:'Casual co-working sessions for getting out of the house, getting things done, and having company while you work or study.' },
+  { id:'steps',     emoji:'👟', colour:'#f8efdb', title:'Steps',     desc:'Casual walks, step challenges, and meetups for anyone who wants a reason to compete in steps count.' },
 ];
 function squadCardHtml(q){
   return `<div class="panel-card squad-card" style="border:2px solid ${q.colour};border-top-width:6px;">
@@ -2675,6 +2675,7 @@ function squadCardHtml(q){
       <div><h4>${escapeCm(q.title)}</h4></div>
     </div>
     <div class="panel-desc">${escapeCm(q.desc)}</div>
+    <a href="https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS" target="_blank" rel="noopener" style="margin-top:12px;display:inline-block;padding:11px 18px;min-height:44px;box-sizing:border-box;border-radius:999px;background:#25D366;color:#fff;font-weight:700;text-decoration:none;">Join on WhatsApp</a>
   </div>`;
 }
 
