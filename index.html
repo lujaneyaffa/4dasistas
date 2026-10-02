@@ -2490,7 +2490,7 @@ function clubCol(id){
   const c = clubsData.find(x => x.id === id);
   return (c && c.colour) ? { bg:c.colour, fg:'#373d3b' } : { bg:'#373d3b', fg:'#fff7e6' };
 }
-function clubCardHtml(c){
+function clubCardHtml(c, hideDesc){
   const col = clubCol(c.id);
   const monogramHtml = c.logo ? `<div class="monogram"><img src="${c.logo}" alt="${c.title} logo"></div>` : `<div class="monogram" style="background:${col.bg};color:${col.fg}">${c.title.charAt(0)}</div>`;
   return `
@@ -2499,7 +2499,7 @@ function clubCardHtml(c){
               ${monogramHtml}
       <div><h4>${c.title}</h4></div>
     </div>
-    <div class="panel-desc">${c.desc}</div>
+    ${hideDesc ? '' : `<div class="panel-desc">${c.desc}</div>`}
   </div>`;
 }
 
@@ -5152,7 +5152,7 @@ function renderMyClubsSectionHtml(){
   }
   return `${topRow}${pendingBanner}
     <h3 class="clubs-popular-title">CLUBS YOU'RE IN</h3>
-    <div class="clubs-grid clubs-grid-row">${myClubs.map(clubCardHtml).join('')}</div>
+    <div class="clubs-grid clubs-grid-row">${myClubs.map(c => clubCardHtml(c, true)).join('')}</div>
     <div class="my-avail-section" style="max-width:640px;margin:18px auto 0;">${ideaAvailSectionHtml(ideaMe())}</div>
     <div class="public-ideas-section">${renderPublicIdeasFeedHtml('VOTE ON IDEAS', 'Tap a bubble to vote. Open a club above to add an idea.', 'No ideas yet in your club(s) — open one above and add the first!')}</div>
     ${requestSection}${clubsWhatsappDisclaimerHtml()}`;
