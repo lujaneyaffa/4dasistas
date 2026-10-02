@@ -239,6 +239,18 @@ const pendingClubIdsFor = async (env, userId) => (await listJoinRequests(env)).f
 const JOIN_REQUESTS_MAX_PENDING_PER_PERSON = 4;
 // Emails the admin each time someone asks to join a club. Needs the ADMIN_NOTIFY_EMAIL secret; if it isn't
 // set (or Resend isn't), the request is still saved and shows up in the admin panel - it just can't email.
+const EVENT_SUGGESTION_MAX_PENDING = 300;
+const EVENT_SUGGESTION_MAX_PER_IP_PER_HOUR = 5;
+const notifyAdminOfEventSuggestion = (env, ctx, sug) => {
+  if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
+  const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
+  const html = `<div style="font-family:Arial,sans-serif;max-width:520px;color:#373d3b"><h2 style="margin:0 0 8px">New event submitted</h2><p><strong>${escapeHtml(sug.name)}</strong><br>${escapeHtml(sug.date)} · ${escapeHtml(sug.city)}<br><a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a></p><p>To review it: open <a href="${origin}/#/clubs">${origin}</a>, log in as admin (🔒 Admin Login in the footer), and look for <em>Submitted events</em> on the Clubs page.</p></div>`;
+  ctx.waitUntil(fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [env.ADMIN_NOTIFY_EMAIL], subject: `Event submitted: ${sug.name} (${sug.city}, ${sug.date})`, html }),
+  }).catch(() => {}));
+};
 const notifyAdminOfJoinRequest = (env, ctx, user, club) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
   const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
@@ -1046,6 +1058,32 @@ export default {
       if (!raw) return null;
       try { return JSON.parse(raw).userId || null; } catch { return null; }
     };
+    // ---- Public: anyone can suggest an event (link, name, date, city). Stored for the admin + emailed. ----
+    if (path === "/api/event-suggestions" && request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      if (body.website) return jsonResponse({ ok: true }, 200, corsHeaders); // honeypot: bots fill hidden fields
+      const clean = (v, max) => String(v || "").replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+      const name = clean(body.name, 120), city = clean(body.city, 60), date = clean(body.date, 10);
+      let link = "";
+      try { const u = new URL(String(body.link || "").trim()); if (u.protocol === "https:" || u.protocol === "http:") link = u.href.slice(0, 500); } catch {}
+      if (!link) return jsonResponse({ error: "Please add a link to the event (starting with https://)" }, 400, corsHeaders);
+      if (name.length < 3) return jsonResponse({ error: "Please add the event's name" }, 400, corsHeaders);
+      if (!isValidDateString(date)) return jsonResponse({ error: "Please pick the event's date" }, 400, corsHeaders);
+      if (date < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "That date has already passed" }, 400, corsHeaders);
+      if (city.length < 2) return jsonResponse({ error: "Please add the city" }, 400, corsHeaders);
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+      const rateKey = `sugrate:${ip}:${Math.floor(Date.now() / 3600000)}`;
+      const used = Number(await env.SITE_DATA.get(rateKey) || 0);
+      if (used >= EVENT_SUGGESTION_MAX_PER_IP_PER_HOUR) return jsonResponse({ error: "Too many submissions — please try again later" }, 429, corsHeaders);
+      const pending = await env.SITE_DATA.list({ prefix: "eventsug:" });
+      if (pending.keys.length >= EVENT_SUGGESTION_MAX_PENDING) return jsonResponse({ error: "The submission box is full right now — please try again later" }, 503, corsHeaders);
+      await env.SITE_DATA.put(rateKey, String(used + 1), { expirationTtl: 3700 });
+      const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, link, name, date, city, at: Date.now() };
+      await env.SITE_DATA.put(`eventsug:${sug.id}`, JSON.stringify(sug));
+      notifyAdminOfEventSuggestion(env, ctx, sug);
+      return jsonResponse({ ok: true }, 201, corsHeaders);
+    }
     // Fresh membership + pending requests for the signed-in person (the cached session goes stale once an admin approves).
     if (path === "/api/me" && request.method === "GET") {
       const meId = await memberIdFromRequest();
@@ -1245,7 +1283,7 @@ export default {
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
 
     if (requiresAuth) {
       const token = getSessionToken(request);
@@ -1298,6 +1336,19 @@ export default {
     // ---- Admin: see everyone's general availability by name (the public /all endpoint above
     // already returns names to any signed-in member too - this is kept for a pre-login/guest-cookie
     // admin view) ----
+    if (path === "/api/admin/event-suggestions" && request.method === "GET") {
+      const list = await env.SITE_DATA.list({ prefix: "eventsug:" });
+      const out = [];
+      for (const k of list.keys) { try { out.push(JSON.parse(await env.SITE_DATA.get(k.name))); } catch {} }
+      out.sort((a, b) => a.date.localeCompare(b.date));
+      return jsonResponse({ suggestions: out.filter(Boolean) }, 200, corsHeaders);
+    }
+    const adminSugMatch = path.match(/^\/api\/admin\/event-suggestions\/([^/]+)\/?$/);
+    if (adminSugMatch && request.method === "DELETE") {
+      await env.SITE_DATA.delete(`eventsug:${decodeURIComponent(adminSugMatch[1])}`);
+      return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+
     const adminIdeaAvailMatch = path.match(/^\/api\/admin\/idea-availability\/?$/);
     if (adminIdeaAvailMatch && request.method === "GET") {
       // Each person also carries the clubs they're really in, so the admin calendar can filter by club.

@@ -1236,7 +1236,7 @@ let state = {
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
   ideaAvail:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
   publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
-  myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null,
+  myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, cmAdminEventSugs:null,
   ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, iavEditing:false,
   membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventJustCreated:false, eventEditDeleting:false,
@@ -3288,6 +3288,19 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         </div>
         <div id="subscribeChecks" style="display:flex; flex-direction:column; gap:10px;"></div>
         <button class="club-guide-btn" id="subDownload" style="margin-top:18px; background:var(--charcoal); color:var(--cream); width:100%; text-align:center;">Download Calendar (.ics)</button>
+      </div>
+      <div class="rules-content" style="margin-top:22px;">
+        <p class="rules-lead">Know an event we should add?</p>
+        <p style="margin-bottom:12px;">Send it to us — all four fields are required and an admin reviews every submission.</p>
+        <form id="eventSubForm" novalidate style="display:flex;flex-direction:column;gap:10px;">
+          <input id="esLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="Link to the event (https://…)" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
+          <input id="esName" type="text" maxlength="120" placeholder="Event name" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
+          <input id="esDate" type="date" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
+          <input id="esCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
+          <input id="esWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;">
+          <div id="esStatus" style="min-height:18px;font-size:13px;color:#c00;" aria-live="polite"></div>
+          <button type="submit" class="club-guide-btn" id="esSubmit" style="background:var(--lightblue);width:100%;text-align:center;min-height:46px;">Submit event</button>
+        </form>
       </div>`;
     setTimeout(() => {
       populateSubscribeChecks();
@@ -3298,8 +3311,33 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         document.querySelectorAll('#subscribeChecks input[type=checkbox]').forEach(cb => cb.checked = false);
       });
       document.getElementById('subDownload').addEventListener('click', generateCustomICS);
+      setupEventSubmitForm();
     }, 0);
   }
+}
+
+function setupEventSubmitForm(){
+  const form = document.getElementById('eventSubForm');
+  if(!form) return;
+  const dateEl = document.getElementById('esDate');
+  const t = new Date(); dateEl.min = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const st = document.getElementById('esStatus'), btn = document.getElementById('esSubmit');
+    const body = { link: document.getElementById('esLink').value.trim(), name: document.getElementById('esName').value.trim(), date: dateEl.value, city: document.getElementById('esCity').value.trim(), website: document.getElementById('esWebsite').value };
+    st.style.color = '#c00';
+    if(!/^https?:\/\/\S+\.\S+/i.test(body.link)){ st.textContent = 'Please add the link to the event (starting with https://).'; return; }
+    if(body.name.length < 3){ st.textContent = "Please add the event's name."; return; }
+    if(!body.date){ st.textContent = "Please pick the event's date."; return; }
+    if(body.city.length < 2){ st.textContent = 'Please add the city.'; return; }
+    btn.disabled = true; st.textContent = '';
+    try {
+      await cmApiRaw('/api/event-suggestions', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+      form.reset();
+      st.style.color = '#2a7a4a'; st.textContent = 'Thank you! Your event was sent — an admin will review it.';
+    } catch(err){ st.textContent = err.message; }
+    btn.disabled = false;
+  });
 }
 
 function populateSubscribeChecks(){
@@ -6398,12 +6436,27 @@ async function cmAdminLoadAllMembers(){
     state.cmAdminAllMembers = await res.json();
   } catch { state.cmAdminAllMembers = {}; }
   await cmAdminLoadJoinRequests();
+  await cmAdminLoadEventSuggestions();
 }
 async function cmAdminLoadJoinRequests(){
   try {
     const res = await fetch('/api/admin/join-requests', { credentials:'include' });
     state.cmAdminJoinRequests = res.ok ? ((await res.json()).requests || []) : [];
   } catch { state.cmAdminJoinRequests = []; }
+}
+async function cmAdminLoadEventSuggestions(){
+  try {
+    const res = await fetch('/api/admin/event-suggestions', { credentials:'include' });
+    state.cmAdminEventSugs = res.ok ? ((await res.json()).suggestions || []) : [];
+  } catch { state.cmAdminEventSugs = []; }
+}
+function eventSuggestionsAdminHtml(){
+  const list = state.cmAdminEventSugs;
+  if(!list) return '';
+  return `<div class="cp-box"><h4 style="margin:0 0 6px;">Submitted events${list.length ? ` (${list.length})` : ''}</h4>
+    ${list.length ? list.map(x => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
+      <span style="min-width:0;"><strong>${escapeCm(x.name)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(x.date)} · ${escapeCm(x.city)}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a></span>
+      <button type="button" class="club-guide-btn event-sug-dismiss" data-id="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted events.</p>'}</div>`;
 }
 function joinRequestsAdminHtml(){
   const reqs = state.cmAdminJoinRequests;
@@ -6668,6 +6721,7 @@ function renderClubAdminPanel(){
     </div>
     ${admAvailSectionHtml()}
     ${joinRequestsAdminHtml()}
+    ${eventSuggestionsAdminHtml()}
     ${clubDirListHtml()}
     <div class="cp-box">
       <h4 style="margin:0 0 6px;">Create a profile</h4>
@@ -6997,6 +7051,7 @@ function wireClubAdminPanel(){
   if(cpBtn) cpBtn.addEventListener('click', cmAdminCreateProfile);
   document.querySelectorAll('.join-req-accept').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'accept'); }));
   document.querySelectorAll('.join-req-decline').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'decline'); }));
+  document.querySelectorAll('.event-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/event-suggestions/' + encodeURIComponent(b.dataset.id), { method:'DELETE', credentials:'include' }); await cmAdminLoadEventSuggestions(); render(); }));
   const loginBtn = document.getElementById('cmAdminLoginBtn');
   if(loginBtn) loginBtn.addEventListener('click', cmAdminLogin);
   const logoutBtn = document.getElementById('cmAdminLogoutBtn');
