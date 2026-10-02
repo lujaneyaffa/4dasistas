@@ -2671,9 +2671,9 @@ const SQUADS = [
   { id:'steps', logo:'assets/logos/squad-steps.png',     emoji:'👟', colour:'#f8efdb', title:'Steps',     desc:'Casual walks, step challenges, and meetups for anyone who wants a reason to compete in steps count.' },
 ];
 function squadCardHtml(q){
-  return `<div class="panel-card squad-card" style="background:#fef7f4;color:#76220b;border:2px solid #ce8491;box-shadow:3px 3px 0 #ce8491;">
+  return `<div class="panel-card squad-card" style="background:#fbf0ee;color:#76220b;border:2px solid #ce8491;box-shadow:3px 3px 0 #ce8491;">
     <div class="panel-top" style="flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;">
-      <div class="monogram" style="background:#fef7f4;font-size:26px;">${q.logo ? `<img src="${q.logo}" alt="${escapeCm(q.title)} logo">` : q.emoji}</div>
+      <div class="monogram" style="background:#fbf0ee;font-size:26px;">${q.logo ? `<img src="${q.logo}" alt="${escapeCm(q.title)} logo" style="background:#fbf0ee;">` : q.emoji}</div>
       <div><h4 style="text-align:center;color:#76220b;">${escapeCm(q.title)}</h4></div>
     </div>
     <div class="panel-desc" style="color:#76220b;">${escapeCm(q.desc)}</div>
