@@ -255,7 +255,7 @@ const notifyAdminOfEventSuggestion = (env, ctx, sug) => {
     method: "POST",
     headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [env.ADMIN_NOTIFY_EMAIL], subject: `Event submitted: ${sug.name} (${sug.city}, ${sug.date})`, html }),
-  }).catch(() => {}));
+  }).then(async (r) => { if (!r.ok) console.error("Resend rejected admin notification", r.status, (await r.text()).slice(0, 300)); }).catch((e) => console.error("Resend request failed", String(e))));
 };
 const notifyAdminOfJoinRequest = (env, ctx, user, club) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
@@ -265,7 +265,7 @@ const notifyAdminOfJoinRequest = (env, ctx, user, club) => {
     method: "POST",
     headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [env.ADMIN_NOTIFY_EMAIL], subject: `Join request: ${user.name} → ${club.title}`, html }),
-  }).catch(() => {}));
+  }).then(async (r) => { if (!r.ok) console.error("Resend rejected admin notification", r.status, (await r.text()).slice(0, 300)); }).catch((e) => console.error("Resend request failed", String(e))));
 };
 
 // ---- Global username uniqueness index (username -> userId) ----
