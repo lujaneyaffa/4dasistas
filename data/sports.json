@@ -327,39 +327,6 @@
       "alsoShowIn": []
     },
     {
-      "sportKey": "badminton",
-      "date": "Saturday, August 15, 2026 · 5:30–8:00 PM",
-      "organizer": "ISM Core",
-      "desc": "Sisterly badminton tournament and sports night. Dinner provided, spectators welcome, and prizes for the winning team.",
-      "instagram": "https://www.instagram.com/ismcore/",
-      "location": "Islamic Society of Markham (ISM), 2900 Denison St, Markham, ON L3S 4J8, Canada",
-      "title": "ISM Sisterly Sports Night: Badminton",
-      "registration": "RSVP: https://bit.ly/sisterlybadminton",
-      "tag": "Badminton",
-      "website": "https://bit.ly/sisterlybadminton",
-      "id": "ism-sisterly-badminton-aug15-2026",
-      "calDate": "2026-08-15",
-      "section": "sports",
-      "audienceType": [
-        "Muslim Women"
-      ],
-      "emoji": "",
-      "organizedBy": "",
-      "eventDate": "",
-      "endDate": "",
-      "time": "",
-      "endTime": "",
-      "allDay": false,
-      "days": [],
-      "recurStart": "",
-      "recurEnd": "",
-      "extraDates": [],
-      "virtual": false,
-      "link": "",
-      "alsoSportKeys": [],
-      "alsoShowIn": []
-    },
-    {
       "eventDate": "2026-09-13",
       "price": "1K walk or 5K / 10K run",
       "sportKey": "running",
@@ -381,7 +348,7 @@
       "endDate": "",
       "time": "",
       "endTime": "",
-      "allDay": false,
+      "allDay": true,
       "days": [],
       "recurStart": "",
       "recurEnd": "",
@@ -389,7 +356,12 @@
       "virtual": false,
       "link": "",
       "alsoSportKeys": [],
-      "alsoShowIn": []
+      "alsoShowIn": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": ""
     },
     {
       "section": "sports",
