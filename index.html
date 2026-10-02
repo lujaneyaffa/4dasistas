@@ -2749,7 +2749,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
     </div>` : ''}
     ${anon ? `
     <h3 class="clubs-popular-title">MOST POPULAR CLUBS</h3>
-    <div class="clubs-grid clubs-grid-row">${clubsForGrid().map(clubCardHtml).join('')}</div>
+    <div class="clubs-grid clubs-grid-row">${clubsForGrid().map(c => clubCardHtml(c, false)).join('')}</div>
     <a class="club-card-more" href="https://www.instagram.com/4dasistas.ca/" target="_blank" rel="noopener">
       <span>✨</span> <strong>More to Launch</strong> — Have an idea? Hit us up!!
     </a>
