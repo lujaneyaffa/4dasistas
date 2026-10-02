@@ -1012,7 +1012,22 @@ export default {
     if (ideaAvailAllMatch && request.method === "GET") {
       const who = await ideaWho();
       if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
-      const people = await readIdeaAvailPeople(env);
+      let people = await readIdeaAvailPeople(env);
+      // A signed-in member only sees (and is only counted with) people from the clubs they're really in;
+      // the admin sees everyone. Name-only guests get no names at all (handled below).
+      if (who.id.startsWith("m:")) {
+        const myId = who.id.slice(2);
+        const mine = new Set();
+        const peerClubs = {};
+        const memberKeys = await env.SITE_DATA.list({ prefix: "clubmembers:" });
+        for (const key of memberKeys.keys) {
+          const clubId = key.name.slice("clubmembers:".length);
+          const ids = await readClubMemberIds(env, clubId);
+          if (ids.includes(myId)) mine.add(clubId);
+          for (const uid of ids) (peerClubs[uid] = peerClubs[uid] || new Set()).add(clubId);
+        }
+        people = people.filter((p) => p.id === who.id || (p.id.startsWith("m:") && [...(peerClubs[p.id.slice(2)] || [])].some((c) => mine.has(c))));
+      }
       const counts = {};
       let respondents = 0;
       for (const p of people) {

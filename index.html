@@ -2791,6 +2791,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       } else {
         wireMyClubsSection();
         wireIdeaAvailGrid();
+        wireEveryoneAvailGrid();
         const sess = getCmSession();
         if(sess && state.meLoadedFor !== sess.token) refreshMe();
         const mineIds = (sess && sess.clubs) || [];
