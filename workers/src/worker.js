@@ -782,6 +782,21 @@ export default {
       if (body.newPin !== undefined) {
         const newPin = String(body.newPin || "").trim();
         if (!/^\d{4}$/.test(newPin)) return jsonResponse({ error: "PIN must be exactly 4 digits" }, 400, corsHeaders);
+        // The forced first-sign-in change (starting PIN 1234) needs nothing more. A voluntary change must
+        // prove the CURRENT pin, or anyone holding a signed-in-but-unattended phone could change it and
+        // lock the owner out. Those guesses share the login rate limit's per-username counter, so this
+        // route can't be used to brute-force the 4-digit PIN around /api/login's cap.
+        if (!user.mustChangePin) {
+          const changeUserKey = `loginrate:user:${user.username}:${Math.floor(Date.now() / 3600000)}`;
+          const changeCount = Number(await env.SITE_DATA.get(changeUserKey) || 0);
+          if (changeCount >= LOGIN_MAX_ATTEMPTS_PER_USERNAME_PER_HOUR) {
+            return jsonResponse({ error: "Too many attempts — please try again in an hour, or ask an admin to reset your PIN" }, 429, corsHeaders);
+          }
+          await env.SITE_DATA.put(changeUserKey, String(changeCount + 1), { expirationTtl: 3700 });
+          if (user.pinHash !== await sha256Hex(String(body.currentPin || "").trim())) {
+            return jsonResponse({ error: "Current PIN is incorrect" }, 401, corsHeaders);
+          }
+        }
         user.pinHash = await sha256Hex(newPin);
         user.mustChangePin = false;
       }
