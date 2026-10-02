@@ -333,6 +333,11 @@
 .clubs-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
 .clubs-grid-row{ display:flex; gap:14px; overflow-x:auto; padding-bottom:6px; -webkit-overflow-scrolling:touch; }
 .clubs-grid-row .club-card{ flex:0 0 200px; width:200px; }
+.club-card .panel-top{ flex-direction:column; align-items:center; text-align:center; gap:8px; }
+.club-card .panel-top h4{ text-align:center; font-size:16px; }
+.club-card .monogram{ width:84px; height:84px; }
+.club-card .monogram img{ transform:scale(1.5); }
+.club-card .panel-desc{ text-align:center; font-size:13.5px; line-height:1.45; margin-top:10px; }
 .clubs-popular-title{ font-family:'Inter',sans-serif; font-size:16px; font-weight:800; letter-spacing:0.03em; text-align:center; margin:22px 0 10px; }
 .club-card-more{ display:block; width:min(100%,420px); margin:14px auto 0; padding:10px 16px; border:1.5px dashed var(--muted); border-radius:999px; text-align:center; text-decoration:none; color:var(--charcoal); font-size:12.5px; background:var(--card); }
 .club-card-more strong{ font-weight:700; }
@@ -2494,9 +2499,9 @@ function clubCol(id){
 }
 function clubCardHtml(c, hideDesc){
   const col = clubCol(c.id);
-  const monogramHtml = c.logo ? `<div class="monogram"><img src="${c.logo}" alt="${c.title} logo"></div>` : `<div class="monogram" style="background:${col.bg};color:${col.fg}">${c.title.charAt(0)}</div>`;
+  const monogramHtml = c.logo ? `<div class="monogram" style="background:${col.bg};"><img src="${c.logo}" alt="${c.title} logo" style="background:${col.bg};"></div>` : `<div class="monogram" style="background:${col.bg};color:${col.fg}">${c.title.charAt(0)}</div>`;
   return `
-  <div class="panel-card club-card" style="background:${col.bg};color:${col.fg};border:2px solid ${col.bg};border-top-width:6px;" data-club-id="${c.id}" tabindex="0" role="button" aria-label="Open the ${c.title} idea board">
+  <div class="panel-card club-card" style="background:${col.bg};color:${col.fg};border:2px solid ${col.fg};box-shadow:3px 3px 0 ${col.fg};" data-club-id="${c.id}" tabindex="0" role="button" aria-label="Open the ${c.title} idea board">
     <div class="panel-top">
               ${monogramHtml}
       <div><h4 style="color:${col.fg};">${c.title}</h4></div>
@@ -2671,12 +2676,12 @@ const SQUADS = [
   { id:'steps', logo:'assets/logos/squad-steps.png',     emoji:'👟', colour:'#f8efdb', title:'Steps',     desc:'Casual walks, step challenges, and meetups for anyone who wants a reason to compete in steps count.' },
 ];
 function squadCardHtml(q){
-  return `<div class="panel-card squad-card" style="border:2px solid ${q.colour};border-top-width:6px;">
+  return `<div class="panel-card squad-card" style="background:#fef7f4;color:#76220b;border:2px solid #ce8491;box-shadow:3px 3px 0 #ce8491;">
     <div class="panel-top" style="flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;">
-      <div class="monogram" style="background:${q.colour};font-size:26px;">${q.logo ? `<img src="${q.logo}" alt="${escapeCm(q.title)} logo">` : q.emoji}</div>
-      <div><h4 style="text-align:center;">${escapeCm(q.title)}</h4></div>
+      <div class="monogram" style="background:#fef7f4;font-size:26px;">${q.logo ? `<img src="${q.logo}" alt="${escapeCm(q.title)} logo">` : q.emoji}</div>
+      <div><h4 style="text-align:center;color:#76220b;">${escapeCm(q.title)}</h4></div>
     </div>
-    <div class="panel-desc">${escapeCm(q.desc)}</div>
+    <div class="panel-desc" style="color:#76220b;">${escapeCm(q.desc)}</div>
     <div style="text-align:center;margin-top:12px;"><a href="https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS" target="_blank" rel="noopener" aria-label="Join the ${escapeCm(q.title)} squad on WhatsApp" style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:50%;background:#25D366;"><svg viewBox="0 0 32 32" width="26" height="26" fill="white" aria-hidden="true"><path d="M16 5C9.4 5 4 9.9 4 16c0 3.2 1.5 6.1 3.9 8.1-.3 1.8-1.1 3.8-2.2 5.4 2.3-.4 4.6-1.3 6.4-2.6 1.2.3 2.5.5 3.9.5 6.6 0 12-4.9 12-11S22.6 5 16 5Z"/></svg></a></div>
   </div>`;
 }
