@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>4DASISTAS</title>
-<meta name="theme-color" content="#caaacd">
+<meta name="theme-color" content="#ce8491">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -62,12 +62,10 @@
   button{ font-family:inherit; }
   a{ color:inherit; }
 
-  header{ padding:calc(24px + env(safe-area-inset-top)) 20px 20px; text-align:center; }
-  .wordmark{ font-family:'Inter',sans-serif; font-weight:700; font-size:clamp(32px,7vw,52px); letter-spacing:-0.01em; }
+  header{ padding:calc(20px + env(safe-area-inset-top)) 20px 18px; text-align:center; background:#ce8491; } /* exact colour of the logo image's own background */
   .wordmark-link{ text-decoration:none; color:inherit; display:inline-block; }
-  .wordmark-link:hover .wordmark span{ color:var(--charcoal); }
-  .wordmark span{ color:#ce8491; }
-  .header-disclaimer{ font-size:11px; color:var(--muted); max-width:440px; margin:8px auto 0; line-height:1.5; text-align:center; }
+  .wordmark-img{ display:block; width:clamp(110px,30vw,150px); height:auto; margin:0 auto; }
+  .header-disclaimer{ font-size:11px; color:#2a2022; max-width:440px; margin:8px auto 0; line-height:1.5; text-align:center; }
 
   .wa-fixed-btn{
     position:fixed; top:calc(14px + env(safe-area-inset-top, 0px)); right:14px; z-index:60;
@@ -278,7 +276,7 @@
     .home-tile[data-hometab="homescreen"]{ grid-column:1 / -1; width:100%; justify-self:center; }
     .cat-filter-btn{ padding:12px 20px; font-size:13px; }
     .wa-fixed-btn svg{ width:20px; height:20px; }
-    header{ padding-top:calc(44px + env(safe-area-inset-top, 0px)); }
+    header{ padding-top:calc(18px + env(safe-area-inset-top, 0px)); }
     .header-disclaimer{ font-size:10.5px; padding:0 30px; }
     .resource-map{ height:52vh; min-height:340px; }
     .ig-grid{ grid-template-columns:repeat(2, 1fr); gap:12px; }
@@ -895,7 +893,7 @@
 
 <header>
   <a href="#" class="wordmark-link" aria-label="Go to homepage">
-    <div class="wordmark">4DA<span>SISTAS</span></div>
+    <img class="wordmark-img" src="assets/logo-4ds.png" alt="4DASISTAS" width="520" height="416">
   </a>
   <div class="header-disclaimer">#1st and only community bringing together ALL muslim gals events in GTA to one Calendar (+ unique clubs to join) ↓</div>
 </header>
