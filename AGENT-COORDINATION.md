@@ -79,7 +79,9 @@ npx wrangler deploy
 
 **Status:** IDLE
 **Last updated by:** Claude (chat)
-**Last updated:** 2026-10-02 (Members can change their own PIN)
+**Last updated:** 2026-10-02 (New club logos: Cuisine, Quest, Field)
+
+**2026-10-02 (New club logos: Cuisine, Quest, Field) — Claude (chat) — `assets/logos/*-v2.png`, `data/clubs.json`** — Lujane sent 4 new pastel illustrations as "the new club + squad logos" without saying which is which. Matched the unambiguous ones: table with flowers -> Cuisine; the "Adrenaline" molecule -> Quest (the club that absorbed Adrenaline/"thrilling activities"; note the image itself still reads "Adrenaline", not "Quest"); wildflowers -> Field (my guess, from the name). **Not applied, awaiting her answer:** the head-with-tangled-thoughts image (no obvious club/squad), Arts & Crafts keeps its apron logo, and the four squads (Quran/Badminton/Cowork/Steps) still use emoji since no squad-specific logos were identified. The 2000px source art sits small in the middle of the square, so each was center-cropped (1100px) and resized to 640px so it reads inside the small circular badge. Saved under NEW filenames (`club-cuisine-v2.png` etc.) rather than overwriting, so phones/CDN can't serve the old image, and `data/clubs.json` points at them. **Because `data/clubs.json` was edited directly (not via the admin panel), the production KV `clubRoster` mirror had to be refreshed by hand again** (`wrangler kv key put --remote clubRoster`) — same gap as the Quest rename; still unfixed structurally.
 
 **2026-10-02 (Members can change their own PIN) — Claude (chat) — `index.html`, `workers/src/worker.js`** — Lujane: "add a button where you're able to change your pin." New "🔑 Change my PIN" button on the signed-in Clubs view (both the club-picker screen and the dashboard) opening a popup: current PIN, new PIN, new PIN again. **Backend (`PUT /api/users/:id`, which already accepted `newPin` for the forced first-sign-in change):** a voluntary change now requires `currentPin` — otherwise anyone holding an unlocked, still-signed-in phone (sessions last 180 days) could change the PIN and lock the owner out. Those current-PIN guesses count against the same per-username hourly counter as `/api/login` (10/hr), so this route can't be used to brute-force the 4-digit PIN around the login rate limit; once tripped, even the correct current PIN is refused until the hour resets. The forced first-login flow (admin-created accounts on PIN 1234, `mustChangePin` true) is unchanged and still needs no current PIN. Other devices stay signed in after a change (session tokens aren't revoked) — not asked for, flagging. **Tested (local worker):** no/wrong current PIN -> 401 "Current PIN is incorrect"; bad new-PIN format -> 400; correct change -> old PIN login rejected, new PIN login works; no token -> 401; 12 rapid wrong attempts -> rate limited, and the correct current PIN also refused afterward; forced-change flow still works without a current PIN. **UI:** popup validation messages (empty, not 4 digits, mismatch, same as current, wrong current) and the success path, popup auto-closes. Fields are explicit 16px so iPhones don't zoom on tap. Not tested on a real phone.
 
@@ -690,6 +692,8 @@ npx wrangler deploy
 ## Recent Activity Log
 
 _(most recent first — add new entries to the top, trim past ~15)_
+
+- 2026-10-02 — Claude (chat) — `assets/logos`, `data/clubs.json` — New logos for Cuisine (table), Quest (molecule) and Field (wildflowers), cropped and saved as -v2 files; head illustration and squad logos pending her answer. KV roster refreshed by hand.
 
 - 2026-10-02 — Claude (chat) — `index.html`, `workers/src/worker.js` — Added a "Change my PIN" button for signed-in members; changing it requires the current PIN, and wrong guesses share the login rate limit.
 

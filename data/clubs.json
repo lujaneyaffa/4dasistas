@@ -5,7 +5,7 @@
       "slug": "active-gaming",
       "emoji": "🎮",
       "colour": "#e1eaf1",
-      "logo": "assets/logos/club-activegaming.png",
+      "logo": "assets/logos/club-activegaming-v2.png",
       "title": "Quest",
       "desc": "Escape rooms, VR arenas, and other thrilling activities at spots like Activate, CUBE Challenges, and VR Vibe. Good for anyone who'd rather move, solve, and compete than sit still.",
       "signup": "https://chat.whatsapp.com/CPWlv3mhoxkC8ZNWbLganS?mode=gi_t"
@@ -15,7 +15,7 @@
       "slug": "cuisine",
       "emoji": "🍽️",
       "colour": "#f6e3e9",
-      "logo": "assets/logos/club-cuisine.png",
+      "logo": "assets/logos/club-cuisine-v2.png",
       "title": "Cuisine",
       "desc": "Group dinners, halal restaurant crawls, and the occasional cooking night — for anyone who plans their week around food.",
       "signup": "https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS"
@@ -38,7 +38,7 @@
       "title": "Field",
       "desc": "Weekend getaways, cabin trips, and the occasional wellness retreat — for when the group chat needs to actually leave the city.",
       "signup": "https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS",
-      "logo": "assets/FIELD.png"
+      "logo": "assets/logos/club-retreats-v2.png"
     }
   ]
 }
