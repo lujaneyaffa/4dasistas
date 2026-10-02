@@ -1220,6 +1220,7 @@ let state = {
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
   ideaAvail:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
   publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
+  myClubPicks:null, myClubPicksEditing:false,
   ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, iavEditing:false,
   membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventJustCreated:false, eventEditDeleting:false,
@@ -2708,12 +2709,14 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;">Forgot your PIN? An admin can reset it for you — just message us.</p>
       `}
     </div>` : ''}
-    ${anon ? `<h3 class="clubs-popular-title">MOST POPULAR CLUBS</h3>` : ''}
-    <div class="clubs-grid${anon ? ' clubs-grid-row' : ''}">${clubsForGrid().map(clubCardHtml).join('')}</div>
+    ${anon ? `
+    <h3 class="clubs-popular-title">MOST POPULAR CLUBS</h3>
+    <div class="clubs-grid clubs-grid-row">${clubsForGrid().map(clubCardHtml).join('')}</div>
     <a class="club-card-more" href="https://www.instagram.com/4dasistas.ca/" target="_blank" rel="noopener">
       <span>✨</span> <strong>More to Launch</strong> — Have an idea? Hit us up!!
     </a>
-    ${anon ? `<div class="public-ideas-section">${renderPublicIdeasFeedHtml()}</div>` : ''}
+    <div class="public-ideas-section">${renderPublicIdeasFeedHtml()}</div>
+    ` : renderMyClubsSectionHtml()}
     ${state.cmAdminLoggedIn === true ? renderClubAdminPanel() : ''}`;
     setTimeout(() => {
       const loginBtn = document.getElementById('clubsLoginOpenBtn');
@@ -2747,6 +2750,13 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       if(anon){
         if(state.publicIdeasAll === null && !state.publicIdeasAllLoading) publicIdeasLoadAll();
         wirePublicIdeasFeed();
+      } else {
+        wireMyClubsPicker();
+        const picks = state.myClubPicks;
+        if(!state.myClubPicksEditing && picks && picks.length){
+          if(state.publicIdeasAll === null && !state.publicIdeasAllLoading) publicIdeasLoadAll(clubsForGrid().filter(c => picks.includes(c.id)));
+          wirePublicIdeasFeed();
+        }
       }
     }, 0);
   } else if(state.tab === 'clubideas'){
@@ -4898,12 +4908,12 @@ function promptJoinToVote(){
   });
   if(signupBtn) signupBtn.addEventListener('click', () => { close(); goToTab('fallsignup'); });
 }
-async function publicIdeasLoadAll(){
+async function publicIdeasLoadAll(clubs){
   if(state.publicIdeasAllLoading) return;
   state.publicIdeasAllLoading = true;
   state.publicIdeasAllError = '';
   try {
-    const lists = await Promise.all(clubsForGrid().map(async c => {
+    const lists = await Promise.all((clubs || clubsForGrid()).map(async c => {
       try {
         const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(c.id) + '/ideas', { headers: ideaHeaders() });
         return (data.ideas || []).map(i => Object.assign({}, i, { _clubId: c.id, _clubTitle: c.title, _clubColour: clubCol(c.id).bg }));
@@ -4926,15 +4936,86 @@ function publicIdeaBubbleHtml(idea){
     <span class="idea-mini idea-info" data-ideainfo="${escapeCm(idea.id)}" role="button" aria-label="Details" title="Details">i</span>
   </button>`;
 }
-function renderPublicIdeasFeedHtml(){
+function renderPublicIdeasFeedHtml(title, hint, emptyMsg){
   let cloud;
   if(state.publicIdeasAllError) cloud = `<p class="av-msg" style="color:#c00;text-align:center;">${escapeCm(state.publicIdeasAllError)}</p>`;
-  else if(!state.publicIdeasAll) cloud = `<p class="av-msg" style="text-align:center;">Loading ideas from every club…</p>`;
-  else if(!state.publicIdeasAll.length) cloud = `<p class="av-msg" style="text-align:center;">No ideas yet — sign up and be the first!</p>`;
+  else if(!state.publicIdeasAll) cloud = `<p class="av-msg" style="text-align:center;">Loading ideas…</p>`;
+  else if(!state.publicIdeasAll.length) cloud = `<p class="av-msg" style="text-align:center;">${escapeCm(emptyMsg || 'No ideas yet — sign up and be the first!')}</p>`;
   else cloud = `<div class="ideas-cloud" id="publicIdeasCloud">${state.publicIdeasAll.map(publicIdeaBubbleHtml).join('')}</div>`;
-  return `<h3 class="clubs-popular-title">WHAT EVERYONE'S VOTING ON</h3>
-    <p class="ideas-hint" style="text-align:center;margin:0 0 10px;">Tap a bubble to vote. Sign up or log in to add your own idea.</p>
+  return `<h3 class="clubs-popular-title">${escapeCm(title || "WHAT EVERYONE'S VOTING ON")}</h3>
+    <p class="ideas-hint" style="text-align:center;margin:0 0 10px;">${escapeCm(hint || 'Tap a bubble to vote. Sign up or log in to add your own idea.')}</p>
     ${cloud}`;
+}
+
+/* ============================================================
+   "WHICH CLUB ARE YOU IN NOW?" — a signed-in member (or the site admin)
+   picks one or more clubs to follow on the Clubs tab, instead of browsing
+   the full list. The pick is a personal view preference (localStorage,
+   not an admin-assigned membership) and can be changed anytime. Once set,
+   the tab shows those clubs' cards (tap one to open its full board +
+   availability, unchanged) plus a combined, fully-interactive vote feed
+   scoped to just those clubs (reuses the same public-feed bubble code —
+   publicIdeaCanInteract() already returns true for a signed-in session,
+   so voting here just works, no gate).
+   ============================================================ */
+function loadMyClubPicks(){
+  try { const raw = localStorage.getItem('cmMyClubPicks'); const arr = raw ? JSON.parse(raw) : null; return Array.isArray(arr) ? arr : null; } catch { return null; }
+}
+function saveMyClubPicksToStorage(picks){
+  try { localStorage.setItem('cmMyClubPicks', JSON.stringify(picks)); } catch {}
+}
+function sessionDefaultClubPicks(){
+  const session = getCmSession();
+  return session && Array.isArray(session.clubs) ? session.clubs.slice() : [];
+}
+function myClubsPickerHtml(preChecked){
+  const checkedSet = new Set(preChecked || []);
+  return `<div class="my-clubs-picker" style="max-width:480px;margin:0 auto 20px;text-align:center;">
+    <h3 class="clubs-popular-title">Which club are you in now?</h3>
+    <p class="ideas-hint" style="margin-bottom:14px;">Tap one or more — you can change this anytime.</p>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${clubsForGrid().map(c => `
+        <label class="my-club-pick-option${checkedSet.has(c.id) ? ' active' : ''}" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:2px solid var(--charcoal);border-radius:12px;cursor:pointer;text-align:left;background:${checkedSet.has(c.id) ? 'var(--blush)' : 'var(--card)'};">
+          <input type="checkbox" class="my-club-pick-check" value="${c.id}" ${checkedSet.has(c.id) ? 'checked' : ''} style="width:18px;height:18px;flex-shrink:0;">
+          <span>${c.emoji ? escapeCm(c.emoji) + ' ' : ''}<strong>${escapeCm(c.title)}</strong></span>
+        </label>`).join('')}
+    </div>
+    <p id="myClubsPickError" style="color:#c00;font-size:13px;margin:10px 0 0;"></p>
+    <button type="button" class="club-guide-btn" id="myClubsPickSaveBtn" style="width:100%;margin-top:10px;background:var(--lightblue);">Save</button>
+  </div>`;
+}
+function wireMyClubsPicker(){
+  document.querySelectorAll('.my-club-pick-check').forEach(cb => cb.addEventListener('change', () => {
+    const label = cb.closest('.my-club-pick-option');
+    label.classList.toggle('active', cb.checked);
+    label.style.background = cb.checked ? 'var(--blush)' : 'var(--card)';
+  }));
+  const saveBtn = document.getElementById('myClubsPickSaveBtn');
+  if(saveBtn) saveBtn.addEventListener('click', () => {
+    const picks = [...document.querySelectorAll('.my-club-pick-check:checked')].map(cb => cb.value);
+    if(!picks.length){ const err = document.getElementById('myClubsPickError'); if(err) err.textContent = 'Pick at least one club.'; return; }
+    saveMyClubPicksToStorage(picks);
+    state.myClubPicks = picks;
+    state.myClubPicksEditing = false;
+    state.publicIdeasAll = null;
+    render();
+  });
+  const editBtn = document.getElementById('myClubsEditBtn');
+  if(editBtn) editBtn.addEventListener('click', () => { state.myClubPicksEditing = true; render(); });
+}
+function renderMyClubsSectionHtml(){
+  if(state.myClubPicks === null) state.myClubPicks = loadMyClubPicks();
+  const picks = state.myClubPicks;
+  if(state.myClubPicksEditing || !picks || !picks.length){
+    return myClubsPickerHtml(picks && picks.length ? picks : sessionDefaultClubPicks());
+  }
+  const pickedClubs = clubsForGrid().filter(c => picks.includes(c.id));
+  return `
+    <div style="text-align:center;margin-bottom:14px;">
+      <button type="button" class="av-link" id="myClubsEditBtn" style="font-size:14px;">✏️ Edit which club(s) you're in</button>
+    </div>
+    <div class="clubs-grid clubs-grid-row">${pickedClubs.map(clubCardHtml).join('')}</div>
+    <div class="public-ideas-section">${renderPublicIdeasFeedHtml('YOUR CLUBS’ ACTIVITY', 'Tap a bubble to vote. Open a club above to add an idea or set your availability.', 'No ideas yet in your club(s) — open one above and add the first!')}</div>`;
 }
 function openPublicIdeaInfo(id){
   const idea = (state.publicIdeasAll || []).find(i => i.id === id);
