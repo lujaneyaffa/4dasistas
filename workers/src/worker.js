@@ -567,7 +567,7 @@ const resolveCalendarFile = async (env, id) => {
 
 // ---- In-site resources/small-business editor: same GitHub-backed pattern as calendar events ----
 const resourceFilePath = (id) => `data/resources/${id}.json`;
-const RESOURCE_CATEGORIES = ["cafes", "shops", "restaurants", "beautycare", "mentalhealth", "bakeries", "legal", "communityorg", "fitness"];
+const RESOURCE_CATEGORIES = ["cafes", "shops", "restaurants", "beautycare", "wellness", "mentalhealth", "bakeries", "legal", "communityorg", "fitness"];
 
 const resolveResourceFile = async (env, id) => {
   const direct = resourceFilePath(id);

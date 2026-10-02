@@ -1344,9 +1344,9 @@ function tripColor(item){
 function eventTypeLabel(item){
   if(resourcesData.includes(item)){
     const resourceLabels = {
-      cafes:'Cafe & Desserts', shops:'Shop', restaurants:'Restaurant', beautycare:'Pampering',
+      cafes:'Cafe & Desserts', shops:'Shop', restaurants:'Restaurant', beautycare:'Beauty',
       mentalhealth:'Mental Health', bakeries:'Small Business', legal:'Legal Service', mosques:'Mosque',
-      communityorg:'Community Organization', fitness:'Fitness & Health'
+      communityorg:'Community Organization', fitness:'Fitness & Health', wellness:'Wellness'
     };
     return resourceLabels[item.category] || item.type || 'Resource';
   }
@@ -2182,7 +2182,8 @@ const resourceFilterList = [
   {key:'cafes', label:'Cafe & Desserts'},
   {key:'shops', label:'Shops'},
   {key:'restaurants', label:'Restaurants'},
-  {key:'beautycare', label:'Pampering'},
+  {key:'beautycare', label:'Beauty'},
+  {key:'wellness', label:'Wellness'},
   {key:'fitness', label:'Fitness & Health'},
   {key:'mentalhealth', label:'Mental Health'},
   {key:'bakeries', label:'Small Businesses'},
@@ -2191,7 +2192,7 @@ const resourceFilterList = [
 ];
 
 const categoryColors = {
-  mosques:'#c3e2d4', mosqueprograms:'#c3e2d4', cafes:'#ddb862', shops:'#caaacd', restaurants:'#f6c1a8', beautycare:'#ecc7d2', mentalhealth:'#a9d6b8', bakeries:'#f1dfb6', legal:'#c8b6e8', communityorg:'#b8cde8', fitness:'#c9e0b0'
+  mosques:'#c3e2d4', mosqueprograms:'#c3e2d4', cafes:'#ddb862', shops:'#caaacd', restaurants:'#f6c1a8', beautycare:'#ecc7d2', wellness:'#d8e8c8', mentalhealth:'#a9d6b8', bakeries:'#f1dfb6', legal:'#c8b6e8', communityorg:'#b8cde8', fitness:'#c9e0b0'
 };
 
 function renderResourceFilters(){
@@ -4205,7 +4206,7 @@ async function deleteEventEdit(){
    ADMIN: RESOURCES / SMALL BUSINESS EDITOR
    Same GitHub-backed pattern as the calendar event editor above.
    ============================================================ */
-const RESOURCE_CATEGORIES = [['cafes','Cafe & Dessert'],['shops','Shops'],['restaurants','Restaurants'],['beautycare','Pampering'],['mentalhealth','Mental Health'],['bakeries','Small Businesses'],['legal','Legal'],['communityorg','Community Organization'],['fitness','Fitness & Health']];
+const RESOURCE_CATEGORIES = [['cafes','Cafe & Dessert'],['shops','Shops'],['restaurants','Restaurants'],['beautycare','Beauty'],['wellness','Wellness'],['mentalhealth','Mental Health'],['bakeries','Small Businesses'],['legal','Legal'],['communityorg','Community Organization'],['fitness','Fitness & Health']];
 const RESOURCE_CREATE_DEFAULTS = { category:'bakeries', title:'', type:'', location:'', date:'', ownedBy:'', desc:'', lat:'', lng:'', mapsUrl:'', instagramPost:'', phone:'', instagram:'', website:'', email:'', image:null };
 
 async function openResourceEdit(id){
