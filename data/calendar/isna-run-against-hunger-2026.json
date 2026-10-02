@@ -20,7 +20,7 @@
   "endDate": "",
   "time": "",
   "endTime": "",
-  "allDay": false,
+  "allDay": true,
   "days": [],
   "recurStart": "",
   "recurEnd": "",
@@ -28,5 +28,10 @@
   "virtual": false,
   "link": "",
   "alsoSportKeys": [],
-  "alsoShowIn": []
+  "alsoShowIn": [],
+  "recurFrequency": "",
+  "monthlyType": "weekday",
+  "monthlyWeek": "1",
+  "monthlyDay": "sat",
+  "monthlyDate": ""
 }
