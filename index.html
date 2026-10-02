@@ -261,7 +261,7 @@
     .week-col .day-label{ font-size:13px; }
     .week-pill{ font-size:13px; padding:8px 9px; }
 
-    .wa-fixed-btn{ width:34px; height:34px; top:10px; right:10px; }
+    .wa-fixed-btn{ width:44px; height:44px; top:calc(10px + env(safe-area-inset-top, 0px)); right:12px; }
     .home-tile{ padding:20px 54px 20px 18px; }
     .home-tile-title{ font-size:19px; padding-right:48px; }
     .home-tile[data-hometab="homescreen"] .home-tile-title{ padding-left:44px; padding-right:44px; }
@@ -277,8 +277,8 @@
     .club-guide-actions, .home-tiles{ grid-template-columns:1fr; }
     .home-tile[data-hometab="homescreen"]{ grid-column:1 / -1; width:100%; justify-self:center; }
     .cat-filter-btn{ padding:12px 20px; font-size:13px; }
-    .wa-fixed-btn svg{ width:16px; height:16px; }
-    header{ padding-top:54px; }
+    .wa-fixed-btn svg{ width:20px; height:20px; }
+    header{ padding-top:calc(44px + env(safe-area-inset-top, 0px)); }
     .header-disclaimer{ font-size:10.5px; padding:0 30px; }
     .resource-map{ height:52vh; min-height:340px; }
     .ig-grid{ grid-template-columns:repeat(2, 1fr); gap:12px; }
@@ -836,6 +836,18 @@
    no matter how long the day's list grows. */
 .home-tiles.bottom-row{ margin-top:36px; clear:both; }
 #homescreenSlot .home-tiles.bottom-row{ margin-top:0; }
+
+  /* ---- Phone usability (iPhone + Android): finger-sized tap targets, and 16px text in fields so iOS
+     doesn't zoom the page when one is tapped. Measured against real rendered sizes, not guessed. ---- */
+  @media (max-width:700px){
+    .tab-btn{ min-height:44px; font-size:12.5px; }
+    input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not(.hp-field), select, textarea{ font-size:16px !important; }
+    #globalSearch{ min-height:24px; }
+    .back-btn, .av-link{ min-height:44px; display:inline-flex; align-items:center; }
+    .footer-admin-btn{ min-height:44px; padding-left:16px; padding-right:16px; }
+    .idea-price-btn{ min-height:44px; }
+    input[type=checkbox], input[type=radio]{ width:22px; height:22px; }
+  }
 </style>
 </head>
 <body>
@@ -2684,7 +2696,7 @@ function renderDirectory(){
     renderTripEarthView('travelEarthView', 'travelEarthMap', travelItems, false);
   } else if(state.tab === 'clubs'){
     document.getElementById('resourcePagination').innerHTML = '';
-    const anon = !getCmSession() && state.cmAdminLoggedIn !== true;
+    const anon = !getCmSession(); // the "which club are you in" picker is for signed-in members only; public and admin-only views get the public layout
 el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="justify-content:center;gap:14px;">
     <button type="button" class="club-guide-btn" id="clubsLoginOpenBtn" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;font-size:15px;text-align:center;">Log In</button>
     <button class="fall-cta-btn join-club-btn" data-hometab="fallsignup" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;">Sign Up</button>
