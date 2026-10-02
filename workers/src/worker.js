@@ -1300,7 +1300,15 @@ export default {
     // admin view) ----
     const adminIdeaAvailMatch = path.match(/^\/api\/admin\/idea-availability\/?$/);
     if (adminIdeaAvailMatch && request.method === "GET") {
-      return jsonResponse({ people: await readIdeaAvailPeople(env) }, 200, corsHeaders);
+      // Each person also carries the clubs they're really in, so the admin calendar can filter by club.
+      const people = await readIdeaAvailPeople(env);
+      const clubsByUser = {};
+      const memberKeys = await env.SITE_DATA.list({ prefix: "clubmembers:" });
+      for (const key of memberKeys.keys) {
+        const clubId = key.name.slice("clubmembers:".length);
+        for (const uid of await readClubMemberIds(env, clubId)) (clubsByUser[uid] = clubsByUser[uid] || []).push(clubId);
+      }
+      return jsonResponse({ people: people.map((p) => ({ ...p, clubs: p.id.startsWith("m:") ? (clubsByUser[p.id.slice(2)] || []) : [] })) }, 200, corsHeaders);
     }
 
     const adminIdeaMatch = path.match(/^\/api\/admin\/club-ideas\/([^/]+)\/([^/]+)\/?$/);

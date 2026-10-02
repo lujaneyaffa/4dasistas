@@ -6372,6 +6372,7 @@ async function cmAdminLogout(){
 }
 
 async function cmAdminLoadAllMembers(){
+  admAvail.people = null; // re-fetch availability whenever the admin panel's data is refreshed
   try {
     const res = await fetch('/api/admin/club-members', { credentials:'include' });
     state.cmAdminAllMembers = await res.json();
@@ -6640,11 +6641,12 @@ function renderClubAdminPanel(){
     </div>`;
   }
   const clubId = state.cmAdminClub;
-  return `<div class="rules-content" style="max-width:640px;margin:16px auto;">
+  return `<div class="rules-content" style="max-width:920px;margin:16px auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;">
       <h3 style="margin:0;">All Members</h3>
       <button class="club-guide-btn" id="cmAdminLogoutBtn" style="padding:6px 12px;font-size:12px;">Log Out</button>
     </div>
+    ${admAvailSectionHtml()}
     ${joinRequestsAdminHtml()}
     ${clubDirListHtml()}
     <div class="cp-box">
@@ -6859,8 +6861,118 @@ async function clubDirDelete(){
   render();
 }
 
+
+/* ============================================================
+   ADMIN AVAILABILITY CALENDAR — a big month calendar of everyone's availability.
+   Filter by club, tap a name to see ONLY that person's availability, tap a day to see who's free.
+   Months scroll forward/back but never before Oct 2026.
+   ============================================================ */
+const ADM_AVAIL_MIN_MONTH = '2026-10';
+const ADM_AVAIL_MAX_MONTH = '2027-12';
+const ADM_PARTS = [['morning','Morning','M'],['afternoon','Afternoon','A'],['evening','Evening','E']];
+const admAvail = { people:null, loading:false, error:'', month:ADM_AVAIL_MIN_MONTH, club:'all', person:null, day:null };
+async function admAvailLoad(){
+  if(admAvail.loading) return;
+  admAvail.loading = true; admAvail.error = '';
+  try {
+    const res = await fetch('/api/admin/idea-availability', { credentials:'include' });
+    if(!res.ok) throw new Error('Could not load availability');
+    admAvail.people = (await res.json()).people || [];
+  } catch(err){ admAvail.error = err.message; admAvail.people = admAvail.people || []; }
+  admAvail.loading = false;
+  admAvailRepaint();
+}
+function admAvailVisiblePeople(){
+  return (admAvail.people || []).filter(p => admAvail.club === 'all' || (p.clubs || []).includes(admAvail.club))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+function admAvailShiftMonth(ym, delta){
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+function admAvailCalendarHtml(){
+  if(admAvail.people === null) return `<p class="av-msg">${admAvail.error ? escapeCm(admAvail.error) : 'Loading everyone\'s availability…'}</p>`;
+  const people = admAvailVisiblePeople();
+  const sel = admAvail.person ? people.find(p => p.id === admAvail.person) : null;
+  if(admAvail.person && !sel) admAvail.person = null;
+  const [y, m] = admAvail.month.split('-').map(Number);
+  const first = new Date(y, m - 1, 1), daysInMonth = new Date(y, m, 0).getDate();
+  const monthName = first.toLocaleString('en-CA', { month:'long', year:'numeric' });
+  const pad = n => String(n).padStart(2, '0');
+  const scope = sel ? [sel] : people;
+  const clubChips = [['all', 'All clubs']].concat(clubsData.map(c => [c.id, c.title])).map(([id, title]) => {
+    const col = id === 'all' ? { bg:'#f2d8d7', fg:'#76220b' } : clubCol(id);
+    const on = admAvail.club === id;
+    return `<button type="button" class="adm-club" data-club="${escapeCm(id)}" style="padding:7px 14px;border-radius:999px;border:2px solid ${on ? col.fg : 'transparent'};background:${col.bg};color:${col.fg};font-weight:700;font-size:13px;cursor:pointer;min-height:36px;">${escapeCm(title)}</button>`;
+  }).join('');
+  const nameChips = people.length ? people.map(p => {
+    const on = admAvail.person === p.id;
+    return `<button type="button" class="adm-person" data-person="${escapeCm(p.id)}" style="padding:6px 12px;border-radius:999px;border:2px solid #ce8491;background:${on ? '#ce8491' : '#fef7f4'};color:${on ? '#fff' : '#76220b'};font-size:13px;font-weight:600;cursor:pointer;min-height:34px;">${escapeCm(p.name)}</button>`;
+  }).join('') : '<span class="av-msg">Nobody in this club has added availability yet.</span>';
+  const heads = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => `<div style="text-align:center;font-size:12px;font-weight:700;color:#776867;padding:4px 0;">${d}</div>`).join('');
+  let cells = '';
+  for(let i = 0; i < first.getDay(); i++) cells += '<div></div>';
+  const maxN = Math.max(1, scope.length);
+  for(let d = 1; d <= daysInMonth; d++){
+    const key = `${y}-${pad(m)}-${pad(d)}`;
+    const per = { morning:0, afternoon:0, evening:0 }; let any = 0;
+    scope.forEach(p => { const parts = (p.days || {})[key] || []; if(parts.length) any++; parts.forEach(pt => { if(per[pt] !== undefined) per[pt]++; }); });
+    const intensity = any / maxN;
+    const bg = any ? `rgba(206,132,145,${(0.18 + 0.72 * intensity).toFixed(2)})` : '#fff';
+    const outline = admAvail.day === key ? 'outline:3px solid #76220b;outline-offset:-3px;' : '';
+    let inner;
+    if(sel){
+      inner = any ? `<div style="display:flex;flex-direction:column;gap:2px;margin-top:4px;">${ADM_PARTS.map(([id,, L]) => `<span style="font-size:10px;font-weight:700;border-radius:4px;padding:1px 0;text-align:center;${per[id] ? 'background:#76220b;color:#fff;' : 'background:#0000000d;color:#0004;'}">${L}</span>`).join('')}</div>` : '';
+    } else {
+      inner = any ? `<div style="font-size:17px;font-weight:800;color:#76220b;line-height:1.1;margin-top:2px;">${any}</div><div style="font-size:10px;color:#76220b;">M${per.morning} A${per.afternoon} E${per.evening}</div>` : '';
+    }
+    cells += `<button type="button" class="adm-day" data-day="${key}" style="min-height:74px;border:1px solid #0000001a;border-radius:10px;background:${bg};${outline}padding:5px 4px;text-align:left;cursor:pointer;font-family:inherit;color:#373d3b;"><span style="font-size:12px;font-weight:700;">${d}</span>${inner}</button>`;
+  }
+  let detail = '';
+  if(admAvail.day){
+    const dayLabel = new Date(admAvail.day + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric' });
+    detail = `<div style="margin-top:14px;padding:14px;border-radius:14px;background:#f2d8d7;color:#76220b;"><strong>${escapeCm(dayLabel)}</strong>${ADM_PARTS.map(([id, label]) => {
+      const names = scope.filter(p => ((p.days || {})[admAvail.day] || []).includes(id)).map(p => escapeCm(p.name));
+      return `<div style="margin-top:8px;"><span style="font-weight:700;">${label}</span> (${names.length}): ${names.length ? names.join(', ') : '<span style="opacity:.6;">nobody</span>'}</div>`;
+    }).join('')}</div>`;
+  }
+  const atMin = admAvail.month <= ADM_AVAIL_MIN_MONTH, atMax = admAvail.month >= ADM_AVAIL_MAX_MONTH;
+  const navBtn = (id, label, disabled) => `<button type="button" id="${id}" ${disabled ? 'disabled' : ''} aria-label="${label === '‹' ? 'Previous month' : 'Next month'}" style="width:44px;height:44px;border-radius:50%;border:2px solid #76220b;background:#fef7f4;color:#76220b;font-size:22px;cursor:pointer;${disabled ? 'opacity:.3;cursor:default;' : ''}">${label}</button>`;
+  return `
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">${clubChips}</div>
+    <p class="ideas-hint" style="margin:0 0 6px;text-align:left;">${sel ? `Showing only <strong>${escapeCm(sel.name)}</strong> — tap their name again to see everyone.` : `Tap a name to see only their availability. ${people.length} ${people.length === 1 ? 'person' : 'people'} shown.`}</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">${nameChips}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      ${navBtn('admAvPrev', '‹', atMin)}<strong style="font-size:20px;color:#76220b;">${escapeCm(monthName)}</strong>${navBtn('admAvNext', '›', atMax)}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;">${heads}${cells}</div>
+    <p class="ideas-hint" style="margin-top:8px;text-align:left;">${sel ? 'M / A / E = morning / afternoon / evening they\'re free.' : 'Big number = people free that day (darker = more). M / A / E = people free in the morning / afternoon / evening. Tap a day for names.'}</p>
+    ${detail}`;
+}
+function admAvailSectionHtml(){
+  return `<h3 style="margin-top:6px;">Availability calendar</h3><div id="admAvailBox" style="margin-bottom:22px;">${admAvailCalendarHtml()}</div>`;
+}
+function admAvailRepaint(){
+  const box = document.getElementById('admAvailBox');
+  if(!box) return;
+  box.innerHTML = admAvailCalendarHtml();
+  admAvailWire();
+}
+function admAvailWire(){
+  const box = document.getElementById('admAvailBox');
+  if(!box) return;
+  box.querySelectorAll('.adm-club').forEach(b => b.addEventListener('click', () => { admAvail.club = b.dataset.club; admAvail.person = null; admAvailRepaint(); }));
+  box.querySelectorAll('.adm-person').forEach(b => b.addEventListener('click', () => { admAvail.person = admAvail.person === b.dataset.person ? null : b.dataset.person; admAvailRepaint(); }));
+  box.querySelectorAll('.adm-day').forEach(b => b.addEventListener('click', () => { admAvail.day = admAvail.day === b.dataset.day ? null : b.dataset.day; admAvailRepaint(); }));
+  const prev = box.querySelector('#admAvPrev'), next = box.querySelector('#admAvNext');
+  if(prev) prev.addEventListener('click', () => { if(admAvail.month > ADM_AVAIL_MIN_MONTH){ admAvail.month = admAvailShiftMonth(admAvail.month, -1); admAvail.day = null; admAvailRepaint(); } });
+  if(next) next.addEventListener('click', () => { if(admAvail.month < ADM_AVAIL_MAX_MONTH){ admAvail.month = admAvailShiftMonth(admAvail.month, 1); admAvail.day = null; admAvailRepaint(); } });
+}
+
 function wireClubAdminPanel(){
   if(!state.cmAdminOpen) return;
+  if(document.getElementById('admAvailBox')){ if(admAvail.people === null && !admAvail.loading) admAvailLoad(); admAvailWire(); }
   const cpBtn = document.getElementById('cpCreateBtn');
   if(cpBtn) cpBtn.addEventListener('click', cmAdminCreateProfile);
   document.querySelectorAll('.join-req-accept').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'accept'); }));
