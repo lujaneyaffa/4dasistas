@@ -4862,6 +4862,40 @@ function ideaSize(votes, title, hasDate){  // hasDate: also true when the bubble
 function ideaVotesLabel(n){ return n + (n === 1 ? ' vote' : ' votes'); }
 function ideaDateLabel(d){ return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' }) : ''; }
 function ideaLongDate(d){ return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric', year:'numeric' }) : ''; }
+
+// Location lives only inside the bubble's info popup: a "Location" button that embeds the map right there.
+function ideaMapEmbedUrl(idea){
+  let q = '';
+  try {
+    const u = new URL(idea.mapUrl);
+    const place = u.pathname.match(/\/maps\/place\/([^/@]+)/);
+    if(place) q = decodeURIComponent(place[1].replace(/\+/g, ' '));
+    else if(u.searchParams.get('q')) q = u.searchParams.get('q');
+    else if(u.searchParams.get('query')) q = u.searchParams.get('query');
+    else { const at = u.pathname.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/); if(at) q = at[1] + ',' + at[2]; }
+  } catch {}
+  // Short share links (maps.app.goo.gl/…) can't be read in the browser — fall back to the place's name.
+  if(!q) q = idea.title || '';
+  return 'https://www.google.com/maps?q=' + encodeURIComponent(q) + '&output=embed';
+}
+function ideaLocationHtml(idea){
+  const map = safeMapUrl(idea.mapUrl);
+  if(!map) return '<p class="av-msg">No location yet.</p>';
+  return `<button type="button" class="club-guide-btn idea-pop-map idea-loc-btn" style="width:100%;">📍 Location</button>
+    <div class="idea-loc-box" hidden style="margin:0 0 10px;">
+      <iframe title="Map of ${escapeCm(idea.title)}" src="about:blank" data-src="${escapeCm(ideaMapEmbedUrl(idea))}" referrerpolicy="no-referrer-when-downgrade" style="width:100%;height:240px;border:2px solid var(--charcoal);border-radius:12px;display:block;"></iframe>
+      <a class="idea-pop-maplink" href="${escapeCm(map)}" target="_blank" rel="noopener">Open in Google Maps ↗</a>
+    </div>`;
+}
+function wireIdeaLocation(wrap){
+  const btn = wrap.querySelector('.idea-loc-btn'), box = wrap.querySelector('.idea-loc-box');
+  if(!btn || !box) return;
+  btn.addEventListener('click', () => {
+    const f = box.querySelector('iframe');
+    if(box.hidden){ if(f.dataset.src){ f.src = f.dataset.src; f.dataset.src = ''; } box.hidden = false; btn.textContent = '📍 Hide location'; }
+    else { box.hidden = true; btn.textContent = '📍 Location'; }
+  });
+}
 function safeMapUrl(u){
   try { const x = new URL(String(u || '')); return x.protocol === 'https:' ? x.href : ''; } catch { return ''; }
 }
@@ -4933,7 +4967,6 @@ function ideaBubbleHtml(idea){
     <span class="idea-title">${escapeCm(idea.title)}</span>
     ${idea.price ? `<span class="idea-cuisine">💸 ${escapeCm(idea.price)}</span>` : ''}
     <span class="idea-votes">${ideaVotesLabel(idea.votes)}${idea.voted ? ' ✓' : ''}</span>
-    ${safeMapUrl(idea.mapUrl) ? `<span class="idea-mini idea-map" data-ideamap="${escapeCm(idea.id)}" role="link" aria-label="Open ${escapeCm(idea.title)} in Google Maps" title="Open in Google Maps">📍</span>` : ''}
     <span class="idea-mini idea-info" data-ideainfo="${escapeCm(idea.id)}" role="button" aria-label="Details and names" title="Details &amp; who voted">i</span>
     ${(idea.mine || admin) ? `<span class="idea-mini idea-x" data-ideadel="${escapeCm(idea.id)}" role="button" aria-label="Remove option" title="Remove">✕</span>` : ''}
     ${admin ? `<span class="idea-mini idea-edit" data-ideaedit="${escapeCm(idea.id)}" role="button" aria-label="Edit option" title="Edit (admin)">✎</span>` : ''}
@@ -4991,7 +5024,6 @@ function publicIdeaBubbleHtml(idea){
     <span class="idea-title">${escapeCm(idea.title)}</span>
     ${idea.price ? `<span class="idea-cuisine">💸 ${escapeCm(idea.price)}</span>` : ''}
     <span class="idea-votes">${ideaVotesLabel(idea.votes)}${idea.voted ? ' ✓' : ''}</span>
-    ${safeMapUrl(idea.mapUrl) ? `<span class="idea-mini idea-map" data-ideamap="${escapeCm(idea.id)}" role="link" aria-label="Open ${escapeCm(idea.title)} in Google Maps" title="Open in Google Maps">📍</span>` : ''}
     <span class="idea-mini idea-info" data-ideainfo="${escapeCm(idea.id)}" role="button" aria-label="Details" title="Details">i</span>
   </button>`;
 }
@@ -5177,17 +5209,17 @@ function openPublicIdeaInfo(id){
   if(!idea) return;
   const map = safeMapUrl(idea.mapUrl);
   const names = idea.voters || [];
-  ideaPopup(`
+  const { wrap } = ideaPopup(`
     <p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(idea._clubTitle)}</p>
     ${idea.date ? `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(idea.date))}</p>` : ''}
     ${idea.cuisine ? `<span class="idea-pop-cuisine">🍽 ${escapeCm(idea.cuisine)}</span>` : ''}
     ${idea.price ? `<span class="idea-pop-price">💸 ${escapeCm(idea.price)}</span>` : ''}
     <h3 style="margin:4px 0 8px;">${escapeCm(idea.title)}</h3>
-    ${map ? `<a class="club-guide-btn idea-pop-map" href="${escapeCm(map)}" target="_blank" rel="noopener">📍 Open in Google Maps</a>
-    <a class="idea-pop-maplink" href="${escapeCm(map)}" target="_blank" rel="noopener">${escapeCm(map.replace(/^https?:\/\//, ''))}</a>` : '<p class="av-msg">No map link yet.</p>'}
+    ${ideaLocationHtml(idea)}
     ${idea.namesHidden ? `<p class="idea-pop-h">${ideaVotesLabel(idea.votes)}</p><p class="av-msg">🔒 Names hidden for privacy.</p>` : `<p class="idea-pop-by">Added by <strong>${escapeCm(idea.by || 'someone')}</strong></p>
     <p class="idea-pop-h">${ideaVotesLabel(idea.votes)}${names.length ? ' — who voted' : ''}</p>
     <div class="idea-pop-names">${names.length ? names.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('') : '<span class="av-msg">No named votes yet.</span>'}</div>`}`);
+  wireIdeaLocation(wrap);
 }
 async function publicIdeaVoteAttempt(id, bubble){
   if(!publicIdeaCanInteract()){ promptJoinToVote(); return; }
@@ -5211,12 +5243,6 @@ function wirePublicIdeasFeed(){
   box.querySelectorAll('.idea-bubble').forEach(b => b.addEventListener('click', e => {
     if(e.target.closest('.idea-mini')) return;
     publicIdeaVoteAttempt(b.dataset.ideaid, b);
-  }));
-  box.querySelectorAll('[data-ideamap]').forEach(x => x.addEventListener('click', e => {
-    e.stopPropagation();
-    const idea = (state.publicIdeasAll || []).find(i => i.id === x.dataset.ideamap);
-    const url = idea && safeMapUrl(idea.mapUrl);
-    if(url) window.open(url, '_blank', 'noopener');
   }));
   box.querySelectorAll('[data-ideainfo]').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); openPublicIdeaInfo(x.dataset.ideainfo); }));
 }
@@ -5659,12 +5685,6 @@ function wireClubIdeas(){
     if(e.target.closest('.idea-mini')) return;
     ideaVote(b.dataset.ideaid, b);
   }));
-  document.querySelectorAll('[data-ideamap]').forEach(x => x.addEventListener('click', e => {
-    e.stopPropagation();
-    const idea = (state.ideas || []).find(i => i.id === x.dataset.ideamap);
-    const url = idea && safeMapUrl(idea.mapUrl);
-    if(url) window.open(url, '_blank', 'noopener');
-  }));
   document.querySelectorAll('[data-ideainfo]').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); openIdeaInfo(x.dataset.ideainfo); }));
   document.querySelectorAll('[data-ideadel]').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); ideaRemove(x.dataset.ideadel); }));
   document.querySelectorAll('[data-ideaedit]').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); openIdeaEdit(x.dataset.ideaedit); }));
@@ -5724,12 +5744,12 @@ function openIdeaInfo(id){
     ${idea.cuisine ? `<span class="idea-pop-cuisine">🍽 ${escapeCm(idea.cuisine)}</span>` : ''}
     ${idea.price ? `<span class="idea-pop-price">💸 ${escapeCm(idea.price)}</span>` : ''}
     <h3 style="margin:4px 0 8px;">${escapeCm(idea.title)}</h3>
-    ${map ? `<a class="club-guide-btn idea-pop-map" href="${escapeCm(map)}" target="_blank" rel="noopener">📍 Open in Google Maps</a>
-    <a class="idea-pop-maplink" href="${escapeCm(map)}" target="_blank" rel="noopener">${escapeCm(map.replace(/^https?:\/\//, ''))}</a>` : '<p class="av-msg">No map link yet.</p>'}
+    ${ideaLocationHtml(idea)}
     ${idea.namesHidden ? `<p class="idea-pop-h">${ideaVotesLabel(idea.votes)}</p><p class="av-msg">🔒 Names hidden for privacy.</p>` : `<p class="idea-pop-by">Added by <strong>${escapeCm(idea.by || 'someone')}</strong></p>
     <p class="idea-pop-h">${ideaVotesLabel(idea.votes)}${names.length ? ' — who voted' : ''}</p>
     <div class="idea-pop-names">${names.length ? names.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('') : '<span class="av-msg">No named votes yet.</span>'}</div>`}
     ${admin ? `<div class="idea-pop-admin"><button type="button" class="club-guide-btn" id="ideaPopEdit">✎ Edit (admin)</button></div>` : ''}`);
+  wireIdeaLocation(wrap);
   const edit = wrap.querySelector('#ideaPopEdit');
   if(edit) edit.addEventListener('click', () => { close(); openIdeaEdit(id); });
 }
