@@ -1234,7 +1234,7 @@ let state = {
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
   ideaAvail:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
   publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
-  myClubPicks:null, myClubPicksEditing:false,
+  myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null,
   ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, iavEditing:false,
   membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventJustCreated:false, eventEditDeleting:false,
@@ -2652,7 +2652,10 @@ function setupFallSignupForm(){
     availReset();
     state.availClubId = firstClub.id;
     state.availWelcome = account.username;
-    state.clubsNotice = sent ? '' : "Your login is ready, but we couldn't send the rest of your form to the organizers. Please DM us on Instagram so they see your picks.";
+    state.myPending = account.pending || [];
+    state.meLoadedFor = account.token;
+    const askedFor = (account.pending || []).map(id => (clubsData.find(c => c.id === id) || {}).title).filter(Boolean);
+    state.clubsNotice = (askedFor.length ? `You're signed in. Your request to join ${askedFor.join(', ')} is waiting for an admin to approve it — it will show up here once approved. ` : '') + (sent ? '' : "We couldn't send the rest of your form to the organizers — please DM us on Instagram so they see your picks.");
     state.clubsLoginPickerOpen = true;
     state.clubsMyClubsPickerOpen = false;
     goToTab('clubs');
@@ -2789,11 +2792,13 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         if(state.publicIdeasAll === null && !state.publicIdeasAllLoading) publicIdeasLoadAll();
         wirePublicIdeasFeed();
       } else {
-        wireMyClubsPicker();
+        wireMyClubsSection();
         wireIdeaAvailGrid();
-        const picks = state.myClubPicks;
-        if(!state.myClubPicksEditing && picks && picks.length){
-          if(state.publicIdeasAll === null && !state.publicIdeasAllLoading) publicIdeasLoadAll(clubsForGrid().filter(c => picks.includes(c.id)));
+        const sess = getCmSession();
+        if(sess && state.meLoadedFor !== sess.token) refreshMe();
+        const mineIds = (sess && sess.clubs) || [];
+        if(mineIds.length){
+          if(state.publicIdeasAll === null && !state.publicIdeasAllLoading) publicIdeasLoadAll(clubsForGrid().filter(c => mineIds.includes(c.id)));
           wirePublicIdeasFeed();
         }
       }
@@ -2860,7 +2865,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       <div class="fall-signup">
         <div class="fall-hero">
           <h2>Pick Your Clubs — Fall Season 🌸</h2>
-          ${state.fallQuickLogin ? `<p><strong>Already filled out a form (DM, paper, WhatsApp)?</strong> Just set up your login below — an organizer will add you to your club(s) once they match you up.</p>` : `<p><strong>Enter your name + a PIN below and you'll be signed in to your #1 pick straight away</strong> — your other picks go on the standby list. Fill out the form to choose your club(s) for the season! Max 2 clubs for now — a 3rd can open after 1 month of activity. Not ready to commit to one of your picks yet? Mention it in the notes below and we'll put you on <strong>STANDBY</strong> for it instead of a firm YES.</p>`}
+          ${state.fallQuickLogin ? `<p><strong>Already filled out a form (DM, paper, WhatsApp)?</strong> Just set up your login below — an organizer will add you to your club(s) once they match you up.</p>` : `<p><strong>Enter your name + a PIN below and you'll be signed in right away; an admin then approves your #1 pick</strong> — your other picks go on the standby list. Fill out the form to choose your club(s) for the season! Max 2 clubs for now — a 3rd can open after 1 month of activity. Not ready to commit to one of your picks yet? Mention it in the notes below and we'll put you on <strong>STANDBY</strong> for it instead of a firm YES.</p>`}
           <button type="button" class="av-link" id="fallQuickLoginToggle" style="font-size:14px;margin-top:6px;">${state.fallQuickLogin ? '← Back to the full sign-up form' : 'Already filled out a form? Just set up your login →'}</button>
         </div>
         ${state.fallQuickLogin ? `
@@ -2888,7 +2893,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
           </div>
           <div class="fall-section fall-login-box">
             <h3>Choose a PIN</h3>
-            <p class="fall-hint" style="margin:0 0 10px;">You'll use your name + this PIN to log in and fill in your availability. As soon as you submit, you're signed in to your #1 club.</p>
+            <p class="fall-hint" style="margin:0 0 10px;">You'll use your name + this PIN to log in and fill in your availability. As soon as you submit, you're signed in, and an admin approves your #1 club.</p>
             <input type="tel" id="fallPin" placeholder="Choose a 4-digit PIN (remember it!)" class="fall-text-input" inputmode="numeric" maxlength="4" autocomplete="off">
             <p class="fall-hint" style="margin:8px 0 0;">Forgot your PIN? No stress — an admin can reset it for you.</p>
           </div>
@@ -4987,64 +4992,41 @@ function renderPublicIdeasFeedHtml(title, hint, emptyMsg){
 }
 
 /* ============================================================
-   "WHICH CLUB ARE YOU IN NOW?" — a signed-in member (or the site admin)
-   picks one or more clubs to follow on the Clubs tab, instead of browsing
-   the full list. The pick is a personal view preference (localStorage,
-   not an admin-assigned membership) and can be changed anytime. Once set,
-   the tab shows those clubs' cards (tap one to open its full board +
-   availability, unchanged) plus a combined, fully-interactive vote feed
-   scoped to just those clubs (reuses the same public-feed bubble code —
-   publicIdeaCanInteract() already returns true for a signed-in session,
-   so voting here just works, no gate).
+   "CLUBS YOU'RE IN" — real membership only. Nobody joins a club by picking it:
+   a signed-in person asks (POST /api/clubs/:id/join-request), an admin approves,
+   and only then is it in their account's clubs. Existing members' clubs are
+   untouched. The cached session goes stale once an admin approves, so the Clubs
+   tab re-reads GET /api/me (membership + pending requests) once per sign-in.
    ============================================================ */
-function loadMyClubPicks(){
-  try { const raw = localStorage.getItem('cmMyClubPicks'); const arr = raw ? JSON.parse(raw) : null; return Array.isArray(arr) ? arr : null; } catch { return null; }
-}
-function saveMyClubPicksToStorage(picks){
-  try { localStorage.setItem('cmMyClubPicks', JSON.stringify(picks)); } catch {}
-}
-function sessionDefaultClubPicks(){
+async function refreshMe(){
   const session = getCmSession();
-  return session && Array.isArray(session.clubs) ? session.clubs.slice() : [];
+  if(!session || !session.token || state.meLoading) return;
+  state.meLoading = true;
+  try {
+    const me = await cmApiRaw('/api/me', { headers:{ 'Authorization':'Bearer ' + session.token } });
+    const changed = JSON.stringify(me.clubs || []) !== JSON.stringify(session.clubs || []);
+    state.myPending = me.pending || [];
+    setCmSession(Object.assign({}, session, { clubs: me.clubs || [], waitlist: me.waitlist || [] }));
+    if(changed) state.publicIdeasAll = null;
+  } catch(err){ /* e.g. expired session — keep what's cached, don't retry in a loop */ }
+  state.meLoadedFor = session.token;
+  state.meLoading = false;
+  if(state.tab === 'clubs') render();
 }
-function myClubsPickerHtml(preChecked){
-  const checkedSet = new Set(preChecked || []);
-  return `<div class="my-clubs-picker" style="max-width:480px;margin:0 auto 20px;text-align:center;">
-    <h3 class="clubs-popular-title">Which club are you in now?</h3>
-    <p class="ideas-hint" style="margin-bottom:14px;">Tap one or more — you can change this anytime.</p>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      ${clubsForGrid().map(c => `
-        <label class="my-club-pick-option${checkedSet.has(c.id) ? ' active' : ''}" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:2px solid var(--charcoal);border-radius:12px;cursor:pointer;text-align:left;background:${checkedSet.has(c.id) ? 'var(--blush)' : 'var(--card)'};">
-          <input type="checkbox" class="my-club-pick-check" value="${c.id}" ${checkedSet.has(c.id) ? 'checked' : ''} style="width:18px;height:18px;flex-shrink:0;">
-          <span>${c.emoji ? escapeCm(c.emoji) + ' ' : ''}<strong>${escapeCm(c.title)}</strong></span>
-        </label>`).join('')}
-    </div>
-    <p id="myClubsPickError" style="color:#c00;font-size:13px;margin:10px 0 0;"></p>
-    ${clubsWhatsappDisclaimerHtml()}
-    <button type="button" class="club-guide-btn" id="myClubsPickSaveBtn" style="width:100%;margin-top:10px;background:var(--lightblue);">Save</button>
-    <div style="margin-top:12px;">${changePinButtonHtml()}</div>
-  </div>`;
+async function requestToJoinClub(clubId){
+  const session = getCmSession();
+  if(!session) return;
+  try {
+    const d = await cmApiRaw('/api/clubs/' + encodeURIComponent(clubId) + '/join-request', { method:'POST', headers:{ 'Authorization':'Bearer ' + session.token } });
+    state.myPending = d.pending || [];
+    state.joinReqError = '';
+  } catch(err){ state.joinReqError = err.message; }
+  render();
 }
-function wireMyClubsPicker(){
-  document.querySelectorAll('.my-club-pick-check').forEach(cb => cb.addEventListener('change', () => {
-    const label = cb.closest('.my-club-pick-option');
-    label.classList.toggle('active', cb.checked);
-    label.style.background = cb.checked ? 'var(--blush)' : 'var(--card)';
-  }));
-  const saveBtn = document.getElementById('myClubsPickSaveBtn');
-  if(saveBtn) saveBtn.addEventListener('click', () => {
-    const picks = [...document.querySelectorAll('.my-club-pick-check:checked')].map(cb => cb.value);
-    if(!picks.length){ const err = document.getElementById('myClubsPickError'); if(err) err.textContent = 'Pick at least one club.'; return; }
-    saveMyClubPicksToStorage(picks);
-    state.myClubPicks = picks;
-    state.myClubPicksEditing = false;
-    state.publicIdeasAll = null;
-    render();
-  });
-  const editBtn = document.getElementById('myClubsEditBtn');
-  if(editBtn) editBtn.addEventListener('click', () => { state.myClubPicksEditing = true; render(); });
+function wireMyClubsSection(){
   const pinBtn = document.getElementById('myChangePinBtn');
   if(pinBtn) pinBtn.addEventListener('click', openChangePinPopup);
+  document.querySelectorAll('.join-req-btn').forEach(b => b.addEventListener('click', () => { b.disabled = true; requestToJoinClub(b.dataset.clubId); }));
 }
 function changePinButtonHtml(){
   return `<button type="button" class="av-link" id="myChangePinBtn" style="font-size:14px;">🔑 Change my PIN</button>`;
@@ -5081,25 +5063,38 @@ function openChangePinPopup(){
   });
 }
 function clubsWhatsappDisclaimerHtml(){
-  return `<p class="ideas-hint" style="max-width:520px;margin:18px auto 0;text-align:center;line-height:1.5;">⚠️ Please only pick clubs you're actually in the WhatsApp group chat for. If you picked a club in the form you originally filled out and you're still not in its group chat, <a href="${IG_DM_URL}" target="_blank" rel="noopener" style="font-weight:700;">contact an admin</a>.</p>`;
+  return `<p class="ideas-hint" style="max-width:520px;margin:18px auto 0;text-align:center;line-height:1.5;">⚠️ Please only request clubs you're actually in the WhatsApp group chat for. If you filled out the form for a club and you're still not in its group chat, <a href="${IG_DM_URL}" target="_blank" rel="noopener" style="font-weight:700;">contact an admin</a>.</p>`;
 }
 function renderMyClubsSectionHtml(){
-  if(state.myClubPicks === null) state.myClubPicks = loadMyClubPicks();
-  const picks = state.myClubPicks;
-  if(state.myClubPicksEditing || !picks || !picks.length){
-    return myClubsPickerHtml(picks && picks.length ? picks : sessionDefaultClubPicks());
+  const session = getCmSession();
+  const mine = new Set((session && session.clubs) || []);
+  const pending = new Set(state.myPending || []);
+  const all = clubsForGrid();
+  const myClubs = all.filter(c => mine.has(c.id));
+  const others = all.filter(c => !mine.has(c.id));
+  const waiting = others.filter(c => pending.has(c.id)).map(c => `<strong>${escapeCm(c.title)}</strong>`);
+  const pendingBanner = waiting.length ? `<div class="av-waitlist" style="max-width:520px;margin:0 auto 14px;text-align:center;">⏳ Waiting for an admin to approve: ${waiting.join(', ')}. It will show up here once approved.</div>` : '';
+  const rowStyle = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border:2px solid var(--charcoal);border-radius:12px;background:var(--card);';
+  const rows = others.map(c => `<div style="${rowStyle}"><span>${c.emoji ? escapeCm(c.emoji) + ' ' : ''}<strong>${escapeCm(c.title)}</strong></span>${pending.has(c.id)
+    ? `<span style="font-size:13px;color:var(--muted);text-align:right;">Requested ✓<br>waiting for approval</span>`
+    : `<button type="button" class="club-guide-btn join-req-btn" data-club-id="${escapeCm(c.id)}" style="min-height:44px;padding:8px 14px;text-align:center;background:var(--lightblue);">Request to join</button>`}</div>`).join('');
+  const requestSection = others.length ? `
+    <h3 class="clubs-popular-title" style="margin-top:26px;">${myClubs.length ? 'REQUEST ANOTHER CLUB' : 'REQUEST TO JOIN A CLUB'}</h3>
+    <p class="ideas-hint" style="text-align:center;margin:0 0 10px;">An admin approves every request.</p>
+    ${state.joinReqError ? `<p style="color:#c00;font-size:13px;text-align:center;margin:0 0 8px;">${escapeCm(state.joinReqError)}</p>` : ''}
+    <div style="max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:8px;">${rows}</div>` : '';
+  const topRow = `<div style="text-align:center;margin-bottom:14px;">${changePinButtonHtml()}</div>`;
+  if(!myClubs.length){
+    return `${topRow}${pendingBanner}
+      <p class="ideas-hint" style="max-width:520px;margin:0 auto;text-align:center;">You're not in a club yet. Request the club(s) you're part of below — an admin will approve them.</p>
+      ${requestSection}${clubsWhatsappDisclaimerHtml()}`;
   }
-  const pickedClubs = clubsForGrid().filter(c => picks.includes(c.id));
-  return `
-    <div style="text-align:center;margin-bottom:14px;">
-      <button type="button" class="av-link" id="myClubsEditBtn" style="font-size:14px;">✏️ Edit which club(s) you're in</button>
-      <span style="display:inline-block;width:14px;"></span>${changePinButtonHtml()}
-    </div>
+  return `${topRow}${pendingBanner}
     <h3 class="clubs-popular-title">CLUBS YOU'RE IN</h3>
-    <div class="clubs-grid clubs-grid-row">${pickedClubs.map(clubCardHtml).join('')}</div>
+    <div class="clubs-grid clubs-grid-row">${myClubs.map(clubCardHtml).join('')}</div>
     <div class="my-avail-section" style="max-width:640px;margin:18px auto 0;">${ideaAvailSectionHtml(ideaMe())}</div>
     <div class="public-ideas-section">${renderPublicIdeasFeedHtml('VOTE ON IDEAS', 'Tap a bubble to vote. Open a club above to add an idea.', 'No ideas yet in your club(s) — open one above and add the first!')}</div>
-    ${clubsWhatsappDisclaimerHtml()}`;
+    ${requestSection}${clubsWhatsappDisclaimerHtml()}`;
 }
 function openPublicIdeaInfo(id){
   const idea = (state.publicIdeasAll || []).find(i => i.id === id);
@@ -6304,6 +6299,32 @@ async function cmAdminLoadAllMembers(){
     const res = await fetch('/api/admin/club-members', { credentials:'include' });
     state.cmAdminAllMembers = await res.json();
   } catch { state.cmAdminAllMembers = {}; }
+  await cmAdminLoadJoinRequests();
+}
+async function cmAdminLoadJoinRequests(){
+  try {
+    const res = await fetch('/api/admin/join-requests', { credentials:'include' });
+    state.cmAdminJoinRequests = res.ok ? ((await res.json()).requests || []) : [];
+  } catch { state.cmAdminJoinRequests = []; }
+}
+function joinRequestsAdminHtml(){
+  const reqs = state.cmAdminJoinRequests;
+  if(!reqs) return '';
+  return `<div class="cp-box"><h4 style="margin:0 0 6px;">Join requests${reqs.length ? ` (${reqs.length})` : ''}</h4>
+    ${reqs.length ? reqs.map(r => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
+      <span><strong>${escapeCm(r.name)}</strong> <span style="color:#776867;font-size:12px;">${escapeCm(r.username)}</span><br>wants to join <strong>${escapeCm(r.clubTitle)}</strong></span>
+      <span style="display:flex;gap:6px;"><button type="button" class="club-guide-btn join-req-accept" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:var(--lightblue);text-align:center;">Accept</button><button type="button" class="club-guide-btn join-req-decline" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:transparent;text-align:center;">Decline</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No pending requests.</p>'}
+    <p id="joinReqAdminStatus" style="color:#c00;font-size:12px;margin:6px 0 0;"></p></div>`;
+}
+async function cmAdminAnswerJoinRequest(clubId, userId, action){
+  const st = document.getElementById('joinReqAdminStatus');
+  try {
+    const res = await fetch('/api/admin/join-requests/' + encodeURIComponent(clubId) + '/' + encodeURIComponent(userId) + '/' + action, { method:'POST', credentials:'include' });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok) throw new Error(data.error || 'Could not update that request');
+    await cmAdminLoadAllMembers();
+    render();
+  } catch(err){ if(st) st.textContent = err.message; }
 }
 
 async function cmAdminSelectClub(clubId){
@@ -6536,6 +6557,7 @@ function renderClubAdminPanel(){
       <h3 style="margin:0;">All Members</h3>
       <button class="club-guide-btn" id="cmAdminLogoutBtn" style="padding:6px 12px;font-size:12px;">Log Out</button>
     </div>
+    ${joinRequestsAdminHtml()}
     ${clubDirListHtml()}
     <div class="cp-box">
       <h4 style="margin:0 0 6px;">Create a profile</h4>
@@ -6752,6 +6774,8 @@ function wireClubAdminPanel(){
   if(!state.cmAdminOpen) return;
   const cpBtn = document.getElementById('cpCreateBtn');
   if(cpBtn) cpBtn.addEventListener('click', cmAdminCreateProfile);
+  document.querySelectorAll('.join-req-accept').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'accept'); }));
+  document.querySelectorAll('.join-req-decline').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'decline'); }));
   const loginBtn = document.getElementById('cmAdminLoginBtn');
   if(loginBtn) loginBtn.addEventListener('click', cmAdminLogin);
   const logoutBtn = document.getElementById('cmAdminLogoutBtn');

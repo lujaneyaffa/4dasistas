@@ -221,6 +221,35 @@ const allClubIdsContaining = async (env, userId) => {
   return out;
 };
 
+// ---- Club join requests: nobody is added to a club just by asking - an admin approves. One KV key per
+// (club, person) so two people requesting at the same moment can't overwrite each other's request. ----
+const joinReqKey = (clubId, userId) => `joinreq:${clubId}:${userId}`;
+const listJoinRequests = async (env) => {
+  const list = await env.SITE_DATA.list({ prefix: "joinreq:" });
+  const out = [];
+  for (const k of list.keys) {
+    const [, clubId, userId] = k.name.split(":");
+    let at = 0;
+    try { at = JSON.parse((await env.SITE_DATA.get(k.name)) || "{}").at || 0; } catch {}
+    out.push({ clubId, userId, at });
+  }
+  return out;
+};
+const pendingClubIdsFor = async (env, userId) => (await listJoinRequests(env)).filter((r) => r.userId === userId).map((r) => r.clubId);
+const JOIN_REQUESTS_MAX_PENDING_PER_PERSON = 4;
+// Emails the admin each time someone asks to join a club. Needs the ADMIN_NOTIFY_EMAIL secret; if it isn't
+// set (or Resend isn't), the request is still saved and shows up in the admin panel - it just can't email.
+const notifyAdminOfJoinRequest = (env, ctx, user, club) => {
+  if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
+  const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
+  const html = `<div style="font-family:Arial,sans-serif;max-width:520px;color:#373d3b"><h2 style="margin:0 0 8px">New club join request</h2><p><strong>${escapeHtml(user.name)}</strong> (username <code>${escapeHtml(user.username)}</code>) asked to join <strong>${escapeHtml(club.title)}</strong>.</p><p>To accept or decline: open <a href="${origin}/#/clubs">${origin}</a>, log in as admin (🔒 Admin Login in the footer), and look for <em>Join requests</em> on the Clubs page.</p></div>`;
+  ctx.waitUntil(fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [env.ADMIN_NOTIFY_EMAIL], subject: `Join request: ${user.name} → ${club.title}`, html }),
+  }).catch(() => {}));
+};
+
 // ---- Global username uniqueness index (username -> userId) ----
 const usernameKey = (username) => `username:${username}`;
 
@@ -738,10 +767,12 @@ export default {
       const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, waitlist, createdAt: Date.now() };
       await writeUser(env, user);
       await reserveUsername(env, username, user.id);
+      // Signing up no longer drops anyone straight into a club - their #1 pick becomes a request an admin
+      // approves (the account itself, and the form that goes to organizers, are unchanged).
       if (clubId) {
-        const memberIds = await readClubMemberIds(env, clubId);
-        memberIds.push(user.id);
-        await writeClubMemberIds(env, clubId, memberIds);
+        await env.SITE_DATA.put(joinReqKey(clubId, user.id), JSON.stringify({ at: Date.now() }));
+        const club = (await readClubRoster(env)).find((c) => c.id === clubId);
+        if (club) notifyAdminOfJoinRequest(env, ctx, user, club);
       }
       await Promise.all([
         env.SITE_DATA.put(ipKey, String(Number(ipCount || 0) + 1), { expirationTtl: 3700 }),
@@ -749,7 +780,7 @@ export default {
       ]);
       const token = await createMemberSession(env, user.id);
       const clubs = await allClubIdsContaining(env, user.id);
-      return jsonResponse({ ...publicUser(user), clubs, waitlist: visibleWaitlist(user, clubs), token }, 201, corsHeaders);
+      return jsonResponse({ ...publicUser(user), clubs, pending: clubId ? [clubId] : [], waitlist: visibleWaitlist(user, clubs), token }, 201, corsHeaders);
     }
 
     if (cmMembersMatch && request.method === "GET") {
@@ -1002,6 +1033,30 @@ export default {
       if (!raw) return null;
       try { return JSON.parse(raw).userId || null; } catch { return null; }
     };
+    // Fresh membership + pending requests for the signed-in person (the cached session goes stale once an admin approves).
+    if (path === "/api/me" && request.method === "GET") {
+      const meId = await memberIdFromRequest();
+      const me = meId ? await readUser(env, meId) : null;
+      if (!me) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      const clubs = await allClubIdsContaining(env, me.id);
+      return jsonResponse({ ...publicUser(me), clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs) }, 200, corsHeaders);
+    }
+    const joinReqMatch = path.match(/^\/api\/clubs\/([^/]+)\/join-request\/?$/);
+    if (joinReqMatch && request.method === "POST") {
+      const meId = await memberIdFromRequest();
+      const me = meId ? await readUser(env, meId) : null;
+      if (!me) return jsonResponse({ error: "Sign in to request to join a club" }, 401, corsHeaders);
+      const clubId = decodeURIComponent(joinReqMatch[1]);
+      const club = (await readClubRoster(env)).find((c) => c.id === clubId);
+      if (!club) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
+      if ((await readClubMemberIds(env, clubId)).includes(me.id)) return jsonResponse({ error: "You're already in this club" }, 409, corsHeaders);
+      const pending = await pendingClubIdsFor(env, me.id);
+      if (pending.includes(clubId)) return jsonResponse({ ok: true, pending }, 200, corsHeaders);
+      if (pending.length >= JOIN_REQUESTS_MAX_PENDING_PER_PERSON) return jsonResponse({ error: "You have several requests waiting already — please wait for an admin to answer them" }, 429, corsHeaders);
+      await env.SITE_DATA.put(joinReqKey(clubId, me.id), JSON.stringify({ at: Date.now() }));
+      notifyAdminOfJoinRequest(env, ctx, me, club);
+      return jsonResponse({ ok: true, pending: [...pending, clubId] }, 201, corsHeaders);
+    }
     const membersListMatch = path === "/api/members" || path === "/api/members/";
     const memberProfileMatch = path.match(/^\/api\/members\/([^/]+)\/?$/);
     if ((membersListMatch || memberProfileMatch) && request.method === "GET") {
@@ -1177,7 +1232,7 @@ export default {
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
 
     if (requiresAuth) {
       const token = getSessionToken(request);
@@ -1280,6 +1335,33 @@ export default {
       }
       await writeClubIdeas(env, clubId, ideas);
       return jsonResponse({ ideas: sortedPublicIdeas(ideas, null) }, 200, corsHeaders);
+    }
+
+    // ---- Admin: approve / decline club join requests ----
+    if (path === "/api/admin/join-requests" && request.method === "GET") {
+      const roster = await readClubRoster(env);
+      const out = [];
+      for (const r of (await listJoinRequests(env)).sort((a, b) => a.at - b.at)) {
+        const user = await readUser(env, r.userId);
+        if (!user) continue;
+        out.push({ clubId: r.clubId, clubTitle: (roster.find((c) => c.id === r.clubId) || {}).title || r.clubId, userId: r.userId, name: user.name, username: user.username, at: r.at });
+      }
+      return jsonResponse({ requests: out }, 200, corsHeaders);
+    }
+    const adminJoinActionMatch = path.match(/^\/api\/admin\/join-requests\/([^/]+)\/([^/]+)\/(accept|decline)\/?$/);
+    if (adminJoinActionMatch && request.method === "POST") {
+      const clubId = decodeURIComponent(adminJoinActionMatch[1]);
+      const userId = decodeURIComponent(adminJoinActionMatch[2]);
+      const key = joinReqKey(clubId, userId);
+      if (!(await env.SITE_DATA.get(key))) return jsonResponse({ error: "That request is no longer pending" }, 404, corsHeaders);
+      if (adminJoinActionMatch[3] === "accept") {
+        if (!(await readUser(env, userId))) { await env.SITE_DATA.delete(key); return jsonResponse({ error: "That member no longer exists" }, 404, corsHeaders); }
+        if (!(await isKnownClubId(env, clubId))) return jsonResponse({ error: "That club no longer exists" }, 404, corsHeaders);
+        const ids = await readClubMemberIds(env, clubId);
+        if (!ids.includes(userId)) { ids.push(userId); await writeClubMemberIds(env, clubId, ids); }
+      }
+      await env.SITE_DATA.delete(key);
+      return jsonResponse({ ok: true }, 200, corsHeaders);
     }
 
     const adminClubMembersCreateMatch = path.match(/^\/api\/admin\/club-members\/([^/]+)\/?$/);
