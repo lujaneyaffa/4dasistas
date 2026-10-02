@@ -778,7 +778,7 @@ export default {
 
       if (await findUserIdByUsername(env, username)) return jsonResponse({ error: "That login was just taken — please try submitting again" }, 409, corsHeaders);
 
-      const waitlist = clubId ? [...new Set((Array.isArray(body.waitlist) ? body.waitlist : []).map(String))].filter((id) => clubIds.has(id) && id !== clubId).slice(0, 2) : [];
+      const waitlist = clubId ? [...new Set((Array.isArray(body.waitlist) ? body.waitlist : []).map(String))].filter((id) => clubIds.has(id) && id !== clubId).slice(0, 1) : []; // 2 clubs total: the #1 pick (requested) + one on standby
       const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, waitlist, createdAt: Date.now() };
       await writeUser(env, user);
       await reserveUsername(env, username, user.id);

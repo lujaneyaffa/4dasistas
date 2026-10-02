@@ -2557,9 +2557,7 @@ function setupFallSignupForm(){
   const form = document.getElementById('fallSignupForm');
   if(!form) return;
   const checks = [...form.querySelectorAll('input[name="clubs"]')];
-  const otherCheckbox = document.getElementById('fallOtherCheckbox');
-  const otherNameInput = document.getElementById('fallOtherName');
-  const rankedField = document.getElementById('fallClubsRanked');
+    const rankedField = document.getElementById('fallClubsRanked');
   let clubOrder = [];
 
   function updateClubRanks(){
@@ -2574,8 +2572,7 @@ function setupFallSignupForm(){
       badge.classList.add('fall-rank-visible');
     });
     rankedField.value = clubOrder.map((cb, i) => {
-      const label = cb.value === 'Other' ? (otherNameInput.value.trim() || 'Other') : cb.value;
-      return `${i + 1}. ${label}`;
+      return `${i + 1}. ${cb.value}`;
     }).join(', ');
   }
 
@@ -2586,16 +2583,10 @@ function setupFallSignupForm(){
       clubOrder = clubOrder.filter(c => c !== cb);
     }
     const checkedCount = checks.filter(c => c.checked).length;
-    checks.forEach(c => { if(!c.checked) c.disabled = checkedCount >= 3; });
+    checks.forEach(c => { if(!c.checked) c.disabled = checkedCount >= 2; });
     updateClubRanks();
   }));
 
-  otherCheckbox.addEventListener('change', () => {
-    otherNameInput.style.display = otherCheckbox.checked ? 'block' : 'none';
-    if(!otherCheckbox.checked) otherNameInput.value = '';
-    updateClubRanks();
-  });
-  otherNameInput.addEventListener('input', updateClubRanks);
 
   form.addEventListener('submit', async e => {
     e.preventDefault();
@@ -2611,9 +2602,8 @@ function setupFallSignupForm(){
     const enteredPin = (document.getElementById('fallPin').value || '').trim();
     if(!enteredName || enteredName.trim().split(/\s+/).length < 2) missing.push('add your first name and last initial (e.g. Amina K.)');
     if(!/^\d{4}$/.test(enteredPin)) missing.push('choose a 4-digit PIN');
-    if(checkedClubCount !== 3) missing.push('select exactly 3 clubs above');
+    if(checkedClubCount !== 2) missing.push('select exactly 2 clubs above');
     if(!form.whatsapp.value.trim()) missing.push('add your WhatsApp number');
-    if(otherCheckbox.checked && !otherNameInput.value.trim()) missing.push('tell us the name of the "Other" club you have in mind');
     if(!form.terms.checked) missing.push('agree to the community terms & conditions');
 
     if(missing.length){
@@ -2917,7 +2907,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
             <input type="tel" name="whatsapp" placeholder="e.g. 416-555-0123" class="fall-text-input">
           </div>
           <div class="fall-section">
-            <h3>Which club(s) are you interested in? <span class="fall-hint">(tap 3 in order — 1st tap = most wanted, 3rd = least desirable)</span></h3>
+            <h3>Which club(s) are you interested in? <span class="fall-hint">(pick exactly 2 — your 1st pick is sent to an admin for approval, your 2nd goes on standby)</span></h3>
             <input type="hidden" name="clubsRanked" id="fallClubsRanked">
             <div class="fall-checkbox-grid" id="fallClubChecks">${clubsData.map(c => `
               <label class="fall-option">
@@ -2926,15 +2916,6 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
                 <span class="fall-option-emoji">${c.emoji || '✨'}</span>
                 <span class="fall-option-text"><strong>${c.title}</strong> — ${c.desc}</span>
               </label>`).join('')}
-              <div class="fall-option-wrap" id="fallOtherOption">
-                <label class="fall-option">
-                  <input type="checkbox" name="clubs" value="Other" id="fallOtherCheckbox">
-                  <span class="fall-rank-badge"></span>
-                  <span class="fall-option-emoji">✨</span>
-                  <span class="fall-option-text"><strong>Others</strong> — something not listed above? Tell us!</span>
-                </label>
-                <input type="text" name="otherClubName" id="fallOtherName" placeholder="Club name" class="fall-text-input fall-other-input" style="display:none;">
-              </div>
             </div>
           </div>
           <div class="fall-section">
