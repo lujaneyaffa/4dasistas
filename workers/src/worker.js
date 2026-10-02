@@ -1745,6 +1745,8 @@ export default {
       if (emoji) newClub.emoji = emoji;
       const colour = sanitizeColour(fields.colour);
       if (colour) newClub.colour = colour;
+      const textColour = sanitizeColour(fields.textColour);
+      if (textColour) newClub.textColour = textColour;
       if (typeof fields.logo === "string" && fields.logo.startsWith("data:")) {
         const photo = sanitizePhoto(fields.logo);
         if (fields.logo && !photo) return jsonResponse({ error: "Logo image is too large or not a supported format" }, 400, corsHeaders);
@@ -1796,6 +1798,11 @@ export default {
         const colour = sanitizeColour(fields.colour);
         if (fields.colour && !colour) return jsonResponse({ error: "Colour must look like #rrggbb" }, 400, corsHeaders);
         fields.colour = colour;
+      }
+      if (fields.textColour !== undefined) {
+        const textColour = sanitizeColour(fields.textColour);
+        if (fields.textColour && !textColour) return jsonResponse({ error: "Text colour must look like #rrggbb" }, 400, corsHeaders);
+        fields.textColour = textColour;
       }
       // Only touch logo when the submitted value is an actual new upload (a
       // data: URL) - an edit form re-sending the existing plain-path value

@@ -38,7 +38,7 @@
   @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap');
 
   :root{
-    --cream: #fff7e6;
+    --cream: #fef7f4;
     --card: #FFFFFF;
     --charcoal: #373d3b;
     --charcoal2: #444758;
@@ -52,9 +52,11 @@
     --tan: #f1dfb6;
     --beige: #fffdf7;
     --lightblue: #d6e8f7;
-    --blush: #fae1e4;
+    --blush: #f2d8d7;
     --muted: #776867;
     --wa-green: #25D366;
+    /* Brand palette — #ce8491 rose, #76220b brown, #fef7f4 cream, #ffc1c1 pink, #f2d8d7 blush */
+    --brand-rose:#ce8491; --brand-brown:#76220b; --brand-cream:#fef7f4; --brand-pink:#ffc1c1; --brand-blush:#f2d8d7;
   }
   *{ box-sizing:border-box; margin:0; padding:0; }
   html{ touch-action:manipulation; }
@@ -2488,18 +2490,18 @@ function renderResourceMap(){
 // added/edited/removed. clubCol(id) gives every card a consistent colour whether or not one is set.
 function clubCol(id){
   const c = clubsData.find(x => x.id === id);
-  return (c && c.colour) ? { bg:c.colour, fg:'#373d3b' } : { bg:'#373d3b', fg:'#fff7e6' };
+  return (c && c.colour) ? { bg:c.colour, fg:c.textColour || '#373d3b' } : { bg:'#373d3b', fg:'#fef7f4' };
 }
 function clubCardHtml(c, hideDesc){
   const col = clubCol(c.id);
   const monogramHtml = c.logo ? `<div class="monogram"><img src="${c.logo}" alt="${c.title} logo"></div>` : `<div class="monogram" style="background:${col.bg};color:${col.fg}">${c.title.charAt(0)}</div>`;
   return `
-  <div class="panel-card club-card" style="border:2px solid ${col.bg};border-top-width:6px;" data-club-id="${c.id}" tabindex="0" role="button" aria-label="Open the ${c.title} idea board">
+  <div class="panel-card club-card" style="background:${col.bg};color:${col.fg};border:2px solid ${col.bg};border-top-width:6px;" data-club-id="${c.id}" tabindex="0" role="button" aria-label="Open the ${c.title} idea board">
     <div class="panel-top">
               ${monogramHtml}
-      <div><h4>${c.title}</h4></div>
+      <div><h4 style="color:${col.fg};">${c.title}</h4></div>
     </div>
-    ${hideDesc ? '' : `<div class="panel-desc">${c.desc}</div>`}
+    ${hideDesc ? '' : `<div class="panel-desc" style="color:${col.fg};">${c.desc}</div>`}
   </div>`;
 }
 
@@ -6482,7 +6484,7 @@ async function cmAdminResetMemberPin(clubId, id){
 }
 
 async function cmAdminDeleteMember(clubId, id){
-  if(!confirm('Remove this member? This cannot be undone.')) return;
+  if(!confirm('Remove this person from this club? Their profile and other clubs stay.')) return;
   await fetch('/api/admin/club-members/' + encodeURIComponent(clubId) + '/' + encodeURIComponent(id), { method:'DELETE', credentials:'include' });
   await cmAdminLoadAllMembers();
   render();
@@ -6526,14 +6528,19 @@ function cmAdminMemberClubs(userId){
 function renderAdminAllMembersPanels(){
   const data = state.cmAdminAllMembers;
   if(data === null || data === undefined) return '<p style="font-size:13px;">Loading members…</p>';
-  const rows = [];
+  // One card per PERSON (the API lists someone once under every club they're in); their clubs become tags.
+  const byId = new Map();
   Object.keys(data).forEach(clubId => {
-    (data[clubId] || []).forEach(m => rows.push(Object.assign({ clubId }, m)));
+    (data[clubId] || []).forEach(m => {
+      if(!byId.has(m.id)) byId.set(m.id, Object.assign({}, m, { clubIds: [] }));
+      byId.get(m.id).clubIds.push(clubId);
+    });
   });
-  if(!rows.length) return '<p style="font-size:13px;">No members yet across any club.</p>';
-  return `<div class="clubs-grid">${rows.map(m => {
-    const clubTitle = (clubsData.find(c => c.id === m.clubId) || {}).title || m.clubId;
-    if(state.cmAdminEditingId === m.id && state.cmAdminEditingClub === m.clubId){
+  const people = [...byId.values()];
+  if(!people.length) return '<p style="font-size:13px;">No members yet across any club.</p>';
+  return `<div class="clubs-grid">${people.map(m => {
+    const firstClub = m.clubIds[0];
+    if(state.cmAdminEditingId === m.id){
       const memberClubs = new Set(cmAdminMemberClubs(m.id));
       return `<div class="panel-card" style="text-align:left;">
         <input id="cmAdminEditName" value="${escapeCm(m.name)}" placeholder="Name" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--charcoal);box-sizing:border-box;">
@@ -6546,21 +6553,24 @@ function renderAdminAllMembersPanels(){
           </label>`).join('')}
         </div>
         <div style="display:flex;gap:8px;">
-          <button class="cm-admin-save-member" data-club-id="${m.clubId}" data-member-id="${m.id}" style="flex:1;padding:8px;border-radius:8px;border:none;background:var(--charcoal);color:var(--cream);cursor:pointer;">Save</button>
+          <button class="cm-admin-save-member" data-club-id="${firstClub}" data-member-id="${m.id}" style="flex:1;padding:8px;border-radius:8px;border:none;background:var(--charcoal);color:var(--cream);cursor:pointer;">Save</button>
           <button class="cm-admin-cancel-edit" style="flex:1;padding:8px;border-radius:8px;border:2px solid var(--charcoal);background:transparent;cursor:pointer;">Cancel</button>
         </div>
         <span id="cmAdminEditStatus" style="font-size:12px;color:#c00;"></span>
       </div>`;
     }
+    const tags = m.clubIds.map(cid => {
+      const col = clubCol(cid);
+      return `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 4px 3px 10px;border-radius:999px;background:${col.bg};color:${col.fg};font-size:11px;font-weight:700;">${escapeCm(avClubTitle(cid))}<button type="button" class="cm-admin-delete-member" data-club-id="${escapeCm(cid)}" data-member-id="${m.id}" aria-label="Remove from ${escapeCm(avClubTitle(cid))}" title="Remove from this club" style="border:none;background:transparent;color:${col.fg};cursor:pointer;font-size:14px;line-height:1;padding:2px 6px;">×</button></span>`;
+    }).join('');
     return `<div class="panel-card" style="text-align:center;">
       ${m.photo ? `<img src="${escapeCm(m.photo)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;margin:0 auto 8px;display:block;">` : `<div class="monogram" style="margin:0 auto 8px;">${escapeCm((m.name || '?').charAt(0).toUpperCase())}</div>`}
       <h4 style="font-size:14px;margin-bottom:2px;">${escapeCm(m.name)}</h4>
-      <div style="font-size:11px;color:#776867;margin-bottom:6px;">${escapeCm(m.username)}</div>
-      <div class="owned-badge" style="display:inline-block;margin-bottom:10px;">${escapeCm(clubTitle)}</div>
+      <div style="font-size:11px;color:#776867;margin-bottom:8px;">${escapeCm(m.username)}</div>
+      <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;">${tags}</div>
       <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
-        <button class="cm-admin-edit-member" data-club-id="${m.clubId}" data-member-id="${m.id}" style="padding:6px 10px;border-radius:8px;border:2px solid var(--charcoal);background:transparent;cursor:pointer;font-size:11px;">Edit</button>
-        <button class="cm-admin-reset-member-pin" data-club-id="${m.clubId}" data-member-id="${m.id}" style="padding:6px 10px;border-radius:8px;border:2px solid var(--charcoal);background:transparent;cursor:pointer;font-size:11px;">Reset PIN</button>
-        <button class="cm-admin-delete-member" data-club-id="${m.clubId}" data-member-id="${m.id}" style="padding:6px 10px;border-radius:8px;border:none;background:#c00;color:#fff;cursor:pointer;font-size:11px;">Delete</button>
+        <button class="cm-admin-edit-member" data-club-id="${firstClub}" data-member-id="${m.id}" style="padding:6px 10px;border-radius:8px;border:2px solid var(--charcoal);background:transparent;cursor:pointer;font-size:11px;">Edit</button>
+        <button class="cm-admin-reset-member-pin" data-club-id="${firstClub}" data-member-id="${m.id}" style="padding:6px 10px;border-radius:8px;border:2px solid var(--charcoal);background:transparent;cursor:pointer;font-size:11px;">Reset PIN</button>
       </div>
     </div>`;
   }).join('')}</div>`;
@@ -6580,6 +6590,9 @@ function clubDirEditFormHtml(){
       <input id="cdSignup" placeholder="Signup link (WhatsApp/Instagram, optional)" value="${escapeCm(draft.signup || '')}" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
       <div style="display:flex;gap:8px;">
         <input id="cdEmoji" placeholder="Emoji (optional)" maxlength="8" value="${escapeCm(draft.emoji || '')}" style="width:90px;padding:10px;border-radius:10px;border:2px solid var(--charcoal);text-align:center;">
+        <label style="flex:1;display:flex;align-items:center;gap:8px;font-size:12px;color:#776867;">Text colour
+          <input id="cdTextColour" type="color" value="${escapeCm(draft.textColour || '#373d3b')}" style="width:44px;height:38px;padding:0;border-radius:8px;border:2px solid var(--charcoal);cursor:pointer;">
+        </label>
         <label style="flex:1;display:flex;align-items:center;gap:8px;font-size:12px;color:#776867;">Card colour
           <input id="cdColour" type="color" value="${escapeCm(draft.colour || '#e1eaf1')}" style="width:44px;height:38px;padding:0;border-radius:8px;border:2px solid var(--charcoal);cursor:pointer;">
         </label>
@@ -6792,9 +6805,10 @@ async function clubDirSave(){
   const signup = document.getElementById('cdSignup').value.trim();
   const emoji = document.getElementById('cdEmoji').value.trim();
   const colour = document.getElementById('cdColour').value.trim();
+  const textColour = document.getElementById('cdTextColour').value.trim();
   if(!title){ state.cmAdminClubDirError = 'Title is required.'; render(); return; }
   if(!desc){ state.cmAdminClubDirError = 'Description is required.'; render(); return; }
-  const fields = { title, desc, signup, emoji, colour };
+  const fields = { title, desc, signup, emoji, colour, textColour };
   if(state.cmAdminClubDirDraft && state.cmAdminClubDirDraft.logo && state.cmAdminClubDirDraft.logo.startsWith('data:')) fields.logo = state.cmAdminClubDirDraft.logo;
   state.cmAdminClubDirSaving = true;
   state.cmAdminClubDirError = '';

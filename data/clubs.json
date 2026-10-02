@@ -4,11 +4,12 @@
       "id": "club-activegaming",
       "slug": "active-gaming",
       "emoji": "🎮",
-      "colour": "#e1eaf1",
+      "colour": "#d6e8f7",
       "logo": "assets/logos/club-activegaming-v2.png",
       "title": "Quest",
       "desc": "Escape rooms, VR arenas, and other thrilling activities at spots like Activate, CUBE Challenges, and VR Vibe. Good for anyone who'd rather move, solve, and compete than sit still.",
-      "signup": "https://chat.whatsapp.com/CPWlv3mhoxkC8ZNWbLganS?mode=gi_t"
+      "signup": "https://chat.whatsapp.com/CPWlv3mhoxkC8ZNWbLganS?mode=gi_t",
+      "textColour": "#667c94"
     },
     {
       "id": "club-cuisine",
@@ -18,27 +19,30 @@
       "logo": "assets/logos/club-cuisine-v2.png",
       "title": "Cuisine",
       "desc": "Group dinners, halal restaurant crawls, and the occasional cooking night — for anyone who plans their week around food.",
-      "signup": "https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS"
+      "signup": "https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS",
+      "textColour": "#e9a428"
     },
     {
       "id": "club-artscrafts",
       "slug": "arts-crafts",
       "emoji": "🎨",
-      "colour": "#e8e0f0",
+      "colour": "#e2ddf4",
       "logo": "assets/logos/club-artscrafts-v2.png",
       "title": "Arts & Crafts",
       "desc": "Painting nights, DIY sessions, and low-key crafternoons — no talent required, just vibes and glitter.",
-      "signup": "https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS"
+      "signup": "https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS",
+      "textColour": "#a591ef"
     },
     {
       "id": "club-retreats",
       "slug": "field",
       "emoji": "🏞️",
-      "colour": "#deebd0",
+      "colour": "#deebd1",
       "title": "Field",
       "desc": "Weekend getaways, cabin trips, and the occasional wellness retreat — for when the group chat needs to actually leave the city.",
       "signup": "https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS",
-      "logo": "assets/logos/club-retreats-v2.png"
+      "logo": "assets/logos/club-retreats-v2.png",
+      "textColour": "#1b5b4d"
     }
   ]
 }
