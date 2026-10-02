@@ -2858,6 +2858,14 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         <h3>Need help?</h3>
         <p>If there is harassment, a privacy breach, a payment concern, or conflict, contact a 4DASISTAS Admin privately. For immediate danger or an emergency, contact local emergency services first.</p>
       </div>`;
+  } else if(state.tab === 'fallsignup' && getCmSession()){
+    document.getElementById('resourcePagination').innerHTML = '';
+    el.innerHTML = `<button class="back-btn" data-hometab="clubs">← Back to GALS CLUBS</button>
+      <div class="fall-signup"><div class="fall-hero"><h2>You're already logged in</h2>
+      <p>You're logged in as: <strong>${escapeCm(getCmSession().name || '')}</strong></p>
+      <button type="button" class="club-guide-btn" id="fallLogOutBtn" style="min-height:44px;padding:10px 22px;border-radius:999px;">Log out</button></div></div>`;
+    const lo = document.getElementById('fallLogOutBtn');
+    if(lo) lo.addEventListener('click', async () => { await cmMemberSignOut(); goToTab('clubs'); });
   } else if(state.tab === 'fallsignup'){
     document.getElementById('resourcePagination').innerHTML = '';
     el.innerHTML = `
@@ -5039,9 +5047,11 @@ function wireMyClubsSection(){
 }
 function changePinButtonHtml(){
   const pill = 'min-height:44px;padding:10px 20px;border-radius:999px;border:2px solid var(--charcoal);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;';
-  return `<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+  const sess = getCmSession();
+  return `<p style="text-align:center;margin:0 0 10px;font-size:15px;">You're logged in as: <strong>${escapeCm((sess && sess.name) || '')}</strong></p>
+  <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
     <button type="button" id="myEditProfileBtn" style="${pill}background:var(--lightblue);color:var(--charcoal);">✏️ Edit profile</button>
-    <button type="button" id="mySignOutBtn" style="${pill}background:transparent;color:var(--charcoal);">Sign out</button>
+    <button type="button" id="mySignOutBtn" style="${pill}background:transparent;color:var(--charcoal);">Log out</button>
   </div>`;
 }
 function openEditProfilePopup(){
