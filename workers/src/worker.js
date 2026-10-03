@@ -386,9 +386,11 @@ const readIdeaAvailPeople = async (env) => {
     // Anyone who submitted counts as a respondent - even with an empty grid (= available everywhere, no preferred times).
     if (!submitted) continue;
     let resolvedName = name;
-    if (!resolvedName && personId.startsWith("m:")) {
+    if (personId.startsWith("m:")) {
+      // a record whose profile was deleted (or never existed) must not keep showing up; and use the profile's CURRENT name
       const user = await readUser(env, personId.slice(2));
-      resolvedName = user ? sanitizePersonName(user.name) : "";
+      if (!user) continue;
+      resolvedName = sanitizePersonName(user.name) || resolvedName;
     }
     people.push({ id: personId, name: resolvedName || "Someone", days, no });
   }
