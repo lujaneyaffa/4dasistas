@@ -930,6 +930,24 @@
 .panel-card{ border-color:var(--brand-brown); box-shadow:3px 3px 0 var(--brand-brown); }
 .today-day-btn{ border-color:var(--brand-brown); color:var(--brand-brown); }
 .today-subscribe-btn{ border-color:var(--brand-rose); color:var(--brand-brown); }
+
+/* nav: Log in / Sign up (and admin Log out). Desktop shows the words, phones show just the icon. */
+.nav-auth{ display:flex; align-items:center; gap:6px; flex:0 0 auto; }
+.nav-auth-btn{ display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:40px; padding:0 14px; border-radius:999px; border:2px solid var(--brand-brown); background:var(--brand-blush); color:var(--brand-brown); font-family:'Inter',sans-serif; font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap; }
+.nav-auth-btn.primary{ background:var(--brand-rose); color:#fff; }
+.nav-auth-btn svg{ width:18px; height:18px; flex:none; }
+@media (max-width:1000px){
+  .nav-auth-btn{ width:40px; padding:0; }
+  .nav-auth-txt{ display:none; }
+  .top-search-wrap{ flex:0 1 180px; width:180px; }
+}
+@media (max-width:900px){
+  .tabs{ flex-wrap:wrap; overflow-x:visible; justify-content:center; }
+  .top-search-wrap{ flex:1 1 200px; width:auto; max-width:360px; }
+}
+@media (max-width:480px){
+  .top-search-wrap{ flex:1 1 0; min-width:0; width:auto; max-width:none; }
+}
 </style>
 </head>
 <body>
@@ -990,6 +1008,11 @@
     <input id="globalSearch" type="search" placeholder="Search for anything..." aria-label="Search for anything" autocomplete="off" />
     </div>
     <div class="search-suggestions" id="searchSuggestions" style="display:none;"></div>
+  </div>
+  <div class="nav-auth" id="navAuth">
+    <button type="button" class="nav-auth-btn" id="navLoginBtn" aria-label="Log in" title="Log in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg><span class="nav-auth-txt">Log in</span></button>
+    <button type="button" class="nav-auth-btn primary" id="navSignupBtn" aria-label="Sign up" title="Sign up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg><span class="nav-auth-txt">Sign up</span></button>
+    <button type="button" class="nav-auth-btn" id="navAdminLogoutBtn" aria-label="Admin log out" title="Admin log out" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg><span class="nav-auth-txt">Log out</span></button>
   </div>
 </nav>
 
@@ -8154,6 +8177,7 @@ function renderFooterLogout(){
 
 function renderFooterAdmin(){
   admEnsureBell();
+  renderNavAuth();
   const btn = document.getElementById('footerAdminBtn');
   if(!btn) return;
   btn.textContent = state.cmAdminLoggedIn ? '🔒 Admin: Log Out' : '🔒 Admin Login';
@@ -8646,6 +8670,23 @@ typePanel.querySelectorAll('[data-typemulti-action]').forEach(btn => btn.addEven
 updateTypeMultiUI();
 
 document.getElementById('detailCloseBtn').addEventListener('click', closeDetail);
+
+// Log in / Sign up / admin Log out buttons in the nav bar.
+function renderNavAuth(){
+  const loginB = document.getElementById('navLoginBtn'), signupB = document.getElementById('navSignupBtn'), outB = document.getElementById('navAdminLogoutBtn');
+  if(!loginB) return;
+  const member = !!getCmSession(), admin = state.cmAdminLoggedIn === true;
+  loginB.style.display = signupB.style.display = (member || admin) ? 'none' : '';
+  outB.style.display = admin ? '' : 'none';
+}
+document.getElementById('navLoginBtn').addEventListener('click', () => {
+  state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false;
+  goToTab('clubs');
+  setTimeout(() => { const f = document.getElementById(getLastLogin() ? 'clubsLoginPin' : 'clubsLoginUsername'); if(f) f.focus(); }, 120);
+});
+document.getElementById('navSignupBtn').addEventListener('click', () => { state.fallQuickLogin = false; goToTab('fallsignup'); });
+document.getElementById('navAdminLogoutBtn').addEventListener('click', async () => { await cmAdminLogout(); render(); });
+
 document.getElementById('footerAdminBtn').addEventListener('click', async () => {
   if(state.cmAdminLoggedIn){
     await cmAdminLogout();
