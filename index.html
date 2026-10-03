@@ -7512,7 +7512,7 @@ function renderAdminAllMembersPanels(){
     (m.name || '').toLowerCase().includes(q) || (m.username || '').toLowerCase().includes(q) ||
     (qDigits.length >= 3 && (m.phone || '').replace(/\D/g, '').includes(qDigits)) ||
     m.clubIds.some(cid => avClubTitle(cid).toLowerCase().includes(q)));
-  const searchBox = `<div style="margin-bottom:12px;"><input id="admMemberSearch" type="search" value="${escapeCm(state.cmAdminMemberQuery || '')}" placeholder="🔍 Search profiles by name, username, phone or club" autocomplete="off" autocapitalize="none" style="width:100%;padding:12px 14px;border-radius:999px;border:2px solid var(--brand-brown);font-size:16px;box-sizing:border-box;background:#fff;"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 4px 0;"><span style="font-size:12px;color:#776867;">${q ? `${people.length} of ${everyone.length} profiles` : `${everyone.length} profiles`} · Sort by:</span>${[['alpha','A–Z'],['joined','Join date'],['club','Club']].map(([k, l]) => { const on = (state.cmAdminMemberSort || 'alpha') === k; return `<button type="button" class="adm-sort" data-sort="${k}" style="min-height:34px;padding:5px 14px;border-radius:999px;border:2px solid var(--brand-brown);background:${on ? 'var(--brand-brown)' : 'transparent'};color:${on ? 'var(--brand-cream)' : 'var(--brand-brown)'};font-weight:700;font-size:13px;cursor:pointer;">${l}</button>`; }).join('')}</div></div>`;
+  const searchBox = `<div style="margin-bottom:12px;"><input id="admMemberSearch" type="search" value="${escapeCm(state.cmAdminMemberQuery || '')}" placeholder="🔍 Search profiles by name, username, phone or club" autocomplete="off" autocapitalize="none" style="width:100%;padding:12px 14px;border-radius:999px;border:2px solid var(--brand-brown);font-size:16px;box-sizing:border-box;background:#fff;"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 4px 0;"><span style="font-size:12px;color:#776867;">${q ? `${people.length} of ${everyone.length} profiles` : `${everyone.length} profiles`} · Sort by:</span>${[['alpha','A–Z'],['joined','Join date'],['login','Last login'],['club','Club']].map(([k, l]) => { const on = (state.cmAdminMemberSort || 'alpha') === k; return `<button type="button" class="adm-sort" data-sort="${k}" style="min-height:34px;padding:5px 14px;border-radius:999px;border:2px solid var(--brand-brown);background:${on ? 'var(--brand-brown)' : 'transparent'};color:${on ? 'var(--brand-cream)' : 'var(--brand-brown)'};font-weight:700;font-size:13px;cursor:pointer;">${l}</button>`; }).join('')}</div></div>`;
   if(!people.length) return searchBox + '<p style="font-size:13px;">No profiles match that search.</p>';
   const renderCard = (m) => {
     const firstClub = m.clubIds[0] || 'none'; // the club id in these admin URLs is ignored by the server (it edits the person)
@@ -7545,7 +7545,8 @@ function renderAdminAllMembersPanels(){
     return `<div class="panel-card" style="text-align:center;">
       ${m.photo ? `<img src="${escapeCm(m.photo)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;margin:0 auto 8px;display:block;">` : `<div class="monogram" style="margin:0 auto 8px;">${escapeCm((m.name || '?').charAt(0).toUpperCase())}</div>`}
       <h4 style="font-size:14px;margin-bottom:2px;"><button type="button" class="adm-profile-link" data-user-id="${escapeCm(m.id)}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:inherit;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button></h4>
-      <div style="font-size:11px;color:#776867;margin-bottom:8px;">${escapeCm(m.username)}</div>
+      <div style="font-size:11px;color:#776867;margin-bottom:${(state.cmAdminMemberSort === 'login') ? '2px' : '8px'};">${escapeCm(m.username)}</div>
+      ${(state.cmAdminMemberSort === 'login') ? `<div style="font-size:11px;color:${m.lastLoginAt ? '#776867' : '#b3261e'};margin-bottom:8px;">${m.lastLoginAt ? 'Last login: ' + escapeCm(admAgo(m.lastLoginAt)) : 'Never logged in'}</div>` : ''}
       <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;">${tags}${noClubTag}</div>
     </div>`;
   };
@@ -7553,7 +7554,8 @@ function renderAdminAllMembersPanels(){
   const mode = state.cmAdminMemberSort || 'alpha';
   const byName = (x, y) => (x.name || '').localeCompare(y.name || '');
   const firstClubTitle = m => m.clubIds.length ? m.clubIds.map(c => avClubTitle(c)).sort()[0] : '\uffff';
-  const sortedPeople = people.slice().sort(mode === 'joined' ? (x, y) => ((y.createdAt || 0) - (x.createdAt || 0)) || byName(x, y)
+  const sortedPeople = people.slice().sort(mode === 'login' ? (x, y) => ((y.lastLoginAt || 0) - (x.lastLoginAt || 0)) || byName(x, y) // newest sign-in first; people who never signed in (0) sink to the bottom
+    : mode === 'joined' ? (x, y) => ((y.createdAt || 0) - (x.createdAt || 0)) || byName(x, y)
     : mode === 'club' ? (x, y) => firstClubTitle(x).localeCompare(firstClubTitle(y)) || byName(x, y) : byName);
   let lastGroup = null;
   const cardsHtml = sortedPeople.map(m => {
