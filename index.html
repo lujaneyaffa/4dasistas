@@ -7389,7 +7389,7 @@ function admAvailCalendarHtml(){
   if(admAvail.day){
     const dayLabel = new Date(admAvail.day + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric' });
     detail = `<div style="margin-top:14px;padding:14px;border-radius:14px;background:#f2d8d7;color:#76220b;"><strong>${escapeCm(dayLabel)}</strong>${ADM_PARTS.map(([id, label]) => {
-      const names = scope.filter(p => ((p.days || {})[admAvail.day] || []).includes(id)).map(p => escapeCm(p.name));
+      const names = scope.filter(p => ((p.days || {})[admAvail.day] || []).includes(id)).map(p => p.id.startsWith('m:') ? `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(p.id.slice(2))}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(p.name)}</button>` : escapeCm(p.name));
       return `<div style="margin-top:8px;"><span style="font-weight:700;">${label}</span> (${names.length}): ${names.length ? names.join(', ') : '<span style="opacity:.6;">nobody</span>'}</div>`;
     }).join('')}</div>`;
   }
@@ -7398,6 +7398,7 @@ function admAvailCalendarHtml(){
   return `
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">${clubChips}</div>
     <p class="ideas-hint" style="margin:0 0 6px;text-align:left;">${sel ? `Showing only <strong>${escapeCm(sel.name)}</strong> — tap their name again to see everyone.` : `Tap a name to see only their availability. ${people.length} ${people.length === 1 ? 'person' : 'people'} shown.`}</p>
+    ${sel && sel.id.startsWith('m:') ? `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(sel.id.slice(2))}" style="margin:0 0 10px;min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #76220b;background:#fef7f4;color:#76220b;font-weight:700;font-size:14px;cursor:pointer;">👤 View ${escapeCm(sel.name)}'s profile</button>` : ''}
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">${nameChips}</div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
       ${navBtn('admAvPrev', '‹', atMin)}<strong style="font-size:20px;color:#76220b;">${escapeCm(monthName)}</strong>${navBtn('admAvNext', '›', atMax)}
@@ -7421,6 +7422,7 @@ function admAvailWire(){
   box.querySelectorAll('.adm-club').forEach(b => b.addEventListener('click', () => { admAvail.club = b.dataset.club; admAvail.person = null; admAvailRepaint(); }));
   box.querySelectorAll('.adm-person').forEach(b => b.addEventListener('click', () => { admAvail.person = admAvail.person === b.dataset.person ? null : b.dataset.person; admAvailRepaint(); }));
   box.querySelectorAll('.adm-day').forEach(b => b.addEventListener('click', () => { admAvail.day = admAvail.day === b.dataset.day ? null : b.dataset.day; admAvailRepaint(); }));
+  box.querySelectorAll('.adm-cal-profile').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.uid)));
   const prev = box.querySelector('#admAvPrev'), next = box.querySelector('#admAvNext');
   if(prev) prev.addEventListener('click', () => { if(admAvail.month > ADM_AVAIL_MIN_MONTH){ admAvail.month = admAvailShiftMonth(admAvail.month, -1); admAvail.day = null; admAvailRepaint(); } });
   if(next) next.addEventListener('click', () => { if(admAvail.month < ADM_AVAIL_MAX_MONTH){ admAvail.month = admAvailShiftMonth(admAvail.month, 1); admAvail.day = null; admAvailRepaint(); } });
