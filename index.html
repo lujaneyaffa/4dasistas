@@ -492,6 +492,7 @@
   .ideas-cloud{ display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:10px; padding:8px 0 4px; }
   .idea-bubble{ position:relative; border-radius:50%; border:3px solid var(--line); background:var(--fill); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:14px; box-sizing:border-box; cursor:pointer; font-family:'Inter',sans-serif; color:var(--charcoal); text-align:center; transition:width .4s cubic-bezier(.3,1.5,.5,1), height .4s cubic-bezier(.3,1.5,.5,1), transform .15s, box-shadow .2s; -webkit-tap-highlight-color:transparent; }
   .idea-bubble:active{ transform:scale(.95); }
+  .idea-bubble.done{ opacity:.78; border-style:dashed; }
   .idea-bubble.voted{ box-shadow:0 0 0 3px var(--cream), 0 0 0 5px var(--line); }
   .idea-date{ font-size:11px; font-weight:700; margin-bottom:3px; opacity:0.9; }
   .idea-title{ font-weight:700; font-size:13px; line-height:1.2; display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
@@ -1279,7 +1280,7 @@ let state = {
   cmAdminAllMembers:null, cmAdminAllUsers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false, fallQuickLogin:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
-  pushRegistered:false, phoneConfirmed:true, myPhone:'', ideaAvail:null, ideaAvailOwner:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
+  eavClub:'mine', pushRegistered:false, phoneConfirmed:true, myPhone:'', ideaAvail:null, ideaAvailOwner:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
   publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
   myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, clubsLoginPrefill:false, cmAdminEventSugs:null, cmAdminResSugs:null, cmAdminMemberQuery:'',
   ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{}, iavEditing:false,
@@ -4706,7 +4707,7 @@ function resetUserScopedState(){
   Object.assign(state, {
     ideaAvail:null, ideaAvailNo:{}, ideaAvailSubmitted:false, ideaAvailOwner:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'',
     ideaAvailStatus:'', ideaAvailDirty:false, ideaAvailSaving:false, ideaAvailResave:false, iavEditing:false, iavUnsetWarned:false,
-    ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{},
+    eavClub:'mine', ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{},
     pushRegistered:false, phoneConfirmed:true, myPhone:'', myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
     ideas:null, ideasError:'', ideasStatus:'',
   });
@@ -5217,9 +5218,10 @@ async function ideasLoad(){
 function ideaBubbleHtml(idea){
   const ci = ideaColorIndex(idea.id), size = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine || idea.price));
   const admin = state.cmAdminLoggedIn === true;
-  return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${IDEA_FILLS[ci]};--line:${IDEA_LINES[ci]};width:${size}px;height:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}${idea.voted ? ', you voted' : ''}">
+  return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}${idea.done ? ' done' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${clubCol(state.ideasClubId).bg};--line:${clubCol(state.ideasClubId).fg};color:${clubCol(state.ideasClubId).fg};width:${size}px;height:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}${idea.voted ? ', you voted' : ''}">
     ${idea.date ? `<span class="idea-date">📅 ${escapeCm(ideaDateLabel(idea.date))}</span>` : ''}
     ${idea.cuisine ? `<span class="idea-cuisine">🍽 ${escapeCm(idea.cuisine)}</span>` : ''}
+    ${idea.done ? `<span class="idea-cuisine" style="font-weight:800;">✅ Done${idea.doneDate ? ' · ' + escapeCm(ideaDateLabel(idea.doneDate)) : ''}</span>` : ''}
     <span class="idea-title">${escapeCm(idea.title)}</span>
     ${idea.price ? `<span class="idea-cuisine">💸 ${escapeCm(idea.price)}</span>` : ''}
     <span class="idea-votes">${ideaVotesLabel(idea.votes)}${idea.voted ? ' ✓' : ''}</span>
@@ -5274,13 +5276,15 @@ async function publicIdeasLoadAll(clubs){
 }
 function publicIdeaBubbleHtml(idea){
   const ci = ideaColorIndex(idea.id), size = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine || idea.price));
-  return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${IDEA_FILLS[ci]};--line:${IDEA_LINES[ci]};width:${size}px;height:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}, from ${escapeCm(idea._clubTitle)}">
+  return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}${idea.done ? ' done' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${clubCol(idea._clubId).bg};--line:${clubCol(idea._clubId).fg};color:${clubCol(idea._clubId).fg};width:${size}px;height:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}, from ${escapeCm(idea._clubTitle)}">
     <span class="idea-cuisine">🏷 ${escapeCm(idea._clubTitle)}</span>
     ${idea.date ? `<span class="idea-date">📅 ${escapeCm(ideaDateLabel(idea.date))}</span>` : ''}
+    ${idea.done ? `<span class="idea-cuisine" style="font-weight:800;">✅ Done${idea.doneDate ? ' · ' + escapeCm(ideaDateLabel(idea.doneDate)) : ''}</span>` : ''}
     <span class="idea-title">${escapeCm(idea.title)}</span>
     ${idea.price ? `<span class="idea-cuisine">💸 ${escapeCm(idea.price)}</span>` : ''}
     <span class="idea-votes">${ideaVotesLabel(idea.votes)}${idea.voted ? ' ✓' : ''}</span>
     <span class="idea-mini idea-info" data-ideainfo="${escapeCm(idea.id)}" role="button" aria-label="Details" title="Details">i</span>
+    ${state.cmAdminLoggedIn === true ? `<span class="idea-mini idea-edit" data-ideaedit="${escapeCm(idea.id)}" role="button" aria-label="Edit option" title="Edit (admin)">✎</span>` : ''}
   </button>`;
 }
 function renderPublicIdeasFeedHtml(title, hint, emptyMsg){
@@ -5632,6 +5636,7 @@ function openPublicIdeaInfo(id){
   const names = idea.voters || [];
   const { wrap } = ideaPopup(`
     <p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(idea._clubTitle)}</p>
+    ${idea.done ? `<p class="idea-pop-date" style="color:#2a7a4a;font-weight:700;">✅ We did this${idea.doneDate ? ' on ' + escapeCm(ideaLongDate(idea.doneDate)) : ''}</p>` : ''}
     ${idea.date ? `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(idea.date))}</p>` : ''}
     ${idea.cuisine ? `<span class="idea-pop-cuisine">🍽 ${escapeCm(idea.cuisine)}</span>` : ''}
     ${idea.price ? `<span class="idea-pop-price">💸 ${escapeCm(idea.price)}</span>` : ''}
@@ -5646,6 +5651,7 @@ async function publicIdeaVoteAttempt(id, bubble){
   if(!publicIdeaCanInteract()){ promptJoinToVote(); return; }
   const idea = (state.publicIdeasAll || []).find(i => i.id === id);
   if(!idea) return;
+  if(idea.done) return; // voting is closed on activities we've already done
   idea.voted = !idea.voted; idea.votes += idea.voted ? 1 : -1;
   bubble.classList.toggle('voted', idea.voted);
   bubble.style.width = bubble.style.height = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine || idea.price)) + 'px';
@@ -5668,6 +5674,7 @@ function wirePublicIdeasFeed(){
     publicIdeaVoteAttempt(b.dataset.ideaid, b);
   }));
   box.querySelectorAll('[data-ideainfo]').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); openPublicIdeaInfo(x.dataset.ideainfo); }));
+  box.querySelectorAll('[data-ideaedit]').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); openIdeaEdit(x.dataset.ideaedit); }));
 }
 
 function renderClubIdeas(el){
@@ -5966,13 +5973,20 @@ function eavBestWorstHtml(){
   }));
   if(!slots.length || !state.ideaAvailAllRespondents) return '';
   // best = most people available, then most who PREFER it; worst = fewest available, then most who can't.
-  const best = slots.slice().sort((a, b) => b.a - a.a || b.p - a.p || a.d.localeCompare(b.d)).slice(0, 3);
-  const worst = slots.slice().sort((a, b) => a.a - b.a || b.x - a.x || a.d.localeCompare(b.d)).slice(0, 3);
-  const fb = list => list.map(x => `<strong>${escapeCm(x.label)}</strong> (${x.a} available${x.p ? `, ${x.p} preferred` : ''})`).join(' · ');
-  const fw = list => list.map(x => `<strong>${escapeCm(x.label)}</strong> (${x.a} available${x.x ? `, ${x.x} can't` : ''})`).join(' · ');
+  // ONE of each — unless several slots are tied exactly, then all the tied ones are listed (capped so it never runs away).
+  const sortDate = (a, b) => a.d.localeCompare(b.d);
+  const bestKey = x => x.a * 1000 + x.p, worstKey = x => x.a * 1000 - x.x;
+  const maxB = Math.max(...slots.map(bestKey)), minW = Math.min(...slots.map(worstKey));
+  const CAP = 6;
+  if(slots.every(x => bestKey(x) === maxB)) return ''; // every slot identical (e.g. nobody has filled much in): nothing meaningful to highlight
+  const bestAll = slots.filter(x => bestKey(x) === maxB).sort(sortDate), worstAll = slots.filter(x => worstKey(x) === minW).sort(sortDate);
+  const more = (all) => all.length > CAP ? ` <span style="opacity:.8">(+${all.length - CAP} more tied)</span>` : '';
+  const best = bestAll.slice(0, CAP), worst = worstAll.slice(0, CAP);
+  const fb = (list, all) => list.map(x => `<strong>${escapeCm(x.label)}</strong> (${x.a} available${x.p ? `, ${x.p} preferred` : ''})`).join(' · ') + more(all);
+  const fw = (list, all) => list.map(x => `<strong>${escapeCm(x.label)}</strong> (${x.a} available${x.x ? `, ${x.x} can't` : ''})`).join(' · ') + more(all);
   return `<div style="margin:6px 0 10px;padding:12px 14px;border-radius:12px;background:#f2d8d7;color:#76220b;font-size:14px;line-height:1.55;">
-    <div>🌟 <strong>Best timing for everyone:</strong> ${fb(best)}</div>
-    <div style="margin-top:6px;">⚠️ <strong>Worst timing for everyone:</strong> ${fw(worst)}</div></div>`;
+    <div>🌟 <strong>Best timing${best.length > 1 ? 's (tied)' : ''} for everyone:</strong> ${fb(best, bestAll)}</div>
+    <div style="margin-top:6px;">⚠️ <strong>Worst timing${worst.length > 1 ? 's (tied)' : ''} for everyone:</strong> ${fw(worst, worstAll)}</div></div>`;
 }
 function everyoneAvailSectionHtml(me){
   if(!me) return '';
@@ -5984,8 +5998,13 @@ function everyoneAvailSectionHtml(me){
   else body = `${eavBestWorstHtml()}${eavGridHtml()}
     <div class="eav-legend"><span><i class="eav-sw eav-sw-0"></i>Nobody</span><span><i class="eav-sw eav-sw-mid"></i>A few people</span><span><i class="eav-sw eav-sw-max"></i>Most people</span></div>
     <p class="ideas-hint">${state.ideaAvailAllRespondents} ${state.ideaAvailAllRespondents === 1 ? 'person has' : 'people have'} added their availability so far. Darker green = more people available then (anything not marked red counts as available).${state.ideaAvailAllPeople ? ' Tap a square to see who by name.' : ''}</p>`;
+  const sessClubs = ((getCmSession() || {}).clubs || []).filter(id => clubsData.some(c => c.id === id));
+  const chips = sessClubs.length > 1 ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;" aria-label="Which club's availability to view">${[['mine', 'All my clubs']].concat(sessClubs.map(id => [id, (clubsData.find(c => c.id === id) || {}).title || id])).map(([id, title]) => {
+    const col = id === 'mine' ? { bg:'#f2d8d7', fg:'#76220b' } : clubCol(id); const on = (state.eavClub || 'mine') === id;
+    return `<button type="button" class="eav-club-chip" data-club="${escapeCm(id)}" style="min-height:40px;padding:8px 16px;border-radius:999px;border:2px solid ${on ? col.fg : 'transparent'};background:${col.bg};color:${col.fg};font-weight:700;font-size:14px;cursor:pointer;">${escapeCm(title)}</button>`; }).join('')}</div>` : '';
   return `<div class="iav-wrap">
     <h3 class="iav-title">🌿 Everyone's availability</h3>
+    ${chips}
     ${body}
   </div>`;
 }
@@ -5996,7 +6015,7 @@ async function everyoneAvailLoad(force){
   state.ideaAvailAllLoading = true;
   state.ideaAvailAllError = '';
   try {
-    const data = await cmApiRaw('/api/idea-availability/all', { headers: ideaHeaders() });
+    const data = await cmApiRaw('/api/idea-availability/all' + (state.eavClub && state.eavClub !== 'mine' ? '?club=' + encodeURIComponent(state.eavClub) : ''), { headers: ideaHeaders() });
     state.ideaAvailAll = data.counts || {};
     state.ideaAvailAllPreferred = data.preferred || {};
     state.ideaAvailAllUnavailable = data.unavailable || {};
@@ -6022,6 +6041,7 @@ function eavNamesFor(date, part){
   return { preferred, available };
 }
 function wireEveryoneAvailGrid(){
+  document.querySelectorAll('.eav-club-chip').forEach(b => b.addEventListener('click', () => { state.eavClub = b.dataset.club; state.ideaAvailAllLoadedFor = null; everyoneAvailLoad(true); render(); }));
   if(state.ideaAvailAll === null && !state.ideaAvailAllLoading && !state.ideaAvailAllError) everyoneAvailLoad();
   if(state.ideaAvailAllPeople){
     document.querySelectorAll('.eav-cell.eav-tappable').forEach(cell => cell.addEventListener('click', () => {
@@ -6238,6 +6258,7 @@ function wireClubIdeas(){
 
 async function ideaVote(id, bubble){
   if(!ideaMe()){ ideasNeedName(); return; }
+  { const di = (state.ideas || []).find(i => i.id === id); if(di && di.done){ ideasSetStatus("We've already done this one — voting is closed."); return; } }
   if(!ideaCanActInClub(state.ideasClubId)){ ideasSetStatus('Only members of this club can vote or add ideas.'); return; }
   const idea = state.ideas.find(i => i.id === id);
   if(!idea) return;
@@ -6286,6 +6307,7 @@ function openIdeaInfo(id){
   const map = safeMapUrl(idea.mapUrl);
   const names = idea.voters || [];
   const { wrap, close } = ideaPopup(`
+    ${idea.done ? `<p class="idea-pop-date" style="color:#2a7a4a;font-weight:700;">✅ We did this${idea.doneDate ? ' on ' + escapeCm(ideaLongDate(idea.doneDate)) : ''}</p>` : ''}
     ${idea.date ? `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(idea.date))}</p>` : ''}
     ${idea.cuisine ? `<span class="idea-pop-cuisine">🍽 ${escapeCm(idea.cuisine)}</span>` : ''}
     ${idea.price ? `<span class="idea-pop-price">💸 ${escapeCm(idea.price)}</span>` : ''}
@@ -6301,8 +6323,10 @@ function openIdeaInfo(id){
 }
 
 function openIdeaEdit(id){
-  const idea = (state.ideas || []).find(i => i.id === id);
+  const fromPublic = state.tab !== 'clubideas';
+  const idea = (fromPublic ? (state.publicIdeasAll || []) : (state.ideas || [])).find(i => i.id === id);
   if(!idea || state.cmAdminLoggedIn !== true) return;
+  const editClub = fromPublic ? idea._clubId : state.ideasClubId;
   const { wrap, close } = ideaPopup(`
     <h3 style="margin:0 0 10px;">Edit option (admin)</h3>
     ${state.ideasClubId === 'club-cuisine' ? `<label class="idea-edit-l">Cuisine type<input id="ieCuisine" type="text" maxlength="30" value="${escapeCm(idea.cuisine || '')}"></label>` : ''}
@@ -6312,6 +6336,8 @@ function openIdeaEdit(id){
     <label class="idea-edit-l">Date (shown on top of the bubble)<input id="ieDate" type="date" value="${escapeCm(idea.date || '')}"></label>
     <label class="idea-edit-l">Votes (total shown)<input id="ieVotes" type="number" min="0" max="9999" value="${idea.votes}"></label>
     <p class="ideas-hint" style="text-align:left;">Named voters stay listed; changing the total adds or removes unnamed votes.</p>
+    <label class="idea-edit-l" style="display:flex;align-items:center;gap:10px;"><input id="ieDone" type="checkbox" ${idea.done ? 'checked' : ''} style="width:22px;height:22px;"> We did this activity</label>
+    <label class="idea-edit-l">When was it done?<input id="ieDoneDate" type="date" value="${escapeCm(idea.doneDate || '')}"></label>
     <div class="idea-pop-admin">
       <button type="button" class="club-guide-btn" id="ieSave">Save</button>
       <button type="button" class="av-link" id="ieDelete" style="color:#c00;">Delete option</button>
@@ -6320,18 +6346,20 @@ function openIdeaEdit(id){
   wrap.querySelector('#ieSave').addEventListener('click', async () => {
     const st = wrap.querySelector('#ieStatus'); st.textContent = 'Saving…';
     try {
-      const data = await cmApiRaw('/api/admin/club-ideas/' + encodeURIComponent(state.ideasClubId) + '/' + encodeURIComponent(id), {
+      const data = await cmApiRaw('/api/admin/club-ideas/' + encodeURIComponent(editClub) + '/' + encodeURIComponent(id), {
         method:'PUT', headers:{ 'Content-Type':'application/json' }, credentials:'include',
         body: JSON.stringify({
           title: wrap.querySelector('#ieTitle').value, mapUrl: wrap.querySelector('#ieMap').value,
           ...(wrap.querySelector('#ieCuisine') ? { cuisine: wrap.querySelector('#ieCuisine').value } : {}),
           price: wrap.querySelector('#iePrice').value,
-          date: wrap.querySelector('#ieDate').value, votes: Number(wrap.querySelector('#ieVotes').value)
+          date: wrap.querySelector('#ieDate').value, votes: Number(wrap.querySelector('#ieVotes').value),
+          done: wrap.querySelector('#ieDone').checked, doneDate: wrap.querySelector('#ieDoneDate').value
         })
       });
-      state.ideas = (state.ideas || []).map(o => o.id === id ? Object.assign({}, o, (data.ideas.find(n => n.id === id) || {}), { voted:o.voted, mine:o.mine }) : o);
       state.ideasStatus = 'Option updated.';
-      close(); state.ideas = null; render();
+      close();
+      if(fromPublic){ state.publicIdeasAll = null; } else { state.ideas = null; }
+      render();
     } catch(err){ st.textContent = err.message; }
   });
   wrap.querySelector('#ieDelete').addEventListener('click', () => ideaRemove(id, close));
@@ -7711,7 +7739,7 @@ function clubDirStartCreate(){
 function clubDirStartEdit(id){
   const club = clubsData.find(c => c.id === id) || {};
   state.cmAdminClubDirEditing = id;
-  state.cmAdminClubDirDraft = { title: club.title || '', desc: club.desc || '', logo: club.logo || '', signup: club.signup || '', emoji: club.emoji || '', colour: club.colour || '#e1eaf1' };
+  state.cmAdminClubDirDraft = { title: club.title || '', desc: club.desc || '', logo: club.logo || '', signup: club.signup || '', emoji: club.emoji || '', colour: club.colour || '#e1eaf1', textColour: club.textColour || '#373d3b' }; // textColour MUST be carried over, or saving any club edit silently reset its text colour (that's what wiped the club text colours)
   state.cmAdminClubDirError = '';
   render();
 }

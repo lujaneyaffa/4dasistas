@@ -9,7 +9,7 @@
       "title": "QUEST",
       "desc": "Escape rooms, VR, challenges, and adrenaline-filled activities for anyone who'd rather move, solve, and compete than sit still.",
       "signup": "https://chat.whatsapp.com/CPWlv3mhoxkC8ZNWbLganS?mode=gi_t",
-      "textColour": "#373d3b"
+      "textColour": "#667c94"
     },
     {
       "id": "club-cuisine",
@@ -20,7 +20,7 @@
       "title": "CUISINE",
       "desc": "Group dinners, halal restaurant crawls, food adventures, and the occasional cooking night for anyone who plans their week around food.",
       "signup": "https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS",
-      "textColour": "#373d3b"
+      "textColour": "#e9a428"
     },
     {
       "id": "club-artscrafts",
@@ -31,7 +31,7 @@
       "title": "ARTS",
       "desc": "Painting nights, DIY sessions, creative workshops, and low-key crafternoons — no talent required, just a willingness to make something.",
       "signup": "https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS",
-      "textColour": "#373d3b"
+      "textColour": "#a591ef"
     },
     {
       "id": "club-retreats",
@@ -42,7 +42,7 @@
       "desc": "Lakes, hikes, cabins, nature days, and the occasional getaways for when the group chat needs to actually leave the city.",
       "signup": "https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS",
       "logo": "assets/logos/club-retreats-v2.png",
-      "textColour": "#373d3b"
+      "textColour": "#1b5b4d"
     }
   ]
 }

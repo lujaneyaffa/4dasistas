@@ -505,6 +505,7 @@ const publicIdea = (idea, me) => {
     namesHidden: !(me && (me.id === "admin" || me.id.startsWith("m:"))),
     voters: me && (me.id === "admin" || me.id.startsWith("m:")) ? voters.map((v) => v.name) : [],
     by: me && (me.id === "admin" || me.id.startsWith("m:")) ? by.name : "",
+    done: !!idea.done, doneDate: idea.doneDate || "",
     voted: !!me && voters.some((v) => v.id === me.id), mine: !!me && by.id === me.id,
   };
 };
@@ -1193,6 +1194,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const ideas = await readClubIdeas(env, clubId);
       const idea = ideas.find((i) => i.id === ideaId);
       if (!idea) return jsonResponse({ error: "That option was removed" }, 404, corsHeaders);
+      if (idea.done) return jsonResponse({ error: "We've already done this one — voting is closed." }, 409, corsHeaders);
       refreshName(ideas, who);
       const voters = ideaPeople(idea).voters;
       idea.votes = voters.some((v) => v.id === who.id) ? voters.filter((v) => v.id !== who.id) : [...voters, who];
@@ -1235,6 +1237,12 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           for (const uid of ids) (peerClubs[uid] = peerClubs[uid] || new Set()).add(clubId);
         }
         people = people.filter((p) => p.id === who.id || (p.id.startsWith("m:") && [...(peerClubs[p.id.slice(2)] || [])].some((c) => mine.has(c))));
+        // Optional narrowing to ONE of the viewer's clubs (members of several clubs choose which crowd to look at).
+        const only = url.searchParams.get("club");
+        if (only && mine.has(only)) people = people.filter((p) => p.id.startsWith("m:") && (peerClubs[p.id.slice(2)] || new Set()).has(only));
+      } else if (who.id === "admin" && url.searchParams.get("club")) {
+        const ids = new Set(await readClubMemberIds(env, url.searchParams.get("club")));
+        people = people.filter((p) => p.id.startsWith("m:") && ids.has(p.id.slice(2)));
       }
       // counts = people AVAILABLE per slot (green + unset; red excluded), preferred = green only, unavailable = red.
       // Unset slots only count inside the 15-day window the grid offers (today+4 ... +18).
@@ -1730,6 +1738,14 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (body.price !== undefined) {
         const price = sanitizePrice(body.price);
         if (price) idea.price = price; else delete idea.price;
+      }
+      if (body.done !== undefined) {
+        // "We did this one" + when (admin only). A done idea stops taking votes.
+        if (body.done === true) {
+          const doneDate = String(body.doneDate || "").trim();
+          if (doneDate && (!/^\d{4}-\d{2}-\d{2}$/.test(doneDate) || Number.isNaN(Date.parse(doneDate + "T00:00:00Z")))) return jsonResponse({ error: "The 'done on' date must look like 2026-10-03" }, 400, corsHeaders);
+          idea.done = true; idea.doneDate = doneDate;
+        } else { delete idea.done; delete idea.doneDate; }
       }
       if (body.votes !== undefined) {
         const want = Number(body.votes);
