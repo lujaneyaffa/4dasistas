@@ -1333,7 +1333,7 @@ let state = {
   cmAdminAllMembers:null, cmAdminAllUsers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false, fallQuickLogin:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
-  eavClub:'mine', pushRegistered:false, phoneConfirmed:true, myPhone:'', ideaAvail:null, ideaAvailOwner:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
+  mySquads:[], squadPending:[], squadReqError:'', squadAdmin:null, squadAdminLoading:false, eavClub:'mine', pushRegistered:false, phoneConfirmed:true, myPhone:'', ideaAvail:null, ideaAvailOwner:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
   publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
   myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, clubsLoginPrefill:false, cmAdminEventSugs:null, cmAdminResSugs:null, cmAdminMemberQuery:'', cmAdminMemberSort:'alpha',
   ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{}, iavEditing:false,
@@ -2781,15 +2781,108 @@ const SQUADS = [
   { id:'cowork', logo:'assets/logos/squad-cowork.png',    emoji:'💻', colour:'#f6e3e9', title:'Cowork',    desc:'Casual co-working sessions for getting out of the house, getting things done, and having company while you work or study.' },
   { id:'steps', logo:'assets/logos/squad-steps.png',     emoji:'👟', colour:'#f8efdb', title:'Steps',     desc:'Casual walks, step challenges, and meetups for anyone who wants a reason to compete in steps count.' },
 ];
+function squadStatus(id){
+  const mine = (state.mySquads || []).find(x => x.id === id);
+  if(mine) return { kind:'in', link: mine.link || '' };
+  if((state.squadPending || []).includes(id)) return { kind:'pending' };
+  return { kind: getCmSession() ? 'can' : 'anon' };
+}
 function squadCardHtml(q){
+  const st = squadStatus(q.id);
+  const btn = 'min-height:46px;padding:10px 20px;border-radius:999px;border:2px solid #76220b;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;';
+  const action = st.kind === 'in'
+    ? `<div style="background:#d9f0d8;color:#2a7a4a;border-radius:14px;padding:10px 12px;font-weight:700;font-size:14px;">✅ You're already in this squad</div>
+       ${st.link ? `<a href="${escapeCm(st.link)}" target="_blank" rel="noopener" style="${btn}display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;background:#25D366;color:#fff;text-decoration:none;">💬 Open your private group</a>` : `<p style="font-size:12px;margin:8px 0 0;opacity:.85;">Your private invite link is coming — an admin will add it soon.</p>`}`
+    : st.kind === 'pending'
+      ? `<div style="background:#fff3cf;color:#6b5210;border-radius:14px;padding:10px 12px;font-weight:700;font-size:14px;">⏳ Request sent — waiting for approval</div>`
+      : st.kind === 'can'
+        ? `<button type="button" class="squad-request-btn" data-squad-id="${escapeCm(q.id)}" style="${btn}background:#ce8491;color:#fff;">Request to join</button>`
+        : `<button type="button" class="squad-login-btn" style="${btn}background:#f2d8d7;color:#76220b;">Log in to request</button>`;
   return `<div class="panel-card squad-card" style="background:#fbf0ee;color:#76220b;border:2px solid #ce8491;box-shadow:3px 3px 0 #ce8491;">
     <div class="panel-top" style="flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;">
       <div class="monogram" style="background:#fbf0ee;font-size:26px;">${q.logo ? `<img src="${q.logo}" alt="${escapeCm(q.title)} logo" style="background:#fbf0ee;">` : q.emoji}</div>
       <div><h4 style="text-align:center;color:#76220b;">${escapeCm(q.title)}</h4></div>
     </div>
     <div class="panel-desc" style="color:#76220b;">${escapeCm(q.desc)}</div>
-    <div style="text-align:center;margin-top:12px;"><a href="https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS" target="_blank" rel="noopener" aria-label="Join the ${escapeCm(q.title)} squad on WhatsApp" style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:50%;background:#25D366;"><svg viewBox="0 0 32 32" width="26" height="26" fill="white" aria-hidden="true"><path d="M16 5C9.4 5 4 9.9 4 16c0 3.2 1.5 6.1 3.9 8.1-.3 1.8-1.1 3.8-2.2 5.4 2.3-.4 4.6-1.3 6.4-2.6 1.2.3 2.5.5 3.9.5 6.6 0 12-4.9 12-11S22.6 5 16 5Z"/></svg></a></div>
+    <div style="text-align:center;margin-top:12px;">${action}</div>
   </div>`;
+}
+
+
+// ---- Squads: member actions + a SEPARATE admin panel (requests, private invite links, members) ----
+async function squadRequest(id){
+  const session = getCmSession(); if(!session) return;
+  state.squadReqError = '';
+  if(!(state.squadPending || []).includes(id)) state.squadPending = (state.squadPending || []).concat(id); // show 'request sent' straight away
+  render();
+  try { await cmApiRaw('/api/squads/' + encodeURIComponent(id) + '/request', { method:'POST', headers:{ 'Authorization':'Bearer ' + session.token } }); }
+  catch(err){ state.squadPending = (state.squadPending || []).filter(x => x !== id); state.squadReqError = err.message; }
+  render();
+}
+async function loadSquadAdmin(){
+  if(state.squadAdminLoading) return;
+  state.squadAdminLoading = true;
+  const get = async u => { try { const r = await fetch(u, { credentials:'include' }); return r.ok ? await r.json() : null; } catch { return null; } };
+  const [rq, sq] = await Promise.all([get('/api/admin/squad-requests'), get('/api/admin/squads')]);
+  state.squadAdmin = { requests: ((rq && rq.requests) || []).filter(r => !admNotif.dismissed.has(`q:${r.squadId}:${r.userId}`)), squads: (sq && sq.squads) || [] };
+  state.squadAdminLoading = false;
+  if(state.tab === 'squads') render();
+}
+function squadAdminHtml(){
+  const d = state.squadAdmin;
+  if(!d){ if(!state.squadAdminLoading) loadSquadAdmin(); return '<div class="cp-box" style="margin-top:20px;"><p class="av-msg">Loading squad admin…</p></div>'; }
+  const reqs = d.requests.length ? d.requests.map(r => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
+      <span><button type="button" class="adm-profile-link" data-user-id="${escapeCm(r.userId)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(r.name)}</button> <span style="color:#776867;font-size:12px;">${escapeCm(r.username)}</span><br>wants to join the <strong>${escapeCm(r.squadTitle)}</strong> squad</span>
+      <span style="display:flex;gap:6px;"><button type="button" class="club-guide-btn squad-act" data-act="accept" data-squad-id="${escapeCm(r.squadId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:#d9f0d8;text-align:center;">Accept</button><button type="button" class="club-guide-btn squad-act" data-act="decline" data-squad-id="${escapeCm(r.squadId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:#f9dcdc;text-align:center;">Decline</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No squad requests waiting.</p>';
+  const squads = d.squads.map(q => `<div style="padding:12px 0;border-top:1px solid rgba(0,0,0,0.1);">
+      <strong>${escapeCm(q.title)}</strong> <span style="color:#776867;font-size:12px;">· ${q.members.length} member${q.members.length === 1 ? '' : 's'}</span>
+      <div style="display:flex;gap:6px;margin:8px 0;"><input class="squad-link-input" data-squad-id="${escapeCm(q.id)}" type="url" placeholder="Private WhatsApp invite link (https://chat.whatsapp.com/…)" value="${escapeCm(q.link)}" style="flex:1;min-width:0;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;"><button type="button" class="club-guide-btn squad-link-save" data-squad-id="${escapeCm(q.id)}" style="padding:8px 14px;text-align:center;">Save</button></div>
+      <div style="font-size:13px;line-height:2;">${q.members.length ? q.members.map(m => `<span style="display:inline-flex;align-items:center;gap:4px;background:#f2d8d7;border-radius:999px;padding:2px 4px 2px 10px;margin:0 6px 6px 0;"><button type="button" class="adm-profile-link" data-user-id="${escapeCm(m.id)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button><button type="button" class="squad-remove" data-squad-id="${escapeCm(q.id)}" data-user-id="${escapeCm(m.id)}" aria-label="Remove ${escapeCm(m.name)}" title="Remove from this squad" style="border:none;background:none;cursor:pointer;color:#76220b;font-size:16px;padding:2px 6px;">×</button></span>`).join('') : '<span style="color:#776867;">No members yet</span>'}</div>
+      <div class="squad-link-msg" data-squad-id="${escapeCm(q.id)}" style="font-size:12px;min-height:16px;"></div></div>`).join('');
+  return `<div class="cp-box" style="margin-top:22px;"><h3 style="margin:0 0 6px;">Squad admin</h3>
+    <p style="font-size:12px;color:#776867;margin:0 0 8px;">Separate from the clubs. Same accounts — a person can be in clubs and squads at once.</p>
+    <h4 style="margin:10px 0 4px;">Requests${d.requests.length ? ` (${d.requests.length})` : ''}</h4>${reqs}
+    <h4 style="margin:16px 0 0;">Squads &amp; private invite links</h4>${squads}</div>`;
+}
+async function admAnswerSquad(squadId, userId, action){
+  const key = `q:${squadId}:${userId}`;
+  const req = (admNotif.items.find(i => i.id === key) || {}).r || ((state.squadAdmin && state.squadAdmin.requests) || []).find(r => r.squadId === squadId && r.userId === userId);
+  try {
+    const res = await fetch('/api/admin/squad-requests/' + encodeURIComponent(squadId) + '/' + encodeURIComponent(userId) + '/' + action, { method:'POST', credentials:'include' });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok && res.status !== 404) throw new Error(data.error || 'Could not update that request');
+    admNotif.dismissed.add(key);
+    admNotif.items = admNotif.items.filter(i => i.id !== key);
+    if(state.squadAdmin) state.squadAdmin.requests = state.squadAdmin.requests.filter(r => !(r.squadId === squadId && r.userId === userId));
+    admUpdateBell(); if(admNotif.panel) admRenderPanel();
+    if(action === 'accept'){ state.squadAdmin = null; } // member list changed: reload
+    if(state.tab === 'squads') render();
+    admToast(`${action === 'accept' ? '✅ Accepted' : '❌ Declined'}${req ? ' · ' + escapeCm(req.name) + ' · ' + escapeCm(req.squadTitle) : ''} — they'll see it next time they open the app.`);
+  } catch(err){ admToast('⚠️ ' + escapeCm(err.message)); }
+}
+function wireSquadsPage(){
+  const sess = getCmSession();
+  if(sess && state.meLoadedFor !== sess.token) refreshMe();
+  document.querySelectorAll('.squad-request-btn').forEach(b => b.addEventListener('click', () => { b.disabled = true; squadRequest(b.dataset.squadId); }));
+  document.querySelectorAll('.squad-login-btn').forEach(b => b.addEventListener('click', () => document.getElementById('navLoginBtn').click()));
+  document.querySelectorAll('.squad-act').forEach(b => b.addEventListener('click', () => { b.disabled = true; admAnswerSquad(b.dataset.squadId, b.dataset.userId, b.dataset.act); }));
+  document.querySelectorAll('.adm-profile-link').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.userId)));
+  document.querySelectorAll('.squad-link-save').forEach(b => b.addEventListener('click', async () => {
+    const id = b.dataset.squadId, input = document.querySelector('.squad-link-input[data-squad-id="' + id + '"]'), msg = document.querySelector('.squad-link-msg[data-squad-id="' + id + '"]');
+    msg.style.color = '#373d3b'; msg.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/admin/squads/' + encodeURIComponent(id), { method:'PUT', headers:{ 'Content-Type':'application/json' }, credentials:'include', body: JSON.stringify({ link: input.value }) });
+      const d = await res.json(); if(!res.ok) throw new Error(d.error || 'Could not save');
+      msg.style.color = '#2a7a4a'; msg.textContent = d.link ? '✓ Saved — members of this squad now see this link.' : '✓ Link cleared.';
+      if(state.squadAdmin) state.squadAdmin.squads.forEach(q => { if(q.id === id) q.link = d.link; });
+    } catch(err){ msg.style.color = '#c00'; msg.textContent = err.message; }
+  }));
+  document.querySelectorAll('.squad-remove').forEach(b => b.addEventListener('click', async () => {
+    if(!confirm('Remove this person from the squad?')) return;
+    b.disabled = true;
+    await fetch('/api/admin/squads/' + encodeURIComponent(b.dataset.squadId) + '/members/' + encodeURIComponent(b.dataset.userId), { method:'DELETE', credentials:'include' });
+    state.squadAdmin = null; render();
+  }));
 }
 
 function renderDirectory(){
@@ -2797,7 +2890,11 @@ function renderDirectory(){
   if(state.tab === 'squads'){
     document.getElementById('resourcePagination').innerHTML = '';
     el.innerHTML = `<h3 class="clubs-popular-title">THE SQUADS</h3>
-      <div class="clubs-grid squads-grid">${SQUADS.map(squadCardHtml).join('')}</div>`;
+      ${getCmSession() ? '<p class="ideas-hint" style="text-align:center;margin:-4px 0 12px;">Request any squad — an admin approves it and you get that squad\'s private invite link right here.</p>' : ''}
+      ${state.squadReqError ? `<p style="color:#c00;text-align:center;font-size:13px;">${escapeCm(state.squadReqError)}</p>` : ''}
+      <div class="clubs-grid squads-grid">${SQUADS.map(q => squadCardHtml(q)).join('')}</div>
+      ${state.cmAdminLoggedIn === true ? squadAdminHtml() : ''}`;
+    wireSquadsPage();
     return;
   }
   if(state.tab === 'travel'){
@@ -4760,7 +4857,7 @@ function resetUserScopedState(){
   Object.assign(state, {
     ideaAvail:null, ideaAvailNo:{}, ideaAvailSubmitted:false, ideaAvailOwner:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'',
     ideaAvailStatus:'', ideaAvailDirty:false, ideaAvailSaving:false, ideaAvailResave:false, iavEditing:false, iavUnsetWarned:false,
-    eavClub:'mine', ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{},
+    mySquads:[], squadPending:[], squadReqError:'', eavClub:'mine', ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{},
     pushRegistered:false, phoneConfirmed:true, myPhone:'', myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
     ideas:null, ideasError:'', ideasStatus:'',
   });
@@ -5550,7 +5647,11 @@ function admToastLite(text){
 
 // "You're in!" / "not approved" messages from the admin, shown once and then cleared on the server.
 function showMemberNotices(notices, token){
-  const lines = notices.map(n => n.type === 'remind'
+  const lines = notices.map(n => n.type === 'squad-accepted'
+    ? `<p style="margin:0 0 10px;font-size:16px;">🎉 <strong>You're in the ${escapeCm(n.squadTitle)} squad!</strong> Open the <strong>Squads</strong> tab for your private invite link.</p>`
+    : n.type === 'squad-declined'
+      ? `<p style="margin:0 0 10px;font-size:16px;">Your request for the <strong>${escapeCm(n.squadTitle)}</strong> squad wasn't approved this time.</p>`
+    : n.type === 'remind'
     ? `<p style="margin:0 0 10px;font-size:16px;">📅 <strong>Please add your availability.</strong> It only takes a minute and helps us pick times that work for everyone. Anything you leave blank counts as "available, but not preferred".</p><button type="button" class="club-guide-btn" id="noticeAddAvail" style="width:100%;min-height:46px;background:#d9f0d8;text-align:center;margin-bottom:8px;">Add my availability</button>`
     : n.type === 'accepted'
     ? `<p style="margin:0 0 10px;font-size:16px;">🎉 <strong>You're in!</strong> Your request to join <strong>${escapeCm(n.clubTitle)}</strong> was approved.</p>`
@@ -5573,13 +5674,14 @@ async function refreshMe(){
     state.myPending = me.pending || [];
     state.pushRegistered = !!me.push;
     state.phoneConfirmed = !!me.phoneConfirmed; state.myPhone = me.phone || '';
+    state.mySquads = me.squads || []; state.squadPending = me.squadPending || [];
     setCmSession(Object.assign({}, cur, { clubs: me.clubs || [], waitlist: me.waitlist || [] }));
     if(changed) state.publicIdeasAll = null;
     if(Array.isArray(me.notices) && me.notices.length) showMemberNotices(me.notices, cur.token);
   } catch(err){ /* e.g. expired session — keep what's cached, don't retry in a loop */ }
   state.meLoadedFor = session.token;
   state.meLoading = false;
-  if(state.tab === 'clubs') render();
+  if(state.tab === 'clubs' || state.tab === 'squads') render();
   maybeShowPushGate();
 }
 async function requestToJoinClub(clubId){
@@ -7341,12 +7443,13 @@ function admUpdateBell(){
 async function admNotifPoll(){
   if(state.cmAdminLoggedIn !== true) return;
   const get = async u => { try { const r = await fetch(u, { credentials:'include' }); return r.ok ? await r.json() : null; } catch { return null; } };
-  const [j, e, rs] = await Promise.all([get('/api/admin/join-requests'), get('/api/admin/event-suggestions'), get('/api/admin/resource-suggestions')]);
-  if(!j && !e && !rs) return;
+  const [j, e, rs, sq] = await Promise.all([get('/api/admin/join-requests'), get('/api/admin/event-suggestions'), get('/api/admin/resource-suggestions'), get('/api/admin/squad-requests')]);
+  if(!j && !e && !rs && !sq) return;
   const items = [];
   ((j && j.requests) || []).forEach(r => items.push({ kind:'join', id:`j:${r.clubId}:${r.userId}`, at:r.at || 0, r }));
   ((e && e.suggestions) || []).forEach(x => items.push({ kind:'event', id:`e:${x.id}`, at:x.at || 0, x }));
   ((rs && rs.suggestions) || []).forEach(x => items.push({ kind:'resource', id:`r:${x.id}`, at:x.at || 0, x }));
+  ((sq && sq.requests) || []).forEach(r => items.push({ kind:'squad', id:`q:${r.squadId}:${r.userId}`, at:r.at || 0, r }));
   const fresh = items.filter(i => !admNotif.dismissed.has(i.id)).sort((a, b) => b.at - a.at);
   const firstPoll = admNotif.known === null;
   const newOnes = firstPoll ? [] : fresh.filter(i => !admNotif.known.has(i.id));
@@ -7362,7 +7465,8 @@ async function admNotifPoll(){
   if(admNotif.panel) admRenderPanel();
   if(newOnes.length){
     const i = newOnes[0];
-    const msg = i.kind === 'join' ? `🔔 <strong>${escapeCm(i.r.name)}</strong> just requested to join <strong>${escapeCm(i.r.clubTitle)}</strong>`
+    const msg = i.kind === 'squad' ? `🔔 <strong>${escapeCm(i.r.name)}</strong> just requested the <strong>${escapeCm(i.r.squadTitle)}</strong> squad`
+      : i.kind === 'join' ? `🔔 <strong>${escapeCm(i.r.name)}</strong> just requested to join <strong>${escapeCm(i.r.clubTitle)}</strong>`
       : i.kind === 'event' ? `🔔 New event submitted: <strong>${escapeCm(i.x.name)}</strong>` : `🔔 New resource submitted: <strong>${escapeCm(i.x.title)}</strong>`;
     admToast(msg + (newOnes.length > 1 ? `<br><span style="opacity:.85">+ ${newOnes.length - 1} more</span>` : '') + '<br><span style="font-size:13px;opacity:.85">Tap to review</span>', admOpenPanel);
   }
@@ -7396,6 +7500,11 @@ function admRenderPanel(){
   const rows = admNotif.items.map(i => {
     const isNew = i.at > admNotif.openedWithSeen;
     const dot = isNew ? '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#d93025;margin-right:6px;"></span>' : '';
+    if(i.kind === 'squad'){
+      const r = i.r;
+      return `<div style="padding:12px 0;border-top:1px solid #0001;">${dot}<button type="button" class="adm-profile-link" data-user-id="${escapeCm(r.userId)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(r.name)}</button> wants to join the <strong>${escapeCm(r.squadTitle)}</strong> squad <span style="font-size:12px;color:var(--muted);">· ${ago(r.at)}</span>
+        <div style="display:flex;gap:8px;margin-top:8px;"><button type="button" class="club-guide-btn adm-squad-act" data-act="accept" data-squad-id="${escapeCm(r.squadId)}" data-user-id="${escapeCm(r.userId)}" style="flex:1;padding:10px;background:#d9f0d8;text-align:center;">✅ Accept</button><button type="button" class="club-guide-btn adm-squad-act" data-act="decline" data-squad-id="${escapeCm(r.squadId)}" data-user-id="${escapeCm(r.userId)}" style="flex:1;padding:10px;background:#f9dcdc;text-align:center;">❌ Decline</button></div></div>`;
+    }
     if(i.kind === 'join'){
       const r = i.r;
       return `<div style="padding:12px 0;border-top:1px solid #0001;">${dot}<button type="button" class="adm-profile-link" data-user-id="${escapeCm(r.userId)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(r.name)}</button> wants to join <strong>${escapeCm(r.clubTitle)}</strong> <span style="font-size:12px;color:var(--muted);">· ${ago(r.at)}</span>
@@ -7409,6 +7518,7 @@ function admRenderPanel(){
     <p class="ideas-hint" style="margin:0 0 6px;text-align:left;">${admNotif.items.length ? 'Join requests and submitted events / resources.' : ''}</p>
     ${rows || '<p class="av-msg">Nothing waiting — you\'re all caught up. 🎉</p>'}`;
   card.querySelectorAll('.adm-profile-link').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.userId)));
+  card.querySelectorAll('.adm-squad-act').forEach(b => b.addEventListener('click', () => { b.disabled = true; admAnswerSquad(b.dataset.squadId, b.dataset.userId, b.dataset.act); }));
   card.querySelectorAll('.adm-join-act').forEach(b => b.addEventListener('click', () => { b.disabled = true; admAnswerJoin(b.dataset.clubId, b.dataset.userId, b.dataset.act); }));
 }
 function admOpenPanel(){

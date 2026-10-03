@@ -319,6 +319,29 @@ const sendPushToUser = async (env, userId, message) => {
   if (keep.length !== subs.length) await env.SITE_DATA.put(pushKey(userId), JSON.stringify(keep));
   return { sent, removed: subs.length - keep.length, devices: subs.length };
 };
+// ---- Squads (separate from clubs): same member accounts, their own membership lists, requests and PRIVATE invite links ----
+const SQUAD_TITLES = { quran: "Quran", badminton: "Badminton", cowork: "Cowork", steps: "Steps" };
+const SQUAD_MAX_PENDING_PER_PERSON = 4;
+const squadMembersKey = (id) => `squadmembers:${id}`;
+const squadReqKey = (id, uid) => `squadreq:${id}:${uid}`;
+const squadLinkKey = (id) => `squadlink:${id}`;
+const readSquadMemberIds = async (env, id) => { try { return JSON.parse((await env.SITE_DATA.get(squadMembersKey(id))) || "[]"); } catch { return []; } };
+const writeSquadMemberIds = (env, id, ids) => env.SITE_DATA.put(squadMembersKey(id), JSON.stringify(ids));
+const listSquadRequests = async (env) => {
+  const out = [];
+  for (const k of (await env.SITE_DATA.list({ prefix: "squadreq:" })).keys) {
+    const [, squadId, userId] = k.name.split(":");
+    let at = 0; try { at = JSON.parse((await env.SITE_DATA.get(k.name)) || "{}").at || 0; } catch {}
+    out.push({ squadId, userId, at });
+  }
+  return out;
+};
+const notifyAdminOfSquadRequest = (env, ctx, user, squadId) => {
+  if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
+  const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
+  const html = `<div style="font-family:Arial,sans-serif;max-width:520px;color:#373d3b"><h2 style="margin:0 0 8px">New squad request</h2><p><strong>${escapeHtml(user.name)}</strong> (<code>${escapeHtml(user.username)}</code>) asked to join the <strong>${escapeHtml(SQUAD_TITLES[squadId])}</strong> squad.</p><p>Accept or decline: open <a href="${origin}/#/squads">${origin}/#/squads</a> while logged in as admin (🔒 Admin Login in the footer).</p></div>`;
+  sendAdminEmail(env, ctx, `Squad request: ${user.name} → ${SQUAD_TITLES[squadId]}`, html);
+};
 const notifyAdminOfJoinRequest = (env, ctx, user, club) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
   const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
@@ -1450,7 +1473,29 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const clubs = await allClubIdsContaining(env, me.id);
       let notices = [];
       try { notices = JSON.parse((await env.SITE_DATA.get(`notice:${me.id}`)) || "[]"); } catch {}
-      return jsonResponse({ ...publicUser(me), clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs), notices, push: (await readPushSubs(env, me.id)).length > 0, phone: me.phone || "", phoneConfirmed: !!me.phoneConfirmedAt }, 200, corsHeaders);
+      return jsonResponse({ ...publicUser(me), clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs), notices, push: (await readPushSubs(env, me.id)).length > 0, phone: me.phone || "", phoneConfirmed: !!me.phoneConfirmedAt, ...(await (async () => {
+        // squads: ids the member is IN (with that squad's private invite link) and ids still waiting for approval
+        const squads = [];
+        for (const id of Object.keys(SQUAD_TITLES)) if ((await readSquadMemberIds(env, id)).includes(me.id)) squads.push({ id, link: (await env.SITE_DATA.get(squadLinkKey(id))) || "" });
+        return { squads, squadPending: (await listSquadRequests(env)).filter((r) => r.userId === me.id).map((r) => r.squadId) };
+      })()) }, 200, corsHeaders);
+    }
+    // ---- Squads: a signed-in member requests to join one (an admin approves; then they get that squad's private invite link) ----
+    const squadReqMatch = path.match(/^\/api\/squads\/([a-z]+)\/request\/?$/);
+    if (squadReqMatch && request.method === "POST") {
+      const squadId = squadReqMatch[1];
+      if (!SQUAD_TITLES[squadId]) return jsonResponse({ error: "Unknown squad" }, 404, corsHeaders);
+      const meId = await memberIdFromRequest();
+      const me = meId ? await readUser(env, meId) : null;
+      if (!me) return jsonResponse({ error: "Please log in to request a squad" }, 401, corsHeaders);
+      if ((await readSquadMemberIds(env, squadId)).includes(me.id)) return jsonResponse({ error: "You're already in this squad" }, 409, corsHeaders);
+      const mine = (await listSquadRequests(env)).filter((r) => r.userId === me.id);
+      if (!mine.some((r) => r.squadId === squadId)) {
+        if (mine.length >= SQUAD_MAX_PENDING_PER_PERSON) return jsonResponse({ error: "You already have several squad requests waiting" }, 429, corsHeaders);
+        await env.SITE_DATA.put(squadReqKey(squadId, me.id), JSON.stringify({ at: Date.now() }));
+        notifyAdminOfSquadRequest(env, ctx, me, squadId);
+      }
+      return jsonResponse({ ok: true, pending: [...new Set([...mine.map((r) => r.squadId), squadId])] }, 200, corsHeaders);
     }
     // A member logs out: invalidate their token on the server too (clearing it in the browser alone left it valid).
     if (path === "/api/logout" && request.method === "POST") {
@@ -1669,7 +1714,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
 
     if (requiresAuth) {
       const token = getSessionToken(request);
@@ -2013,6 +2058,63 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await env.SITE_DATA.put("meta:lastRemind:push", JSON.stringify({ at: Date.now(), sent, noPush, asked: ids.length, title }));
       return jsonResponse({ sent, noPush, removed, asked: ids.length }, 200, corsHeaders);
     }
+    // ---- Admin: squads (kept apart from the clubs tools) ----
+    if (path === "/api/admin/squad-requests" && request.method === "GET") {
+      const out = [];
+      for (const r of (await listSquadRequests(env)).sort((a, b) => a.at - b.at)) {
+        const user = await readUser(env, r.userId);
+        if (!user || !SQUAD_TITLES[r.squadId]) continue;
+        out.push({ squadId: r.squadId, squadTitle: SQUAD_TITLES[r.squadId], userId: r.userId, name: user.name, username: user.username, phone: user.phone || "", at: r.at });
+      }
+      return jsonResponse({ requests: out }, 200, corsHeaders);
+    }
+    const squadActMatch = path.match(/^\/api\/admin\/squad-requests\/([a-z]+)\/([^/]+)\/(accept|decline)\/?$/);
+    if (squadActMatch && request.method === "POST") {
+      const squadId = squadActMatch[1], userId = decodeURIComponent(squadActMatch[2]), accept = squadActMatch[3] === "accept";
+      if (!SQUAD_TITLES[squadId]) return jsonResponse({ error: "Unknown squad" }, 404, corsHeaders);
+      if (!(await env.SITE_DATA.get(squadReqKey(squadId, userId)))) return jsonResponse({ error: "That request is no longer pending" }, 404, corsHeaders);
+      if (accept) {
+        if (!(await readUser(env, userId))) { await env.SITE_DATA.delete(squadReqKey(squadId, userId)); return jsonResponse({ error: "That member no longer exists" }, 404, corsHeaders); }
+        const ids = await readSquadMemberIds(env, squadId);
+        if (!ids.includes(userId)) { ids.push(userId); await writeSquadMemberIds(env, squadId, ids); }
+      }
+      await env.SITE_DATA.delete(squadReqKey(squadId, userId));
+      try {
+        const noticeKey = `notice:${userId}`;
+        const existing = JSON.parse((await env.SITE_DATA.get(noticeKey)) || "[]");
+        existing.push({ id: crypto.randomUUID(), type: accept ? "squad-accepted" : "squad-declined", squadId, squadTitle: SQUAD_TITLES[squadId], at: Date.now() });
+        await env.SITE_DATA.put(noticeKey, JSON.stringify(existing.slice(-10)));
+        ctx.waitUntil(sendPushToUser(env, userId, accept ? { title: "You're in the squad! 🎉", body: `You were approved for the ${SQUAD_TITLES[squadId]} squad — open the Squads tab for your private link.`, url: "/#/squads" } : { title: "Update on your squad request", body: `Your request for the ${SQUAD_TITLES[squadId]} squad wasn't approved this time.`, url: "/#/squads" }).catch(() => {}));
+      } catch {}
+      return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+    if (path === "/api/admin/squads" && request.method === "GET") {
+      const out = [];
+      for (const id of Object.keys(SQUAD_TITLES)) {
+        const members = [];
+        for (const uid of await readSquadMemberIds(env, id)) { const u = await readUser(env, uid); if (u) members.push({ id: u.id, name: u.name, username: u.username, photo: u.photo || null }); }
+        out.push({ id, title: SQUAD_TITLES[id], link: (await env.SITE_DATA.get(squadLinkKey(id))) || "", members });
+      }
+      return jsonResponse({ squads: out }, 200, corsHeaders);
+    }
+    const squadAdminMatch = path.match(/^\/api\/admin\/squads\/([a-z]+)(?:\/members\/([^/]+))?\/?$/);
+    if (squadAdminMatch && SQUAD_TITLES[squadAdminMatch[1]]) {
+      const squadId = squadAdminMatch[1];
+      if (request.method === "PUT" && !squadAdminMatch[2]) {
+        let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+        const raw = String(body.link || "").trim();
+        if (!raw) { await env.SITE_DATA.delete(squadLinkKey(squadId)); return jsonResponse({ ok: true, link: "" }, 200, corsHeaders); }
+        let link = ""; try { const u = new URL(raw); if (u.protocol === "https:") link = u.href.slice(0, 500); } catch {}
+        if (!link) return jsonResponse({ error: "The invite link must start with https://" }, 400, corsHeaders);
+        await env.SITE_DATA.put(squadLinkKey(squadId), link);
+        return jsonResponse({ ok: true, link }, 200, corsHeaders);
+      }
+      if (request.method === "DELETE" && squadAdminMatch[2]) {
+        const uid = decodeURIComponent(squadAdminMatch[2]);
+        await writeSquadMemberIds(env, squadId, (await readSquadMemberIds(env, squadId)).filter((x) => x !== uid));
+        return jsonResponse({ ok: true }, 200, corsHeaders);
+      }
+    }
     // Admin: when did I last remind people? (shown as a disclaimer before sending another one)
     if (path === "/api/admin/reminders/last" && request.method === "GET") {
       const read = async (k) => { try { return JSON.parse((await env.SITE_DATA.get(k)) || "null"); } catch { return null; } };
@@ -2053,6 +2155,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       for (const k of reqKeys.keys) if (k.name.split(":")[2] === userId) await env.SITE_DATA.delete(k.name);
       await env.SITE_DATA.delete(ideaAvailKey(`m:${userId}`));
       await env.SITE_DATA.delete(pushKey(userId));
+      for (const sid of Object.keys(SQUAD_TITLES)) { await writeSquadMemberIds(env, sid, (await readSquadMemberIds(env, sid)).filter((x) => x !== userId)); await env.SITE_DATA.delete(squadReqKey(sid, userId)); }
       await releaseUsername(env, user.username);
       await deleteUser(env, userId); // their login token stops working because the user no longer exists
       return jsonResponse({ ok: true }, 200, corsHeaders);
