@@ -882,6 +882,16 @@
   #directory-view .today-list, #list-view .event-list{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px 14px; }
   .week-day-col .today-list{ display:flex; flex-direction:column; }
 }
+
+/* DESKTOP: idea bubbles float freely and drift gently (positions are scattered at random, not in vote/date order) */
+@media (min-width:1100px){
+  /* the board's column is only 640px wide: let the floating cloud break out to use the whole page width */
+  .ideas-cloud.floaty{ display:block; position:relative; padding:0; width:min(1120px, calc(100vw - 80px)); left:50%; transform:translateX(-50%); }
+  .ideas-cloud.floaty .idea-bubble{ position:absolute; margin:0; animation:ideaFloat var(--dur,9s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; }
+  .ideas-cloud.floaty .idea-bubble:hover{ animation-play-state:paused; z-index:5; }
+  @keyframes ideaFloat{ 0%{ transform:translate(0,0); } 100%{ transform:translate(var(--dx,12px),var(--dy,-14px)); } }
+}
+@media (prefers-reduced-motion:reduce){ .ideas-cloud.floaty .idea-bubble{ animation:none !important; } }
 </style>
 </head>
 <body>
@@ -2770,7 +2780,7 @@ function renderDirectory(){
   } else if(state.tab === 'clubs'){
     document.getElementById('resourcePagination').innerHTML = '';
     const anon = !getCmSession(); // the "which club are you in" picker is for signed-in members only; public and admin-only views get the public layout
-el.innerHTML = `${getCmSession() ? '' : `${getLastLogin() ? `<div style="text-align:center;margin-bottom:12px;"><button type="button" id="clubsLoginAsBtn" style="min-height:46px;padding:11px 22px;border-radius:999px;border:2px solid #76220b;background:#ce8491;color:#fff;font-family:inherit;font-weight:700;font-size:15px;cursor:pointer;">Log in as ${escapeCm(getLastLogin().name || getLastLogin().username)}</button><div><button type="button" id="clubsLoginForgetBtn" class="av-link" style="font-size:12px;margin-top:4px;">Not you?</button></div></div>` : ''}<div class="clubs-top-actions" style="justify-content:center;gap:14px;">
+el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="justify-content:center;gap:14px;">
     <button type="button" class="club-guide-btn" id="clubsLoginOpenBtn" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;font-size:15px;text-align:center;">Log In</button>
     <button class="fall-cta-btn join-club-btn" data-hometab="fallsignup" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;">Sign Up</button>
     </div>`}
@@ -2788,7 +2798,8 @@ el.innerHTML = `${getCmSession() ? '' : `${getLastLogin() ? `<div style="text-al
       ` : `
         <p style="font-size:13px;margin-bottom:10px;">Sign in with your username and the PIN an organizer gave you.</p>
         <div id="clubsLoginError" style="color:#c00;font-size:13px;margin-bottom:8px;"></div>
-        <input id="clubsLoginUsername" value="${state.clubsLoginPrefill && getLastLogin() ? escapeCm(getLastLogin().username) : ''}" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);margin-bottom:10px;box-sizing:border-box;">
+        ${getLastLogin() ? `<p style="font-size:14px;margin:0 0 10px;text-align:center;">Welcome back, <strong>${escapeCm(getLastLogin().name || getLastLogin().username)}</strong> — just enter your PIN. <button type="button" id="clubsLoginForgetBtn" class="av-link" style="font-size:13px;">Not you?</button></p>` : ''}
+        <input id="clubsLoginUsername" value="${getLastLogin() ? escapeCm(getLastLogin().username) : ''}" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);margin-bottom:10px;box-sizing:border-box;">
         <input id="clubsLoginPin" type="password" autocomplete="current-password" placeholder="PIN" inputmode="numeric" maxlength="4" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);margin-bottom:10px;box-sizing:border-box;">
         <button class="club-guide-btn" id="clubsLoginSubmitBtn" style="width:100%;background:var(--lightblue);">Sign In</button>
         <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;">Forgot your PIN? An admin can reset it for you — just message us.</p>
@@ -2811,18 +2822,14 @@ el.innerHTML = `${getCmSession() ? '' : `${getLastLogin() ? `<div style="text-al
         state.clubsMyClubsPickerOpen = false;
         state.clubsLoginPickerOpen = !state.clubsLoginPickerOpen;
         render();
+        // someone this browser remembers: username is already filled in, so go straight to the PIN
+        if(state.clubsLoginPickerOpen && getLastLogin()) setTimeout(() => { const pin = document.getElementById('clubsLoginPin'); if(pin) pin.focus(); }, 60);
       });
       wireAvailabilityPanel();
       const welcomeClose = document.getElementById('avWelcomeClose');
       if(welcomeClose) welcomeClose.addEventListener('click', () => { state.availWelcome = ''; state.clubsNotice = ''; render(); });
       const cpnSaveBtn = document.getElementById('cpnSaveBtn');
       if(cpnSaveBtn) cpnSaveBtn.addEventListener('click', cmChoosePin);
-      const loginAsBtn = document.getElementById('clubsLoginAsBtn');
-      if(loginAsBtn) loginAsBtn.addEventListener('click', () => {
-        state.clubsMyClubsPickerOpen = false; state.clubsLoginPickerOpen = true; state.clubsLoginPrefill = true;
-        render();
-        setTimeout(() => { const pin = document.getElementById('clubsLoginPin'); if(pin){ pin.scrollIntoView({ block:'center' }); pin.focus(); } }, 50);
-      });
       const loginForgetBtn = document.getElementById('clubsLoginForgetBtn');
       if(loginForgetBtn) loginForgetBtn.addEventListener('click', () => { try { localStorage.removeItem('lastLogin2'); } catch {} state.clubsLoginPrefill = false; render(); });
       const loginSubmitBtn = document.getElementById('clubsLoginSubmitBtn');
@@ -5050,6 +5057,50 @@ const IDEA_FILLS = ['#ffe0e6','#ffe9c7','#fff6bf','#d9f0d8','#d3ecf7','#e2dcf7',
 const IDEA_LINES = ['#d46a86','#e0982b','#c9ae1f','#4f9a4b','#3f95c2','#7a63c9','#c85aa3','#3f9a78'];
 
 function ideaColorIndex(id){ let h = 0; for(let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0; return h % IDEA_FILLS.length; }
+
+// Desktop only: scatter the idea bubbles at random (seeded by their ids so they don't jump around on every redraw), avoid
+// overlaps, and let each drift a little. On phones/tablets the normal wrapped layout stays exactly as it was.
+function floatIdeaClouds(){
+  const wide = window.matchMedia('(min-width:1100px)').matches;
+  document.querySelectorAll('.ideas-cloud').forEach(box => {
+    const bubbles = [...box.querySelectorAll('.idea-bubble')];
+    const reset = () => { box.classList.remove('floaty'); box.style.height = ''; bubbles.forEach(b => { b.style.left = b.style.top = ''; b.style.removeProperty('--dx'); b.style.removeProperty('--dy'); b.style.removeProperty('--dur'); b.style.removeProperty('--delay'); }); };
+    if(!wide || !bubbles.length || box.clientWidth < 500){ reset(); return; }
+    const key = bubbles.map(b => b.dataset.ideaid || b.textContent.slice(0, 20)).join('|');
+    let seed = 0; for(let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) >>> 0;
+    const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    box.classList.add('floaty');
+    const W = box.clientWidth, GAP = 34; // gap leaves room for the drift
+    const sizes = bubbles.map(b => b.offsetWidth || 120);
+    let H = Math.max(380, Math.round(sizes.reduce((a, d) => a + (d + GAP) * (d + GAP), 0) / W * 1.6));
+    let placed = null;
+    for(let round = 0; round < 6 && !placed; round++, H = Math.round(H * 1.18)){
+      const out = [];
+      const order = sizes.map((d, i) => i).sort((a, b) => sizes[b] - sizes[a]); // big ones first, so they find room
+      let ok = true;
+      for(const i of order){
+        const d = sizes[i]; let spot = null;
+        for(let t = 0; t < 250 && !spot; t++){
+          const x = rnd() * Math.max(1, W - d), y = rnd() * Math.max(1, H - d);
+          if(out.every(o => Math.hypot((x + d / 2) - (o.x + o.d / 2), (y + d / 2) - (o.y + o.d / 2)) >= (d + o.d) / 2 + GAP)) spot = { x, y, d, i };
+        }
+        if(!spot){ ok = false; break; }
+        out.push(spot);
+      }
+      if(ok) placed = out;
+    }
+    if(!placed){ reset(); return; }
+    box.style.height = H + 'px';
+    placed.forEach(p => {
+      const b = bubbles[p.i];
+      b.style.left = Math.round(p.x) + 'px'; b.style.top = Math.round(p.y) + 'px';
+      b.style.setProperty('--dx', Math.round((rnd() - .5) * 28) + 'px'); b.style.setProperty('--dy', Math.round((rnd() - .5) * 28) + 'px');
+      b.style.setProperty('--dur', (7 + rnd() * 7).toFixed(1) + 's'); b.style.setProperty('--delay', (-rnd() * 8).toFixed(1) + 's');
+    });
+  });
+}
+window.addEventListener('resize', () => { clearTimeout(floatIdeaClouds._t); floatIdeaClouds._t = setTimeout(floatIdeaClouds, 200); });
+
 function ideaSize(votes, title, hasDate){  // hasDate: also true when the bubble shows an extra line (date / cuisine)
   const byVotes = 112 + 34 * Math.sqrt(Math.max(0, votes - 1));
   const len = (title || '').length;
@@ -5443,6 +5494,7 @@ async function publicIdeaVoteAttempt(id, bubble){
   bubble.style.width = bubble.style.height = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine || idea.price)) + 'px';
   const votesEl = bubble.querySelector('.idea-votes');
   if(votesEl) votesEl.textContent = ideaVotesLabel(idea.votes) + (idea.voted ? ' ✓' : '');
+  setTimeout(floatIdeaClouds, 450);
   try {
     await cmApiRaw('/api/clubs/' + encodeURIComponent(idea._clubId) + '/ideas/' + encodeURIComponent(id) + '/vote', { method:'POST', headers: ideaHeaders() });
   } catch(err){
@@ -5453,6 +5505,7 @@ async function publicIdeaVoteAttempt(id, bubble){
 function wirePublicIdeasFeed(){
   const box = document.getElementById('publicIdeasCloud');
   if(!box) return;
+  setTimeout(floatIdeaClouds, 0);
   box.querySelectorAll('.idea-bubble').forEach(b => b.addEventListener('click', e => {
     if(e.target.closest('.idea-mini')) return;
     publicIdeaVoteAttempt(b.dataset.ideaid, b);
@@ -5961,6 +6014,7 @@ function ideasNeedName(){
 }
 
 function wireClubIdeas(){
+  setTimeout(floatIdeaClouds, 0);
   if(state.ideas === null && !state.ideasLoading && !state.ideasError) ideasLoad();
   wireIdeaAvailGrid();
   wireEveryoneAvailGrid();
