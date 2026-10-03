@@ -513,11 +513,13 @@
   .iav-cell{ min-height:48px; border:1.5px solid rgba(55,61,59,0.25); border-radius:6px; background:#fff; padding:0; cursor:pointer; touch-action:pan-y; -webkit-tap-highlight-color:transparent; }
   .iav-cell.iav-na{ background:repeating-linear-gradient(45deg,#f3eeeb,#f3eeeb 4px,#faf6f3 4px,#faf6f3 8px); border-style:dashed; cursor:default; }
   .iav-cell.iav-readonly{ touch-action:auto; }
+  .iav-cell.iav-unset{ background:#fff3cf; border-color:#e6cf86; }
   .iav-cell.on{ background:#d9f0d8; border-color:#4f9a4b; }
   .iav-cell.iav-full{ background:#d9f0d8; border-color:#4f9a4b; }
   .iav-cell.iav-busy{ background:#f9dcdc; border-color:#e8b4b4; }
   .iav-cell.iav-readonly{ cursor:default; }
   .iav-allday{ min-height:48px; touch-action:manipulation; border:1.5px solid rgba(55,61,59,0.25); border-radius:8px; background:#fff; font-weight:700; font-size:16px; cursor:pointer; color:var(--muted); }
+  .iav-allday-none{ background:#fff3cf; border-color:#e6cf86; }
   .iav-allday-avail{ background:#d9f0d8; border-color:#4f9a4b; color:#2a7a4a; }
   .iav-allday-busy{ background:#f9dcdc; border-color:#e8b4b4; color:#b3261e; }
   .iav-allday.iav-readonly{ cursor:default; }
@@ -1241,10 +1243,10 @@ let state = {
   cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false, fallQuickLogin:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
-  ideaAvail:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
+  ideaAvail:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
   publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
   myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, clubsLoginPrefill:false, cmAdminEventSugs:null,
-  ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, iavEditing:false,
+  ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{}, iavEditing:false,
   membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventJustCreated:false, eventEditDeleting:false,
   reviewMode:false, reviewQueue:[], reviewTotal:0, eventCreateMode:false,
@@ -5398,40 +5400,68 @@ function iavNext15Dates(){
 // Mornings are Sat/Sun only; weekdays are afternoon + evening.
 function iavIsWeekend(date){ const d = new Date(date + 'T12:00:00').getDay(); return d === 0 || d === 6; }
 function iavPartsFor(date){ return iavIsWeekend(date) ? IAV_PART_KEYS : IAV_PART_KEYS.filter(k => k !== 'morning'); }
-function iavDayValue(date){ return state.ideaAvail ? state.ideaAvail[date] : undefined; }
-function iavDayBusy(date){ return iavDayValue(date) === 'busy'; }
-function iavDayFull(date){ const v = iavDayValue(date); return Array.isArray(v) && iavPartsFor(date).every(k => v.includes(k)); }
-function iavPartOn(date, part){ const v = iavDayValue(date); return Array.isArray(v) && v.includes(part); }
-function iavSetPart(date, part, on){
+// Every slot is GREEN ('yes' = preferred time), RED ('no' = can't make it) or unset (shown yellow: counts as
+// available, just not preferred). state.ideaAvail[date] = green parts, state.ideaAvailNo[date] = red parts.
+function iavYesOf(date){ const v = state.ideaAvail ? state.ideaAvail[date] : null; return Array.isArray(v) ? v : []; }
+function iavNoOf(date){ return (state.ideaAvailNo && state.ideaAvailNo[date]) || []; }
+function iavSlotState(date, part){ if(iavYesOf(date).includes(part)) return 'yes'; if(iavNoOf(date).includes(part)) return 'no'; return 'unset'; }
+function iavNextState(st){ return st === 'unset' ? 'yes' : st === 'yes' ? 'no' : 'unset'; }
+function iavDayFull(date){ return iavPartsFor(date).every(k => iavSlotState(date, k) === 'yes'); }
+function iavDayBusy(date){ return iavPartsFor(date).every(k => iavSlotState(date, k) === 'no'); }
+function iavPartOn(date, part){ return iavSlotState(date, part) === 'yes'; }
+function iavSetSlot(date, part, st){
   if(!iavPartsFor(date).includes(part)) return;
   if(!state.ideaAvail) state.ideaAvail = {};
-  const v = state.ideaAvail[date];
-  let arr = Array.isArray(v) ? v.slice() : []; // starting from "busy" or unset both count as nothing on yet
-  if(on){ if(!arr.includes(part)) arr.push(part); } else { arr = arr.filter(p => p !== part); }
-  if(arr.length) state.ideaAvail[date] = IAV_PART_KEYS.filter(k => arr.includes(k));
-  else delete state.ideaAvail[date];
+  if(!state.ideaAvailNo) state.ideaAvailNo = {};
+  const y = iavYesOf(date).filter(k => k !== part), n = iavNoOf(date).filter(k => k !== part);
+  if(st === 'yes') y.push(part);
+  if(st === 'no') n.push(part);
+  const sorted = arr => IAV_PART_KEYS.filter(k => arr.includes(k));
+  if(y.length) state.ideaAvail[date] = sorted(y); else delete state.ideaAvail[date];
+  if(n.length) state.ideaAvailNo[date] = sorted(n); else delete state.ideaAvailNo[date];
   state.ideaAvailDirty = true;
 }
 function iavCycleAllDay(date){
-  if(!state.ideaAvail) state.ideaAvail = {};
-  if(iavDayFull(date)) state.ideaAvail[date] = 'busy';
-  else if(iavDayBusy(date)) delete state.ideaAvail[date];
-  else state.ideaAvail[date] = iavPartsFor(date).slice();
-  state.ideaAvailDirty = true;
+  const st = iavDayFull(date) ? 'no' : iavDayBusy(date) ? 'unset' : 'yes';
+  iavPartsFor(date).forEach(k => iavSetSlot(date, k, st));
+}
+function iavUnsetSlots(){
+  const out = [];
+  iavNext15Dates().forEach(d => iavPartsFor(d).forEach(k => { if(iavSlotState(d, k) === 'unset') out.push({ d, k }); }));
+  return out;
+}
+function iavCellClass(date, key){
+  const st = iavSlotState(date, key);
+  return st === 'yes' ? 'on iav-c-' + key : st === 'no' ? 'iav-busy' : 'iav-unset';
 }
 
+function iavLegendHtml(){
+  const sw = c => `<i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${c};border:1px solid #0003;vertical-align:-1px;margin-right:4px;"></i>`;
+  return `<p class="ideas-hint" style="text-align:left;">${sw('#d9f0d8')}Preferred &nbsp; ${sw('#f9dcdc')}Can't make it &nbsp; ${sw('#fff3cf')}Not filled — counts as available, just not your preferred time</p>`;
+}
+function iavUnsetReminderHtml(){
+  if(!state.iavUnsetWarned) return '';
+  const un = iavUnsetSlots();
+  if(!un.length) return '';
+  const days = new Set(un.map(x => x.d)).size;
+  const ex = un[0], dt = new Date(ex.d + 'T12:00:00');
+  return `<div style="margin:0 0 10px;padding:12px 14px;border-radius:12px;background:#fff3cf;border:2px solid #e6cf86;color:#6b5210;font-size:14px;line-height:1.5;">⚠️ <strong>You didn't fill ${un.length} slot${un.length === 1 ? '' : 's'}</strong> across ${days} day${days === 1 ? '' : 's'} (e.g. ${escapeCm(dayLabelsShort[dt.getDay()])} ${escapeCm(monthNames[dt.getMonth()].slice(0,3))} ${dt.getDate()} ${escapeCm(ex.k)}). Empty slots count as <strong>available, but not your preferred time</strong>. Fill them in, or tap <strong>Done anyway</strong> to submit as is.</div>`;
+}
 function ideaAvailSectionHtml(me){
   if(!me) return `<div class="iav-wrap"><h3 class="iav-title">🗓️ Add your availability</h3><p class="av-msg">Enter your name above to add your availability.</p></div>`;
   let body;
   if(state.ideaAvailError) body = `<p class="av-msg" style="color:#c00;">${escapeCm(state.ideaAvailError)}</p>`;
   else if(!state.ideaAvail && state.ideaAvailLoading) body = `<p class="av-msg">Loading your availability…</p>`;
   else if(state.iavEditing) body = `
-    <button type="button" class="iav-done-btn" id="iavDoneBtn">✓ Done editing</button>
+    ${iavUnsetReminderHtml()}
+    <button type="button" class="iav-done-btn" id="iavDoneBtn">${state.iavUnsetWarned ? 'Done anyway' : '✓ Done editing'}</button>
     <div class="iav-grid-rows" id="iavGridBox">${iavGridRowsHtml(true)}</div>
-    <p class="ideas-hint">Tap or drag across a row to mark <strong>Morning</strong> (${IAV_RANGES.morning}), <strong>Afternoon</strong> (${IAV_RANGES.afternoon}) or <strong>Evening</strong> (${IAV_RANGES.evening}). Tap a day's bottom button to cycle: ✓ available all day (green) → ✕ busy all day (red) → clear.</p>`;
+    ${iavLegendHtml()}
+    <p class="ideas-hint">Tap a slot to cycle <strong style="color:#2a7a4a;">green</strong> (preferred) → <strong style="color:#b3261e;">red</strong> (can't) → <strong style="color:#a8851f;">yellow</strong> (not filled). Swipe across a row to paint it. <strong>Morning</strong> (${IAV_RANGES.morning}), <strong>Afternoon</strong> (${IAV_RANGES.afternoon}) or <strong>Evening</strong> (${IAV_RANGES.evening}). Tap a day's bottom button to set the whole day: green → red → not filled.</p>`;
   else body = `
     <button type="button" class="iav-edit-btn" id="iavEditBtn" style="margin:0 0 10px;">✏️ Edit my availability</button>
-    <div class="iav-grid-rows">${iavGridRowsHtml(false)}</div>`;
+    <div class="iav-grid-rows">${iavGridRowsHtml(false)}</div>
+    ${iavLegendHtml()}`;
   return `<div class="iav-wrap">
     <h3 class="iav-title">🗓️ Add your availability</h3>
     <p class="ideas-hint" style="margin-top:-6px;">This is your one general availability — the same everywhere, not a separate one per club.</p>
@@ -5453,9 +5483,9 @@ function iavOneGridHtml(dates, todayStr, editable){
     html += `<div class="iav-rowlabel">${label}</div>`;
     html += dates.map(d => {
       if(!iavPartsFor(d).includes(key)) return `<div class="iav-cell iav-na" aria-hidden="true"></div>`;
-      const cls = iavDayBusy(d) ? 'iav-busy' : iavDayFull(d) ? 'iav-full' : (iavPartOn(d, key) ? 'on iav-c-' + key : '');
+      const cls = iavCellClass(d, key);
       const type = editable ? ' type="button"' : '';
-      return `<${tag}${type} class="iav-cell ${cls}${editable ? '' : ' iav-readonly'}" data-date="${d}" data-part="${key}" aria-label="${label}, ${d}${iavPartOn(d,key)||iavDayFull(d)?', available':''}"></${tag}>`;
+      return `<${tag}${type} class="iav-cell ${cls}${editable ? '' : ' iav-readonly'}" data-date="${d}" data-part="${key}" aria-label="${label}, ${d}, ${({yes:'preferred',no:'not available',unset:'not filled (counts as available)'})[iavSlotState(d,key)]}"></${tag}>`;
     }).join('');
   });
   html += '<div class="iav-rowlabel">All day</div>';
@@ -5499,6 +5529,8 @@ async function ideaAvailLoad(){
   try {
     const data = await cmApiRaw('/api/idea-availability', { headers: ideaHeaders() });
     state.ideaAvail = data.days || {};
+    state.ideaAvailNo = data.no || {};
+    state.ideaAvailSubmitted = !!data.submitted;
     state.ideaAvailLoadedFor = true;
     state.ideaAvailDirty = false;
   } catch(err){ state.ideaAvailError = err.message; }
@@ -5509,14 +5541,16 @@ async function ideaAvailSave(){
   clearTimeout(iavSaveTimer);
   if(!state.ideaAvailDirty) return;
   if(state.ideaAvailSaving){ state.ideaAvailResave = true; return; }
-  const snapshot = JSON.stringify(state.ideaAvail || {});
+  const snap = () => JSON.stringify({ days: state.ideaAvail || {}, no: state.ideaAvailNo || {} });
+  const snapshot = snap();
   state.ideaAvailSaving = true;
   iavSetStatus('Saving…');
   try {
     await cmApiRaw('/api/idea-availability', {
-      method:'PUT', headers: ideaHeaders(), body: JSON.stringify({ days: JSON.parse(snapshot) })
+      method:'PUT', headers: ideaHeaders(), body: snapshot
     });
-    if(JSON.stringify(state.ideaAvail || {}) === snapshot){ state.ideaAvailDirty = false; iavSetStatus('Saved ✓'); everyoneAvailLoad(true); }
+    state.ideaAvailSubmitted = true;
+    if(snap() === snapshot){ state.ideaAvailDirty = false; iavSetStatus('Saved ✓'); everyoneAvailLoad(true); }
     else state.ideaAvailResave = true;
   } catch(err){
     iavSetStatus('Couldn’t save (' + err.message + ').');
@@ -5565,19 +5599,22 @@ function eavGridHtml(){
   }).join('');
 }
 function eavBestWorstHtml(){
-  const counts = state.ideaAvailAll || {};
+  const avail = state.ideaAvailAll || {}, pref = state.ideaAvailAllPreferred || {}, no = state.ideaAvailAllUnavailable || {};
+  const get = (m, d, k) => (m[d] && m[d][k]) || 0;
   const slots = [];
   iavNext15Dates().forEach(d => iavPartsFor(d).forEach(k => {
     const dt = new Date(d + 'T12:00:00');
-    slots.push({ n: (counts[d] && counts[d][k]) || 0, d, label: `${dayLabelsShort[dt.getDay()]} ${monthNames[dt.getMonth()].slice(0,3)} ${dt.getDate()} ${k}` });
+    slots.push({ d, a: get(avail, d, k), p: get(pref, d, k), x: get(no, d, k), label: `${dayLabelsShort[dt.getDay()]} ${monthNames[dt.getMonth()].slice(0,3)} ${dt.getDate()} ${k}` });
   }));
   if(!slots.length || !state.ideaAvailAllRespondents) return '';
-  const fmt = list => list.map(x => `<strong>${escapeCm(x.label)}</strong> (${x.n} free)`).join(' · ');
-  const best = slots.slice().sort((a, b) => b.n - a.n || a.d.localeCompare(b.d)).slice(0, 3);
-  const worst = slots.slice().sort((a, b) => a.n - b.n || a.d.localeCompare(b.d)).slice(0, 3);
+  // best = most people available, then most who PREFER it; worst = fewest available, then most who can't.
+  const best = slots.slice().sort((a, b) => b.a - a.a || b.p - a.p || a.d.localeCompare(b.d)).slice(0, 3);
+  const worst = slots.slice().sort((a, b) => a.a - b.a || b.x - a.x || a.d.localeCompare(b.d)).slice(0, 3);
+  const fb = list => list.map(x => `<strong>${escapeCm(x.label)}</strong> (${x.a} available${x.p ? `, ${x.p} preferred` : ''})`).join(' · ');
+  const fw = list => list.map(x => `<strong>${escapeCm(x.label)}</strong> (${x.a} available${x.x ? `, ${x.x} can't` : ''})`).join(' · ');
   return `<div style="margin:6px 0 10px;padding:12px 14px;border-radius:12px;background:#f2d8d7;color:#76220b;font-size:14px;line-height:1.55;">
-    <div>🌟 <strong>Best timing for everyone:</strong> ${fmt(best)}</div>
-    <div style="margin-top:6px;">⚠️ <strong>Worst timing for everyone:</strong> ${fmt(worst)}</div></div>`;
+    <div>🌟 <strong>Best timing for everyone:</strong> ${fb(best)}</div>
+    <div style="margin-top:6px;">⚠️ <strong>Worst timing for everyone:</strong> ${fw(worst)}</div></div>`;
 }
 function everyoneAvailSectionHtml(me){
   if(!me) return '';
@@ -5588,7 +5625,7 @@ function everyoneAvailSectionHtml(me){
   else if(!state.ideaAvailAll) body = '';
   else body = `${eavBestWorstHtml()}${eavGridHtml()}
     <div class="eav-legend"><span><i class="eav-sw eav-sw-0"></i>Nobody</span><span><i class="eav-sw eav-sw-mid"></i>A few people</span><span><i class="eav-sw eav-sw-max"></i>Most people</span></div>
-    <p class="ideas-hint">${state.ideaAvailAllRespondents} ${state.ideaAvailAllRespondents === 1 ? 'person has' : 'people have'} added their availability so far. Darker green = more people free then.${state.ideaAvailAllPeople ? ' Tap a square to see who by name.' : ''}</p>`;
+    <p class="ideas-hint">${state.ideaAvailAllRespondents} ${state.ideaAvailAllRespondents === 1 ? 'person has' : 'people have'} added their availability so far. Darker green = more people available then (anything not marked red counts as available).${state.ideaAvailAllPeople ? ' Tap a square to see who by name.' : ''}</p>`;
   return `<div class="iav-wrap">
     <h3 class="iav-title">🌿 Everyone's availability</h3>
     ${body}
@@ -5603,6 +5640,8 @@ async function everyoneAvailLoad(force){
   try {
     const data = await cmApiRaw('/api/idea-availability/all', { headers: ideaHeaders() });
     state.ideaAvailAll = data.counts || {};
+    state.ideaAvailAllPreferred = data.preferred || {};
+    state.ideaAvailAllUnavailable = data.unavailable || {};
     state.ideaAvailAllRespondents = data.respondents || 0;
     state.ideaAvailAllLoadedFor = true;
     // Any signed-in member (or the site admin) also gets everyone's name, not just the anonymous count,
@@ -5612,15 +5651,17 @@ async function everyoneAvailLoad(force){
   state.ideaAvailAllLoading = false;
   if(state.tab === 'clubideas' || state.tab === 'clubs') render();
 }
+// Names for one slot: PREFERRED (green) and AVAILABLE (didn't fill it in — counts as free, just not their preferred
+// time). People who marked it red are left out.
 function eavNamesFor(date, part){
-  const people = state.ideaAvailAllPeople || [];
-  const names = [];
-  people.forEach(p => {
-    const v = p.days && p.days[date];
-    const has = v === 'busy' ? false : Array.isArray(v) && v.includes(part);
-    if(has) names.push(p.name);
+  const inWindow = iavNext15Dates().includes(date);
+  const preferred = [], available = [];
+  (state.ideaAvailAllPeople || []).forEach(p => {
+    if(((p.no || {})[date] || []).includes(part)) return;
+    if(((p.days || {})[date] || []).includes(part)) preferred.push(p.name);
+    else if(inWindow) available.push(p.name);
   });
-  return names;
+  return { preferred, available };
 }
 function wireEveryoneAvailGrid(){
   if(state.ideaAvailAll === null && !state.ideaAvailAllLoading && !state.ideaAvailAllError) everyoneAvailLoad();
@@ -5629,10 +5670,14 @@ function wireEveryoneAvailGrid(){
       const { date, part } = cell.dataset;
       const label = (IAV_PARTS.find(([k]) => k === part) || [null, part])[1];
       const dt = new Date(date + 'T00:00:00');
-      const names = eavNamesFor(date, part);
+      const { preferred, available } = eavNamesFor(date, part);
+      const chips = list => list.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('');
       ideaPopup(`
         <h3 style="margin:4px 0 8px;">${escapeCm(label)}, ${escapeCm(monthNames[dt.getMonth()])} ${dt.getDate()}</h3>
-        <div class="idea-pop-names">${names.length ? names.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('') : '<span class="av-msg">Nobody’s free then yet.</span>'}</div>
+        <p class="idea-pop-h">🟢 Preferred (${preferred.length})</p>
+        <div class="idea-pop-names">${preferred.length ? chips(preferred) : '<span class="av-msg">Nobody picked this as preferred.</span>'}</div>
+        <p class="idea-pop-h" style="margin-top:10px;">🟡 Also available — not their preferred time (${available.length})</p>
+        <div class="idea-pop-names">${available.length ? chips(available) : '<span class="av-msg">Nobody else.</span>'}</div>
       `);
     }));
   }
@@ -5646,9 +5691,17 @@ let iavDrag = null;
 function wireIdeaAvailGrid(){
   if(ideaMe() && state.ideaAvail === null && !state.ideaAvailLoadedFor && !state.ideaAvailLoading && !state.ideaAvailError) ideaAvailLoad();
   const editBtn = document.getElementById('iavEditBtn');
-  if(editBtn) editBtn.addEventListener('click', () => { state.iavEditing = true; render(); });
+  if(editBtn) editBtn.addEventListener('click', () => { state.iavEditing = true; state.iavUnsetWarned = false; render(); });
   const doneBtn = document.getElementById('iavDoneBtn');
-  if(doneBtn) doneBtn.addEventListener('click', () => { state.iavEditing = false; render(); });
+  if(doneBtn) doneBtn.addEventListener('click', () => {
+    // Empty slots are allowed, but remind once before submitting.
+    if(!state.iavUnsetWarned && iavUnsetSlots().length){ state.iavUnsetWarned = true; render(); return; }
+    state.iavUnsetWarned = false;
+    state.iavEditing = false;
+    if(!state.ideaAvailSubmitted) state.ideaAvailDirty = true; // submitting an all-empty grid still registers you as available
+    ideaAvailSave();
+    render();
+  });
   const box = document.getElementById('iavGridBox');
   if(!box) return;
   if(box.dataset.wired) return;
@@ -5661,7 +5714,7 @@ function wireIdeaAvailGrid(){
     document.querySelectorAll('#iavGridBox .iav-cell[data-date="' + date + '"]').forEach(c => {
       if(c.classList.contains('iav-na')) return;
       const k = c.dataset.part;
-      c.className = 'iav-cell ' + (iavDayBusy(date) ? 'iav-busy' : iavDayFull(date) ? 'iav-full' : (iavPartOn(date, k) ? 'on iav-c-' + k : ''));
+      c.className = 'iav-cell ' + iavCellClass(date, k);
     });
   };
   box.addEventListener('pointerdown', e => {
@@ -5679,9 +5732,9 @@ function wireIdeaAvailGrid(){
       return;
     }
     e.preventDefault();
-    const on = !(iavPartOn(cell.dataset.date, cell.dataset.part) || iavDayFull(cell.dataset.date));
-    iavDrag = { on };
-    iavSetPart(cell.dataset.date, cell.dataset.part, on);
+    const st = iavNextState(iavSlotState(cell.dataset.date, cell.dataset.part));
+    iavDrag = { st };
+    iavSetSlot(cell.dataset.date, cell.dataset.part, st);
     renderIavGridInner();
     ideaAvailScheduleSave();
   });
@@ -5692,16 +5745,15 @@ function wireIdeaAvailGrid(){
         if(Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.3){
           iavTouch.painting = true;
           const c0 = iavTouch.cell;
-          iavTouch.on = !(iavPartOn(c0.dataset.date, c0.dataset.part) || iavDayFull(c0.dataset.date));
-          iavSetPart(c0.dataset.date, c0.dataset.part, iavTouch.on);
+          iavTouch.st = iavNextState(iavSlotState(c0.dataset.date, c0.dataset.part));
+          iavSetSlot(c0.dataset.date, c0.dataset.part, iavTouch.st);
           iavRefreshDateDom(c0.dataset.date);
         } else if(Math.abs(dy) > 10) iavTouch.scrolled = true;
       }
       if(iavTouch && iavTouch.painting){
         const cell = iavCellFromPoint(e.clientX, e.clientY);
         if(cell && !cell.classList.contains('iav-na') && document.getElementById('iavGridBox') && document.getElementById('iavGridBox').contains(cell)){
-          const already = iavPartOn(cell.dataset.date, cell.dataset.part) || (iavTouch.on && iavDayFull(cell.dataset.date));
-          if(already !== iavTouch.on){ iavSetPart(cell.dataset.date, cell.dataset.part, iavTouch.on); iavRefreshDateDom(cell.dataset.date); }
+          if(iavSlotState(cell.dataset.date, cell.dataset.part) !== iavTouch.st){ iavSetSlot(cell.dataset.date, cell.dataset.part, iavTouch.st); iavRefreshDateDom(cell.dataset.date); }
         }
       }
       return;
@@ -5709,9 +5761,8 @@ function wireIdeaAvailGrid(){
     if(!iavDrag) return;
     const cell = iavCellFromPoint(e.clientX, e.clientY);
     if(!cell || cell.classList.contains('iav-na') || !document.getElementById('iavGridBox') || !document.getElementById('iavGridBox').contains(cell)) return;
-    const already = iavPartOn(cell.dataset.date, cell.dataset.part) || (iavDrag.on && iavDayFull(cell.dataset.date));
-    if(already === iavDrag.on) return;
-    iavSetPart(cell.dataset.date, cell.dataset.part, iavDrag.on);
+    if(iavSlotState(cell.dataset.date, cell.dataset.part) === iavDrag.st) return;
+    iavSetSlot(cell.dataset.date, cell.dataset.part, iavDrag.st);
     renderIavGridInner();
     ideaAvailScheduleSave();
   });
@@ -5721,8 +5772,7 @@ function wireIdeaAvailGrid(){
       const t = iavTouch; iavTouch = null;
       if(t.painting){ renderIavGridInner(); ideaAvailScheduleSave(); }
       else if(!t.scrolled && Math.abs(e.clientX - t.x) < 10 && Math.abs(e.clientY - t.y) < 10 && document.body.contains(t.cell)){
-        const on = !(iavPartOn(t.cell.dataset.date, t.cell.dataset.part) || iavDayFull(t.cell.dataset.date));
-        iavSetPart(t.cell.dataset.date, t.cell.dataset.part, on);
+        iavSetSlot(t.cell.dataset.date, t.cell.dataset.part, iavNextState(iavSlotState(t.cell.dataset.date, t.cell.dataset.part)));
         renderIavGridInner();
         ideaAvailScheduleSave();
       }
@@ -7098,7 +7148,8 @@ function admAvailCalendarHtml(){
     const outline = admAvail.day === key ? 'outline:3px solid #76220b;outline-offset:-3px;' : '';
     let inner;
     if(sel){
-      inner = any ? `<div style="display:flex;flex-direction:column;gap:2px;margin-top:4px;">${ADM_PARTS.map(([id,, L]) => `<span style="font-size:10px;font-weight:700;border-radius:4px;padding:1px 0;text-align:center;${per[id] ? 'background:#76220b;color:#fff;' : 'background:#0000000d;color:#0004;'}">${L}</span>`).join('')}</div>` : '';
+      const noParts = (sel.no || {})[key] || [];
+      inner = (any || noParts.length) ? `<div style="display:flex;flex-direction:column;gap:2px;margin-top:4px;">${ADM_PARTS.filter(([id]) => id !== 'morning' || [0,6].includes(new Date(key + 'T12:00:00').getDay())).map(([id,, L]) => `<span style="font-size:10px;font-weight:700;border-radius:4px;padding:1px 0;text-align:center;${per[id] ? 'background:#2a7a4a;color:#fff;' : noParts.includes(id) ? 'background:#d9534f;color:#fff;' : 'background:#fff3cf;color:#a8851f;'}">${L}</span>`).join('')}</div>` : '';
     } else {
       inner = any ? `<div style="font-size:17px;font-weight:800;color:#76220b;line-height:1.1;margin-top:2px;">${any}</div><div style="font-size:10px;color:#76220b;">M${per.morning} A${per.afternoon} E${per.evening}</div>` : '';
     }
@@ -7122,7 +7173,7 @@ function admAvailCalendarHtml(){
       ${navBtn('admAvPrev', '‹', atMin)}<strong style="font-size:20px;color:#76220b;">${escapeCm(monthName)}</strong>${navBtn('admAvNext', '›', atMax)}
     </div>
     <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;">${heads}${cells}</div>
-    <p class="ideas-hint" style="margin-top:8px;text-align:left;">${sel ? 'M / A / E = morning / afternoon / evening they\'re free.' : 'Big number = people free that day (darker = more). M / A / E = people free in the morning / afternoon / evening. Tap a day for names.'}</p>
+    <p class="ideas-hint" style="margin-top:8px;text-align:left;">${sel ? 'Green = preferred, red = can\'t, yellow = not filled (counts as available). M / A / E = morning / afternoon / evening.' : 'Big number = people free that day (darker = more). M / A / E = people free in the morning / afternoon / evening. Tap a day for names.'}</p>
     ${detail}`;
 }
 function admAvailSectionHtml(){

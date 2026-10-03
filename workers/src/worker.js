@@ -332,33 +332,43 @@ const ideaAvailKey = (personId) => `ideaavail:${personId}`;
 // overview can show WHO is free, not just a count — a guest's name only ever otherwise exists in their own
 // browser's localStorage, never server-side, so it has to be captured at save time).
 const parseIdeaAvailDoc = (raw) => {
-  if (!raw) return { name: "", days: {} };
+  const empty = { name: "", days: {}, no: {}, submitted: false };
+  if (!raw) return empty;
   let parsed;
-  try { parsed = JSON.parse(raw); } catch { return { name: "", days: {} }; }
-  if (parsed && typeof parsed === "object" && !Array.isArray(parsed) && parsed.days && typeof parsed.days === "object") {
-    return { name: String(parsed.name || ""), days: parsed.days };
+  try { parsed = JSON.parse(raw); } catch { return empty; }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return empty;
+  const isDoc = parsed.days && typeof parsed.days === "object";
+  const rawDays = isDoc ? parsed.days : parsed;
+  const out = { name: isDoc ? String(parsed.name || "") : "", days: {}, no: {}, submitted: isDoc || Object.keys(rawDays).length > 0 };
+  for (const [date, v] of Object.entries(rawDays)) {
+    if (v === "busy") out.no[date] = allowedAvailParts(date); // legacy whole-day "busy" = every slot red
+    else if (Array.isArray(v)) out.days[date] = v;
   }
-  return { name: "", days: (parsed && typeof parsed === "object") ? parsed : {} };
+  if (isDoc && parsed.no && typeof parsed.no === "object") for (const [date, v] of Object.entries(parsed.no)) if (Array.isArray(v)) out.no[date] = v;
+  return out;
 };
 const readIdeaAvailPeople = async (env) => {
   const list = await env.SITE_DATA.list({ prefix: `ideaavail:` });
   const people = [];
   for (const k of list.keys) {
     const personId = k.name.slice(`ideaavail:`.length);
-    const { name, days } = parseIdeaAvailDoc(await env.SITE_DATA.get(k.name));
-    if (!days || !Object.keys(days).length) continue;
+    const { name, days, no, submitted } = parseIdeaAvailDoc(await env.SITE_DATA.get(k.name));
+    // Anyone who submitted counts as a respondent - even with an empty grid (= available everywhere, no preferred times).
+    if (!submitted) continue;
     let resolvedName = name;
     if (!resolvedName && personId.startsWith("m:")) {
       const user = await readUser(env, personId.slice(2));
       resolvedName = user ? sanitizePersonName(user.name) : "";
     }
-    people.push({ id: personId, name: resolvedName || "Someone", days });
+    people.push({ id: personId, name: resolvedName || "Someone", days, no });
   }
   return people;
 };
 // Weekday mornings aren't offered (work/school) - mornings exist for Sat/Sun only.
 const isWeekendDate = (date) => { const d = new Date(date + "T12:00:00Z").getUTCDay(); return d === 0 || d === 6; };
 const allowedAvailParts = (date) => (isWeekendDate(date) ? IDEA_AVAIL_PARTS : IDEA_AVAIL_PARTS.filter((p) => p !== "morning"));
+// Per slot a person is GREEN (preferred = in `days`), RED (can't = in `no`) or unset (counts as available, just not
+// preferred). Returns {days, no}; a slot can never be both.
 const sanitizeIdeaAvailDays = (input) => {
   const out = {};
   if (!input || typeof input !== "object" || Array.isArray(input)) return out;
@@ -369,14 +379,28 @@ const sanitizeIdeaAvailDays = (input) => {
     if (Object.keys(out).length >= 60) break;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < minDate || date > maxDate) continue;
     if (Number.isNaN(Date.parse(date + "T00:00:00Z"))) continue;
-    if (val === "busy") { out[date] = "busy"; continue; }
     if (Array.isArray(val)) {
-      const allowed = allowedAvailParts(date);
-      const clean = allowed.filter((p) => val.includes(p));
+      const clean = allowedAvailParts(date).filter((p) => val.includes(p));
       if (clean.length) out[date] = clean;
     }
   }
   return out;
+};
+const sanitizeIdeaAvail = (body) => {
+  const raw = body && typeof body === "object" ? body : {};
+  const noInput = {};
+  const daysInput = {};
+  if (raw.days && typeof raw.days === "object" && !Array.isArray(raw.days)) {
+    for (const [d, v] of Object.entries(raw.days)) { if (v === "busy") noInput[d] = IDEA_AVAIL_PARTS; else daysInput[d] = v; }
+  }
+  if (raw.no && typeof raw.no === "object" && !Array.isArray(raw.no)) for (const [d, v] of Object.entries(raw.no)) noInput[d] = v;
+  const days = sanitizeIdeaAvailDays(daysInput);
+  const no = sanitizeIdeaAvailDays(noInput);
+  for (const [d, parts] of Object.entries(no)) {
+    const rest = parts.filter((p) => !(days[d] || []).includes(p));
+    if (rest.length) no[d] = rest; else delete no[d];
+  }
+  return { days, no };
 };
 const readClubIdeas = async (env, clubId) => {
   const raw = await env.SITE_DATA.get(clubIdeasKey(clubId));
@@ -1040,23 +1064,28 @@ export default {
         }
         people = people.filter((p) => p.id === who.id || (p.id.startsWith("m:") && [...(peerClubs[p.id.slice(2)] || [])].some((c) => mine.has(c))));
       }
-      const counts = {};
-      let respondents = 0;
+      // counts = people AVAILABLE per slot (green + unset; red excluded), preferred = green only, unavailable = red.
+      // Unset slots only count inside the 15-day window the grid offers (today+4 ... +18).
+      const counts = {}, preferred = {}, unavailable = {};
+      const windowDates = [];
+      for (let i = 4; i < 19; i++) windowDates.push(new Date(Date.now() + i * 86400000).toISOString().slice(0, 10));
+      const bump = (map, date, part) => { const slot = (map[date] = map[date] || { morning: 0, afternoon: 0, evening: 0 }); slot[part]++; };
       for (const p of people) {
-        let hasAny = false;
-        for (const [date, v] of Object.entries(p.days)) {
-          const parts = Array.isArray(v) ? v : [];
-          if (!parts.length) continue;
-          hasAny = true;
-          const slot = (counts[date] = counts[date] || { morning: 0, afternoon: 0, evening: 0 });
-          for (const part of parts) if (slot[part] !== undefined && allowedAvailParts(date).includes(part)) slot[part]++;
+        const dates = new Set([...windowDates, ...Object.keys(p.days), ...Object.keys(p.no)]);
+        for (const date of dates) {
+          for (const part of allowedAvailParts(date)) {
+            const yes = (p.days[date] || []).includes(part), red = (p.no[date] || []).includes(part);
+            if (red) { bump(unavailable, date, part); continue; }
+            if (yes) bump(preferred, date, part);
+            if (yes || windowDates.includes(date)) bump(counts, date, part);
+          }
         }
-        if (hasAny) respondents++;
       }
+      const respondents = people.length;
       // Signed-in members (and the site admin) see who's free by name when they tap a square; a
       // name-only guest still only sees the anonymous counts/colour intensity.
       const showNames = !who.id.startsWith("g:");
-      return jsonResponse({ counts, respondents, ...(showNames ? { people } : {}) }, 200, corsHeaders);
+      return jsonResponse({ counts, preferred, unavailable, windowDates, respondents, ...(showNames ? { people } : {}) }, 200, corsHeaders);
     }
 
     const ideaAvailMatch = path.match(/^\/api\/idea-availability\/?$/);
@@ -1065,15 +1094,15 @@ export default {
       if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
       const key = ideaAvailKey(who.id);
       if (request.method === "GET") {
-        const { days } = parseIdeaAvailDoc(await env.SITE_DATA.get(key));
-        return jsonResponse({ days }, 200, corsHeaders);
+        const { days, no, submitted } = parseIdeaAvailDoc(await env.SITE_DATA.get(key));
+        return jsonResponse({ days, no, submitted }, 200, corsHeaders);
       }
       if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
       let body;
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
-      const days = sanitizeIdeaAvailDays(body.days);
-      await env.SITE_DATA.put(key, JSON.stringify({ name: who.name, days }));
-      return jsonResponse({ days }, 200, corsHeaders);
+      const { days, no } = sanitizeIdeaAvail(body);
+      await env.SITE_DATA.put(key, JSON.stringify({ name: who.name, days, no }));
+      return jsonResponse({ days, no, submitted: true }, 200, corsHeaders);
     }
 
     // ---- Signed-in members can browse every profile (names + clubs; never usernames or PINs) ----
