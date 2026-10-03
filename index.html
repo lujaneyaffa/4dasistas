@@ -2785,7 +2785,7 @@ el.innerHTML = `${getCmSession() ? '' : `${getLastLogin() ? `<div style="text-al
         setTimeout(() => { const pin = document.getElementById('clubsLoginPin'); if(pin){ pin.scrollIntoView({ block:'center' }); pin.focus(); } }, 50);
       });
       const loginForgetBtn = document.getElementById('clubsLoginForgetBtn');
-      if(loginForgetBtn) loginForgetBtn.addEventListener('click', () => { try { localStorage.removeItem('lastLogin'); } catch {} state.clubsLoginPrefill = false; render(); });
+      if(loginForgetBtn) loginForgetBtn.addEventListener('click', () => { try { localStorage.removeItem('lastLogin2'); } catch {} state.clubsLoginPrefill = false; render(); });
       const loginSubmitBtn = document.getElementById('clubsLoginSubmitBtn');
       if(loginSubmitBtn) loginSubmitBtn.addEventListener('click', cmGeneralLogin);
       document.querySelectorAll('.clubs-my-club-btn').forEach(btn => {
@@ -4576,11 +4576,21 @@ function getCmSession(){
 }
 function setCmSession(session){
   localStorage.setItem(cmSessionKey(), JSON.stringify(session));
-  // Remember WHO last signed in on this browser (name + username only, never the PIN or token) so the
-  // login screen can offer a one-tap "Log in as …" that only needs the PIN.
-  try { if(session && session.username) localStorage.setItem('lastLogin', JSON.stringify({ name: session.name || '', username: session.username })); } catch {}
 }
-function getLastLogin(){ try { const l = JSON.parse(localStorage.getItem('lastLogin') || 'null'); return l && l.username ? l : null; } catch { return null; } }
+// "Log in as <name>" is remembered ONLY when someone deliberately logs out on this device (see cmMemberSignOut) —
+// never at sign-up/login, so test or throwaway accounts can't linger on the public page. Name + username only
+// (never the PIN or token), expires after 30 days, and uses a new storage key so older saved entries are ignored.
+function rememberLastLogin(session){
+  try { if(session && session.username && session.name) localStorage.setItem('lastLogin2', JSON.stringify({ name: session.name, username: session.username, at: Date.now() })); } catch {}
+}
+function getLastLogin(){
+  try {
+    localStorage.removeItem('lastLogin'); // old key from an earlier version
+    const l = JSON.parse(localStorage.getItem('lastLogin2') || 'null');
+    if(!l || !l.username || !l.name || !l.at || Date.now() - l.at > 30 * 86400000){ localStorage.removeItem('lastLogin2'); return null; }
+    return l;
+  } catch { return null; }
+}
 function clearCmSession(){ localStorage.removeItem(cmSessionKey()); }
 
 function escapeCm(s){
@@ -4864,6 +4874,7 @@ function wireMembersDirectory(){
 
 async function cmMemberSignOut(){
   try { if(state.availDirty) await availSave(); } catch {}
+  rememberLastLogin(getCmSession());
   clearCmSession();
   state.myPending = []; state.meLoadedFor = null; state.meLoading = false;
   availReset();
