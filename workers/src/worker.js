@@ -708,10 +708,13 @@ export default {
 <meta name="description" content="${escapeHtml(meta.desc)}">
 <meta property="og:title" content="${escapeHtml(title)}">
 <meta property="og:description" content="${escapeHtml(meta.desc)}">
-<meta property="og:image" content="https://4dasistas.ca/assets/OFFICIAL%20LOGO.png">
+<meta property="og:image" content="https://4dasistas.ca/assets/og-4ds.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:url" content="${escapeHtml(pageUrl)}">
 <meta property="og:type" content="website">
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://4dasistas.ca/assets/og-4ds.png">
 <meta name="twitter:title" content="${escapeHtml(title)}">
 <meta name="twitter:description" content="${escapeHtml(meta.desc)}">
 <meta http-equiv="refresh" content="0; url=${escapeHtml(dest)}">
