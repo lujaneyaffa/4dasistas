@@ -333,6 +333,9 @@
 .clubs-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
 .clubs-grid-row{ display:flex; gap:14px; overflow-x:auto; padding-bottom:6px; -webkit-overflow-scrolling:touch; }
 .clubs-grid-row .club-card{ flex:0 0 200px; width:200px; }
+/* centre the row of cards on wide screens; auto margins (not justify-content:center) so a row that overflows on a phone still starts at the left edge and scrolls */
+.clubs-grid-row > :first-child{ margin-left:auto; }
+.clubs-grid-row > :last-child{ margin-right:auto; }
 .club-card .panel-top{ flex-direction:column; align-items:center; text-align:center; gap:8px; }
 .club-card .panel-top h4{ text-align:center; font-size:16px; }
 .club-card .monogram{ width:84px; height:84px; }
