@@ -8261,6 +8261,7 @@ function render(){
   if(isDirectory){
     document.getElementById('directory-view').style.display = 'block';
     renderDirectory();
+    addSubpageBackButton();
   } else if(state.view === 'list'){
     document.getElementById('list-view').style.display = 'block';
     document.getElementById('pagination').style.display = 'flex';
@@ -8464,9 +8465,31 @@ function syncToggleButtonClasses(){
 /* ============================================================
    EVENTS
    ============================================================ */
+
+// Every sub-page gets a "← Back" at the top (the club pages and Travel already have their own labelled ones). It returns
+// to the page you came from, or Home if you opened the link directly.
+const SUBPAGE_BACK_TABS = ['submitevent', 'submitresource', 'subscribe', 'homescreen', 'rules'];
+function addSubpageBackButton(){
+  const el = document.getElementById('directory-view');
+  if(!el || !SUBPAGE_BACK_TABS.includes(state.tab) || el.querySelector('.back-btn')) return;
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.className = 'back-btn'; btn.id = 'appBackBtn'; btn.textContent = '← Back';
+  btn.style.cssText = 'display:block;margin:4px 0 12px;';
+  btn.addEventListener('click', goBackOnePage);
+  el.insertBefore(btn, el.firstChild);
+}
+function goBackOnePage(){
+  const hist = state.tabHistory || [];
+  let prev = hist.pop();
+  while(prev && (prev === state.tab)) prev = hist.pop();
+  goToTab._noPush = true;
+  try { goToTab(prev || 'home'); } finally { goToTab._noPush = false; }
+}
+
 function goToTab(tabName){
   if(tabName === 'supportgroups'){ state.resourceFilter = 'mentalhealth'; state.resourcePage = 1; tabName = 'resources'; }
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
+  if(state.tab !== tabName && !goToTab._noPush){ (state.tabHistory = state.tabHistory || []).push(state.tab); if(state.tabHistory.length > 20) state.tabHistory.shift(); } // so 'Back' knows where you came from
   state.tab = tabName;
   if(tabName !== 'resources') state.returnTab = '';
   if(tabName === 'events'){
