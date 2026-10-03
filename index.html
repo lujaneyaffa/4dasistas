@@ -5244,10 +5244,14 @@ function renderPublicIdeasFeedHtml(title, hint, emptyMsg){
    ============================================================ */
 // "You're in!" / "not approved" messages from the admin, shown once and then cleared on the server.
 function showMemberNotices(notices, token){
-  const lines = notices.map(n => n.type === 'accepted'
+  const lines = notices.map(n => n.type === 'remind'
+    ? `<p style="margin:0 0 10px;font-size:16px;">📅 <strong>Please add your availability.</strong> It only takes a minute and helps us pick times that work for everyone. Anything you leave blank counts as "available, but not preferred".</p><button type="button" class="club-guide-btn" id="noticeAddAvail" style="width:100%;min-height:46px;background:#d9f0d8;text-align:center;margin-bottom:8px;">Add my availability</button>`
+    : n.type === 'accepted'
     ? `<p style="margin:0 0 10px;font-size:16px;">🎉 <strong>You're in!</strong> Your request to join <strong>${escapeCm(n.clubTitle)}</strong> was approved.</p>`
     : `<p style="margin:0 0 10px;font-size:16px;">Your request to join <strong>${escapeCm(n.clubTitle)}</strong> wasn't approved this time. Questions? Message an admin on Instagram.</p>`).join('');
-  ideaPopup(`<h3 style="margin:0 0 10px;">Update on your request</h3>${lines}`);
+  const pop = ideaPopup(`<h3 style="margin:0 0 10px;">${notices.some(n => n.type === 'remind') ? 'A quick reminder' : 'Update on your request'}</h3>${lines}`);
+  const addBtn = pop.wrap.querySelector('#noticeAddAvail');
+  if(addBtn) addBtn.addEventListener('click', () => { pop.close(); state.iavEditing = true; goToTab('clubs'); });
   fetch('/api/me/notices/ack', { method:'POST', headers:{ 'Authorization':'Bearer ' + token } }).catch(() => {});
 }
 async function refreshMe(){
@@ -7615,7 +7619,8 @@ function admAvailCalendarHtml(){
   const mfNow = missingFor(admAvail.club);
   const scopeName = admAvail.club === 'all' ? 'all clubs' : (clubsData.find(c => c.id === admAvail.club) || {}).title || 'this club';
   const missingBox = !mfNow ? '' : !mfNow.total ? `<div style="margin:0 0 12px;font-size:13px;color:#776867;">No members in ${escapeCm(scopeName)} yet.</div>` : mfNow.missing.length
-    ? `<div style="margin:0 0 12px;padding:12px 14px;border-radius:12px;background:#fff3cf;border:2px solid #e6cf86;color:#6b5210;font-size:14px;line-height:1.7;"><strong>⏳ Haven't added their availability yet — ${escapeCm(scopeName)} (${mfNow.missing.length} of ${mfNow.total}):</strong><br>${mfNow.missing.map(m => `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(m.id)}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button>`).join(' · ')}</div>`
+    ? `<div style="margin:0 0 12px;padding:12px 14px;border-radius:12px;background:#fff3cf;border:2px solid #e6cf86;color:#6b5210;font-size:14px;line-height:1.7;"><strong>⏳ Haven't added their availability yet — ${escapeCm(scopeName)} (${mfNow.missing.length} of ${mfNow.total}):</strong><br>${mfNow.missing.map(m => { const wa = admWhatsAppLink(m.phone, `Hi ${String(m.name || '').split(' ')[0]}! Quick reminder to add your availability on 4DASISTAS so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs`); return `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(m.id)}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button>${wa ? ` <a href="${escapeCm(wa)}" target="_blank" rel="noopener" title="Remind ${escapeCm(m.name)} on WhatsApp" style="text-decoration:none;">💬</a>` : ''}`; }).join(' · ')}
+      <div style="margin-top:10px;"><button type="button" id="admRemindAll" data-ids="${escapeCm(mfNow.missing.map(m => m.id).join(','))}" style="min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #6b5210;background:#fff;color:#6b5210;font-weight:700;font-size:14px;cursor:pointer;">🔔 Remind everyone in the app</button> <span id="admRemindMsg" style="font-size:13px;"></span></div></div>`
     : `<div style="margin:0 0 12px;padding:10px 14px;border-radius:12px;background:#d9f0d8;color:#2a7a4a;font-size:14px;">✅ Everyone in ${escapeCm(scopeName)} (${mfNow.total}) has added their availability.</div>`;
   const nameChips = people.length ? people.map(p => {
     const on = admAvail.person === p.id;
@@ -7680,6 +7685,17 @@ function admAvailWire(){
   box.querySelectorAll('.adm-person').forEach(b => b.addEventListener('click', () => { admAvail.person = admAvail.person === b.dataset.person ? null : b.dataset.person; admAvailRepaint(); }));
   box.querySelectorAll('.adm-day').forEach(b => b.addEventListener('click', () => { admAvail.day = admAvail.day === b.dataset.day ? null : b.dataset.day; admAvailRepaint(); }));
   box.querySelectorAll('.adm-cal-profile').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.uid)));
+  const remindAll = box.querySelector('#admRemindAll');
+  if(remindAll) remindAll.addEventListener('click', async () => {
+    const msg = box.querySelector('#admRemindMsg');
+    if(!confirm('Send a reminder to ' + remindAll.dataset.ids.split(',').length + ' people? They will see a pop-up the next time they open the app.')) return;
+    remindAll.disabled = true; msg.textContent = 'Sending…';
+    try {
+      const res = await fetch('/api/admin/remind-availability', { method:'POST', headers:{ 'Content-Type':'application/json' }, credentials:'include', body: JSON.stringify({ userIds: remindAll.dataset.ids.split(',') }) });
+      const d = await res.json(); if(!res.ok) throw new Error(d.error || 'Failed');
+      msg.style.color = '#2a7a4a'; msg.textContent = `✓ Reminder queued for ${d.reminded}${d.skipped ? ` (${d.skipped} already had one waiting)` : ''}.`;
+    } catch(err){ msg.style.color = '#c00'; msg.textContent = err.message; remindAll.disabled = false; }
+  });
   const prev = box.querySelector('#admAvPrev'), next = box.querySelector('#admAvNext');
   if(prev) prev.addEventListener('click', () => { if(admAvail.month > ADM_AVAIL_MIN_MONTH){ admAvail.month = admAvailShiftMonth(admAvail.month, -1); admAvail.day = null; admAvailRepaint(); } });
   if(next) next.addEventListener('click', () => { if(admAvail.month < ADM_AVAIL_MAX_MONTH){ admAvail.month = admAvailShiftMonth(admAvail.month, 1); admAvail.day = null; admAvailRepaint(); } });

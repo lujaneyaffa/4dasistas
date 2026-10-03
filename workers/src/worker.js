@@ -1530,7 +1530,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
 
     if (requiresAuth) {
       const token = getSessionToken(request);
@@ -1827,6 +1827,24 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         cursor = page.list_complete ? undefined : page.cursor;
       } while (cursor);
       return jsonResponse({ users: out }, 200, corsHeaders);
+    }
+    // Admin: nudge people to add their availability — they see a one-time pop-up next time they open the app.
+    if (path === "/api/admin/remind-availability" && request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const ids = [...new Set((Array.isArray(body.userIds) ? body.userIds : []).map(String))].slice(0, 500);
+      let reminded = 0;
+      for (const id of ids) {
+        if (!(await readUser(env, id))) continue;
+        const key = `notice:${id}`;
+        let list = [];
+        try { list = JSON.parse((await env.SITE_DATA.get(key)) || "[]"); } catch {}
+        if (list.some((n) => n.type === "remind")) continue; // one pending reminder is enough
+        list.push({ id: crypto.randomUUID(), type: "remind", at: Date.now() });
+        await env.SITE_DATA.put(key, JSON.stringify(list.slice(-10)));
+        reminded++;
+      }
+      return jsonResponse({ reminded, skipped: ids.length - reminded }, 200, corsHeaders);
     }
     // Admin: delete a whole profile (not just one club membership): memberships, join requests, availability, username.
     const adminUserDeleteMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/?$/);
