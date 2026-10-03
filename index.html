@@ -992,6 +992,7 @@
 <div class="subscribe-row" id="subscribeRow">
   <a class="subscribe-btn" id="subscribeBtn" href="#" data-goto-subscribe>📅 Subscribe to Calendar</a>
   <a class="subscribe-fallback" id="subscribeFallback" href="#" target="_blank" rel="noopener">or download the file directly</a>
+  <a class="subscribe-btn" id="submitEventBtn" href="#" style="background:#ce8491;margin-top:6px;">➕ Submit an event</a>
 </div>
 
 <p class="page-disclaimer" id="pageDisclaimer">Details change often, so always confirm dates, prices, locations, and any "hijab-off"/private-space claims directly with the organizer before attending.</p>
@@ -7831,6 +7832,11 @@ window.addEventListener('scroll', () => {
 document.getElementById('subscribeBtn').addEventListener('click', e => {
   e.preventDefault();
   goToTab('subscribe');
+});
+document.getElementById('submitEventBtn').addEventListener('click', e => {
+  e.preventDefault();
+  goToTab('subscribe');
+  setTimeout(() => { const f = document.getElementById('eventSubForm'); if(f) f.scrollIntoView({ block:'center', behavior:'smooth' }); }, 150);
 });
 document.getElementById('subscribeFallback').href = `https://${location.host}/calendar.ics`;
 
