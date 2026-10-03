@@ -5219,6 +5219,14 @@ function renderPublicIdeasFeedHtml(title, hint, emptyMsg){
    untouched. The cached session goes stale once an admin approves, so the Clubs
    tab re-reads GET /api/me (membership + pending requests) once per sign-in.
    ============================================================ */
+// "You're in!" / "not approved" messages from the admin, shown once and then cleared on the server.
+function showMemberNotices(notices, token){
+  const lines = notices.map(n => n.type === 'accepted'
+    ? `<p style="margin:0 0 10px;font-size:16px;">🎉 <strong>You're in!</strong> Your request to join <strong>${escapeCm(n.clubTitle)}</strong> was approved.</p>`
+    : `<p style="margin:0 0 10px;font-size:16px;">Your request to join <strong>${escapeCm(n.clubTitle)}</strong> wasn't approved this time. Questions? Message an admin on Instagram.</p>`).join('');
+  ideaPopup(`<h3 style="margin:0 0 10px;">Update on your request</h3>${lines}`);
+  fetch('/api/me/notices/ack', { method:'POST', headers:{ 'Authorization':'Bearer ' + token } }).catch(() => {});
+}
 async function refreshMe(){
   const session = getCmSession();
   if(!session || !session.token || state.meLoading) return;
@@ -5232,6 +5240,7 @@ async function refreshMe(){
     state.myPending = me.pending || [];
     setCmSession(Object.assign({}, cur, { clubs: me.clubs || [], waitlist: me.waitlist || [] }));
     if(changed) state.publicIdeasAll = null;
+    if(Array.isArray(me.notices) && me.notices.length) showMemberNotices(me.notices, cur.token);
   } catch(err){ /* e.g. expired session — keep what's cached, don't retry in a loop */ }
   state.meLoadedFor = session.token;
   state.meLoading = false;
@@ -6703,7 +6712,7 @@ async function cmAdminLoadAllMembers(){
 async function cmAdminLoadJoinRequests(){
   try {
     const res = await fetch('/api/admin/join-requests', { credentials:'include' });
-    state.cmAdminJoinRequests = res.ok ? ((await res.json()).requests || []) : [];
+    state.cmAdminJoinRequests = res.ok ? ((await res.json()).requests || []).filter(r => !admNotif.dismissed.has(`j:${r.clubId}:${r.userId}`)) : [];
   } catch { state.cmAdminJoinRequests = []; }
 }
 
@@ -6834,16 +6843,148 @@ function joinRequestsAdminHtml(){
       <span style="display:flex;gap:6px;"><button type="button" class="club-guide-btn join-req-accept" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:var(--lightblue);text-align:center;">Accept</button><button type="button" class="club-guide-btn join-req-decline" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:transparent;text-align:center;">Decline</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No pending requests.</p>'}
     <p id="joinReqAdminStatus" style="color:#c00;font-size:12px;margin:6px 0 0;"></p></div>`;
 }
-async function cmAdminAnswerJoinRequest(clubId, userId, action){
-  const st = document.getElementById('joinReqAdminStatus');
+// ---------------------------------------------------------------------------------------------------------
+// ADMIN NOTIFICATION CENTRE: a bell (red dot = things you haven't seen yet), a pop-up toast the moment a NEW
+// request / submission arrives, and a panel to act on everything. Polls every ~40s while you're logged in as admin.
+// ---------------------------------------------------------------------------------------------------------
+const admNotif = { timer:null, known:null, items:[], dismissed:new Set(), panel:null };
+function admSeenAt(){ try { return Number(localStorage.getItem('admNotifSeenAt') || 0); } catch { return 0; } }
+function admMarkSeen(){ try { localStorage.setItem('admNotifSeenAt', String(Date.now())); } catch {} admUpdateBell(); }
+function admWhatsAppLink(phone, text){
+  let d = String(phone || '').replace(/\D/g, '');
+  if(d.length === 10) d = '1' + d; // Canadian/US number without the country code
+  return d.length >= 11 ? `https://wa.me/${d}?text=${encodeURIComponent(text)}` : '';
+}
+function admToast(html, onClick){
+  let t = document.getElementById('admToast');
+  if(!t){
+    t = document.createElement('div'); t.id = 'admToast';
+    t.style.cssText = 'position:fixed;top:calc(12px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);max-width:min(92vw,460px);z-index:10001;background:#76220b;color:#fff;padding:12px 16px;border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.28);font-size:15px;line-height:1.4;cursor:pointer;';
+    document.body.appendChild(t);
+  }
+  t.innerHTML = html; t.style.display = 'block';
+  t.onclick = e => { if(e.target.closest('a')) return; t.style.display = 'none'; if(onClick) onClick(); };
+  clearTimeout(t._h); t._h = setTimeout(() => { t.style.display = 'none'; }, 14000);
+}
+function admUpdateBell(){
+  const bell = document.getElementById('admBell'); if(!bell) return;
+  const unseen = admNotif.items.filter(i => i.at > admSeenAt()).length;
+  const dot = bell.querySelector('.adm-dot');
+  dot.textContent = unseen > 9 ? '9+' : String(unseen); dot.style.display = unseen ? 'flex' : 'none';
+  const pending = admNotif.items.length;
+  bell.title = pending ? `${pending} waiting for you${unseen ? ` (${unseen} new)` : ''}` : 'Nothing waiting';
+}
+async function admNotifPoll(){
+  if(state.cmAdminLoggedIn !== true) return;
+  const get = async u => { try { const r = await fetch(u, { credentials:'include' }); return r.ok ? await r.json() : null; } catch { return null; } };
+  const [j, e, rs] = await Promise.all([get('/api/admin/join-requests'), get('/api/admin/event-suggestions'), get('/api/admin/resource-suggestions')]);
+  if(!j && !e && !rs) return;
+  const items = [];
+  ((j && j.requests) || []).forEach(r => items.push({ kind:'join', id:`j:${r.clubId}:${r.userId}`, at:r.at || 0, r }));
+  ((e && e.suggestions) || []).forEach(x => items.push({ kind:'event', id:`e:${x.id}`, at:x.at || 0, x }));
+  ((rs && rs.suggestions) || []).forEach(x => items.push({ kind:'resource', id:`r:${x.id}`, at:x.at || 0, x }));
+  const fresh = items.filter(i => !admNotif.dismissed.has(i.id)).sort((a, b) => b.at - a.at);
+  const firstPoll = admNotif.known === null;
+  const newOnes = firstPoll ? [] : fresh.filter(i => !admNotif.known.has(i.id));
+  admNotif.known = new Set(fresh.map(i => i.id));
+  admNotif.items = fresh;
+  // keep the Join requests card on the Clubs page in step (without yanking the page while you type)
+  if(j){
+    state.cmAdminJoinRequests = (j.requests || []).filter(r => !admNotif.dismissed.has(`j:${r.clubId}:${r.userId}`));
+    const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+    if(newOnes.some(i => i.kind === 'join') && state.tab === 'clubs' && !typing) render();
+  }
+  admUpdateBell();
+  if(admNotif.panel) admRenderPanel();
+  if(newOnes.length){
+    const i = newOnes[0];
+    const msg = i.kind === 'join' ? `🔔 <strong>${escapeCm(i.r.name)}</strong> just requested to join <strong>${escapeCm(i.r.clubTitle)}</strong>`
+      : i.kind === 'event' ? `🔔 New event submitted: <strong>${escapeCm(i.x.name)}</strong>` : `🔔 New resource submitted: <strong>${escapeCm(i.x.title)}</strong>`;
+    admToast(msg + (newOnes.length > 1 ? `<br><span style="opacity:.85">+ ${newOnes.length - 1} more</span>` : '') + '<br><span style="font-size:13px;opacity:.85">Tap to review</span>', admOpenPanel);
+  }
+}
+function admEnsureBell(){
+  const on = state.cmAdminLoggedIn === true;
+  let bell = document.getElementById('admBell');
+  if(!on){
+    if(bell) bell.remove();
+    clearInterval(admNotif.timer); admNotif.timer = null; admNotif.known = null; admNotif.items = [];
+    return;
+  }
+  if(!bell){
+    bell = document.createElement('button'); bell.id = 'admBell'; bell.type = 'button'; bell.setAttribute('aria-label', 'Notifications');
+    bell.style.cssText = 'position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:9500;width:56px;height:56px;border-radius:50%;border:2px solid #76220b;background:#ce8491;color:#fff;font-size:26px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25);';
+    bell.innerHTML = '🔔<span class="adm-dot" style="display:none;position:absolute;top:-4px;right:-4px;min-width:22px;height:22px;padding:0 5px;border-radius:11px;background:#d93025;color:#fff;font-size:12px;font-weight:800;align-items:center;justify-content:center;border:2px solid #fff;box-sizing:border-box;"></span>';
+    bell.addEventListener('click', admOpenPanel);
+    document.body.appendChild(bell);
+  }
+  if(!admNotif.timer){
+    admNotifPoll();
+    admNotif.timer = setInterval(() => { if(document.visibilityState === 'visible') admNotifPoll(); }, 40000);
+    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && state.cmAdminLoggedIn === true) admNotifPoll(); });
+  }
+}
+function admRenderPanel(){
+  const wrap = admNotif.panel; if(!wrap || !document.body.contains(wrap)){ admNotif.panel = null; return; }
+  const card = wrap.querySelector('.idea-pop-card');
+  const seen = admSeenAt();
+  const ago = ms => { const m = Math.floor((Date.now() - ms) / 60000); return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.floor(m / 60) + ' h ago' : Math.floor(m / 1440) + ' d ago'; };
+  const rows = admNotif.items.map(i => {
+    const isNew = i.at > admNotif.openedWithSeen;
+    const dot = isNew ? '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#d93025;margin-right:6px;"></span>' : '';
+    if(i.kind === 'join'){
+      const r = i.r;
+      return `<div style="padding:12px 0;border-top:1px solid #0001;">${dot}<button type="button" class="adm-profile-link" data-user-id="${escapeCm(r.userId)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(r.name)}</button> wants to join <strong>${escapeCm(r.clubTitle)}</strong> <span style="font-size:12px;color:var(--muted);">· ${ago(r.at)}</span>
+        <div style="display:flex;gap:8px;margin-top:8px;"><button type="button" class="club-guide-btn adm-join-act" data-act="accept" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="flex:1;padding:10px;background:#d9f0d8;text-align:center;">✅ Accept</button><button type="button" class="club-guide-btn adm-join-act" data-act="decline" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="flex:1;padding:10px;background:#f9dcdc;text-align:center;">❌ Decline</button></div></div>`;
+    }
+    const x = i.x, isEv = i.kind === 'event';
+    return `<div style="padding:12px 0;border-top:1px solid #0001;">${dot}<strong>${escapeCm(isEv ? x.name : x.title)}</strong> <span style="font-size:12px;color:var(--muted);">· ${isEv ? 'event' : 'resource'} · ${ago(x.at)}</span><br><span style="font-size:13px;color:var(--muted);">${isEv ? escapeCm(x.date + ' · ' + x.city) : escapeCm(x.city)}</span>
+      <div style="margin-top:8px;"><a class="club-guide-btn" href="${escapeCm(x.reviewUrl || '#')}" target="_blank" rel="noopener" style="padding:10px 16px;background:var(--lightblue);text-align:center;text-decoration:none;display:inline-block;">Review</a></div></div>`;
+  }).join('');
+  card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 4px;">🔔 Waiting for you</h3>
+    <p class="ideas-hint" style="margin:0 0 6px;text-align:left;">${admNotif.items.length ? 'Join requests and submitted events / resources.' : ''}</p>
+    ${rows || '<p class="av-msg">Nothing waiting — you\'re all caught up. 🎉</p>'}`;
+  card.querySelectorAll('.adm-profile-link').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.userId)));
+  card.querySelectorAll('.adm-join-act').forEach(b => b.addEventListener('click', () => { b.disabled = true; admAnswerJoin(b.dataset.clubId, b.dataset.userId, b.dataset.act); }));
+}
+function admOpenPanel(){
+  if(admNotif.panel && document.body.contains(admNotif.panel)) return;
+  admNotif.openedWithSeen = admSeenAt(); // anything newer than this still gets its red dot inside the panel
+  const { wrap } = ideaPopup('<p class="av-msg">Loading…</p>');
+  admNotif.panel = wrap;
+  const obs = new MutationObserver(() => { if(!document.body.contains(wrap)){ admNotif.panel = null; obs.disconnect(); } });
+  obs.observe(document.body, { childList:true });
+  admMarkSeen(); // opening it = seen: the bell's red dot clears
+  admRenderPanel();
+}
+// Accept / decline a join request. The row disappears IMMEDIATELY (the server's list can lag ~a minute, so we keep
+// our own "already handled" list instead of re-reading it), and if the person left a phone number you get a
+// one-tap WhatsApp message to tell them.
+async function admAnswerJoin(clubId, userId, action){
+  const id = `j:${clubId}:${userId}`;
+  const req = (admNotif.items.find(i => i.id === id) || {}).r || (state.cmAdminJoinRequests || []).find(r => r.clubId === clubId && r.userId === userId);
   try {
     const res = await fetch('/api/admin/join-requests/' + encodeURIComponent(clubId) + '/' + encodeURIComponent(userId) + '/' + action, { method:'POST', credentials:'include' });
     const data = await res.json().catch(() => ({}));
-    if(!res.ok) throw new Error(data.error || 'Could not update that request');
-    await cmAdminLoadAllMembers();
-    render();
-  } catch(err){ if(st) st.textContent = err.message; }
+    if(!res.ok && res.status !== 404) throw new Error(data.error || 'Could not update that request');
+    admNotif.dismissed.add(id);
+    admNotif.items = admNotif.items.filter(i => i.id !== id);
+    state.cmAdminJoinRequests = (state.cmAdminJoinRequests || []).filter(r => !(r.clubId === clubId && r.userId === userId));
+    admUpdateBell(); if(admNotif.panel) admRenderPanel();
+    if(state.tab === 'clubs') render();
+    if(action === 'accept'){ admAvail.people = null; cmAdminLoadAllMembers().then(() => { const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName); if(state.tab === 'clubs' && !typing) render(); }); }
+    const first = req ? String(req.name || '').split(' ')[0] : 'her';
+    const wa = req ? admWhatsAppLink(req.phone, action === 'accept'
+      ? `Hi ${first}! You've been accepted into the ${req.clubTitle} club on 4DASISTAS 🎉 Open the app to see it.`
+      : `Hi ${first}, thanks for requesting the ${req.clubTitle} club on 4DASISTAS. We couldn't approve it this time — message us if you have questions.`) : '';
+    admToast(`${action === 'accept' ? '✅ Accepted' : '❌ Declined'}${req ? ' · ' + escapeCm(req.name) : ''} — they'll see a notice next time they open the app.${wa ? `<br><a href="${escapeCm(wa)}" target="_blank" rel="noopener" style="color:#ffd9d9;font-weight:700;">💬 Also tell ${escapeCm(first)} on WhatsApp</a>` : ''}`);
+  } catch(err){
+    const st = document.getElementById('joinReqAdminStatus'); if(st) st.textContent = err.message;
+    admToast('⚠️ ' + escapeCm(err.message));
+    if(admNotif.panel) admRenderPanel();
+  }
 }
+async function cmAdminAnswerJoinRequest(clubId, userId, action){ return admAnswerJoin(clubId, userId, action); }
 
 async function cmAdminSelectClub(clubId){
   state.cmAdminClub = clubId;
@@ -7356,11 +7497,28 @@ function admAvailCalendarHtml(){
   const monthName = first.toLocaleString('en-CA', { month:'long', year:'numeric' });
   const pad = n => String(n).padStart(2, '0');
   const scope = sel ? [sel] : people;
+  // Who still hasn't added any availability, per club (members of the club who have no availability record yet).
+  const haveAvail = new Set((admAvail.people || []).map(p => p.id));
+  const allMembers = state.cmAdminAllMembers;
+  const missingFor = clubId => {
+    if(!allMembers) return null;
+    const seen = new Map();
+    Object.keys(allMembers).forEach(cid => { if(clubId === 'all' || clubId === cid) (allMembers[cid] || []).forEach(m => { if(!seen.has(m.id)) seen.set(m.id, m); }); });
+    const total = seen.size;
+    return { total, missing: [...seen.values()].filter(m => !haveAvail.has('m:' + m.id)).sort((a, b) => (a.name || '').localeCompare(b.name || '')) };
+  };
   const clubChips = [['all', 'All clubs']].concat(clubsData.map(c => [c.id, c.title])).map(([id, title]) => {
     const col = id === 'all' ? { bg:'#f2d8d7', fg:'#76220b' } : clubCol(id);
     const on = admAvail.club === id;
-    return `<button type="button" class="adm-club" data-club="${escapeCm(id)}" style="padding:7px 14px;border-radius:999px;border:2px solid ${on ? col.fg : 'transparent'};background:${col.bg};color:${col.fg};font-weight:700;font-size:13px;cursor:pointer;min-height:36px;">${escapeCm(title)}</button>`;
+    const mf = missingFor(id);
+    const badge = mf && mf.missing.length ? ` <span style="background:#d93025;color:#fff;border-radius:999px;padding:1px 7px;font-size:11px;margin-left:4px;">${mf.missing.length}</span>` : '';
+    return `<button type="button" class="adm-club" data-club="${escapeCm(id)}" style="padding:7px 14px;border-radius:999px;border:2px solid ${on ? col.fg : 'transparent'};background:${col.bg};color:${col.fg};font-weight:700;font-size:13px;cursor:pointer;min-height:36px;">${escapeCm(title)}${badge}</button>`;
   }).join('');
+  const mfNow = missingFor(admAvail.club);
+  const scopeName = admAvail.club === 'all' ? 'all clubs' : (clubsData.find(c => c.id === admAvail.club) || {}).title || 'this club';
+  const missingBox = !mfNow ? '' : !mfNow.total ? `<div style="margin:0 0 12px;font-size:13px;color:#776867;">No members in ${escapeCm(scopeName)} yet.</div>` : mfNow.missing.length
+    ? `<div style="margin:0 0 12px;padding:12px 14px;border-radius:12px;background:#fff3cf;border:2px solid #e6cf86;color:#6b5210;font-size:14px;line-height:1.7;"><strong>⏳ Haven't added their availability yet — ${escapeCm(scopeName)} (${mfNow.missing.length} of ${mfNow.total}):</strong><br>${mfNow.missing.map(m => `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(m.id)}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button>`).join(' · ')}</div>`
+    : `<div style="margin:0 0 12px;padding:10px 14px;border-radius:12px;background:#d9f0d8;color:#2a7a4a;font-size:14px;">✅ Everyone in ${escapeCm(scopeName)} (${mfNow.total}) has added their availability.</div>`;
   const nameChips = people.length ? people.map(p => {
     const on = admAvail.person === p.id;
     return `<button type="button" class="adm-person" data-person="${escapeCm(p.id)}" style="padding:6px 12px;border-radius:999px;border:2px solid #ce8491;background:${on ? '#ce8491' : '#fef7f4'};color:${on ? '#fff' : '#76220b'};font-size:13px;font-weight:600;cursor:pointer;min-height:34px;">${escapeCm(p.name)}</button>`;
@@ -7397,6 +7555,7 @@ function admAvailCalendarHtml(){
   const navBtn = (id, label, disabled) => `<button type="button" id="${id}" ${disabled ? 'disabled' : ''} aria-label="${label === '‹' ? 'Previous month' : 'Next month'}" style="width:44px;height:44px;border-radius:50%;border:2px solid #76220b;background:#fef7f4;color:#76220b;font-size:22px;cursor:pointer;${disabled ? 'opacity:.3;cursor:default;' : ''}">${label}</button>`;
   return `
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">${clubChips}</div>
+    ${missingBox}
     <p class="ideas-hint" style="margin:0 0 6px;text-align:left;">${sel ? `Showing only <strong>${escapeCm(sel.name)}</strong> — tap their name again to see everyone.` : `Tap a name to see only their availability. ${people.length} ${people.length === 1 ? 'person' : 'people'} shown.`}</p>
     ${sel && sel.id.startsWith('m:') ? `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(sel.id.slice(2))}" style="margin:0 0 10px;min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #76220b;background:#fef7f4;color:#76220b;font-weight:700;font-size:14px;cursor:pointer;">👤 View ${escapeCm(sel.name)}'s profile</button>` : ''}
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">${nameChips}</div>
@@ -7506,6 +7665,7 @@ function renderFooterLogout(){
 }
 
 function renderFooterAdmin(){
+  admEnsureBell();
   const btn = document.getElementById('footerAdminBtn');
   if(!btn) return;
   btn.textContent = state.cmAdminLoggedIn ? '🔒 Admin: Log Out' : '🔒 Admin Login';

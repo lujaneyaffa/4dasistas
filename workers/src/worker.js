@@ -1314,7 +1314,15 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       // "last active" for the admin profile view — written at most once an hour per person (KV writes are limited)
       if (!me.lastSeenAt || Date.now() - me.lastSeenAt > 3600000) { me.lastSeenAt = Date.now(); await writeUser(env, me); }
       const clubs = await allClubIdsContaining(env, me.id);
-      return jsonResponse({ ...publicUser(me), clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs) }, 200, corsHeaders);
+      let notices = [];
+      try { notices = JSON.parse((await env.SITE_DATA.get(`notice:${me.id}`)) || "[]"); } catch {}
+      return jsonResponse({ ...publicUser(me), clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs), notices }, 200, corsHeaders);
+    }
+    if (path === "/api/me/notices/ack" && request.method === "POST") {
+      const meId = await memberIdFromRequest();
+      if (!meId) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      await env.SITE_DATA.delete(`notice:${meId}`);
+      return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     const joinReqMatch = path.match(/^\/api\/clubs\/([^/]+)\/join-request\/?$/);
     if (joinReqMatch && request.method === "POST") {
@@ -1656,7 +1664,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       for (const r of (await listJoinRequests(env)).sort((a, b) => a.at - b.at)) {
         const user = await readUser(env, r.userId);
         if (!user) continue;
-        out.push({ clubId: r.clubId, clubTitle: (roster.find((c) => c.id === r.clubId) || {}).title || r.clubId, userId: r.userId, name: user.name, username: user.username, at: r.at });
+        out.push({ clubId: r.clubId, clubTitle: (roster.find((c) => c.id === r.clubId) || {}).title || r.clubId, userId: r.userId, name: user.name, username: user.username, phone: user.phone || "", at: r.at });
       }
       return jsonResponse({ requests: out }, 200, corsHeaders);
     }
@@ -1673,6 +1681,14 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!ids.includes(userId)) { ids.push(userId); await writeClubMemberIds(env, clubId, ids); }
       }
       await env.SITE_DATA.delete(key);
+      // Tell the member next time they open the app (shown once, then cleared): accepted or not approved.
+      try {
+        const noticeKey = `notice:${userId}`;
+        const existing = JSON.parse((await env.SITE_DATA.get(noticeKey)) || "[]");
+        const clubTitle = ((await readClubRoster(env)).find((c) => c.id === clubId) || {}).title || "the club";
+        existing.push({ id: crypto.randomUUID(), type: adminJoinActionMatch[3] === "accept" ? "accepted" : "declined", clubId, clubTitle, at: Date.now() });
+        await env.SITE_DATA.put(noticeKey, JSON.stringify(existing.slice(-10)));
+      } catch {}
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
 
