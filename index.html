@@ -887,23 +887,14 @@
 @media (min-width:1100px){
   /* the board's column is only 640px wide: let the floating cloud break out to use the whole page width */
   .ideas-cloud.floaty{ display:block; position:relative; padding:0; width:min(1120px, calc(100vw - 80px)); left:50%; transform:translateX(-50%); }
-  .ideas-cloud.floaty .idea-bubble{ position:absolute; margin:0; animation:ideaFloat var(--dur,9s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; }
-  /* hover anywhere on the cloud and EVERY bubble gets lively: faster, much wider paths */
-  .ideas-cloud.floaty:hover .idea-bubble{ animation-name:ideaFloatWild; animation-duration:calc(var(--dur,9s) * .38); }
+  .ideas-cloud.floaty .idea-bubble{ position:absolute; margin:0; animation:ideaFloat var(--dur,14s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:translate 1.4s ease-in-out; }
+  /* hovering the cloud nudges EVERY bubble a little (via the separate `translate` property, with a transition, so it glides
+     instead of restarting the drift animation — that restart is what looked glitchy) */
+  .ideas-cloud.floaty:hover .idea-bubble{ translate:var(--hx,10px) var(--hy,-10px); }
   .ideas-cloud.floaty .idea-bubble:hover{ z-index:5; }
   @keyframes ideaFloat{
-    0%{ transform:translate(0,0) rotate(0deg); }
-    25%{ transform:translate(calc(var(--dx,40px) * .9), calc(var(--dy,-40px) * -.6)) rotate(2deg); }
-    50%{ transform:translate(var(--dx,40px), var(--dy,-40px)) rotate(-2deg); }
-    75%{ transform:translate(calc(var(--dx,40px) * -.7), calc(var(--dy,-40px) * .8)) rotate(1.5deg); }
-    100%{ transform:translate(calc(var(--dx,40px) * .2), calc(var(--dy,-40px) * -.9)) rotate(0deg); }
-  }
-  @keyframes ideaFloatWild{
-    0%{ transform:translate(0,0) scale(1); }
-    25%{ transform:translate(calc(var(--wdx,120px) * .8), calc(var(--wdy,-110px) * -.7)) scale(1.04); }
-    50%{ transform:translate(var(--wdx,120px), var(--wdy,-110px)) scale(.97); }
-    75%{ transform:translate(calc(var(--wdx,120px) * -.9), calc(var(--wdy,-110px) * .9)) scale(1.05); }
-    100%{ transform:translate(calc(var(--wdx,120px) * .3), calc(var(--wdy,-110px) * -.5)) scale(1); }
+    from{ transform:translate(0,0); }
+    to{ transform:translate(var(--dx,18px), var(--dy,-18px)); }
   }
 }
 @media (prefers-reduced-motion:reduce){ .ideas-cloud.floaty .idea-bubble{ animation:none !important; } }
@@ -5079,15 +5070,15 @@ function floatIdeaClouds(){
   const wide = window.matchMedia('(min-width:1100px)').matches;
   document.querySelectorAll('.ideas-cloud').forEach(box => {
     const bubbles = [...box.querySelectorAll('.idea-bubble')];
-    const reset = () => { box.classList.remove('floaty'); box.style.height = ''; bubbles.forEach(b => { b.style.left = b.style.top = ''; b.style.removeProperty('--dx'); b.style.removeProperty('--dy'); b.style.removeProperty('--wdx'); b.style.removeProperty('--wdy'); b.style.removeProperty('--dur'); b.style.removeProperty('--delay'); }); };
+    const reset = () => { box.classList.remove('floaty'); box.style.height = ''; bubbles.forEach(b => { b.style.left = b.style.top = ''; b.style.removeProperty('--dx'); b.style.removeProperty('--dy'); b.style.removeProperty('--hx'); b.style.removeProperty('--hy'); b.style.removeProperty('--dur'); b.style.removeProperty('--delay'); }); };
     if(!wide || !bubbles.length || box.clientWidth < 500){ reset(); return; }
     const key = bubbles.map(b => b.dataset.ideaid || b.textContent.slice(0, 20)).join('|');
     let seed = 0; for(let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) >>> 0;
     const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
     box.classList.add('floaty');
-    const W = box.clientWidth, GAP = 56, EDGE = 48; // generous gaps/edges leave room for the big drifting paths
+    const W = box.clientWidth, GAP = 40, EDGE = 28; // the drift is small now, so the bubbles can sit fairly close
     const sizes = bubbles.map(b => b.offsetWidth || 120);
-    let H = Math.max(380, Math.round(sizes.reduce((a, d) => a + (d + GAP) * (d + GAP), 0) / W * 1.8));
+    let H = Math.max(380, Math.round(sizes.reduce((a, d) => a + (d + GAP) * (d + GAP), 0) / W * 1.6));
     let placed = null;
     for(let round = 0; round < 6 && !placed; round++, H = Math.round(H * 1.18)){
       const out = [];
@@ -5110,9 +5101,9 @@ function floatIdeaClouds(){
       const b = bubbles[p.i];
       b.style.left = Math.round(p.x) + 'px'; b.style.top = Math.round(p.y) + 'px';
       const sgn = () => rnd() < .5 ? -1 : 1;
-      b.style.setProperty('--dx', Math.round(sgn() * (40 + rnd() * 50)) + 'px'); b.style.setProperty('--dy', Math.round(sgn() * (40 + rnd() * 50)) + 'px');
-      b.style.setProperty('--wdx', Math.round(sgn() * (110 + rnd() * 90)) + 'px'); b.style.setProperty('--wdy', Math.round(sgn() * (100 + rnd() * 90)) + 'px');
-      b.style.setProperty('--dur', (9 + rnd() * 8).toFixed(1) + 's'); b.style.setProperty('--delay', (-rnd() * 10).toFixed(1) + 's');
+      b.style.setProperty('--dx', Math.round(sgn() * (12 + rnd() * 14)) + 'px'); b.style.setProperty('--dy', Math.round(sgn() * (12 + rnd() * 14)) + 'px');
+      b.style.setProperty('--hx', Math.round(sgn() * (8 + rnd() * 8)) + 'px'); b.style.setProperty('--hy', Math.round(sgn() * (8 + rnd() * 8)) + 'px');
+      b.style.setProperty('--dur', (12 + rnd() * 8).toFixed(1) + 's'); b.style.setProperty('--delay', (-rnd() * 14).toFixed(1) + 's');
     });
   });
 }
