@@ -1249,7 +1249,7 @@ let state = {
   cmAdminAllMembers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false, fallQuickLogin:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
-  ideaAvail:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
+  ideaAvail:null, ideaAvailOwner:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
   publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
   myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, clubsLoginPrefill:false, cmAdminEventSugs:null, cmAdminResSugs:null,
   ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{}, iavEditing:false,
@@ -4663,7 +4663,29 @@ function cmSessionKey(){ return 'cmSession'; }
 function getCmSession(){
   try { return JSON.parse(localStorage.getItem(cmSessionKey()) || 'null'); } catch { return null; }
 }
+// Everything on screen that belongs to ONE person (their availability grid, requests, caches). If it survived a
+// log out / log in on the same browser, the next person would see — and could even re-save — the previous
+// person's data (that is exactly how Lujane's schedule ended up on Sannah's account).
+function resetUserScopedState(){
+  try { clearTimeout(iavSaveTimer); } catch {} // (declared further down — try/catch keeps an early call safe)
+  Object.assign(state, {
+    ideaAvail:null, ideaAvailNo:{}, ideaAvailSubmitted:false, ideaAvailOwner:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'',
+    ideaAvailStatus:'', ideaAvailDirty:false, ideaAvailSaving:false, ideaAvailResave:false, iavEditing:false, iavUnsetWarned:false,
+    ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{},
+    myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
+    ideas:null, ideasError:'', ideasStatus:'',
+  });
+}
+function ideaOwnerKey(){
+  const sess = getCmSession();
+  if(sess) return 'm:' + sess.id;
+  const g = ideaGuest();
+  if(g) return 'g:' + g.id;
+  return state.cmAdminLoggedIn === true ? 'admin' : '';
+}
 function setCmSession(session){
+  const prev = getCmSession();
+  if(!prev || (session && prev.id !== session.id)) resetUserScopedState(); // a different person signed in on this browser
   localStorage.setItem(cmSessionKey(), JSON.stringify(session));
   rememberLastLogin(session); // per-device only: lets the login page offer "Log in as <this device's last user>"
 }
@@ -4964,9 +4986,10 @@ function wireMembersDirectory(){
 
 async function cmMemberSignOut(){
   try { if(state.availDirty) await availSave(); } catch {}
+  try { if(state.ideaAvailDirty) await ideaAvailSave(); } catch {} // still under the OLD person's login
   rememberLastLogin(getCmSession());
   clearCmSession();
-  state.myPending = []; state.meLoadedFor = null; state.meLoading = false;
+  resetUserScopedState();
   availReset();
   state.clubsLoginPickerOpen = false; state.clubsMyClubsPickerOpen = false;
   state.cmView = 'auth'; state.cmMe = null;
@@ -5614,6 +5637,7 @@ async function ideaAvailLoad(){
   state.ideaAvailError = '';
   try {
     const data = await cmApiRaw('/api/idea-availability', { headers: ideaHeaders() });
+    state.ideaAvailOwner = ideaOwnerKey();
     state.ideaAvail = data.days || {};
     state.ideaAvailNo = data.no || {};
     state.ideaAvailSubmitted = !!data.submitted;
@@ -5626,6 +5650,8 @@ async function ideaAvailLoad(){
 async function ideaAvailSave(){
   clearTimeout(iavSaveTimer);
   if(!state.ideaAvailDirty) return;
+  // Never write one person's grid into someone else's record: only save if the grid on screen was loaded for whoever is signed in now.
+  if(state.ideaAvailOwner !== ideaOwnerKey()){ state.ideaAvailDirty = false; return; }
   if(state.ideaAvailSaving){ state.ideaAvailResave = true; return; }
   const snap = () => JSON.stringify({ days: state.ideaAvail || {}, no: state.ideaAvailNo || {} });
   const snapshot = snap();
