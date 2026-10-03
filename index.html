@@ -5390,17 +5390,36 @@ function renderPushGate(mode, note){
     gate.style.cssText = 'position:fixed;inset:0;z-index:20000;background:#fef7f4;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(24px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));box-sizing:border-box;';
     document.body.appendChild(gate); document.body.style.overflow = 'hidden';
   }
-  const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const pv = new URLSearchParams(location.search).get('previewos'); // ?previewgate=install&previewos=android|ios|inapp lets the admin see what each phone sees
+  const ios = pv ? pv !== 'android' : (/iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
   const denied = pushSupported() && Notification.permission === 'denied';
   const btn = 'width:100%;min-height:54px;border-radius:999px;border:2px solid #76220b;background:#ce8491;color:#fff;font-size:17px;font-weight:700;cursor:pointer;margin-top:16px;';
+  const inApp = pv ? pv === 'inapp' : /Instagram|FBAN|FBAV|FB_IAB|TikTok|Snapchat|Line\/|MicroMessenger|GSA\//i.test(navigator.userAgent); // links opened inside another app's built-in browser can't be installed
+  const samsung = !pv && /SamsungBrowser/i.test(navigator.userAgent);
+  const step = (n, html) => `<div style="display:flex;gap:12px;align-items:flex-start;margin:10px 0;"><div style="flex:none;width:30px;height:30px;border-radius:50%;background:#ce8491;color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;">${n}</div><div style="padding-top:3px;">${html}</div></div>`;
+  const shareIcon = '<span style="display:inline-block;border:1.5px solid #76220b;border-radius:6px;padding:0 6px;font-weight:700;">⬆︎</span>';
+  const instructions = inApp ? `
+        <strong>First, open 4DASISTAS in your phone's browser</strong> — you're inside another app's built-in browser, which can't add it to the Home Screen.
+        ${step(1, ios ? `Tap the <strong>⋯</strong> or <strong>Share</strong> button and choose <strong>Open in Safari</strong>.` : `Tap the <strong>⋮</strong> menu and choose <strong>Open in Chrome</strong> (or <strong>Open in browser</strong>).`)}
+        ${step(2, 'Come back to this screen there and follow the steps to add it to your Home Screen.')}
+        <button type="button" id="pushCopyLink" style="margin-top:6px;min-height:46px;width:100%;border-radius:999px;border:2px solid #76220b;background:#fff;color:#76220b;font-weight:700;font-size:15px;cursor:pointer;">📋 Copy the link</button>`
+    : ios ? `
+        <strong>On your iPhone</strong> (use Safari if you can):
+        ${step(1, `Tap the <strong>Share</strong> button ${shareIcon} — in Safari it's the square-with-arrow at the <strong>bottom</strong> of the screen (in Chrome it's at the top right).`)}
+        ${step(2, 'Scroll down and tap <strong>Add to Home Screen</strong>.')}
+        ${step(3, 'Tap <strong>Add</strong> (top right).')}
+        ${step(4, 'Open <strong>4DASISTAS from your Home Screen</strong>, sign in again, then tap <strong>Allow notifications</strong>.')}`
+    : `
+        <strong>On your Android phone</strong>${samsung ? ' (Samsung Internet)' : ' (Chrome)'}:
+        ${step(1, samsung ? `Tap the <strong>≡</strong> menu at the bottom right.` : `Tap the <strong>⋮</strong> menu at the top right.`)}
+        ${step(2, samsung ? `Tap <strong>Add page to</strong> → <strong>Home screen</strong>.` : `Tap <strong>Install app</strong> (or <strong>Add to Home screen</strong>).`)}
+        ${step(3, 'Tap <strong>Install</strong> / <strong>Add</strong>.')}
+        ${step(4, 'Open <strong>4DASISTAS from your Home Screen</strong>, sign in again, then tap <strong>Allow notifications</strong>.')}`;
   const body = mode === 'install' ? `
       <div style="font-size:44px;text-align:center;">📲</div>
       <h2 style="text-align:center;margin:8px 0 6px;color:#76220b;">One more step</h2>
       <p style="text-align:center;margin:0 0 14px;line-height:1.5;">To get reminders and updates (like when you're accepted into a club), 4DASISTAS needs to be on your <strong>Home Screen</strong>.</p>
-      <div style="background:#f2d8d7;border-radius:16px;padding:16px;line-height:1.7;color:#76220b;">
-        ${ios ? `<strong>On iPhone (Safari):</strong><br>1. Tap the <strong>Share</strong> button (the square with the arrow) at the bottom.<br>2. Scroll and tap <strong>Add to Home Screen</strong>.<br>3. Tap <strong>Add</strong>.` : `<strong>On Android (Chrome):</strong><br>1. Tap the <strong>⋮</strong> menu at the top right.<br>2. Tap <strong>Install app</strong> (or <strong>Add to Home screen</strong>).<br>3. Tap <strong>Install</strong>.`}
-        <br><br><strong>Then open 4DASISTAS from your Home Screen</strong>, sign in again, and tap <strong>Allow notifications</strong>.
-      </div>` : `
+      <div style="background:#f2d8d7;border-radius:16px;padding:16px;line-height:1.55;color:#76220b;">${instructions}</div>` : `
       <div style="font-size:44px;text-align:center;">🔔</div>
       <h2 style="text-align:center;margin:8px 0 6px;color:#76220b;">Turn on notifications</h2>
       <p style="text-align:center;margin:0;line-height:1.5;">We'll only use them for things that matter: club approvals, availability reminders and event updates. Tap the button, then choose <strong>Allow</strong>.</p>
@@ -5409,6 +5428,8 @@ function renderPushGate(mode, note){
   gate.innerHTML = `<div style="max-width:480px;margin:0 auto;">${body}
       <div id="pushGateNote" style="min-height:20px;text-align:center;margin-top:12px;font-size:14px;color:#b3261e;">${note ? escapeCm(note) : ''}</div>
       <p style="text-align:center;font-size:13px;color:#776867;margin-top:18px;">Stuck? <a href="${IG_DM_URL}" target="_blank" rel="noopener">Message an admin</a> · <button type="button" id="pushGateLogout" class="av-link" style="font-size:13px;">Log out</button></p></div>`;
+  const copyBtn = gate.querySelector('#pushCopyLink');
+  if(copyBtn) copyBtn.addEventListener('click', async () => { try { await navigator.clipboard.writeText('https://4dasistas.ca/'); copyBtn.textContent = '✓ Copied — paste it in Safari / Chrome'; } catch { window.prompt('Copy this link:', 'https://4dasistas.ca/'); } });
   const allow = gate.querySelector('#pushAllowBtn');
   if(allow) allow.addEventListener('click', async () => {
     allow.disabled = true; allow.textContent = 'One moment…';
@@ -8755,6 +8776,23 @@ loadData().then(() => {
   document.getElementById('list-view').innerHTML = '<div class="empty">Could not load content — check your connection and refresh.</div>';
   console.error(err);
 });
+
+// Preview the "add to Home Screen / allow notifications / phone" screens without being locked in:
+//   4dasistas.ca/?previewgate=install&previewos=ios   (also: android, inapp)   |   ?previewgate=enable   |   ?previewgate=phone
+(function(){
+  const q = new URLSearchParams(location.search), g = q.get('previewgate');
+  if(!g) return;
+  setTimeout(() => {
+    if(g === 'phone') renderPhoneGate(); else renderPushGate(g === 'enable' ? 'enable' : 'install');
+    const gate = document.getElementById('pushGate');
+    if(gate){
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = '✕ Close preview';
+      b.style.cssText = 'position:fixed;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:20002;padding:8px 14px;border-radius:999px;border:2px solid #76220b;background:#fff;color:#76220b;font-weight:700;cursor:pointer;';
+      b.addEventListener('click', () => { gate.remove(); b.remove(); document.body.style.overflow = ''; });
+      document.body.appendChild(b);
+    }
+  }, 1500);
+})();
 </script>
 
 </body>
