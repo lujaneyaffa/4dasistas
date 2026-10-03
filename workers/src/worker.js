@@ -246,6 +246,9 @@ const JOIN_REQUESTS_MAX_PENDING_PER_PERSON = 4;
 // Emails the admin each time someone asks to join a club. Needs the ADMIN_NOTIFY_EMAIL secret; if it isn't
 // set (or Resend isn't), the request is still saved and shows up in the admin panel - it just can't email.
 const EVENT_SUGGESTION_MAX_PENDING = 300;
+const EVENT_GENRES = ["sports", "activities", "functions", "trips", "knowledge", "other"];
+// genre -> the Calendar tab it most likely belongs under (the review page preselects this; she can change it)
+const GENRE_TO_SECTION = { sports: "sports", activities: "activities", functions: "functions", trips: "trips", knowledge: "mosqueprograms", other: "functions" };
 const EVENT_SUGGESTION_MAX_PER_IP_PER_HOUR = 5;
 // ---- Signed review links: the notification email links to a review page where Lujane can edit, accept or deny
 // without logging in. The link carries an HMAC of (kind, id) keyed off the admin password, so it can't be guessed
@@ -273,8 +276,8 @@ const notifyAdminOfSuggestion = async (env, ctx, kind, sug) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
   const isEvent = kind === "event";
   const rows = isEvent
-    ? emailRow("Event", escapeHtml(sug.name)) + emailRow("Date", escapeHtml(sug.date)) + emailRow("City", escapeHtml(sug.city)) + emailRow("Link", `<a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a>`)
-    : emailRow("Name", escapeHtml(sug.title)) + emailRow("Type", escapeHtml(sug.type)) + emailRow("City", escapeHtml(sug.city)) + emailRow("Link", `<a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a>`);
+    ? emailRow("Event", escapeHtml(sug.name)) + emailRow("Date", escapeHtml(sug.date)) + emailRow("Genre", escapeHtml(sug.genre === "other" ? `Other: ${sug.genreOther || ""}` : (sug.genre || "—"))) + emailRow("City", escapeHtml(sug.city)) + emailRow("Link", `<a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a>`)
+    : emailRow("Name", escapeHtml(sug.title)) + emailRow("Type", escapeHtml(sug.type === "other" ? `Other: ${sug.typeOther || ""}` : sug.type)) + emailRow("City", escapeHtml(sug.city)) + emailRow("Link", `<a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a>`);
   const comments = sug.comments ? `<div style="margin:10px 0;padding:12px 14px;border-radius:12px;background:#f2d8d7;color:#76220b"><div style="font-size:12px;opacity:.8">Comments from the submitter</div>${escapeHtml(sug.comments).replace(/\n/g, "<br>")}</div>` : "";
   const html = `<div style="font-family:Arial,sans-serif;max-width:560px;color:#373d3b"><h2 style="margin:0 0 8px">New ${isEvent ? "event" : "resource"} submitted</h2><table style="border-collapse:collapse;font-size:15px">${rows}</table>${comments}<p style="margin:14px 0 4px">${emailBtn(await reviewUrlFor(env, kind, sug.id, "accept"), "✅ Accept", "#2a7a4a")}${emailBtn(await reviewUrlFor(env, kind, sug.id, "edit"), "✏️ Edit", "#ce8491")}${emailBtn(await reviewUrlFor(env, kind, sug.id, "deny"), "❌ Deny", "#b3261e")}</p><p style="font-size:12px;color:#776867">Each button opens a review page (nothing happens until you confirm there). You can also find it under <em>Submitted ${isEvent ? "events" : "resources"}</em> on the Clubs page when logged in as admin.</p></div>`;
   sendAdminEmail(env, ctx, isEvent ? `Event submitted: ${sug.name} (${sug.city}, ${sug.date})` : `Resource submitted: ${sug.title} (${sug.city})`, html);
@@ -716,9 +719,10 @@ export default {
       const a = url.searchParams.get("a") || "";
       const e = escapeHtml;
       const fields = kind === "event"
-        ? `<label>Event name</label><input id="f_title" value="${e(sug.name)}"><label>Date</label><input id="f_date" type="date" value="${e(sug.date)}"><label>City</label><input id="f_city" value="${e(sug.virtual ? "" : sug.city)}"><label><input id="f_virtual" type="checkbox" ${sug.virtual ? "checked" : ""}>Virtual event</label><label>Link</label><input id="f_link" value="${e(sug.link)}"><label>Show it under which Calendar tab?</label><select id="f_section">${[["functions", "Functions (markets, festivals, gatherings)"], ["activities", "Activities"], ["sports", "Sports"], ["trips", "Trips"], ["mosqueprograms", "Knowledge (mosque programs)"], ["supportprograms", "Support programs"]].map(([k, l]) => `<option value="${k}">${e(l)}</option>`).join("")}</select>`
-        : `<label>Name</label><input id="f_title" value="${e(sug.title)}"><label>Type</label><select id="f_type">${RESOURCE_CATEGORIES.map((k) => `<option value="${k}" ${k === sug.type ? "selected" : ""}>${e(k)}</option>`).join("")}</select><label>Link (Instagram / WhatsApp)</label><input id="f_link" value="${e(sug.link)}"><label>City</label><input id="f_city" value="${e(sug.virtual ? "" : sug.city)}"><label><input id="f_virtual" type="checkbox" ${sug.virtual ? "checked" : ""}>Virtual / online only</label>`;
-      const comments = sug.comments ? `<div class="note"><strong>Comments from the submitter</strong>\n${e(sug.comments)}</div>` : "";
+        ? `<label>Event name</label><input id="f_title" value="${e(sug.name)}"><label>Date</label><input id="f_date" type="date" value="${e(sug.date)}"><label>City</label><input id="f_city" value="${e(sug.virtual ? "" : sug.city)}"><label><input id="f_virtual" type="checkbox" ${sug.virtual ? "checked" : ""}>Virtual event</label><label>Link</label><input id="f_link" value="${e(sug.link)}"><label>Show it under which Calendar tab?</label><select id="f_section">${[["functions", "Functions (markets, festivals, gatherings)"], ["activities", "Activities"], ["sports", "Sports"], ["trips", "Trips"], ["mosqueprograms", "Knowledge (mosque programs)"], ["supportprograms", "Support programs"]].map(([k, l]) => `<option value="${k}" ${k === (GENRE_TO_SECTION[sug.genre] || "functions") ? "selected" : ""}>${e(l)}</option>`).join("")}</select>`
+        : `<label>Name</label><input id="f_title" value="${e(sug.title)}"><label>Type</label>${sug.type === "other" ? `<div class="note" style="margin:4px 0">They chose “Other”: <strong>${e(sug.typeOther || "")}</strong> — pick the closest type below.</div>` : ""}<select id="f_type">${sug.type === "other" ? '<option value="">Pick a type…</option>' : ""}${RESOURCE_CATEGORIES.map((k) => `<option value="${k}" ${k === sug.type ? "selected" : ""}>${e(k)}</option>`).join("")}</select><label>Link (Instagram / WhatsApp)</label><input id="f_link" value="${e(sug.link)}"><label>City</label><input id="f_city" value="${e(sug.virtual ? "" : sug.city)}"><label><input id="f_virtual" type="checkbox" ${sug.virtual ? "checked" : ""}>Virtual / online only</label>`;
+      const genreNote = kind === "event" && sug.genre ? `<div class="note" style="margin:4px 0"><strong>Genre:</strong> ${e(sug.genre === "other" ? `Other — ${sug.genreOther || ""}` : sug.genre)}</div>` : "";
+      const comments = genreNote + (sug.comments ? `<div class="note"><strong>Comments from the submitter</strong>\n${e(sug.comments)}</div>` : "");
       return page(`<h1>${kind === "event" ? "Event" : "Resource"} submitted</h1><p style="margin:0;color:#776867">Change anything below, then accept or deny.</p>${comments}${fields}<div class="row"><button class="ok" id="btnAccept">✅ Accept &amp; publish</button><button class="no" id="btnDeny">❌ Deny</button></div><div class="msg" id="msg"></div>
 <script>
 const KIND=${JSON.stringify(kind)},ID=${JSON.stringify(id)},SIG=${JSON.stringify(sig)},PRE=${JSON.stringify(a)};
@@ -892,6 +896,9 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!user || user.pinHash !== await sha256Hex(pin)) {
         return jsonResponse({ error: "Username or PIN is incorrect" }, 401, corsHeaders);
       }
+      user.lastLoginAt = Date.now();
+      user.lastSeenAt = user.lastLoginAt;
+      await writeUser(env, user);
       const token = await createMemberSession(env, user.id);
       const clubs = await allClubIdsContaining(env, user.id);
       return jsonResponse({ ...publicUser(user), clubs, waitlist: visibleWaitlist(user, clubs), token }, 200, corsHeaders);
@@ -925,6 +932,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
       const waitlist = clubId ? [...new Set((Array.isArray(body.waitlist) ? body.waitlist : []).map(String))].filter((id) => clubIds.has(id) && id !== clubId).slice(0, 1) : []; // 2 clubs total: the #1 pick (requested) + one on standby
       const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, waitlist, createdAt: Date.now() };
+      user.lastLoginAt = user.createdAt; user.lastSeenAt = user.createdAt;
       const phone = sanitizePhone(body.phone);
       if (phone) user.phone = phone;
       await writeUser(env, user);
@@ -1240,6 +1248,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!isValidDateString(date)) return jsonResponse({ error: "Please pick the event's date" }, 400, corsHeaders);
       if (date < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "That date has already passed" }, 400, corsHeaders);
       if (city.length < 2) return jsonResponse({ error: "Please add the city (or tick Virtual)" }, 400, corsHeaders);
+      const genre = String(body.genre || "");
+      if (!EVENT_GENRES.includes(genre)) return jsonResponse({ error: "Please pick the genre of the event" }, 400, corsHeaders);
+      const genreOther = genre === "other" ? clean(body.genreOther, 40) : "";
+      if (genre === "other" && genreOther.length < 2) return jsonResponse({ error: "Please type what kind of event it is" }, 400, corsHeaders);
       const ip = request.headers.get("CF-Connecting-IP") || "unknown";
       const rateKey = `sugrate:${ip}:${Math.floor(Date.now() / 3600000)}`;
       const used = Number(await env.SITE_DATA.get(rateKey) || 0);
@@ -1248,7 +1260,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (pending.keys.length >= EVENT_SUGGESTION_MAX_PENDING) return jsonResponse({ error: "The submission box is full right now — please try again later" }, 503, corsHeaders);
       await env.SITE_DATA.put(rateKey, String(used + 1), { expirationTtl: 3700 });
       const comments = String(body.comments || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 600);
-      const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, link, name, date, city, virtual, comments, at: Date.now() };
+      const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, link, name, date, city, virtual, genre, genreOther, comments, at: Date.now() };
       await env.SITE_DATA.put(`eventsug:${sug.id}`, JSON.stringify(sug));
       notifyAdminOfEventSuggestion(env, ctx, sug);
       return jsonResponse({ ok: true }, 201, corsHeaders);
@@ -1273,7 +1285,9 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if ((u.protocol === "https:" || u.protocol === "http:") && ok) link = u.href.slice(0, 500);
       } catch {}
       if (title.length < 2) return jsonResponse({ error: "Please add the business or resource name" }, 400, corsHeaders);
-      if (!RESOURCE_CATEGORIES.includes(type)) return jsonResponse({ error: "Please pick a type" }, 400, corsHeaders);
+      if (!RESOURCE_CATEGORIES.includes(type) && type !== "other") return jsonResponse({ error: "Please pick a type" }, 400, corsHeaders);
+      const typeOther = type === "other" ? clean(body.typeOther, 40) : "";
+      if (type === "other" && typeOther.length < 2) return jsonResponse({ error: "Please type what kind of resource it is" }, 400, corsHeaders);
       if (!link) return jsonResponse({ error: "Please add an Instagram or WhatsApp link" }, 400, corsHeaders);
       if (city.length < 2) return jsonResponse({ error: "Please add the city (or tick Virtual)" }, 400, corsHeaders);
       const ip = request.headers.get("CF-Connecting-IP") || "unknown";
@@ -1284,7 +1298,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (pending.keys.length >= EVENT_SUGGESTION_MAX_PENDING) return jsonResponse({ error: "The submission box is full right now — please try again later" }, 503, corsHeaders);
       await env.SITE_DATA.put(rateKey, String(used + 1), { expirationTtl: 3700 });
       const comments = String(body.comments || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 600);
-      const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, title, type, link, city, virtual, comments, at: Date.now() };
+      const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, title, type, typeOther, link, city, virtual, comments, at: Date.now() };
       await env.SITE_DATA.put(`ressug:${sug.id}`, JSON.stringify(sug));
       notifyAdminOfResourceSuggestion(env, ctx, sug);
       return jsonResponse({ ok: true }, 201, corsHeaders);
@@ -1294,6 +1308,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const meId = await memberIdFromRequest();
       const me = meId ? await readUser(env, meId) : null;
       if (!me) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      // "last active" for the admin profile view — written at most once an hour per person (KV writes are limited)
+      if (!me.lastSeenAt || Date.now() - me.lastSeenAt > 3600000) { me.lastSeenAt = Date.now(); await writeUser(env, me); }
       const clubs = await allClubIdsContaining(env, me.id);
       return jsonResponse({ ...publicUser(me), clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs) }, 200, corsHeaders);
     }
@@ -1533,7 +1549,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const out = {};
       for (const key of list.keys) {
         const clubId = key.name.replace("clubmembers:", "");
-        out[clubId] = (await resolveClubMembers(env, clubId)).map((u) => ({ ...publicUser(u), phone: u.phone || "" })); // phone: admin-only
+        out[clubId] = (await resolveClubMembers(env, clubId)).map((u) => ({ ...publicUser(u), phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0 })); // phone + activity: admin-only
       }
       return jsonResponse(out, 200, corsHeaders);
     }
@@ -1757,6 +1773,18 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     }
 
     // Admin: change which clubs a member belongs to (add/remove any number at once)
+    // Admin: one person's full profile (phone, joined, clubs, pending requests, last sign-in / activity)
+    const adminUserProfileMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/profile\/?$/);
+    if (adminUserProfileMatch && request.method === "GET") {
+      const userId = decodeURIComponent(adminUserProfileMatch[1]);
+      const user = await readUser(env, userId);
+      if (!user) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
+      return jsonResponse({
+        id: user.id, name: user.name, username: user.username, photo: user.photo || null,
+        phone: user.phone || "", createdAt: user.createdAt || 0, lastLoginAt: user.lastLoginAt || 0, lastSeenAt: user.lastSeenAt || 0,
+        clubs: await allClubIdsContaining(env, user.id), pending: await pendingClubIdsFor(env, user.id), waitlist: Array.isArray(user.waitlist) ? user.waitlist : [],
+      }, 200, corsHeaders);
+    }
     const adminUserClubsMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/clubs\/?$/);
     if (adminUserClubsMatch && request.method === "PUT") {
       const userId = decodeURIComponent(adminUserClubsMatch[1]);

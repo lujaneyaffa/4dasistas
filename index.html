@@ -3331,6 +3331,12 @@ el.innerHTML = `${getCmSession() ? '' : `${getLastLogin() ? `<div style="text-al
           <input id="esLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="Link to the event (https://…)" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
           <input id="esName" type="text" maxlength="120" placeholder="Event name" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
           <input id="esDate" type="date" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
+          <select id="esGenre" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;background:#fff;">
+            <option value="">Genre of event…</option>
+            ${[['sports','Sports'],['activities','Activities'],['functions','Community function (market, festival, gathering)'],['trips','Trip'],['knowledge','Knowledge (class, talk, mosque program)']].map(([k, l]) => `<option value="${k}">${escapeCm(l)}</option>`).join('')}
+            <option value="other">Other (type it in)</option>
+          </select>
+          <input id="esGenreOther" type="text" maxlength="40" placeholder="What kind of event is it?" style="display:none;padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
           <input id="esCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
           <label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:44px;"><input id="esVirtual" type="checkbox" style="width:22px;height:22px;"> It's a virtual event (no city)</label>
           <textarea id="esComments" rows="3" maxlength="600" placeholder="Comments (optional) — anything we should know?" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;font-family:inherit;"></textarea>
@@ -3351,7 +3357,9 @@ el.innerHTML = `${getCmSession() ? '' : `${getLastLogin() ? `<div style="text-al
           <select id="rsType" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;background:#fff;">
             <option value="">Type of resource…</option>
             ${RESOURCE_CATEGORIES.map(([k, l]) => `<option value="${k}">${escapeCm(l)}</option>`).join('')}
+            <option value="other">Other (type it in)</option>
           </select>
+          <input id="rsTypeOther" type="text" maxlength="40" placeholder="What kind of resource is it?" style="display:none;padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
           <input id="rsLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="Instagram or WhatsApp link" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
           <input id="rsCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
           <label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:44px;"><input id="rsVirtual" type="checkbox" style="width:22px;height:22px;"> It's virtual / online only (no city)</label>
@@ -3376,20 +3384,24 @@ function setupEventSubmitForm(){
   const dateEl = document.getElementById('esDate');
   dateEl.min = ymdToday();
   wireVirtualToggle('esCity', 'esVirtual');
+  const gSel = document.getElementById('esGenre'), gOther = document.getElementById('esGenreOther');
+  gSel.addEventListener('change', () => { gOther.style.display = gSel.value === 'other' ? 'block' : 'none'; if(gSel.value !== 'other') gOther.value = ''; });
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const st = document.getElementById('esStatus'), btn = document.getElementById('esSubmit');
     const virtual = document.getElementById('esVirtual').checked;
-    const body = { link: document.getElementById('esLink').value.trim(), name: document.getElementById('esName').value.trim(), date: dateEl.value, city: document.getElementById('esCity').value.trim(), virtual, comments: document.getElementById('esComments').value.trim(), website: document.getElementById('esWebsite').value };
+    const body = { link: document.getElementById('esLink').value.trim(), name: document.getElementById('esName').value.trim(), date: dateEl.value, city: document.getElementById('esCity').value.trim(), virtual, genre: gSel.value, genreOther: gOther.value.trim(), comments: document.getElementById('esComments').value.trim(), website: document.getElementById('esWebsite').value };
     st.style.color = '#c00';
     if(!/^https?:\/\/\S+\.\S+/i.test(body.link)){ st.textContent = 'Please add the link to the event (starting with https://).'; return; }
     if(body.name.length < 3){ st.textContent = "Please add the event's name."; return; }
     if(!body.date){ st.textContent = "Please pick the event's date."; return; }
+    if(!body.genre){ st.textContent = 'Please pick the genre of the event.'; return; }
+    if(body.genre === 'other' && body.genreOther.length < 2){ st.textContent = 'Please type what kind of event it is.'; return; }
     if(!virtual && body.city.length < 2){ st.textContent = 'Please add the city, or tick "virtual event".'; return; }
     btn.disabled = true; st.textContent = '';
     try {
       await cmApiRaw('/api/event-suggestions', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
-      form.reset(); document.getElementById('esCity').disabled = false; document.getElementById('esCity').style.opacity = '1';
+      form.reset(); gOther.style.display = 'none'; document.getElementById('esCity').disabled = false; document.getElementById('esCity').style.opacity = '1';
       st.style.color = '#2a7a4a'; st.textContent = 'Thank you! Your event was sent — an admin will review it.';
     } catch(err){ st.textContent = err.message; }
     btn.disabled = false;
@@ -3399,20 +3411,23 @@ function setupResourceSubmitForm(){
   const form = document.getElementById('resSubForm');
   if(!form) return;
   wireVirtualToggle('rsCity', 'rsVirtual');
+  const tSel = document.getElementById('rsType'), tOther = document.getElementById('rsTypeOther');
+  tSel.addEventListener('change', () => { tOther.style.display = tSel.value === 'other' ? 'block' : 'none'; if(tSel.value !== 'other') tOther.value = ''; });
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const st = document.getElementById('rsStatus'), btn = document.getElementById('rsSubmit');
     const virtual = document.getElementById('rsVirtual').checked;
-    const body = { title: document.getElementById('rsTitle').value.trim(), type: document.getElementById('rsType').value, link: document.getElementById('rsLink').value.trim(), city: document.getElementById('rsCity').value.trim(), virtual, comments: document.getElementById('rsComments').value.trim(), website: document.getElementById('rsWebsite').value };
+    const body = { title: document.getElementById('rsTitle').value.trim(), type: tSel.value, typeOther: tOther.value.trim(), link: document.getElementById('rsLink').value.trim(), city: document.getElementById('rsCity').value.trim(), virtual, comments: document.getElementById('rsComments').value.trim(), website: document.getElementById('rsWebsite').value };
     st.style.color = '#c00';
     if(body.title.length < 2){ st.textContent = 'Please add the name of the business or resource.'; return; }
     if(!body.type){ st.textContent = 'Please pick the type of resource.'; return; }
+    if(body.type === 'other' && body.typeOther.length < 2){ st.textContent = 'Please type what kind of resource it is.'; return; }
     if(!/(instagram\.com|wa\.me|whatsapp\.com)/i.test(body.link)){ st.textContent = 'Please add an Instagram or WhatsApp link.'; return; }
     if(!virtual && body.city.length < 2){ st.textContent = 'Please add the city, or tick "virtual / online only".'; return; }
     btn.disabled = true; st.textContent = '';
     try {
       await cmApiRaw('/api/resource-suggestions', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
-      form.reset(); document.getElementById('rsCity').disabled = false; document.getElementById('rsCity').style.opacity = '1';
+      form.reset(); tOther.style.display = 'none'; document.getElementById('rsCity').disabled = false; document.getElementById('rsCity').style.opacity = '1';
       st.style.color = '#2a7a4a'; st.textContent = 'Thank you! It was sent — an admin will review it.';
     } catch(err){ st.textContent = err.message; }
     btn.disabled = false;
@@ -6665,6 +6680,36 @@ async function cmAdminLoadJoinRequests(){
     state.cmAdminJoinRequests = res.ok ? ((await res.json()).requests || []) : [];
   } catch { state.cmAdminJoinRequests = []; }
 }
+
+function admFmtDate(ms){ return ms ? new Date(ms).toLocaleString('en-CA', { dateStyle:'medium', timeStyle:'short' }) : ''; }
+function admAgo(ms){
+  if(!ms) return '';
+  const d = Math.floor((Date.now() - ms) / 86400000);
+  return d <= 0 ? 'today' : d === 1 ? 'yesterday' : d + ' days ago';
+}
+async function openAdminProfile(userId){
+  const { wrap } = ideaPopup('<p class="av-msg">Loading profile…</p>');
+  try {
+    const res = await fetch('/api/admin/users/' + encodeURIComponent(userId) + '/profile', { credentials:'include' });
+    const u = await res.json();
+    if(!res.ok) throw new Error(u.error || 'Could not load profile');
+    const row = (label, html) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #0001;font-size:15px;"><span style="color:var(--muted);flex:none;">${label}</span><span style="text-align:right;">${html}</span></div>`;
+    const tags = ids => ids.length ? ids.map(cid => { const col = clubCol(cid); return `<span style="display:inline-block;margin:2px 0 2px 4px;padding:3px 10px;border-radius:999px;background:${col.bg};color:${col.fg};font-size:12px;font-weight:700;">${escapeCm(avClubTitle(cid))}</span>`; }).join('') : '<span style="color:var(--muted);">None</span>';
+    const avatar = u.photo ? `<img src="${escapeCm(u.photo)}" alt="" style="width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid var(--charcoal);">` : `<div class="monogram" style="width:84px;height:84px;font-size:32px;margin:0 auto;">${escapeCm((u.name || '?').charAt(0).toUpperCase())}</div>`;
+    const card = wrap.querySelector('.idea-pop-card');
+    card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
+      <div style="text-align:center;margin-bottom:8px;">${avatar}<h3 style="margin:10px 0 0;">${escapeCm(u.name)}</h3><div style="font-size:13px;color:var(--muted);">${escapeCm(u.username)}</div></div>
+      ${row('📞 Phone', u.phone ? `<a href="tel:${escapeCm(u.phone.replace(/[^\d+]/g, ''))}" style="font-weight:700;">${escapeCm(u.phone)}</a>` : '<span style="color:var(--muted);">No phone on file</span>')}
+      ${row('Joined', u.createdAt ? `${escapeCm(admFmtDate(u.createdAt))}<br><span style="font-size:12px;color:var(--muted);">${escapeCm(admAgo(u.createdAt))}</span>` : '<span style="color:var(--muted);">Before records began</span>')}
+      ${row('Last signed in', u.lastLoginAt ? `${escapeCm(admFmtDate(u.lastLoginAt))}<br><span style="font-size:12px;color:var(--muted);">${escapeCm(admAgo(u.lastLoginAt))}</span>` : '<span style="color:var(--muted);">Not recorded yet</span>')}
+      ${row('Last active', u.lastSeenAt ? `${escapeCm(admFmtDate(u.lastSeenAt))}<br><span style="font-size:12px;color:var(--muted);">${escapeCm(admAgo(u.lastSeenAt))}</span>` : '<span style="color:var(--muted);">Not recorded yet</span>')}
+      ${row('Already in', tags(u.clubs || []))}
+      ${(u.pending || []).length ? row('Requested', tags(u.pending)) : ''}
+      ${(u.waitlist || []).filter(c => !(u.clubs || []).includes(c)).length ? row('Standby for', tags(u.waitlist.filter(c => !(u.clubs || []).includes(c)))) : ''}
+      <p class="ideas-hint" style="margin:10px 0 0;">Sign-in and activity times only start being recorded from now, so older members show "Not recorded yet" until they next sign in.</p>`;
+  } catch(err){ wrap.innerHTML = `<p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`; }
+}
+
 async function cmAdminLoadResourceSuggestions(){
   try {
     const res = await fetch('/api/admin/resource-suggestions', { credentials:'include' });
@@ -6677,7 +6722,7 @@ function resourceSuggestionsAdminHtml(){
   const label = k => (RESOURCE_CATEGORIES.find(c => c[0] === k) || [k, k])[1];
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Submitted resources${list.length ? ` (${list.length})` : ''}</h4>
     ${list.length ? list.map(x => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
-      <span style="min-width:0;"><strong>${escapeCm(x.title)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(label(x.type))} · ${escapeCm(x.city)}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
+      <span style="min-width:0;"><strong>${escapeCm(x.title)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(x.type === 'other' ? 'Other: ' + (x.typeOther || '') : label(x.type))} · ${escapeCm(x.city)}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
       <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--lightblue);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn res-sug-dismiss" data-id="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted resources.</p>'}</div>`;
 }
 async function cmAdminLoadEventSuggestions(){
@@ -6691,7 +6736,7 @@ function eventSuggestionsAdminHtml(){
   if(!list) return '';
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Submitted events${list.length ? ` (${list.length})` : ''}</h4>
     ${list.length ? list.map(x => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
-      <span style="min-width:0;"><strong>${escapeCm(x.name)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(x.date)} · ${escapeCm(x.city)}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
+      <span style="min-width:0;"><strong>${escapeCm(x.name)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(x.date)} · ${escapeCm(x.city)}${x.genre ? ' · ' + escapeCm(x.genre === 'other' ? 'Other: ' + (x.genreOther || '') : x.genre) : ''}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
       <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--lightblue);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn event-sug-dismiss" data-id="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted events.</p>'}</div>`;
 }
 function joinRequestsAdminHtml(){
@@ -6699,7 +6744,7 @@ function joinRequestsAdminHtml(){
   if(!reqs) return '';
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Join requests${reqs.length ? ` (${reqs.length})` : ''}</h4>
     ${reqs.length ? reqs.map(r => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
-      <span><strong>${escapeCm(r.name)}</strong> <span style="color:#776867;font-size:12px;">${escapeCm(r.username)}</span><br>wants to join <strong>${escapeCm(r.clubTitle)}</strong></span>
+      <span><button type="button" class="adm-profile-link" data-user-id="${escapeCm(r.userId)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(r.name)}</button> <span style="color:#776867;font-size:12px;">${escapeCm(r.username)}</span><br>wants to join <strong>${escapeCm(r.clubTitle)}</strong></span>
       <span style="display:flex;gap:6px;"><button type="button" class="club-guide-btn join-req-accept" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:var(--lightblue);text-align:center;">Accept</button><button type="button" class="club-guide-btn join-req-decline" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:transparent;text-align:center;">Decline</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No pending requests.</p>'}
     <p id="joinReqAdminStatus" style="color:#c00;font-size:12px;margin:6px 0 0;"></p></div>`;
 }
@@ -6876,7 +6921,7 @@ function renderAdminAllMembersPanels(){
     }).join('');
     return `<div class="panel-card" style="text-align:center;">
       ${m.photo ? `<img src="${escapeCm(m.photo)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;margin:0 auto 8px;display:block;">` : `<div class="monogram" style="margin:0 auto 8px;">${escapeCm((m.name || '?').charAt(0).toUpperCase())}</div>`}
-      <h4 style="font-size:14px;margin-bottom:2px;">${escapeCm(m.name)}</h4>
+      <h4 style="font-size:14px;margin-bottom:2px;"><button type="button" class="adm-profile-link" data-user-id="${escapeCm(m.id)}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:inherit;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button></h4>
       <div style="font-size:11px;color:#776867;margin-bottom:4px;">${escapeCm(m.username)}</div>
       <div style="font-size:12px;margin-bottom:8px;">${m.phone ? `📞 <a href="tel:${escapeCm(m.phone.replace(/[^\d+]/g, ''))}">${escapeCm(m.phone)}</a>` : '<span style="color:#776867;">No phone on file</span>'}</div>
       <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;">${tags}</div>
@@ -7291,6 +7336,7 @@ function wireClubAdminPanel(){
   if(cpBtn) cpBtn.addEventListener('click', cmAdminCreateProfile);
   document.querySelectorAll('.join-req-accept').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'accept'); }));
   document.querySelectorAll('.join-req-decline').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'decline'); }));
+  document.querySelectorAll('.adm-profile-link').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.userId)));
   document.querySelectorAll('.res-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/resource-suggestions/' + encodeURIComponent(b.dataset.id), { method:'DELETE', credentials:'include' }); await cmAdminLoadResourceSuggestions(); render(); }));
   document.querySelectorAll('.event-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/event-suggestions/' + encodeURIComponent(b.dataset.id), { method:'DELETE', credentials:'include' }); await cmAdminLoadEventSuggestions(); render(); }));
   const loginBtn = document.getElementById('cmAdminLoginBtn');
