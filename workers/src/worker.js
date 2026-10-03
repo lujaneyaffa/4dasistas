@@ -1504,7 +1504,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
 
     if (requiresAuth) {
       const token = getSessionToken(request);
@@ -1773,6 +1773,51 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     }
 
     // Admin: change which clubs a member belongs to (add/remove any number at once)
+    // Admin: delete a whole profile (not just one club membership): memberships, join requests, availability, username.
+    const adminUserDeleteMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/?$/);
+    if (adminUserDeleteMatch && request.method === "DELETE") {
+      const userId = decodeURIComponent(adminUserDeleteMatch[1]);
+      const user = await readUser(env, userId);
+      if (!user) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
+      const memberKeys = await env.SITE_DATA.list({ prefix: "clubmembers:" });
+      for (const key of memberKeys.keys) {
+        const clubId = key.name.slice("clubmembers:".length);
+        const ids = await readClubMemberIds(env, clubId);
+        if (ids.includes(userId)) await writeClubMemberIds(env, clubId, ids.filter((id) => id !== userId));
+      }
+      const reqKeys = await env.SITE_DATA.list({ prefix: "joinreq:" });
+      for (const k of reqKeys.keys) if (k.name.split(":")[2] === userId) await env.SITE_DATA.delete(k.name);
+      await env.SITE_DATA.delete(ideaAvailKey(`m:${userId}`));
+      await releaseUsername(env, user.username);
+      await deleteUser(env, userId); // their login token stops working because the user no longer exists
+      return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+    // Admin: fill in phone numbers from the sign-up form's Formspree export ([{name, phone}]) - matches on the name
+    // and only fills a profile that has no phone yet (never overwrites).
+    if (path === "/api/admin/import-phones" && request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const rows = Array.isArray(body.rows) ? body.rows.slice(0, 3000) : [];
+      const norm = (n) => String(n || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+      const short = (n) => { const t = norm(n).split(" "); return t.length >= 2 ? `${t[0]} ${t[t.length - 1][0]}` : t[0] || ""; };
+      const users = [];
+      for (const key of (await env.SITE_DATA.list({ prefix: "user:" })).keys) { const u = await readUser(env, key.name.slice(5)); if (u) users.push(u); }
+      let updated = 0, alreadyHad = 0;
+      const unmatched = [], ambiguous = [];
+      for (const row of rows) {
+        const phone = sanitizePhone(row && row.phone);
+        const name = String((row && row.name) || "").trim();
+        if (!name || !phone) continue;
+        let hits = users.filter((u) => norm(u.name) === norm(name));
+        if (!hits.length) hits = users.filter((u) => short(u.name) === short(name));
+        if (!hits.length) { unmatched.push(name); continue; }
+        if (hits.length > 1) { ambiguous.push(name); continue; }
+        const u = hits[0];
+        if (u.phone) { alreadyHad++; continue; }
+        u.phone = phone; await writeUser(env, u); updated++;
+      }
+      return jsonResponse({ updated, alreadyHad, unmatched: unmatched.slice(0, 80), ambiguous: ambiguous.slice(0, 40), rows: rows.length }, 200, corsHeaders);
+    }
     // Admin: one person's full profile (phone, joined, clubs, pending requests, last sign-in / activity)
     const adminUserProfileMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/profile\/?$/);
     if (adminUserProfileMatch && request.method === "GET") {
