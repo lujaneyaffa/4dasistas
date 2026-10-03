@@ -917,6 +917,19 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!name) return jsonResponse({ error: "Please enter your name" }, 400, corsHeaders);
       const username = await generateUniqueUsername(env, name);
       if (!username) return jsonResponse({ error: "Please enter your first name and last initial (e.g. Amina K.)" }, 400, corsHeaders);
+      // The SAME person signing up again (forgot she already has a login, or lost her PIN) used to silently get
+      // ayana.s2, ayana.s3 ... — a pile of duplicate profiles. Refuse an identical name and point her at log in.
+      if (username !== usernameBaseFromName(name)) {
+        const norm = (n) => String(n || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        let cursor;
+        do {
+          const page = await env.SITE_DATA.list({ prefix: "user:", cursor });
+          if (page.keys.some((k) => norm(k.metadata && k.metadata.name) === norm(name))) {
+            return jsonResponse({ error: `There's already a profile for ${name}. Please log in instead — if you forgot your PIN, message an admin on Instagram and they'll reset it.` }, 409, corsHeaders);
+          }
+          cursor = page.list_complete ? undefined : page.cursor;
+        } while (cursor);
+      }
       if (!/^\d{4}$/.test(pin)) return jsonResponse({ error: "PIN must be exactly 4 digits" }, 400, corsHeaders);
       const clubIds = new Set((await readClubRoster(env)).map((c) => c.id));
       // clubId is optional - someone who already told us their club picks some other way (a paper/DM
