@@ -4576,10 +4576,11 @@ function getCmSession(){
 }
 function setCmSession(session){
   localStorage.setItem(cmSessionKey(), JSON.stringify(session));
+  rememberLastLogin(session); // per-device only: lets the login page offer "Log in as <this device's last user>"
 }
-// "Log in as <name>" is remembered ONLY when someone deliberately logs out on this device (see cmMemberSignOut) —
-// never at sign-up/login, so test or throwaway accounts can't linger on the public page. Name + username only
-// (never the PIN or token), expires after 30 days, and uses a new storage key so older saved entries are ignored.
+// "Log in as <name>": remembered in THIS browser only (localStorage is per-device, so it is never shown to other
+// visitors). Saved at login/sign-up and again at logout. Name + username only (never the PIN or token), expires
+// after 30 days, and "Not you?" clears it.
 function rememberLastLogin(session){
   try { if(session && session.username && session.name) localStorage.setItem('lastLogin2', JSON.stringify({ name: session.name, username: session.username, at: Date.now() })); } catch {}
 }
