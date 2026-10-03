@@ -1528,7 +1528,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
 
     if (requiresAuth) {
       const token = getSessionToken(request);
@@ -1805,6 +1805,27 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     }
 
     // Admin: change which clubs a member belongs to (add/remove any number at once)
+    // Admin: EVERY profile, whether or not they're in a club yet (club-members only lists club members).
+    if (path === "/api/admin/users" && request.method === "GET") {
+      const clubsByUser = {};
+      for (const key of (await env.SITE_DATA.list({ prefix: "clubmembers:" })).keys) {
+        const clubId = key.name.slice("clubmembers:".length);
+        for (const uid of await readClubMemberIds(env, clubId)) (clubsByUser[uid] = clubsByUser[uid] || []).push(clubId);
+      }
+      const pendingByUser = {};
+      for (const r of await listJoinRequests(env)) (pendingByUser[r.userId] = pendingByUser[r.userId] || []).push(r.clubId);
+      const out = [];
+      let cursor;
+      do {
+        const page = await env.SITE_DATA.list({ prefix: "user:", cursor });
+        for (const k of page.keys) {
+          const u = await readUser(env, k.name.slice(5));
+          if (u) out.push({ ...publicUser(u), phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [] });
+        }
+        cursor = page.list_complete ? undefined : page.cursor;
+      } while (cursor);
+      return jsonResponse({ users: out }, 200, corsHeaders);
+    }
     // Admin: delete a whole profile (not just one club membership): memberships, join requests, availability, username.
     const adminUserDeleteMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/?$/);
     if (adminUserDeleteMatch && request.method === "DELETE") {
