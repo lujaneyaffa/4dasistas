@@ -3333,6 +3333,7 @@ el.innerHTML = `${getCmSession() ? '' : `${getLastLogin() ? `<div style="text-al
           <input id="esDate" type="date" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
           <input id="esCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
           <label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:44px;"><input id="esVirtual" type="checkbox" style="width:22px;height:22px;"> It's a virtual event (no city)</label>
+          <textarea id="esComments" rows="3" maxlength="600" placeholder="Comments (optional) — anything we should know?" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;font-family:inherit;"></textarea>
           <input id="esWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;">
           <div id="esStatus" style="min-height:18px;font-size:13px;color:#c00;" aria-live="polite"></div>
           <button type="submit" class="club-guide-btn" id="esSubmit" style="background:#ce8491;color:#fff;width:100%;text-align:center;min-height:46px;">Submit event</button>
@@ -3354,6 +3355,7 @@ el.innerHTML = `${getCmSession() ? '' : `${getLastLogin() ? `<div style="text-al
           <input id="rsLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="Instagram or WhatsApp link" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
           <input id="rsCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
           <label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:44px;"><input id="rsVirtual" type="checkbox" style="width:22px;height:22px;"> It's virtual / online only (no city)</label>
+          <textarea id="rsComments" rows="3" maxlength="600" placeholder="Comments (optional) — anything we should know?" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;font-family:inherit;"></textarea>
           <input id="rsWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;">
           <div id="rsStatus" style="min-height:18px;font-size:13px;color:#c00;" aria-live="polite"></div>
           <button type="submit" class="club-guide-btn" id="rsSubmit" style="background:#ce8491;color:#fff;width:100%;text-align:center;min-height:46px;">Submit resource</button>
@@ -3378,7 +3380,7 @@ function setupEventSubmitForm(){
     e.preventDefault();
     const st = document.getElementById('esStatus'), btn = document.getElementById('esSubmit');
     const virtual = document.getElementById('esVirtual').checked;
-    const body = { link: document.getElementById('esLink').value.trim(), name: document.getElementById('esName').value.trim(), date: dateEl.value, city: document.getElementById('esCity').value.trim(), virtual, website: document.getElementById('esWebsite').value };
+    const body = { link: document.getElementById('esLink').value.trim(), name: document.getElementById('esName').value.trim(), date: dateEl.value, city: document.getElementById('esCity').value.trim(), virtual, comments: document.getElementById('esComments').value.trim(), website: document.getElementById('esWebsite').value };
     st.style.color = '#c00';
     if(!/^https?:\/\/\S+\.\S+/i.test(body.link)){ st.textContent = 'Please add the link to the event (starting with https://).'; return; }
     if(body.name.length < 3){ st.textContent = "Please add the event's name."; return; }
@@ -3401,7 +3403,7 @@ function setupResourceSubmitForm(){
     e.preventDefault();
     const st = document.getElementById('rsStatus'), btn = document.getElementById('rsSubmit');
     const virtual = document.getElementById('rsVirtual').checked;
-    const body = { title: document.getElementById('rsTitle').value.trim(), type: document.getElementById('rsType').value, link: document.getElementById('rsLink').value.trim(), city: document.getElementById('rsCity').value.trim(), virtual, website: document.getElementById('rsWebsite').value };
+    const body = { title: document.getElementById('rsTitle').value.trim(), type: document.getElementById('rsType').value, link: document.getElementById('rsLink').value.trim(), city: document.getElementById('rsCity').value.trim(), virtual, comments: document.getElementById('rsComments').value.trim(), website: document.getElementById('rsWebsite').value };
     st.style.color = '#c00';
     if(body.title.length < 2){ st.textContent = 'Please add the name of the business or resource.'; return; }
     if(!body.type){ st.textContent = 'Please pick the type of resource.'; return; }
@@ -6675,8 +6677,8 @@ function resourceSuggestionsAdminHtml(){
   const label = k => (RESOURCE_CATEGORIES.find(c => c[0] === k) || [k, k])[1];
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Submitted resources${list.length ? ` (${list.length})` : ''}</h4>
     ${list.length ? list.map(x => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
-      <span style="min-width:0;"><strong>${escapeCm(x.title)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(label(x.type))} · ${escapeCm(x.city)}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a></span>
-      <button type="button" class="club-guide-btn res-sug-dismiss" data-id="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted resources.</p>'}</div>`;
+      <span style="min-width:0;"><strong>${escapeCm(x.title)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(label(x.type))} · ${escapeCm(x.city)}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
+      <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--lightblue);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn res-sug-dismiss" data-id="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted resources.</p>'}</div>`;
 }
 async function cmAdminLoadEventSuggestions(){
   try {
@@ -6689,8 +6691,8 @@ function eventSuggestionsAdminHtml(){
   if(!list) return '';
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Submitted events${list.length ? ` (${list.length})` : ''}</h4>
     ${list.length ? list.map(x => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
-      <span style="min-width:0;"><strong>${escapeCm(x.name)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(x.date)} · ${escapeCm(x.city)}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a></span>
-      <button type="button" class="club-guide-btn event-sug-dismiss" data-id="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted events.</p>'}</div>`;
+      <span style="min-width:0;"><strong>${escapeCm(x.name)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(x.date)} · ${escapeCm(x.city)}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
+      <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--lightblue);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn event-sug-dismiss" data-id="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted events.</p>'}</div>`;
 }
 function joinRequestsAdminHtml(){
   const reqs = state.cmAdminJoinRequests;
