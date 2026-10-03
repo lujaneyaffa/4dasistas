@@ -62,7 +62,7 @@
       "phone": "+1 905-922-2416",
       "instagram": "https://www.instagram.com/holistic.a.healing/",
       "ownedBy": "Holistic wellness center",
-      "category": "beautycare",
+      "category": "wellness",
       "lat": 43.585253,
       "lng": -79.7189595,
       "date": "Call for current hours"
@@ -344,7 +344,7 @@
       "instagram": "https://www.instagram.com/cozycrumb_maya?igsh=MWgzb3h6YXV0YW5mcQ%3D%3D&utm_source=qr",
       "instagramPost": "https://www.instagram.com/cozycrumb_maya/reel/DZnhAsLpLmA/",
       "ownedBy": "Muslim woman-owned",
-      "category": "bakeries"
+      "category": "catering"
     },
     {
       "id": "day-of-by-r",
@@ -354,7 +354,7 @@
       "instagram": "https://www.instagram.com/dayofbyr/",
       "instagramPost": "https://www.instagram.com/dayofbyr/p/DOZNHgPj1kq/",
       "location": "Mississauga | GTA | Open to travel",
-      "category": "bakeries"
+      "category": "eventservices"
     },
     {
       "id": "edills-coffee-house-scarborough",
@@ -375,7 +375,7 @@
       "instagramPost": "https://www.instagram.com/faizaxcloset/reel/Dcjq0DLv-Xl/",
       "website": "https://faizaxcloset.com",
       "location": "Scarborough, ON",
-      "category": "bakeries",
+      "category": "clothing",
       "ownedBy": "Faiza"
     },
     {
@@ -389,7 +389,7 @@
     },
     {
       "id": "fitra-vanilla-infused-olive-oil",
-      "category": "bakeries",
+      "category": "beautycare",
       "title": "FTRA",
       "type": "Vanilla-Infused Olive Oil (Skin & Hair Care)",
       "desc": "Self-care inspired by fitrah — vanilla-infused olive oil for skin and hair care that works for everyone. Durham pick-up available.",
@@ -503,7 +503,7 @@
       "id": "inner-voice-therapy"
     },
     {
-      "category": "bakeries",
+      "category": "eventservices",
       "title": "Krafted Banners Co",
       "type": "hand painted banners",
       "location": "Milton, ON, Canada",
@@ -590,7 +590,7 @@
       "website": "https://linktr.ee/mymatchacart",
       "ownedBy": "Women-owned",
       "location": "GTA, ON",
-      "category": "bakeries"
+      "category": "catering"
     },
     {
       "lng": -79.6863992,
@@ -1031,7 +1031,7 @@
       "instagramPost": "https://www.instagram.com/salam.sips/p/DZ6vZuljjgG/",
       "website": "https://linktr.ee/salamsips",
       "location": "GTA, ON",
-      "category": "bakeries"
+      "category": "catering"
     },
     {
       "id": "shop-abaan-fragrances",

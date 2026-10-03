@@ -994,7 +994,6 @@
 <div class="subscribe-row" id="subscribeRow">
   <a class="subscribe-btn" id="subscribeBtn" href="#" data-goto-subscribe>📅 Subscribe to Calendar</a>
   <a class="subscribe-fallback" id="subscribeFallback" href="#" target="_blank" rel="noopener">or download the file directly</a>
-  <a class="subscribe-btn" id="submitEventBtn" href="#" style="background:#ce8491;margin-top:6px;">➕ Submit an event</a>
 </div>
 
 <p class="page-disclaimer" id="pageDisclaimer">Details change often, so always confirm dates, prices, locations, and any "hijab-off"/private-space claims directly with the organizer before attending.</p>
@@ -1245,7 +1244,7 @@ let state = {
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
   ideaAvail:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
   publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
-  myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, clubsLoginPrefill:false, cmAdminEventSugs:null,
+  myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, clubsLoginPrefill:false, cmAdminEventSugs:null, cmAdminResSugs:null,
   ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{}, iavEditing:false,
   membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventJustCreated:false, eventEditDeleting:false,
@@ -1268,6 +1267,8 @@ const introText = {
   travel: "Women-friendly trips, retreats, and group travel beyond the GTA.",
   rules: "Answers about community guidelines, events, clubs, and safety.",
   homescreen: "Install 4DASISTAS on your device for fast, app-like access.",
+  submitevent: "Know an event we should add? Send it in.",
+  submitresource: "Know a business or resource we should add? Send it in.",
   clubstart: "Everything you need to launch a welcoming, well-run club.",
   clubjoin: "A few simple expectations keep every club welcoming and easy to join.",
   fallsignup: "",
@@ -1350,8 +1351,8 @@ function eventTypeLabel(item){
   if(resourcesData.includes(item)){
     const resourceLabels = {
       cafes:'Cafe & Desserts', shops:'Shop', restaurants:'Restaurant', beautycare:'Beauty',
-      mentalhealth:'Mental Health', bakeries:'Small Business', legal:'Legal Service', mosques:'Mosque',
-      communityorg:'Community Organization', fitness:'Fitness & Health', wellness:'Wellness'
+      mentalhealth:'Mental Health', catering:'Catering', eventservices:'Events', clothing:'Clothing', legal:'Legal Service', mosques:'Mosque',
+      communityorg:'Community Organization', wellness:'Wellness'
     };
     return resourceLabels[item.category] || item.type || 'Resource';
   }
@@ -2180,7 +2181,8 @@ const categoryList = [
 
 // Categories that have no physical storefront to plot, so the Directory hides the
 // List/Map toggle for them and always renders the list (no map embed at all).
-const NON_MAPPABLE_RESOURCES = ['mentalhealth', 'legal', 'bakeries', 'communityorg'];
+const NON_MAPPABLE_RESOURCES = ['mentalhealth', 'legal', 'catering', 'eventservices', 'clothing', 'communityorg'];
+const SMALL_BIZ_KEYS = ['catering', 'eventservices', 'clothing']; // the former "Small Businesses" tab, split three ways
 
 const resourceFilterList = [
   {key:'all', label:'All'},
@@ -2188,16 +2190,17 @@ const resourceFilterList = [
   {key:'shops', label:'Shops'},
   {key:'restaurants', label:'Restaurants'},
   {key:'beautycare', label:'Beauty'},
-  {key:'wellness', label:'Wellness'},
-  {key:'fitness', label:'Fitness & Health'},
+  {key:'wellness', label:'Wellness · Holistic & Healing'},
   {key:'mentalhealth', label:'Mental Health'},
-  {key:'bakeries', label:'Small Businesses'},
+  {key:'catering', label:'Catering'},
+  {key:'eventservices', label:'Events'},
+  {key:'clothing', label:'Clothing'},
   {key:'communityorg', label:'Community Organization'},
   {key:'legal', label:'Legal Services'},
 ];
 
 const categoryColors = {
-  mosques:'#c3e2d4', mosqueprograms:'#c3e2d4', cafes:'#ddb862', shops:'#caaacd', restaurants:'#f6c1a8', beautycare:'#ecc7d2', wellness:'#d8e8c8', mentalhealth:'#a9d6b8', bakeries:'#f1dfb6', legal:'#c8b6e8', communityorg:'#b8cde8', fitness:'#c9e0b0'
+  mosques:'#c3e2d4', mosqueprograms:'#c3e2d4', cafes:'#ddb862', shops:'#caaacd', restaurants:'#f6c1a8', beautycare:'#ecc7d2', wellness:'#d8e8c8', mentalhealth:'#a9d6b8', catering:'#f1dfb6', eventservices:'#e8c9a0', clothing:'#e6c6dc', legal:'#c8b6e8', communityorg:'#b8cde8'
 };
 
 function renderResourceFilters(){
@@ -2311,7 +2314,6 @@ function isAdminViewer(){
 }
 
 function pageCtaForTab(){
-  if(state.tab === 'resources') return { label:'Add a resource', title:'Missing a business or organization? DM us on Instagram' };
   // Trips are curated by the team, so this prompt is for visitors only.
   if(state.tab === 'travel' && !isAdminViewer()) return { label:'Add a trip', title:'Know a trip we should add? DM us on Instagram' };
   return null;
@@ -2328,17 +2330,21 @@ function renderHomescreenSlot(){
   slot.querySelector('.home-tile').addEventListener('click', () => goToTab('homescreen'));
 }
 
+// Contribution pills above the footer: a pink "Submit an event" and an "Add a resource" on every page EXCEPT
+// the Clubs and Squads areas (and the two submit pages themselves).
+const NO_PILL_TABS = ['clubs','squads','clubideas','clubmembers','clubstart','clubjoin','fallsignup','submitevent','submitresource'];
 function renderPageCta(){
   const slot = document.getElementById('pageCtaSlot');
   if(!slot) return;
-  const cta = pageCtaForTab();
-  if(!cta){
-    slot.style.display = 'none';
-    slot.innerHTML = '';
-    return;
-  }
-  slot.style.display = 'flex';
-  slot.innerHTML = `<a class="add-resource-pill" href="${IG_DM_URL}" target="_blank" rel="noopener" title="${cta.title}">➕ ${cta.label}</a>`;
+  if(NO_PILL_TABS.includes(state.tab)){ slot.style.display = 'none'; slot.innerHTML = ''; return; }
+  const trip = pageCtaForTab();
+  const showTrip = trip && state.tab === 'travel';
+  slot.style.cssText = 'display:flex;flex-wrap:wrap;gap:12px;justify-content:center;';
+  slot.innerHTML = `<button type="button" class="add-resource-pill" id="pillSubmitEvent" style="background:#ce8491;color:#fff;border-color:#76220b;box-shadow:3px 3px 0 #76220b;cursor:pointer;">➕ Submit an event</button>
+    <button type="button" class="add-resource-pill" id="pillAddResource" style="cursor:pointer;">➕ Add a resource</button>
+    ${showTrip ? `<a class="add-resource-pill" href="${IG_DM_URL}" target="_blank" rel="noopener" title="${trip.title}">➕ ${trip.label}</a>` : ''}`;
+  document.getElementById('pillSubmitEvent').addEventListener('click', () => goToTab('submitevent'));
+  document.getElementById('pillAddResource').addEventListener('click', () => goToTab('submitresource'));
 }
 
 function resAddBtnHtml(){
@@ -2372,7 +2378,7 @@ function renderResourceList(){
   const pagEl = document.getElementById('resourcePagination');
   const filtered = interleaveByCategory(filteredResourceItems());
   const isMentalHealth = state.resourceFilter === 'mentalhealth';
-  const isSmallBiz = state.resourceFilter === 'bakeries';
+  const isSmallBiz = SMALL_BIZ_KEYS.includes(state.resourceFilter);
   el.className = isMentalHealth ? 'mental-health-grid' : isSmallBiz ? 'small-business-grid' : '';
   el.style.display = (isMentalHealth || isSmallBiz) ? 'grid' : 'block';
 
@@ -3297,19 +3303,7 @@ el.innerHTML = `${getCmSession() ? '' : `${getLastLogin() ? `<div style="text-al
         <div id="subscribeChecks" style="display:flex; flex-direction:column; gap:10px;"></div>
         <button class="club-guide-btn" id="subDownload" style="margin-top:18px; background:var(--charcoal); color:var(--cream); width:100%; text-align:center;">Download Calendar (.ics)</button>
       </div>
-      <div class="rules-content" style="margin-top:22px;">
-        <p class="rules-lead">Know an event we should add?</p>
-        <p style="margin-bottom:12px;">Send it to us — all four fields are required and an admin reviews every submission.</p>
-        <form id="eventSubForm" novalidate style="display:flex;flex-direction:column;gap:10px;">
-          <input id="esLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="Link to the event (https://…)" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
-          <input id="esName" type="text" maxlength="120" placeholder="Event name" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
-          <input id="esDate" type="date" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
-          <input id="esCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
-          <input id="esWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;">
-          <div id="esStatus" style="min-height:18px;font-size:13px;color:#c00;" aria-live="polite"></div>
-          <button type="submit" class="club-guide-btn" id="esSubmit" style="background:var(--lightblue);width:100%;text-align:center;min-height:46px;">Submit event</button>
-        </form>
-      </div>`;
+`;
     setTimeout(() => {
       populateSubscribeChecks();
       document.getElementById('subSelectAll').addEventListener('click', () => {
@@ -3319,30 +3313,98 @@ el.innerHTML = `${getCmSession() ? '' : `${getLastLogin() ? `<div style="text-al
         document.querySelectorAll('#subscribeChecks input[type=checkbox]').forEach(cb => cb.checked = false);
       });
       document.getElementById('subDownload').addEventListener('click', generateCustomICS);
-      setupEventSubmitForm();
     }, 0);
+  } else if(state.tab === 'submitevent'){
+    document.getElementById('resourcePagination').innerHTML = '';
+    el.innerHTML = `
+      <div class="rules-content" style="max-width:560px;margin:0 auto;">
+        <p class="rules-lead">Know an event we should add?</p>
+        <p style="margin-bottom:12px;">Send it to us — everything below is required, and an admin reviews every submission.</p>
+        <form id="eventSubForm" novalidate style="display:flex;flex-direction:column;gap:10px;">
+          <input id="esLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="Link to the event (https://…)" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
+          <input id="esName" type="text" maxlength="120" placeholder="Event name" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
+          <input id="esDate" type="date" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
+          <input id="esCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
+          <label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:44px;"><input id="esVirtual" type="checkbox" style="width:22px;height:22px;"> It's a virtual event (no city)</label>
+          <input id="esWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;">
+          <div id="esStatus" style="min-height:18px;font-size:13px;color:#c00;" aria-live="polite"></div>
+          <button type="submit" class="club-guide-btn" id="esSubmit" style="background:#ce8491;color:#fff;width:100%;text-align:center;min-height:46px;">Submit event</button>
+        </form>
+      </div>`;
+    setTimeout(setupEventSubmitForm, 0);
+  } else if(state.tab === 'submitresource'){
+    document.getElementById('resourcePagination').innerHTML = '';
+    el.innerHTML = `
+      <div class="rules-content" style="max-width:560px;margin:0 auto;">
+        <p class="rules-lead">Know a business or resource we should add?</p>
+        <p style="margin-bottom:12px;">Send it to us — everything below is required, and an admin reviews every submission.</p>
+        <form id="resSubForm" novalidate style="display:flex;flex-direction:column;gap:10px;">
+          <input id="rsTitle" type="text" maxlength="120" placeholder="Name of the business / resource" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
+          <select id="rsType" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;background:#fff;">
+            <option value="">Type of resource…</option>
+            ${RESOURCE_CATEGORIES.map(([k, l]) => `<option value="${k}">${escapeCm(l)}</option>`).join('')}
+          </select>
+          <input id="rsLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="Instagram or WhatsApp link" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
+          <input id="rsCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
+          <label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:44px;"><input id="rsVirtual" type="checkbox" style="width:22px;height:22px;"> It's virtual / online only (no city)</label>
+          <input id="rsWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;">
+          <div id="rsStatus" style="min-height:18px;font-size:13px;color:#c00;" aria-live="polite"></div>
+          <button type="submit" class="club-guide-btn" id="rsSubmit" style="background:#ce8491;color:#fff;width:100%;text-align:center;min-height:46px;">Submit resource</button>
+        </form>
+      </div>`;
+    setTimeout(setupResourceSubmitForm, 0);
   }
 }
 
+function ymdToday(){ const t = new Date(); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0'); }
+function wireVirtualToggle(cityId, virtualId){
+  const city = document.getElementById(cityId), v = document.getElementById(virtualId);
+  v.addEventListener('change', () => { city.disabled = v.checked; city.style.opacity = v.checked ? '.45' : '1'; if(v.checked) city.value = ''; });
+}
 function setupEventSubmitForm(){
   const form = document.getElementById('eventSubForm');
   if(!form) return;
   const dateEl = document.getElementById('esDate');
-  const t = new Date(); dateEl.min = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
+  dateEl.min = ymdToday();
+  wireVirtualToggle('esCity', 'esVirtual');
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const st = document.getElementById('esStatus'), btn = document.getElementById('esSubmit');
-    const body = { link: document.getElementById('esLink').value.trim(), name: document.getElementById('esName').value.trim(), date: dateEl.value, city: document.getElementById('esCity').value.trim(), website: document.getElementById('esWebsite').value };
+    const virtual = document.getElementById('esVirtual').checked;
+    const body = { link: document.getElementById('esLink').value.trim(), name: document.getElementById('esName').value.trim(), date: dateEl.value, city: document.getElementById('esCity').value.trim(), virtual, website: document.getElementById('esWebsite').value };
     st.style.color = '#c00';
     if(!/^https?:\/\/\S+\.\S+/i.test(body.link)){ st.textContent = 'Please add the link to the event (starting with https://).'; return; }
     if(body.name.length < 3){ st.textContent = "Please add the event's name."; return; }
     if(!body.date){ st.textContent = "Please pick the event's date."; return; }
-    if(body.city.length < 2){ st.textContent = 'Please add the city.'; return; }
+    if(!virtual && body.city.length < 2){ st.textContent = 'Please add the city, or tick "virtual event".'; return; }
     btn.disabled = true; st.textContent = '';
     try {
       await cmApiRaw('/api/event-suggestions', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
-      form.reset();
+      form.reset(); document.getElementById('esCity').disabled = false; document.getElementById('esCity').style.opacity = '1';
       st.style.color = '#2a7a4a'; st.textContent = 'Thank you! Your event was sent — an admin will review it.';
+    } catch(err){ st.textContent = err.message; }
+    btn.disabled = false;
+  });
+}
+function setupResourceSubmitForm(){
+  const form = document.getElementById('resSubForm');
+  if(!form) return;
+  wireVirtualToggle('rsCity', 'rsVirtual');
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const st = document.getElementById('rsStatus'), btn = document.getElementById('rsSubmit');
+    const virtual = document.getElementById('rsVirtual').checked;
+    const body = { title: document.getElementById('rsTitle').value.trim(), type: document.getElementById('rsType').value, link: document.getElementById('rsLink').value.trim(), city: document.getElementById('rsCity').value.trim(), virtual, website: document.getElementById('rsWebsite').value };
+    st.style.color = '#c00';
+    if(body.title.length < 2){ st.textContent = 'Please add the name of the business or resource.'; return; }
+    if(!body.type){ st.textContent = 'Please pick the type of resource.'; return; }
+    if(!/(instagram\.com|wa\.me|whatsapp\.com)/i.test(body.link)){ st.textContent = 'Please add an Instagram or WhatsApp link.'; return; }
+    if(!virtual && body.city.length < 2){ st.textContent = 'Please add the city, or tick "virtual / online only".'; return; }
+    btn.disabled = true; st.textContent = '';
+    try {
+      await cmApiRaw('/api/resource-suggestions', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+      form.reset(); document.getElementById('rsCity').disabled = false; document.getElementById('rsCity').style.opacity = '1';
+      st.style.color = '#2a7a4a'; st.textContent = 'Thank you! It was sent — an admin will review it.';
     } catch(err){ st.textContent = err.message; }
     btn.disabled = false;
   });
@@ -4211,8 +4273,8 @@ async function deleteEventEdit(){
    ADMIN: RESOURCES / SMALL BUSINESS EDITOR
    Same GitHub-backed pattern as the calendar event editor above.
    ============================================================ */
-const RESOURCE_CATEGORIES = [['cafes','Cafe & Dessert'],['shops','Shops'],['restaurants','Restaurants'],['beautycare','Beauty'],['wellness','Wellness'],['mentalhealth','Mental Health'],['bakeries','Small Businesses'],['legal','Legal'],['communityorg','Community Organization'],['fitness','Fitness & Health']];
-const RESOURCE_CREATE_DEFAULTS = { category:'bakeries', title:'', type:'', location:'', date:'', ownedBy:'', desc:'', lat:'', lng:'', mapsUrl:'', instagramPost:'', phone:'', instagram:'', website:'', email:'', image:null };
+const RESOURCE_CATEGORIES = [['cafes','Cafe & Dessert'],['shops','Shops'],['restaurants','Restaurants'],['beautycare','Beauty'],['wellness','Wellness (holistic & healing)'],['mentalhealth','Mental Health'],['catering','Catering'],['eventservices','Events'],['clothing','Clothing'],['legal','Legal'],['communityorg','Community Organization']];
+const RESOURCE_CREATE_DEFAULTS = { category:'catering', title:'', type:'', location:'', date:'', ownedBy:'', desc:'', lat:'', lng:'', mapsUrl:'', instagramPost:'', phone:'', instagram:'', website:'', email:'', image:null };
 
 async function openResourceEdit(id){
   state.resourceEditOpen = true;
@@ -4559,7 +4621,7 @@ async function saveAboutEdit(){
 /* ============================================================
    MAIN RENDER
    ============================================================ */
-const DIRECTORY_TABS = ['clubs','squads','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','clubmembers','clubideas'];
+const DIRECTORY_TABS = ['clubs','squads','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','submitevent','submitresource','clubmembers','clubideas'];
 
 /* ============================================================
    CLUB MEMBERS SCHEDULE (private per-club sign-in + per-event availability)
@@ -6586,12 +6648,28 @@ async function cmAdminLoadAllMembers(){
   } catch { state.cmAdminAllMembers = {}; }
   await cmAdminLoadJoinRequests();
   await cmAdminLoadEventSuggestions();
+  await cmAdminLoadResourceSuggestions();
 }
 async function cmAdminLoadJoinRequests(){
   try {
     const res = await fetch('/api/admin/join-requests', { credentials:'include' });
     state.cmAdminJoinRequests = res.ok ? ((await res.json()).requests || []) : [];
   } catch { state.cmAdminJoinRequests = []; }
+}
+async function cmAdminLoadResourceSuggestions(){
+  try {
+    const res = await fetch('/api/admin/resource-suggestions', { credentials:'include' });
+    state.cmAdminResSugs = res.ok ? ((await res.json()).suggestions || []) : [];
+  } catch { state.cmAdminResSugs = []; }
+}
+function resourceSuggestionsAdminHtml(){
+  const list = state.cmAdminResSugs;
+  if(!list) return '';
+  const label = k => (RESOURCE_CATEGORIES.find(c => c[0] === k) || [k, k])[1];
+  return `<div class="cp-box"><h4 style="margin:0 0 6px;">Submitted resources${list.length ? ` (${list.length})` : ''}</h4>
+    ${list.length ? list.map(x => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
+      <span style="min-width:0;"><strong>${escapeCm(x.title)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(label(x.type))} · ${escapeCm(x.city)}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a></span>
+      <button type="button" class="club-guide-btn res-sug-dismiss" data-id="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted resources.</p>'}</div>`;
 }
 async function cmAdminLoadEventSuggestions(){
   try {
@@ -6873,6 +6951,7 @@ function renderClubAdminPanel(){
     ${admAvailSectionHtml()}
     ${joinRequestsAdminHtml()}
     ${eventSuggestionsAdminHtml()}
+    ${resourceSuggestionsAdminHtml()}
     ${clubDirListHtml()}
     <div class="cp-box">
       <h4 style="margin:0 0 6px;">Create a profile</h4>
@@ -7203,6 +7282,7 @@ function wireClubAdminPanel(){
   if(cpBtn) cpBtn.addEventListener('click', cmAdminCreateProfile);
   document.querySelectorAll('.join-req-accept').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'accept'); }));
   document.querySelectorAll('.join-req-decline').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'decline'); }));
+  document.querySelectorAll('.res-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/resource-suggestions/' + encodeURIComponent(b.dataset.id), { method:'DELETE', credentials:'include' }); await cmAdminLoadResourceSuggestions(); render(); }));
   document.querySelectorAll('.event-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/event-suggestions/' + encodeURIComponent(b.dataset.id), { method:'DELETE', credentials:'include' }); await cmAdminLoadEventSuggestions(); render(); }));
   const loginBtn = document.getElementById('cmAdminLoginBtn');
   if(loginBtn) loginBtn.addEventListener('click', cmAdminLogin);
@@ -7355,7 +7435,7 @@ const LAST_TAB_STORAGE_KEY = 'lastAppState';
 // instead of the old #tab=events&cat=all&view=list&... query-string look. The full
 // state (filters, view mode, etc.) still round-trips through localStorage below —
 // only what's actually shown in the URL bar has been simplified.
-const TAB_SLUGS = { events:'calendar', clubs:'clubs', squads:'squads', resources:'resources', travel:'travel', rules:'about', homescreen:'add-to-homescreen', subscribe:'subscribe' };
+const TAB_SLUGS = { events:'calendar', clubs:'clubs', squads:'squads', resources:'resources', travel:'travel', rules:'about', homescreen:'add-to-homescreen', subscribe:'subscribe', submitevent:'submit-event', submitresource:'add-resource' };
 const SLUG_TO_TAB = Object.fromEntries(Object.entries(TAB_SLUGS).map(([tab, slug]) => [slug, tab]));
 /* Every page and sub-page has its own shareable link (all hash-based, so they work with the static host):
      #/calendar  #/calendar/sports  #/calendar/sports/badminton  #/calendar/activities/Mississauga
@@ -7363,7 +7443,7 @@ const SLUG_TO_TAB = Object.fromEntries(Object.entries(TAB_SLUGS).map(([tab, slug
      #/clubs  #/clubs/join (sign-up form)  #/clubs/quicklogin (already filled a form, just need a login)
      #/clubs/start  #/clubs/guidelines  #/clubs/<club>  #/clubs/<club>/members
      #/resources  #/resources/<category>  (+ /list)      #/travel  #/travel/domestic  #/travel/international  (+ /past)
-     #/about  #/subscribe  #/add-to-homescreen  #/event/<id>
+     #/about  #/subscribe  #/submit-event  #/add-resource  #/add-to-homescreen  #/event/<id>
    Older links (#/fallsignup, #/clubstart, #/clubjoin, #/homescreen, #/calendar/mosqueprograms, …) still work. */
 const CLUB_SUBPAGES = { join:'fallsignup', start:'clubstart', guidelines:'clubjoin' };
 const CLUB_SUBPAGE_SLUGS = Object.fromEntries(Object.entries(CLUB_SUBPAGES).map(([slug, tab]) => [tab, slug]));
@@ -7452,7 +7532,8 @@ function syncStateToHash(){
 
   if(isDefaultHomeState){
     const cleanUrl = location.pathname + location.search;
-    if(location.hash) history.replaceState(null, '', cleanUrl);
+    // real navigation back to Home -> a new history entry, so the browser Back button returns to the previous page
+    if(location.hash) history[location.hash.startsWith('#/') ? 'pushState' : 'replaceState'](null, '', cleanUrl);
     try { localStorage.removeItem(LAST_TAB_STORAGE_KEY); } catch {}
     return;
   }
@@ -7472,7 +7553,12 @@ function syncStateToHash(){
   // The visible URL only shows the tab and, where meaningful, the one filter
   // most worth bookmarking/sharing — not the full query-string of every toggle.
   const slugParts = currentSlugParts();
-  history.replaceState(null, '', location.pathname + location.search + '#/' + slugParts.join('/'));
+  // A change of page/filter is a real navigation: push a history entry so the browser Back button walks back through
+  // the site instead of jumping straight to whatever site you came from (it used to replace the entry every time).
+  const nextUrl = location.pathname + location.search + '#/' + slugParts.join('/');
+  const curHash = safeDecode(location.hash);
+  const nextHash = safeDecode('#/' + slugParts.join('/'));
+  history[(curHash.startsWith('#/') && curHash !== nextHash) || (!location.hash && state.tab !== 'home') ? 'pushState' : 'replaceState'](null, '', nextUrl);
 }
 
 function normalizeLegacyTab(){
@@ -7803,6 +7889,13 @@ window.addEventListener('hashchange', () => {
     window.scrollTo({ top:0, behavior:'smooth' });
     return;
   }
+  if(!location.hash || location.hash === '#'){
+    // Back/forward to the entry with no hash = Home
+    document.getElementById('detail-view').classList.remove('open');
+    document.body.style.overflow = '';
+    state.eventEditOpen = false;
+    if(state.tab !== 'home'){ applySlugParts(['home']); state.page = 1; if(!enterDeepLinkState()) render(); window.scrollTo({ top:0, behavior:'smooth' }); return; }
+  }
   closeDetail();
 });
 
@@ -7883,11 +7976,6 @@ window.addEventListener('scroll', () => {
 document.getElementById('subscribeBtn').addEventListener('click', e => {
   e.preventDefault();
   goToTab('subscribe');
-});
-document.getElementById('submitEventBtn').addEventListener('click', e => {
-  e.preventDefault();
-  goToTab('subscribe');
-  setTimeout(() => { const f = document.getElementById('eventSubForm'); if(f) f.scrollIntoView({ block:'center', behavior:'smooth' }); }, 150);
 });
 document.getElementById('subscribeFallback').href = `https://${location.host}/calendar.ics`;
 

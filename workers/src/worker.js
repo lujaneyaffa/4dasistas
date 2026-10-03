@@ -257,6 +257,16 @@ const notifyAdminOfEventSuggestion = (env, ctx, sug) => {
     body: JSON.stringify({ from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [env.ADMIN_NOTIFY_EMAIL], subject: `Event submitted: ${sug.name} (${sug.city}, ${sug.date})`, html }),
   }).then(async (r) => { if (!r.ok) console.error("Resend rejected admin notification", r.status, (await r.text()).slice(0, 300)); }).catch((e) => console.error("Resend request failed", String(e))));
 };
+const notifyAdminOfResourceSuggestion = (env, ctx, sug) => {
+  if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
+  const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
+  const html = `<div style="font-family:Arial,sans-serif;max-width:520px;color:#373d3b"><h2 style="margin:0 0 8px">New resource submitted</h2><p><strong>${escapeHtml(sug.title)}</strong><br>${escapeHtml(sug.type)} · ${escapeHtml(sug.city)}<br><a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a></p><p>To review it: open <a href="${origin}/#/clubs">${origin}</a>, log in as admin (🔒 Admin Login in the footer), and look for <em>Submitted resources</em> on the Clubs page.</p></div>`;
+  ctx.waitUntil(fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [env.ADMIN_NOTIFY_EMAIL], subject: `Resource submitted: ${sug.title} (${sug.city})`, html }),
+  }).then(async (r) => { if (!r.ok) console.error("Resend rejected admin notification", r.status, (await r.text()).slice(0, 300)); }).catch((e) => console.error("Resend request failed", String(e))));
+};
 const notifyAdminOfJoinRequest = (env, ctx, user, club) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
   const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
@@ -595,7 +605,7 @@ const resolveCalendarFile = async (env, id) => {
 
 // ---- In-site resources/small-business editor: same GitHub-backed pattern as calendar events ----
 const resourceFilePath = (id) => `data/resources/${id}.json`;
-const RESOURCE_CATEGORIES = ["cafes", "shops", "restaurants", "beautycare", "wellness", "mentalhealth", "bakeries", "legal", "communityorg", "fitness"];
+const RESOURCE_CATEGORIES = ["cafes", "shops", "restaurants", "beautycare", "wellness", "mentalhealth", "catering", "eventservices", "clothing", "legal", "communityorg"];
 
 const resolveResourceFile = async (env, id) => {
   const direct = resourceFilePath(id);
@@ -1120,14 +1130,15 @@ export default {
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       if (body.website) return jsonResponse({ ok: true }, 200, corsHeaders); // honeypot: bots fill hidden fields
       const clean = (v, max) => String(v || "").replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
-      const name = clean(body.name, 120), city = clean(body.city, 60), date = clean(body.date, 10);
+      const virtual = body.virtual === true;
+      const name = clean(body.name, 120), city = virtual ? "Virtual" : clean(body.city, 60), date = clean(body.date, 10);
       let link = "";
       try { const u = new URL(String(body.link || "").trim()); if (u.protocol === "https:" || u.protocol === "http:") link = u.href.slice(0, 500); } catch {}
       if (!link) return jsonResponse({ error: "Please add a link to the event (starting with https://)" }, 400, corsHeaders);
       if (name.length < 3) return jsonResponse({ error: "Please add the event's name" }, 400, corsHeaders);
       if (!isValidDateString(date)) return jsonResponse({ error: "Please pick the event's date" }, 400, corsHeaders);
       if (date < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "That date has already passed" }, 400, corsHeaders);
-      if (city.length < 2) return jsonResponse({ error: "Please add the city" }, 400, corsHeaders);
+      if (city.length < 2) return jsonResponse({ error: "Please add the city (or tick Virtual)" }, 400, corsHeaders);
       const ip = request.headers.get("CF-Connecting-IP") || "unknown";
       const rateKey = `sugrate:${ip}:${Math.floor(Date.now() / 3600000)}`;
       const used = Number(await env.SITE_DATA.get(rateKey) || 0);
@@ -1135,9 +1146,44 @@ export default {
       const pending = await env.SITE_DATA.list({ prefix: "eventsug:" });
       if (pending.keys.length >= EVENT_SUGGESTION_MAX_PENDING) return jsonResponse({ error: "The submission box is full right now — please try again later" }, 503, corsHeaders);
       await env.SITE_DATA.put(rateKey, String(used + 1), { expirationTtl: 3700 });
-      const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, link, name, date, city, at: Date.now() };
+      const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, link, name, date, city, virtual, at: Date.now() };
       await env.SITE_DATA.put(`eventsug:${sug.id}`, JSON.stringify(sug));
       notifyAdminOfEventSuggestion(env, ctx, sug);
+      return jsonResponse({ ok: true }, 201, corsHeaders);
+    }
+    // ---- Public: anyone can suggest a resource (title, type, Instagram/WhatsApp link, city or Virtual). Stored for the admin + emailed. ----
+    if (path === "/api/resource-suggestions" && request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      if (body.website) return jsonResponse({ ok: true }, 200, corsHeaders); // honeypot
+      const clean = (v, max) => String(v || "").replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
+      const title = clean(body.title, 120);
+      const type = String(body.type || "");
+      const virtual = body.virtual === true;
+      const city = virtual ? "Virtual" : clean(body.city, 60);
+      let link = "";
+      try {
+        let raw = String(body.link || "").trim();
+        if (raw && !/^[a-z]+:\/\//i.test(raw)) raw = "https://" + raw;
+        const u = new URL(raw);
+        const host = u.hostname.replace(/^www\./, "").toLowerCase();
+        const ok = ["instagram.com", "wa.me", "whatsapp.com", "chat.whatsapp.com", "api.whatsapp.com"].some((h) => host === h || host.endsWith("." + h));
+        if ((u.protocol === "https:" || u.protocol === "http:") && ok) link = u.href.slice(0, 500);
+      } catch {}
+      if (title.length < 2) return jsonResponse({ error: "Please add the business or resource name" }, 400, corsHeaders);
+      if (!RESOURCE_CATEGORIES.includes(type)) return jsonResponse({ error: "Please pick a type" }, 400, corsHeaders);
+      if (!link) return jsonResponse({ error: "Please add an Instagram or WhatsApp link" }, 400, corsHeaders);
+      if (city.length < 2) return jsonResponse({ error: "Please add the city (or tick Virtual)" }, 400, corsHeaders);
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+      const rateKey = `sugrate:${ip}:${Math.floor(Date.now() / 3600000)}`;
+      const used = Number(await env.SITE_DATA.get(rateKey) || 0);
+      if (used >= EVENT_SUGGESTION_MAX_PER_IP_PER_HOUR) return jsonResponse({ error: "Too many submissions — please try again later" }, 429, corsHeaders);
+      const pending = await env.SITE_DATA.list({ prefix: "ressug:" });
+      if (pending.keys.length >= EVENT_SUGGESTION_MAX_PENDING) return jsonResponse({ error: "The submission box is full right now — please try again later" }, 503, corsHeaders);
+      await env.SITE_DATA.put(rateKey, String(used + 1), { expirationTtl: 3700 });
+      const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, title, type, link, city, virtual, at: Date.now() };
+      await env.SITE_DATA.put(`ressug:${sug.id}`, JSON.stringify(sug));
+      notifyAdminOfResourceSuggestion(env, ctx, sug);
       return jsonResponse({ ok: true }, 201, corsHeaders);
     }
     // Fresh membership + pending requests for the signed-in person (the cached session goes stale once an admin approves).
@@ -1339,7 +1385,7 @@ export default {
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
 
     if (requiresAuth) {
       const token = getSessionToken(request);
@@ -1398,6 +1444,18 @@ export default {
       for (const k of list.keys) { try { out.push(JSON.parse(await env.SITE_DATA.get(k.name))); } catch {} }
       out.sort((a, b) => a.date.localeCompare(b.date));
       return jsonResponse({ suggestions: out.filter(Boolean) }, 200, corsHeaders);
+    }
+    if (path === "/api/admin/resource-suggestions" && request.method === "GET") {
+      const list = await env.SITE_DATA.list({ prefix: "ressug:" });
+      const out = [];
+      for (const k of list.keys) { try { out.push(JSON.parse(await env.SITE_DATA.get(k.name))); } catch {} }
+      out.sort((a, b) => (a.at || 0) - (b.at || 0));
+      return jsonResponse({ suggestions: out.filter(Boolean) }, 200, corsHeaders);
+    }
+    const adminResSugMatch = path.match(/^\/api\/admin\/resource-suggestions\/([^/]+)\/?$/);
+    if (adminResSugMatch && request.method === "DELETE") {
+      await env.SITE_DATA.delete(`ressug:${decodeURIComponent(adminResSugMatch[1])}`);
+      return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     const adminSugMatch = path.match(/^\/api\/admin\/event-suggestions\/([^/]+)\/?$/);
     if (adminSugMatch && request.method === "DELETE") {

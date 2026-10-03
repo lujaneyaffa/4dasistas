@@ -1078,16 +1078,20 @@ collections:
     - cafes
     - shops
     - restaurants
-    - label: Pampering
+    - label: Beauty
       value: beautycare
     - mentalhealth
-    - label: Small Businesses
-      value: bakeries
+    - label: Wellness (holistic & healing)
+      value: wellness
+    - label: Catering
+      value: catering
+    - label: Events
+      value: eventservices
+    - label: Clothing
+      value: clothing
     - legal
     - label: Community Organization
       value: communityorg
-    - label: Fitness & Health
-      value: fitness
     hint: Changing this officially moves the listing to another Resources tab.
   - label: Title
     name: title
@@ -1303,7 +1307,7 @@ collections:
     widget: string
     required: false
 - name: res-beautycare
-  label: Resources - Pampering
+  label: Resources - Beauty
   folder: data/resources
   extension: json
   format: json
@@ -1458,14 +1462,14 @@ collections:
     name: email
     widget: string
     required: false
-- name: res-fitness
-  label: Resources - Fitness & Health
+- name: res-wellness
+  label: Resources - Wellness (holistic & healing)
   folder: data/resources
   extension: json
   format: json
   filter:
     field: category
-    value: fitness
+    value: wellness
   create: true
   slug: '{{title}}'
   identifier_field: title
@@ -1476,7 +1480,7 @@ collections:
   - label: Type (changing this OFFICIALLY MOVES the listing)
     name: category
     widget: select
-    default: fitness
+    default: wellness
     options: *id003
     hint: Changing this officially moves the listing to another Resources tab.
   - label: Title
@@ -1614,14 +1618,14 @@ collections:
     name: email
     widget: string
     required: false
-- name: res-bakeries
-  label: Resources - Small Businesses
+- name: res-catering
+  label: Resources - Catering
   folder: data/resources
   extension: json
   format: json
   filter:
     field: category
-    value: bakeries
+    value: catering
   create: true
   slug: '{{title}}'
   identifier_field: title
@@ -1632,7 +1636,163 @@ collections:
   - label: Type (changing this OFFICIALLY MOVES the listing)
     name: category
     widget: select
-    default: bakeries
+    default: catering
+    options: *id003
+    hint: Changing this officially moves the listing to another Resources tab.
+  - label: Title
+    name: title
+    widget: string
+  - label: Type line on card (e.g. Bakery)
+    name: type
+    widget: string
+    required: false
+  - label: Location
+    name: location
+    widget: location-autocomplete
+  - label: Hours / date info
+    name: date
+    widget: string
+    required: false
+  - label: Ownership note (required)
+    name: ownedBy
+    widget: string
+    required: true
+    hint: Every business needs a real owner name here.
+  - label: Description
+    name: desc
+    widget: text
+    required: false
+  - label: Latitude (for map)
+    name: lat
+    widget: number
+    value_type: float
+    required: false
+  - label: Longitude (for map)
+    name: lng
+    widget: number
+    value_type: float
+    required: false
+  - label: Google Maps link
+    name: mapsUrl
+    widget: string
+    required: false
+  - label: Featured Instagram post link (Small Businesses grid)
+    name: instagramPost
+    widget: string
+    required: false
+  - label: Phone
+    name: phone
+    widget: string
+    required: false
+  - label: Instagram link
+    name: instagram
+    widget: string
+    required: false
+  - label: Website link
+    name: website
+    widget: string
+    required: false
+  - label: Email
+    name: email
+    widget: string
+    required: false
+- name: res-eventservices
+  label: Resources - Events
+  folder: data/resources
+  extension: json
+  format: json
+  filter:
+    field: category
+    value: eventservices
+  create: true
+  slug: '{{title}}'
+  identifier_field: title
+  sortable_fields:
+  - title
+  summary: '{{title}} - {{type}}'
+  fields:
+  - label: Type (changing this OFFICIALLY MOVES the listing)
+    name: category
+    widget: select
+    default: eventservices
+    options: *id003
+    hint: Changing this officially moves the listing to another Resources tab.
+  - label: Title
+    name: title
+    widget: string
+  - label: Type line on card (e.g. Bakery)
+    name: type
+    widget: string
+    required: false
+  - label: Location
+    name: location
+    widget: location-autocomplete
+  - label: Hours / date info
+    name: date
+    widget: string
+    required: false
+  - label: Ownership note (required)
+    name: ownedBy
+    widget: string
+    required: true
+    hint: Every business needs a real owner name here.
+  - label: Description
+    name: desc
+    widget: text
+    required: false
+  - label: Latitude (for map)
+    name: lat
+    widget: number
+    value_type: float
+    required: false
+  - label: Longitude (for map)
+    name: lng
+    widget: number
+    value_type: float
+    required: false
+  - label: Google Maps link
+    name: mapsUrl
+    widget: string
+    required: false
+  - label: Featured Instagram post link (Small Businesses grid)
+    name: instagramPost
+    widget: string
+    required: false
+  - label: Phone
+    name: phone
+    widget: string
+    required: false
+  - label: Instagram link
+    name: instagram
+    widget: string
+    required: false
+  - label: Website link
+    name: website
+    widget: string
+    required: false
+  - label: Email
+    name: email
+    widget: string
+    required: false
+- name: res-clothing
+  label: Resources - Clothing
+  folder: data/resources
+  extension: json
+  format: json
+  filter:
+    field: category
+    value: clothing
+  create: true
+  slug: '{{title}}'
+  identifier_field: title
+  sortable_fields:
+  - title
+  summary: '{{title}} - {{type}}'
+  fields:
+  - label: Type (changing this OFFICIALLY MOVES the listing)
+    name: category
+    widget: select
+    default: clothing
     options: *id003
     hint: Changing this officially moves the listing to another Resources tab.
   - label: Title
