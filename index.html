@@ -888,7 +888,7 @@
 @media (min-width:1100px){
   /* the board's column is only 640px wide: let the floating cloud break out to use the whole page width */
   .ideas-cloud.floaty{ display:block; position:relative; padding:0; width:min(1120px, calc(100vw - 80px)); left:50%; transform:translateX(-50%); }
-  .ideas-cloud.floaty .idea-bubble{ position:absolute; margin:0; animation:ideaFloat var(--dur,14s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:translate 1.4s ease-in-out; }
+  .ideas-cloud.floaty .idea-bubble{ position:absolute; margin:0; animation:ideaFloat var(--dur,14s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:width .8s cubic-bezier(.25,.8,.3,1), height .8s cubic-bezier(.25,.8,.3,1), left .8s cubic-bezier(.25,.8,.3,1), top .8s cubic-bezier(.25,.8,.3,1), translate 1.4s ease-in-out; }
   /* hovering the cloud nudges EVERY bubble a little (via the separate `translate` property, with a transition, so it glides
      instead of restarting the drift animation — that restart is what looked glitchy) */
   .ideas-cloud.floaty:hover .idea-bubble{ translate:var(--hx,10px) var(--hy,-10px); }
@@ -5121,44 +5121,53 @@ function ideaColorIndex(id){ let h = 0; for(let i = 0; i < id.length; i++) h = (
 
 // Desktop only: scatter the idea bubbles at random (seeded by their ids so they don't jump around on every redraw), avoid
 // overlaps, and let each drift a little. On phones/tablets the normal wrapped layout stays exactly as it was.
+// Positions are REMEMBERED per bubble (x as a fraction of the width, y in px) so nothing jumps when someone votes or the page
+// redraws: a bubble that gets bigger/smaller grows around its own centre, and CSS transitions glide any movement.
+const floatCache = {};
 function floatIdeaClouds(){
   const wide = window.matchMedia('(min-width:1100px)').matches;
   document.querySelectorAll('.ideas-cloud').forEach(box => {
     const bubbles = [...box.querySelectorAll('.idea-bubble')];
-    const reset = () => { box.classList.remove('floaty'); box.style.height = ''; bubbles.forEach(b => { b.style.left = b.style.top = ''; b.style.removeProperty('--dx'); b.style.removeProperty('--dy'); b.style.removeProperty('--hx'); b.style.removeProperty('--hy'); b.style.removeProperty('--dur'); b.style.removeProperty('--delay'); }); };
+    const reset = () => { box.classList.remove('floaty'); box.style.height = ''; bubbles.forEach(b => { b.style.left = b.style.top = ''; ['--dx','--dy','--hx','--hy','--dur','--delay'].forEach(v => b.style.removeProperty(v)); }); };
     if(!wide || !bubbles.length || box.clientWidth < 500){ reset(); return; }
-    const key = bubbles.map(b => b.dataset.ideaid || b.textContent.slice(0, 20)).join('|');
-    let seed = 0; for(let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) >>> 0;
-    const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+    const boxKey = box.id || ('club-' + (state.ideasClubId || ''));
+    const cache = floatCache[boxKey] = floatCache[boxKey] || { pos:{}, H:0 };
+    const ids = bubbles.map((b, i) => b.dataset.ideaid || ('i' + i));
+    Object.keys(cache.pos).forEach(k => { if(!ids.includes(k)) delete cache.pos[k]; }); // forget bubbles that were removed
     box.classList.add('floaty');
-    const W = box.clientWidth, GAP = 40, EDGE = 28; // the drift is small now, so the bubbles can sit fairly close
-    const sizes = bubbles.map(b => b.offsetWidth || 120);
-    let H = Math.max(380, Math.round(sizes.reduce((a, d) => a + (d + GAP) * (d + GAP), 0) / W * 1.6));
-    let placed = null;
-    for(let round = 0; round < 6 && !placed; round++, H = Math.round(H * 1.18)){
-      const out = [];
-      const order = sizes.map((d, i) => i).sort((a, b) => sizes[b] - sizes[a]); // big ones first, so they find room
-      let ok = true;
-      for(const i of order){
-        const d = sizes[i]; let spot = null;
-        for(let t = 0; t < 250 && !spot; t++){
-          const x = EDGE + rnd() * Math.max(1, W - d - 2 * EDGE), y = EDGE + rnd() * Math.max(1, H - d - 2 * EDGE);
-          if(out.every(o => Math.hypot((x + d / 2) - (o.x + o.d / 2), (y + d / 2) - (o.y + o.d / 2)) >= (d + o.d) / 2 + GAP)) spot = { x, y, d, i };
+    const W = box.clientWidth, GAP = 40, EDGE = 28;
+    const size = b => parseFloat(b.style.width) || b.offsetWidth || 120; // the TARGET size (the width may still be animating)
+    const hash = str => { let h = 0; for(let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0; return h; };
+    const rngFor = id => { let seed = hash(id) || 1; return () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; };
+    const missing = ids.map((id, i) => ({ id, d: size(bubbles[i]), b: bubbles[i] })).filter(x => !cache.pos[x.id]).sort((p1, p2) => p2.d - p1.d);
+    if(missing.length){
+      const occupied = () => ids.filter(id => cache.pos[id]).map(id => { const bb = bubbles[ids.indexOf(id)]; return { cx: cache.pos[id].fx * W, cy: cache.pos[id].y, d: size(bb) }; });
+      if(!cache.H) cache.H = Math.max(380, Math.round(ids.reduce((acc, id, i) => acc + (size(bubbles[i]) + GAP) ** 2, 0) / W * 1.6));
+      for(const m of missing){
+        const rnd = rngFor(m.id);
+        let spot = null;
+        for(let round = 0; round < 8 && !spot; round++){
+          const occ = occupied();
+          for(let t = 0; t < 300 && !spot; t++){
+            const cx = EDGE + m.d / 2 + rnd() * Math.max(1, W - m.d - 2 * EDGE), cy = EDGE + m.d / 2 + rnd() * Math.max(1, cache.H - m.d - 2 * EDGE);
+            if(occ.every(o => Math.hypot(cx - o.cx, cy - o.cy) >= (m.d + o.d) / 2 + GAP)) spot = { cx, cy };
+          }
+          if(!spot) cache.H = Math.round(cache.H * 1.15) + 20; // no room: make the cloud taller (existing bubbles keep their spots)
         }
-        if(!spot){ ok = false; break; }
-        out.push(spot);
+        if(!spot) spot = { cx: W / 2, cy: cache.H - m.d / 2 }; // very unlikely fallback
+        cache.pos[m.id] = { fx: spot.cx / W, y: spot.cy };
       }
-      if(ok) placed = out;
     }
-    if(!placed){ reset(); return; }
-    box.style.height = H + 'px';
-    placed.forEach(p => {
-      const b = bubbles[p.i];
-      b.style.left = Math.round(p.x) + 'px'; b.style.top = Math.round(p.y) + 'px';
-      const sgn = () => rnd() < .5 ? -1 : 1;
-      b.style.setProperty('--dx', Math.round(sgn() * (12 + rnd() * 14)) + 'px'); b.style.setProperty('--dy', Math.round(sgn() * (12 + rnd() * 14)) + 'px');
-      b.style.setProperty('--hx', Math.round(sgn() * (8 + rnd() * 8)) + 'px'); b.style.setProperty('--hy', Math.round(sgn() * (8 + rnd() * 8)) + 'px');
-      b.style.setProperty('--dur', (12 + rnd() * 8).toFixed(1) + 's'); b.style.setProperty('--delay', (-rnd() * 14).toFixed(1) + 's');
+    box.style.height = cache.H + 'px';
+    bubbles.forEach((b, i) => {
+      const id = ids[i], p = cache.pos[id], d = size(b);
+      b.style.left = Math.round(p.fx * W - d / 2) + 'px'; b.style.top = Math.round(p.y - d / 2) + 'px';
+      if(!b.style.getPropertyValue('--dx')){ // drift personality: set once per bubble, so it never changes mid-motion
+        const rnd = rngFor(id + ':drift'), sgn = () => rnd() < .5 ? -1 : 1;
+        b.style.setProperty('--dx', Math.round(sgn() * (12 + rnd() * 14)) + 'px'); b.style.setProperty('--dy', Math.round(sgn() * (12 + rnd() * 14)) + 'px');
+        b.style.setProperty('--hx', Math.round(sgn() * (8 + rnd() * 8)) + 'px'); b.style.setProperty('--hy', Math.round(sgn() * (8 + rnd() * 8)) + 'px');
+        b.style.setProperty('--dur', (12 + rnd() * 8).toFixed(1) + 's'); b.style.setProperty('--delay', (-rnd() * 14).toFixed(1) + 's');
+      }
     });
   });
 }
@@ -5270,14 +5279,13 @@ async function ideasLoad(){
 }
 
 function ideaBubbleHtml(idea){
-  const ci = ideaColorIndex(idea.id), size = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine || idea.price));
+  const ci = ideaColorIndex(idea.id), size = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine));
   const admin = state.cmAdminLoggedIn === true;
   return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}${idea.done ? ' done' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${clubCol(state.ideasClubId).bg};--line:${clubCol(state.ideasClubId).fg};color:${clubCol(state.ideasClubId).fg};width:${size}px;height:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}${idea.voted ? ', you voted' : ''}">
     ${idea.date ? `<span class="idea-date">📅 ${escapeCm(ideaDateLabel(idea.date))}</span>` : ''}
     ${idea.cuisine ? `<span class="idea-cuisine">🍽 ${escapeCm(idea.cuisine)}</span>` : ''}
     ${idea.done ? `<span class="idea-cuisine" style="font-weight:800;">✅ Done${idea.doneDate ? ' · ' + escapeCm(ideaDateLabel(idea.doneDate)) : ''}</span>` : ''}
     <span class="idea-title">${escapeCm(idea.title)}</span>
-    ${idea.price ? `<span class="idea-cuisine">💸 ${escapeCm(idea.price)}</span>` : ''}
     <span class="idea-votes">${ideaVotesLabel(idea.votes)}${idea.voted ? ' ✓' : ''}</span>
     <span class="idea-mini idea-info" data-ideainfo="${escapeCm(idea.id)}" role="button" aria-label="Details and names" title="Details &amp; who voted">i</span>
     ${(idea.mine || admin) ? `<span class="idea-mini idea-x" data-ideadel="${escapeCm(idea.id)}" role="button" aria-label="Remove option" title="Remove">✕</span>` : ''}
@@ -5329,13 +5337,12 @@ async function publicIdeasLoadAll(clubs){
   if(state.tab === 'clubs') render();
 }
 function publicIdeaBubbleHtml(idea){
-  const ci = ideaColorIndex(idea.id), size = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine || idea.price));
+  const ci = ideaColorIndex(idea.id), size = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine));
   return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}${idea.done ? ' done' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${clubCol(idea._clubId).bg};--line:${clubCol(idea._clubId).fg};color:${clubCol(idea._clubId).fg};width:${size}px;height:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}, from ${escapeCm(idea._clubTitle)}">
     <span class="idea-cuisine">🏷 ${escapeCm(idea._clubTitle)}</span>
     ${idea.date ? `<span class="idea-date">📅 ${escapeCm(ideaDateLabel(idea.date))}</span>` : ''}
     ${idea.done ? `<span class="idea-cuisine" style="font-weight:800;">✅ Done${idea.doneDate ? ' · ' + escapeCm(ideaDateLabel(idea.doneDate)) : ''}</span>` : ''}
     <span class="idea-title">${escapeCm(idea.title)}</span>
-    ${idea.price ? `<span class="idea-cuisine">💸 ${escapeCm(idea.price)}</span>` : ''}
     <span class="idea-votes">${ideaVotesLabel(idea.votes)}${idea.voted ? ' ✓' : ''}</span>
     <span class="idea-mini idea-info" data-ideainfo="${escapeCm(idea.id)}" role="button" aria-label="Details" title="Details">i</span>
     ${state.cmAdminLoggedIn === true ? `<span class="idea-mini idea-edit" data-ideaedit="${escapeCm(idea.id)}" role="button" aria-label="Edit option" title="Edit (admin)">✎</span>` : ''}
@@ -5716,10 +5723,10 @@ async function publicIdeaVoteAttempt(id, bubble){
   if(idea.done) return; // voting is closed on activities we've already done
   idea.voted = !idea.voted; idea.votes += idea.voted ? 1 : -1;
   bubble.classList.toggle('voted', idea.voted);
-  bubble.style.width = bubble.style.height = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine || idea.price)) + 'px';
+  bubble.style.width = bubble.style.height = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine)) + 'px';
   const votesEl = bubble.querySelector('.idea-votes');
   if(votesEl) votesEl.textContent = ideaVotesLabel(idea.votes) + (idea.voted ? ' ✓' : '');
-  setTimeout(floatIdeaClouds, 450);
+  floatIdeaClouds();
   try {
     await cmApiRaw('/api/clubs/' + encodeURIComponent(idea._clubId) + '/ideas/' + encodeURIComponent(id) + '/vote', { method:'POST', headers: ideaHeaders() });
   } catch(err){
@@ -5730,7 +5737,7 @@ async function publicIdeaVoteAttempt(id, bubble){
 function wirePublicIdeasFeed(){
   const box = document.getElementById('publicIdeasCloud');
   if(!box) return;
-  setTimeout(floatIdeaClouds, 0);
+  floatIdeaClouds();
   box.querySelectorAll('.idea-bubble').forEach(b => b.addEventListener('click', e => {
     if(e.target.closest('.idea-mini')) return;
     publicIdeaVoteAttempt(b.dataset.ideaid, b);
@@ -5760,9 +5767,9 @@ function renderClubIdeas(el){
     : joinForm;
   const isCuisine = clubId === 'club-cuisine';
   const priceFieldHtml = `
-      <input id="ideaPriceInput" type="text" maxlength="20" placeholder="Price (optional)" autocomplete="off" inputmode="text">
+      <input id="ideaPriceInput" type="text" maxlength="20" placeholder="Type the price (e.g. $35, $10–15, Free)" autocomplete="off" inputmode="text" style="display:none;">
       <div class="idea-price-quick">
-        <button type="button" class="idea-price-btn" data-price="Free">Free</button>
+        <button type="button" class="idea-price-btn" id="ideaPriceWriteBtn">✍️ Write price</button>
         <button type="button" class="idea-price-btn" data-price="$20">$20</button>
         <button type="button" class="idea-price-btn" data-price="$50">$50</button>
       </div>`;
@@ -6253,7 +6260,7 @@ function ideasNeedName(){
 }
 
 function wireClubIdeas(){
-  setTimeout(floatIdeaClouds, 0);
+  floatIdeaClouds();
   if(state.ideas === null && !state.ideasLoading && !state.ideasError) ideasLoad();
   wireIdeaAvailGrid();
   wireEveryoneAvailGrid();
@@ -6276,16 +6283,27 @@ function wireClubIdeas(){
     try { await navigator.clipboard.writeText(link); ideasSetStatus('Link copied — share it anywhere!'); }
     catch { window.prompt('Copy this link:', link); }
   });
-  document.querySelectorAll('.idea-price-btn').forEach(btn => btn.addEventListener('click', () => {
-    const input = document.getElementById('ideaPriceInput');
-    const already = input.value.trim() === btn.dataset.price;
-    input.value = already ? '' : btn.dataset.price;
-    document.querySelectorAll('.idea-price-btn').forEach(b => b.classList.toggle('active', !already && b === btn));
-  }));
-  const priceInput = document.getElementById('ideaPriceInput');
-  if(priceInput) priceInput.addEventListener('input', () => {
-    document.querySelectorAll('.idea-price-btn').forEach(b => b.classList.toggle('active', b.dataset.price === priceInput.value.trim()));
-  });
+  // Price: tap $20 / $50, or "Write price" to reveal a box and type your own (the box isn't shown until you ask for it).
+  {
+    const input = document.getElementById('ideaPriceInput'), writeBtn = document.getElementById('ideaPriceWriteBtn');
+    const refresh = () => {
+      const v = input.value.trim(), typed = input.style.display !== 'none';
+      document.querySelectorAll('.idea-price-btn[data-price]').forEach(b => b.classList.toggle('active', b.dataset.price === v && !typed));
+      if(writeBtn) writeBtn.classList.toggle('active', typed);
+    };
+    document.querySelectorAll('.idea-price-btn[data-price]').forEach(btn => btn.addEventListener('click', () => {
+      const already = input.value.trim() === btn.dataset.price && input.style.display === 'none';
+      input.style.display = 'none';
+      input.value = already ? '' : btn.dataset.price;
+      refresh();
+    }));
+    if(writeBtn) writeBtn.addEventListener('click', () => {
+      const show = input.style.display === 'none';
+      input.style.display = show ? 'block' : 'none';
+      if(show){ if(/^\$(20|50)$/.test(input.value.trim())) input.value = ''; input.focus(); } else input.value = '';
+      refresh();
+    });
+  }
   const form = document.getElementById('ideaForm');
   if(form) form.addEventListener('submit', async e => {
     e.preventDefault();
@@ -6329,10 +6347,20 @@ async function ideaVote(id, bubble){
   bubble.classList.toggle('voted', idea.voted);
   bubble.style.width = bubble.style.height = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine)) + 'px';
   bubble.querySelector('.idea-votes').textContent = ideaVotesLabel(idea.votes) + (idea.voted ? ' ✓' : '');
+  floatIdeaClouds();
   try {
     const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(state.ideasClubId) + '/ideas/' + encodeURIComponent(id) + '/vote', { method:'POST', headers: ideaHeaders() });
-    state.ideas = data.ideas;
-    setTimeout(() => { if(state.tab === 'clubideas') render(); }, 450);
+    // Sync with the server WITHOUT redrawing the board (a redraw rebuilt every bubble and made them jump): update each bubble in place.
+    const mine = new Map((state.ideas || []).map(i => [i.id, i]));
+    state.ideas = (data.ideas || []).map(n => Object.assign({}, n, { voted: n.id === id ? idea.voted : (mine.has(n.id) ? mine.get(n.id).voted : n.voted) }));
+    state.ideas.forEach(n => {
+      const b = document.querySelector('.idea-bubble[data-ideaid="' + n.id.replace(/"/g, '') + '"]'); if(!b) return;
+      const sz = ideaSize(n.votes, n.title, !!(n.date || n.cuisine)) + 'px';
+      b.style.width = b.style.height = sz;
+      const ve = b.querySelector('.idea-votes'); if(ve) ve.textContent = ideaVotesLabel(n.votes) + (n.voted ? ' ✓' : '');
+      b.classList.toggle('voted', !!n.voted);
+    });
+    floatIdeaClouds();
   } catch(err){
     ideasSetStatus(err.message);
     state.ideas = null; ideasLoad();
