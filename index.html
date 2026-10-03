@@ -2561,6 +2561,15 @@ function setupFallQuickLoginForm(){
     submitBtn.textContent = 'Creating your login…';
     try {
       const account = await cmApiRaw('/api/signup', { method:'POST', body: JSON.stringify({ name, pin }) });
+      if(state.cmAdminLoggedIn === true){
+        // The admin is creating a login FOR someone else (from the 'already filled a form' link): don't sign the admin in as
+        // her — that made it look like nothing had been created, and led to creating the same person again.
+        form.reset();
+        statusEl.textContent = `✓ Created ${account.username} for ${account.name}. They can log in with that username and the PIN you just set. (You're still logged in as admin.) Add them to their club(s) with Edit on their profile.`;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create my login →';
+        return;
+      }
       setCmSession(account);
       state.fallQuickLogin = false;
       state.clubsNotice = "You're logged in — an organizer will add you to your club(s) once they match you up.";
