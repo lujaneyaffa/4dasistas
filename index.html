@@ -7127,51 +7127,6 @@ async function cmAdminDeleteProfile(id, name){
     render();
   } catch(err){ if(status) status.textContent = 'Error: ' + err.message; }
 }
-// Tiny CSV reader (quoted fields, commas/newlines inside quotes) for the Formspree export.
-function parseCsv(text){
-  const rows = []; let row = [], cur = '', q = false;
-  for(let i = 0; i < text.length; i++){
-    const c = text[i];
-    if(q){ if(c === '"'){ if(text[i + 1] === '"'){ cur += '"'; i++; } else q = false; } else cur += c; }
-    else if(c === '"') q = true;
-    else if(c === ','){ row.push(cur); cur = ''; }
-    else if(c === '\n' || c === '\r'){ if(c === '\r' && text[i + 1] === '\n') i++; row.push(cur); cur = ''; if(row.some(x => x.trim())) rows.push(row); row = []; }
-    else cur += c;
-  }
-  row.push(cur); if(row.some(x => x.trim())) rows.push(row);
-  return rows;
-}
-function phoneImportHtml(){
-  return `<div class="cp-box"><h4 style="margin:0 0 6px;">Import phone numbers</h4>
-    <p style="font-size:12px;color:#776867;margin:0 0 8px;">Phone numbers from the sign-up form only ever went to Formspree. In Formspree open the form → <strong>Submissions → Export (CSV)</strong>, then choose that file here. Numbers are matched to profiles by name and only fill profiles that have no phone yet.</p>
-    <input type="file" id="phoneImportFile" accept=".csv,text/csv" style="font-size:14px;max-width:100%;">
-    <div id="phoneImportStatus" style="font-size:13px;margin-top:8px;white-space:pre-wrap;"></div></div>`;
-}
-function wirePhoneImport(){
-  const input = document.getElementById('phoneImportFile');
-  if(!input || input.dataset.wired) return;
-  input.dataset.wired = '1';
-  input.addEventListener('change', async () => {
-    const st = document.getElementById('phoneImportStatus');
-    const file = input.files && input.files[0];
-    if(!file) return;
-    st.style.color = '#373d3b'; st.textContent = 'Reading…';
-    try {
-      const rows = parseCsv(await file.text());
-      const head = rows[0].map(h => h.trim().toLowerCase());
-      const nameIdx = head.findIndex(h => /^(name|full ?name|first ?name)$/.test(h)) >= 0 ? head.findIndex(h => /^(name|full ?name|first ?name)$/.test(h)) : head.findIndex(h => h.includes('name'));
-      const phoneIdx = head.findIndex(h => /whats|phone|mobile|tel|number/.test(h));
-      if(nameIdx < 0 || phoneIdx < 0) throw new Error('Could not find a Name column and a WhatsApp/phone column in that file.');
-      const data = rows.slice(1).map(r => ({ name: (r[nameIdx] || '').trim(), phone: (r[phoneIdx] || '').trim() })).filter(r => r.name && r.phone);
-      const res = await fetch('/api/admin/import-phones', { method:'POST', headers:{ 'Content-Type':'application/json' }, credentials:'include', body: JSON.stringify({ rows: data }) });
-      const out = await res.json();
-      if(!res.ok) throw new Error(out.error || 'Import failed');
-      st.style.color = '#2a7a4a';
-      st.textContent = `Done: ${out.updated} profile${out.updated === 1 ? '' : 's'} updated, ${out.alreadyHad} already had a number, from ${data.length} rows.` + (out.unmatched.length ? `\n\nNo matching profile for: ${out.unmatched.join(', ')}` : '') + (out.ambiguous.length ? `\n\nSkipped (two profiles share this name): ${out.ambiguous.join(', ')}` : '');
-      await cmAdminLoadAllMembers(); // refresh the data quietly (no re-render, so this report stays on screen); cards update next time the panel redraws
-    } catch(err){ st.style.color = '#c00'; st.textContent = err.message; }
-  });
-}
 
 
 // ---- Admin: push notifications (stats + composer) ----
@@ -7673,7 +7628,6 @@ function renderClubAdminPanel(){
     ${joinRequestsAdminHtml()}
     ${eventSuggestionsAdminHtml()}
     ${resourceSuggestionsAdminHtml()}
-    ${phoneImportHtml()}
     ${pushAdminHtml()}
     ${clubDirListHtml()}
     <div class="cp-box">
@@ -8113,7 +8067,6 @@ function wireClubAdminPanel(){
   if(cpBtn) cpBtn.addEventListener('click', cmAdminCreateProfile);
   document.querySelectorAll('.join-req-accept').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'accept'); }));
   document.querySelectorAll('.join-req-decline').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'decline'); }));
-  wirePhoneImport();
   wirePushAdmin();
   const memberSearch = document.getElementById('admMemberSearch');
   if(memberSearch && !memberSearch.dataset.wired){
