@@ -379,6 +379,9 @@ const readIdeaAvailPeople = async (env) => {
   const people = [];
   for (const k of list.keys) {
     const personId = k.name.slice(`ideaavail:`.length);
+    // Skip LEGACY per-club records (`ideaavail:club-xxx:<person>`, from before availability became one global record):
+    // nothing writes them any more, but they were still being listed — that's why someone in 4 clubs showed up 4 times.
+    if (!/^(m:|g:|admin$)/.test(personId)) continue;
     const { name, days, no, submitted } = parseIdeaAvailDoc(await env.SITE_DATA.get(k.name));
     // Anyone who submitted counts as a respondent - even with an empty grid (= available everywhere, no preferred times).
     if (!submitted) continue;
