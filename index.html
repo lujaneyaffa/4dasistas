@@ -888,8 +888,23 @@
   /* the board's column is only 640px wide: let the floating cloud break out to use the whole page width */
   .ideas-cloud.floaty{ display:block; position:relative; padding:0; width:min(1120px, calc(100vw - 80px)); left:50%; transform:translateX(-50%); }
   .ideas-cloud.floaty .idea-bubble{ position:absolute; margin:0; animation:ideaFloat var(--dur,9s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; }
-  .ideas-cloud.floaty .idea-bubble:hover{ animation-play-state:paused; z-index:5; }
-  @keyframes ideaFloat{ 0%{ transform:translate(0,0); } 100%{ transform:translate(var(--dx,12px),var(--dy,-14px)); } }
+  /* hover anywhere on the cloud and EVERY bubble gets lively: faster, much wider paths */
+  .ideas-cloud.floaty:hover .idea-bubble{ animation-name:ideaFloatWild; animation-duration:calc(var(--dur,9s) * .38); }
+  .ideas-cloud.floaty .idea-bubble:hover{ z-index:5; }
+  @keyframes ideaFloat{
+    0%{ transform:translate(0,0) rotate(0deg); }
+    25%{ transform:translate(calc(var(--dx,40px) * .9), calc(var(--dy,-40px) * -.6)) rotate(2deg); }
+    50%{ transform:translate(var(--dx,40px), var(--dy,-40px)) rotate(-2deg); }
+    75%{ transform:translate(calc(var(--dx,40px) * -.7), calc(var(--dy,-40px) * .8)) rotate(1.5deg); }
+    100%{ transform:translate(calc(var(--dx,40px) * .2), calc(var(--dy,-40px) * -.9)) rotate(0deg); }
+  }
+  @keyframes ideaFloatWild{
+    0%{ transform:translate(0,0) scale(1); }
+    25%{ transform:translate(calc(var(--wdx,120px) * .8), calc(var(--wdy,-110px) * -.7)) scale(1.04); }
+    50%{ transform:translate(var(--wdx,120px), var(--wdy,-110px)) scale(.97); }
+    75%{ transform:translate(calc(var(--wdx,120px) * -.9), calc(var(--wdy,-110px) * .9)) scale(1.05); }
+    100%{ transform:translate(calc(var(--wdx,120px) * .3), calc(var(--wdy,-110px) * -.5)) scale(1); }
+  }
 }
 @media (prefers-reduced-motion:reduce){ .ideas-cloud.floaty .idea-bubble{ animation:none !important; } }
 </style>
@@ -1273,7 +1288,7 @@ let state = {
   cmAdminAllMembers:null, cmAdminAllUsers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false, fallQuickLogin:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
-  ideaAvail:null, ideaAvailOwner:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
+  pushRegistered:false, phoneConfirmed:true, myPhone:'', ideaAvail:null, ideaAvailOwner:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
   publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
   myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, clubsLoginPrefill:false, cmAdminEventSugs:null, cmAdminResSugs:null, cmAdminMemberQuery:'',
   ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{}, iavEditing:false,
@@ -2707,7 +2722,6 @@ function setupFallSignupForm(){
     state.availClubId = firstClub.id;
     state.availWelcome = account.username;
     state.myPending = account.pending || [];
-    state.meLoadedFor = account.token;
     const askedFor = (account.pending || []).map(id => (clubsData.find(c => c.id === id) || {}).title).filter(Boolean);
     state.clubsNotice = (askedFor.length ? `You're signed in. Your request to join ${askedFor.join(', ')} is waiting for an admin to approve it — it will show up here once approved. ` : '') + (sent ? '' : "We couldn't send the rest of your form to the organizers — please DM us on Instagram so they see your picks.");
     state.clubsLoginPickerOpen = true;
@@ -4702,7 +4716,7 @@ function resetUserScopedState(){
     ideaAvail:null, ideaAvailNo:{}, ideaAvailSubmitted:false, ideaAvailOwner:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'',
     ideaAvailStatus:'', ideaAvailDirty:false, ideaAvailSaving:false, ideaAvailResave:false, iavEditing:false, iavUnsetWarned:false,
     ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{},
-    myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
+    pushRegistered:false, phoneConfirmed:true, myPhone:'', myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
     ideas:null, ideasError:'', ideasStatus:'',
   });
 }
@@ -5020,6 +5034,7 @@ async function cmMemberSignOut(){
   rememberLastLogin(getCmSession());
   clearCmSession();
   resetUserScopedState();
+  { const g = document.getElementById('pushGate'); if(g){ g.remove(); document.body.style.overflow = ''; } }
   availReset();
   state.clubsLoginPickerOpen = false; state.clubsMyClubsPickerOpen = false;
   state.cmView = 'auth'; state.cmMe = null;
@@ -5064,15 +5079,15 @@ function floatIdeaClouds(){
   const wide = window.matchMedia('(min-width:1100px)').matches;
   document.querySelectorAll('.ideas-cloud').forEach(box => {
     const bubbles = [...box.querySelectorAll('.idea-bubble')];
-    const reset = () => { box.classList.remove('floaty'); box.style.height = ''; bubbles.forEach(b => { b.style.left = b.style.top = ''; b.style.removeProperty('--dx'); b.style.removeProperty('--dy'); b.style.removeProperty('--dur'); b.style.removeProperty('--delay'); }); };
+    const reset = () => { box.classList.remove('floaty'); box.style.height = ''; bubbles.forEach(b => { b.style.left = b.style.top = ''; b.style.removeProperty('--dx'); b.style.removeProperty('--dy'); b.style.removeProperty('--wdx'); b.style.removeProperty('--wdy'); b.style.removeProperty('--dur'); b.style.removeProperty('--delay'); }); };
     if(!wide || !bubbles.length || box.clientWidth < 500){ reset(); return; }
     const key = bubbles.map(b => b.dataset.ideaid || b.textContent.slice(0, 20)).join('|');
     let seed = 0; for(let i = 0; i < key.length; i++) seed = (seed * 31 + key.charCodeAt(i)) >>> 0;
     const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
     box.classList.add('floaty');
-    const W = box.clientWidth, GAP = 34; // gap leaves room for the drift
+    const W = box.clientWidth, GAP = 56, EDGE = 48; // generous gaps/edges leave room for the big drifting paths
     const sizes = bubbles.map(b => b.offsetWidth || 120);
-    let H = Math.max(380, Math.round(sizes.reduce((a, d) => a + (d + GAP) * (d + GAP), 0) / W * 1.6));
+    let H = Math.max(380, Math.round(sizes.reduce((a, d) => a + (d + GAP) * (d + GAP), 0) / W * 1.8));
     let placed = null;
     for(let round = 0; round < 6 && !placed; round++, H = Math.round(H * 1.18)){
       const out = [];
@@ -5081,7 +5096,7 @@ function floatIdeaClouds(){
       for(const i of order){
         const d = sizes[i]; let spot = null;
         for(let t = 0; t < 250 && !spot; t++){
-          const x = rnd() * Math.max(1, W - d), y = rnd() * Math.max(1, H - d);
+          const x = EDGE + rnd() * Math.max(1, W - d - 2 * EDGE), y = EDGE + rnd() * Math.max(1, H - d - 2 * EDGE);
           if(out.every(o => Math.hypot((x + d / 2) - (o.x + o.d / 2), (y + d / 2) - (o.y + o.d / 2)) >= (d + o.d) / 2 + GAP)) spot = { x, y, d, i };
         }
         if(!spot){ ok = false; break; }
@@ -5094,8 +5109,10 @@ function floatIdeaClouds(){
     placed.forEach(p => {
       const b = bubbles[p.i];
       b.style.left = Math.round(p.x) + 'px'; b.style.top = Math.round(p.y) + 'px';
-      b.style.setProperty('--dx', Math.round((rnd() - .5) * 28) + 'px'); b.style.setProperty('--dy', Math.round((rnd() - .5) * 28) + 'px');
-      b.style.setProperty('--dur', (7 + rnd() * 7).toFixed(1) + 's'); b.style.setProperty('--delay', (-rnd() * 8).toFixed(1) + 's');
+      const sgn = () => rnd() < .5 ? -1 : 1;
+      b.style.setProperty('--dx', Math.round(sgn() * (40 + rnd() * 50)) + 'px'); b.style.setProperty('--dy', Math.round(sgn() * (40 + rnd() * 50)) + 'px');
+      b.style.setProperty('--wdx', Math.round(sgn() * (110 + rnd() * 90)) + 'px'); b.style.setProperty('--wdy', Math.round(sgn() * (100 + rnd() * 90)) + 'px');
+      b.style.setProperty('--dur', (9 + rnd() * 8).toFixed(1) + 's'); b.style.setProperty('--delay', (-rnd() * 10).toFixed(1) + 's');
     });
   });
 }
@@ -5293,6 +5310,131 @@ function renderPublicIdeasFeedHtml(title, hint, emptyMsg){
    untouched. The cached session goes stale once an admin approves, so the Clubs
    tab re-reads GET /api/me (membership + pending requests) once per sign-in.
    ============================================================ */
+
+/* ============================================================
+   PUSH NOTIFICATIONS (free, from the Worker). Required for every member: add the app to the Home Screen (on phones),
+   then tap "Allow notifications". Old members get the same screen the next time they open the app.
+   ============================================================ */
+const VAPID_PUBLIC_KEY = 'BEMVhYcg0NJP_6Z_-T_ZOqyeFFG0ZN7aNVhqO_lykhIbwX9B7IDGYkwfGfPPR-GyJsaSfU0Ewbezmlzzt6xwqXs';
+function pushSupported(){ return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+function isMobileDevice(){ return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
+function isStandaloneApp(){ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
+function urlB64ToUint8Array(b64){
+  const pad = '='.repeat((4 - b64.length % 4) % 4), raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+// Register THIS device with the server. Must be called from a tap the first time (the browser's permission prompt needs one).
+async function pushEnable(){
+  const session = getCmSession();
+  if(!session) throw new Error('Please sign in first.');
+  const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+  if(perm !== 'granted') return perm;
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if(!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY) });
+  await cmApiRaw('/api/push/subscribe', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.token }, body: JSON.stringify({ subscription: sub.toJSON() }) });
+  state.pushRegistered = true;
+  return 'granted';
+}
+// 'install' = on a phone but not opened from the Home Screen yet; 'enable' = needs to tap Allow; false = all good / nothing we can ask.
+function pushGateMode(){
+  const sess = getCmSession();
+  if(!sess || state.meLoadedFor !== sess.token) return false; // wait until /api/me told us whether this person already registered
+  if(isMobileDevice() && !isStandaloneApp()) return 'install';
+  if(!pushSupported()) return false;
+  if(Notification.permission === 'granted' && state.pushRegistered) return false;
+  return 'enable';
+}
+async function maybeShowPushGate(){
+  const sessNow = getCmSession();
+  if(sessNow && state.meLoadedFor === sessNow.token && state.phoneConfirmed === false){ renderPhoneGate(); return; } // phone first, then notifications
+  const gate = document.getElementById('pushGate');
+  let mode = pushGateMode();
+  // Permission already granted on this device but the server doesn't know about it yet (new login, new device): register quietly.
+  if(mode === 'enable' && Notification.permission === 'granted'){
+    try { await pushEnable(); mode = false; } catch {}
+  }
+  if(!mode){ if(gate) gate.remove(); return; }
+  renderPushGate(mode);
+}
+
+// Required once for every member: confirm (or add) your phone number so it's saved on your profile.
+function renderPhoneGate(note){
+  let gate = document.getElementById('pushGate');
+  if(!gate){
+    gate = document.createElement('div'); gate.id = 'pushGate';
+    gate.style.cssText = 'position:fixed;inset:0;z-index:20000;background:#fef7f4;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(24px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));box-sizing:border-box;';
+    document.body.appendChild(gate); document.body.style.overflow = 'hidden';
+  }
+  const had = !!state.myPhone;
+  gate.innerHTML = `<div style="max-width:480px;margin:0 auto;">
+      <div style="font-size:44px;text-align:center;">📞</div>
+      <h2 style="text-align:center;margin:8px 0 6px;color:#76220b;">${had ? 'Confirm your phone number' : 'Add your phone number'}</h2>
+      <p style="text-align:center;margin:0 0 14px;line-height:1.5;">${had ? 'Is this still your number?' : "We don't have your number yet."} The admins only use it to reach you about your clubs and events. You'll only be asked once.</p>
+      <input id="phoneGateInput" type="tel" inputmode="tel" autocomplete="tel" placeholder="e.g. 416-555-0123" value="${escapeCm(state.myPhone || '')}" style="width:100%;padding:14px;border-radius:14px;border:2px solid var(--charcoal);font-size:18px;box-sizing:border-box;text-align:center;">
+      <div id="phoneGateNote" style="min-height:20px;text-align:center;margin-top:10px;font-size:14px;color:#b3261e;" aria-live="polite">${note ? escapeCm(note) : ''}</div>
+      <button type="button" id="phoneGateSave" style="width:100%;min-height:54px;border-radius:999px;border:2px solid #76220b;background:#ce8491;color:#fff;font-size:17px;font-weight:700;cursor:pointer;margin-top:6px;">${had ? 'Yes, that\'s my number' : 'Save my number'}</button>
+      <p style="text-align:center;font-size:13px;color:#776867;margin-top:18px;">Stuck? <a href="${IG_DM_URL}" target="_blank" rel="noopener">Message an admin</a> · <button type="button" id="phoneGateLogout" class="av-link" style="font-size:13px;">Log out</button></p></div>`;
+  const input = gate.querySelector('#phoneGateInput'), noteEl = gate.querySelector('#phoneGateNote'), save = gate.querySelector('#phoneGateSave');
+  save.addEventListener('click', async () => {
+    const v = input.value.trim(), digits = v.replace(/\D/g, '');
+    if(digits.length < 7 || digits.length > 15){ noteEl.textContent = 'Please enter a valid phone number, with the area code.'; return; }
+    save.disabled = true; save.textContent = 'Saving…';
+    try {
+      const session = getCmSession();
+      await cmApiRaw('/api/me/phone', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.token }, body: JSON.stringify({ phone: v }) });
+      state.phoneConfirmed = true; state.myPhone = v;
+      gate.remove(); document.body.style.overflow = '';
+      maybeShowPushGate(); // next requirement (home screen + notifications), if any
+    } catch(err){ noteEl.textContent = err.message; save.disabled = false; save.textContent = had ? "Yes, that's my number" : 'Save my number'; }
+  });
+  gate.querySelector('#phoneGateLogout').addEventListener('click', async () => { gate.remove(); document.body.style.overflow = ''; await cmMemberSignOut(); });
+  setTimeout(() => input.focus(), 80);
+}
+
+function renderPushGate(mode, note){
+  let gate = document.getElementById('pushGate');
+  if(!gate){
+    gate = document.createElement('div'); gate.id = 'pushGate';
+    gate.style.cssText = 'position:fixed;inset:0;z-index:20000;background:#fef7f4;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(24px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));box-sizing:border-box;';
+    document.body.appendChild(gate); document.body.style.overflow = 'hidden';
+  }
+  const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const denied = pushSupported() && Notification.permission === 'denied';
+  const btn = 'width:100%;min-height:54px;border-radius:999px;border:2px solid #76220b;background:#ce8491;color:#fff;font-size:17px;font-weight:700;cursor:pointer;margin-top:16px;';
+  const body = mode === 'install' ? `
+      <div style="font-size:44px;text-align:center;">📲</div>
+      <h2 style="text-align:center;margin:8px 0 6px;color:#76220b;">One more step</h2>
+      <p style="text-align:center;margin:0 0 14px;line-height:1.5;">To get reminders and updates (like when you're accepted into a club), 4DASISTAS needs to be on your <strong>Home Screen</strong>.</p>
+      <div style="background:#f2d8d7;border-radius:16px;padding:16px;line-height:1.7;color:#76220b;">
+        ${ios ? `<strong>On iPhone (Safari):</strong><br>1. Tap the <strong>Share</strong> button (the square with the arrow) at the bottom.<br>2. Scroll and tap <strong>Add to Home Screen</strong>.<br>3. Tap <strong>Add</strong>.` : `<strong>On Android (Chrome):</strong><br>1. Tap the <strong>⋮</strong> menu at the top right.<br>2. Tap <strong>Install app</strong> (or <strong>Add to Home screen</strong>).<br>3. Tap <strong>Install</strong>.`}
+        <br><br><strong>Then open 4DASISTAS from your Home Screen</strong>, sign in again, and tap <strong>Allow notifications</strong>.
+      </div>` : `
+      <div style="font-size:44px;text-align:center;">🔔</div>
+      <h2 style="text-align:center;margin:8px 0 6px;color:#76220b;">Turn on notifications</h2>
+      <p style="text-align:center;margin:0;line-height:1.5;">We'll only use them for things that matter: club approvals, availability reminders and event updates. Tap the button, then choose <strong>Allow</strong>.</p>
+      ${denied ? `<div style="background:#fbe9e7;border-radius:14px;padding:14px;margin-top:14px;line-height:1.6;color:#b3261e;">Notifications are blocked for 4DASISTAS on this device. Open your phone's <strong>Settings → Notifications → 4DASISTAS</strong> (or your browser's site settings), switch them on, then come back and tap the button.</div>` : ''}
+      <button type="button" id="pushAllowBtn" style="${btn}">Allow notifications</button>`;
+  gate.innerHTML = `<div style="max-width:480px;margin:0 auto;">${body}
+      <div id="pushGateNote" style="min-height:20px;text-align:center;margin-top:12px;font-size:14px;color:#b3261e;">${note ? escapeCm(note) : ''}</div>
+      <p style="text-align:center;font-size:13px;color:#776867;margin-top:18px;">Stuck? <a href="${IG_DM_URL}" target="_blank" rel="noopener">Message an admin</a> · <button type="button" id="pushGateLogout" class="av-link" style="font-size:13px;">Log out</button></p></div>`;
+  const allow = gate.querySelector('#pushAllowBtn');
+  if(allow) allow.addEventListener('click', async () => {
+    allow.disabled = true; allow.textContent = 'One moment…';
+    try {
+      const result = await pushEnable();
+      if(result === 'granted'){ gate.remove(); document.body.style.overflow = ''; admToastLite('🔔 Notifications are on — thank you!'); return; }
+      renderPushGate('enable', result === 'denied' ? '' : 'Please tap Allow when your phone asks.');
+    } catch(err){ renderPushGate('enable', 'Could not turn them on: ' + (err.message || 'try again') ); }
+  });
+  gate.querySelector('#pushGateLogout').addEventListener('click', async () => { gate.remove(); document.body.style.overflow = ''; await cmMemberSignOut(); });
+}
+function admToastLite(text){
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#76220b;color:#fff;padding:12px 18px;border-radius:999px;z-index:20001;font-size:15px;box-shadow:0 8px 24px rgba(0,0,0,.28);';
+  t.textContent = text; document.body.appendChild(t); setTimeout(() => t.remove(), 3500);
+}
+
 // "You're in!" / "not approved" messages from the admin, shown once and then cleared on the server.
 function showMemberNotices(notices, token){
   const lines = notices.map(n => n.type === 'remind'
@@ -5316,6 +5458,8 @@ async function refreshMe(){
     const cur = getCmSession();
     if(!cur || cur.token !== session.token){ state.meLoading = false; return; }
     state.myPending = me.pending || [];
+    state.pushRegistered = !!me.push;
+    state.phoneConfirmed = !!me.phoneConfirmed; state.myPhone = me.phone || '';
     setCmSession(Object.assign({}, cur, { clubs: me.clubs || [], waitlist: me.waitlist || [] }));
     if(changed) state.publicIdeasAll = null;
     if(Array.isArray(me.notices) && me.notices.length) showMemberNotices(me.notices, cur.token);
@@ -5323,6 +5467,7 @@ async function refreshMe(){
   state.meLoadedFor = session.token;
   state.meLoading = false;
   if(state.tab === 'clubs') render();
+  maybeShowPushGate();
 }
 async function requestToJoinClub(clubId){
   const session = getCmSession();
@@ -6326,13 +6471,9 @@ async function cmGeneralLogin(){
     const data = await cmApiRaw('/api/login', { method:'POST', body: JSON.stringify({ username, pin }) });
     setCmSession(data);
     availReset();
-    const clubs = data.clubs || [];
-    if(!clubs.length){
-      if(errEl) errEl.textContent = "You're not part of any club yet — ask an organizer to add you.";
-      return;
-    }
-    state.cmSessionClubs = clubs;
-    state.clubsLoginPickerOpen = true;
+    // Members with no club yet are fine too: the signed-in page lets them request one.
+    state.cmSessionClubs = data.clubs || [];
+    state.clubsLoginPickerOpen = false;
     state.clubsMyClubsPickerOpen = false;
     render();
   } catch(err){
@@ -6953,6 +7094,63 @@ function wirePhoneImport(){
   });
 }
 
+
+// ---- Admin: push notifications (stats + composer) ----
+async function admSendPush(userIds, title, body, url){
+  const res = await fetch('/api/admin/push/send', { method:'POST', headers:{ 'Content-Type':'application/json' }, credentials:'include', body: JSON.stringify({ userIds, title, body, url: url || '/#/clubs' }) });
+  const d = await res.json().catch(() => ({}));
+  if(!res.ok) throw new Error(d.error || 'Could not send');
+  return d;
+}
+function pushAdminHtml(){
+  const users = state.cmAdminAllUsers;
+  if(!Array.isArray(users)) return '';
+  const on = users.filter(u => u.push), off = users.filter(u => !u.push);
+  const clubOpts = clubsData.map(c => `<option value="club:${escapeCm(c.id)}">${escapeCm(c.title)} members</option>`).join('');
+  return `<div class="cp-box"><h4 style="margin:0 0 4px;">📲 Push notifications</h4>
+    <p style="font-size:13px;margin:0 0 8px;"><strong>${on.length}</strong> of ${users.length} profiles have notifications turned on.${off.length ? ` <button type="button" id="pushShowOff" class="av-link" style="font-size:13px;">Who hasn't? (${off.length})</button>` : ''}</p>
+    <div id="pushOffList" style="display:none;font-size:13px;line-height:1.9;margin-bottom:8px;"></div>
+    <select id="pushAudience" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);font-size:15px;background:#fff;margin-bottom:8px;">
+      <option value="on">Everyone with notifications on (${on.length})</option>
+      <option value="noavail">Haven't added availability yet</option>${clubOpts}
+    </select>
+    <input id="pushTitle" maxlength="80" placeholder="Title" value="📅 Add your availability" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);font-size:16px;margin-bottom:8px;box-sizing:border-box;">
+    <textarea id="pushBody" maxlength="240" rows="2" placeholder="Message" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);font-size:16px;font-family:inherit;margin-bottom:8px;box-sizing:border-box;">Please add your availability so we can pick times that work for everyone.</textarea>
+    <div id="pushLastLine" style="margin-bottom:8px;">${admLastRemindLine('push')}</div>
+    <button type="button" id="pushSendBtn" class="club-guide-btn" style="width:100%;min-height:46px;background:#ce8491;color:#fff;text-align:center;">📲 Send notification</button>
+    <div id="pushResult" style="font-size:13px;margin-top:8px;min-height:18px;" aria-live="polite"></div></div>`;
+}
+function wirePushAdmin(){
+  const send = document.getElementById('pushSendBtn');
+  if(!send || send.dataset.wired) return;
+  send.dataset.wired = '1';
+  const users = state.cmAdminAllUsers || [];
+  const off = document.getElementById('pushShowOff');
+  if(off) off.addEventListener('click', () => {
+    const box = document.getElementById('pushOffList');
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    box.innerHTML = users.filter(u => !u.push).map(u => { const wa = admWhatsAppLink(u.phone, `Hi ${String(u.name || '').split(' ')[0]}! Please open 4DASISTAS from your Home Screen and tap Allow notifications so we can send you reminders 💛 4dasistas.ca`); return `${escapeCm(u.name)}${wa ? ` <a href="${escapeCm(wa)}" target="_blank" rel="noopener" title="Nudge on WhatsApp" style="text-decoration:none;">💬</a>` : ''}`; }).join(' · ');
+  });
+  send.addEventListener('click', async () => {
+    const aud = document.getElementById('pushAudience').value, res = document.getElementById('pushResult');
+    const title = document.getElementById('pushTitle').value.trim(), body = document.getElementById('pushBody').value.trim();
+    if(!title || !body){ res.style.color = '#c00'; res.textContent = 'Add a title and a message.'; return; }
+    let ids;
+    if(aud === 'on') ids = users.filter(u => u.push).map(u => u.id);
+    else if(aud === 'noavail'){ const have = new Set((admAvail.people || []).map(p => p.id)); ids = users.filter(u => !have.has('m:' + u.id)).map(u => u.id); }
+    else ids = users.filter(u => (u.clubs || []).includes(aud.slice(5))).map(u => u.id);
+    if(!ids.length){ res.style.color = '#c00'; res.textContent = 'Nobody is in that group.'; return; }
+    if(!confirm(`Send "${title}" to ${ids.length} ${ids.length === 1 ? 'person' : 'people'}?` + admLastRemindText('push'))) return;
+    send.disabled = true; res.style.color = '#373d3b'; res.textContent = 'Sending…';
+    try {
+      const d = await admSendPush(ids, title, body);
+      res.style.color = '#2a7a4a';
+      res.textContent = `✓ Sent to ${d.sent} device${d.sent === 1 ? '' : 's'}.` + (d.noPush ? ` ${d.noPush} ${d.noPush === 1 ? 'person has' : 'people have'} notifications off (use Who hasn't? to nudge them).` : '');
+    } catch(err){ res.style.color = '#c00'; res.textContent = err.message; }
+    send.disabled = false;
+  });
+}
+
 async function cmAdminLoadResourceSuggestions(){
   try {
     const res = await fetch('/api/admin/resource-suggestions', { credentials:'include' });
@@ -7315,7 +7513,7 @@ function renderAdminAllMembersPanels(){
       <h4 style="font-size:14px;margin-bottom:2px;"><button type="button" class="adm-profile-link" data-user-id="${escapeCm(m.id)}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:inherit;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button></h4>
       <div style="font-size:11px;color:#776867;margin-bottom:4px;">${escapeCm(m.username)}</div>
       <div style="font-size:12px;margin-bottom:8px;">${m.phone ? `📞 <a href="tel:${escapeCm(m.phone.replace(/[^\d+]/g, ''))}">${escapeCm(m.phone)}</a>` : '<span style="color:#776867;">No phone on file</span>'}</div>
-      <div style="font-size:11px;color:#776867;line-height:1.6;margin-bottom:8px;">Joined: ${m.createdAt ? escapeCm(new Date(m.createdAt).toLocaleDateString('en-CA', { dateStyle:'medium' })) : '—'}<br>Last signed in: ${m.lastLoginAt ? escapeCm(admFmtDate(m.lastLoginAt)) + ' (' + escapeCm(admAgo(m.lastLoginAt)) + ')' : 'not recorded yet'}<br>Last active: ${m.lastSeenAt ? escapeCm(admFmtDate(m.lastSeenAt)) + ' (' + escapeCm(admAgo(m.lastSeenAt)) + ')' : 'not recorded yet'}</div>
+      <div style="font-size:11px;color:#776867;line-height:1.6;margin-bottom:8px;">Joined: ${m.createdAt ? escapeCm(new Date(m.createdAt).toLocaleDateString('en-CA', { dateStyle:'medium' })) : '—'}<br>${(m.lastLoginAt && m.lastSeenAt && Math.abs(m.lastSeenAt - m.lastLoginAt) < 600000) ? 'Last signed in &amp; active: ' + escapeCm(admFmtDate(m.lastLoginAt)) + ' (' + escapeCm(admAgo(m.lastLoginAt)) + ')' : `Last signed in: ${m.lastLoginAt ? escapeCm(admFmtDate(m.lastLoginAt)) + ' (' + escapeCm(admAgo(m.lastLoginAt)) + ')' : 'not recorded yet'}<br>Last active: ${m.lastSeenAt ? escapeCm(admFmtDate(m.lastSeenAt)) + ' (' + escapeCm(admAgo(m.lastSeenAt)) + ')' : 'not recorded yet'}`}</div>
       <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;">${tags}${noClubTag}</div>
       <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
         <button class="cm-admin-edit-member" data-club-id="${firstClub}" data-member-id="${m.id}" style="padding:6px 10px;border-radius:8px;border:2px solid var(--charcoal);background:transparent;cursor:pointer;font-size:11px;">Edit</button>
@@ -7399,6 +7597,7 @@ function renderClubAdminPanel(){
     ${eventSuggestionsAdminHtml()}
     ${resourceSuggestionsAdminHtml()}
     ${phoneImportHtml()}
+    ${pushAdminHtml()}
     ${clubDirListHtml()}
     <div class="cp-box">
       <h4 style="margin:0 0 6px;">Create a profile</h4>
@@ -7621,10 +7820,27 @@ async function clubDirDelete(){
 const ADM_AVAIL_MIN_MONTH = '2026-10';
 const ADM_AVAIL_MAX_MONTH = '2027-12';
 const ADM_PARTS = [['morning','Morning','M'],['afternoon','Afternoon','A'],['evening','Evening','E']];
-const admAvail = { people:null, loading:false, error:'', month:ADM_AVAIL_MIN_MONTH, club:'all', person:null, day:null, addOpen:false, justAdded:'' };
+const admAvail = { people:null, loading:false, error:'', month:ADM_AVAIL_MIN_MONTH, club:'all', person:null, day:null, addOpen:false, justAdded:'', lastRemind:null };
+
+// "Last reminded" disclaimer: when the admin last sent an in-app reminder / push notification (kept on the server).
+async function admLoadLastReminders(){
+  try { const r = await fetch('/api/admin/reminders/last', { credentials:'include' }); if(r.ok) admAvail.lastRemind = await r.json(); } catch {}
+}
+function admLastRemindLine(kind){
+  const m = admAvail.lastRemind && admAvail.lastRemind[kind];
+  if(!m) return `<span style="font-size:12px;color:#6b5210;">ℹ️ You haven't sent ${kind === 'push' ? 'a push reminder' : 'an in-app reminder'} yet.</span>`;
+  const when = admFmtDate(m.at), ago = admAgo(m.at);
+  return `<span style="font-size:12px;color:#6b5210;">ℹ️ Last ${kind === 'push' ? 'push reminder' : 'in-app reminder'}: <strong>${escapeCm(when)}</strong> (${escapeCm(ago)}) — ${kind === 'push' ? `${m.sent || 0} device${m.sent === 1 ? '' : 's'}` : `${m.count || 0} ${m.count === 1 ? 'person' : 'people'}`}.</span>`;
+}
+function admLastRemindText(kind){
+  const m = admAvail.lastRemind && admAvail.lastRemind[kind];
+  return m ? `\n\nHeads up: you last sent one ${admAgo(m.at)} (${admFmtDate(m.at)}).` : '\n\n(You haven\'t sent one before.)';
+}
+
 async function admAvailLoad(){
   if(admAvail.loading) return;
   admAvail.loading = true; admAvail.error = '';
+  admLoadLastReminders();
   try {
     const res = await fetch('/api/admin/idea-availability', { credentials:'include' });
     if(!res.ok) throw new Error('Could not load availability');
@@ -7674,7 +7890,8 @@ function admAvailCalendarHtml(){
   const scopeName = admAvail.club === 'all' ? 'all clubs' : (clubsData.find(c => c.id === admAvail.club) || {}).title || 'this club';
   const missingBox = !mfNow ? '' : !mfNow.total ? `<div style="margin:0 0 12px;font-size:13px;color:#776867;">No members in ${escapeCm(scopeName)} yet.</div>` : mfNow.missing.length
     ? `<div style="margin:0 0 12px;padding:12px 14px;border-radius:12px;background:#fff3cf;border:2px solid #e6cf86;color:#6b5210;font-size:14px;line-height:1.7;"><strong>⏳ Haven't added their availability yet — ${escapeCm(scopeName)} (${mfNow.missing.length} of ${mfNow.total}):</strong><br>${mfNow.missing.map(m => { const wa = admWhatsAppLink(m.phone, `Hi ${String(m.name || '').split(' ')[0]}! Quick reminder to add your availability on 4DASISTAS so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs`); return `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(m.id)}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button>${wa ? ` <a href="${escapeCm(wa)}" target="_blank" rel="noopener" title="Remind ${escapeCm(m.name)} on WhatsApp" style="text-decoration:none;">💬</a>` : ''}`; }).join(' · ')}
-      <div style="margin-top:10px;"><button type="button" id="admRemindAll" data-ids="${escapeCm(mfNow.missing.map(m => m.id).join(','))}" style="min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #6b5210;background:#fff;color:#6b5210;font-weight:700;font-size:14px;cursor:pointer;">🔔 Remind everyone in the app</button> <span id="admRemindMsg" style="font-size:13px;"></span></div></div>`
+      <div style="margin-top:10px;">${admLastRemindLine('push')}<br>${admLastRemindLine('app')}</div>
+      <div style="margin-top:8px;"><button type="button" id="admPushMissing" data-ids="${escapeCm(mfNow.missing.map(m => m.id).join(','))}" style="min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #6b5210;background:#ce8491;color:#fff;font-weight:700;font-size:14px;cursor:pointer;margin-right:6px;">📲 Send push reminder</button><button type="button" id="admRemindAll" data-ids="${escapeCm(mfNow.missing.map(m => m.id).join(','))}" style="min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #6b5210;background:#fff;color:#6b5210;font-weight:700;font-size:14px;cursor:pointer;">🔔 Remind everyone in the app</button> <span id="admRemindMsg" style="font-size:13px;"></span></div></div>`
     : `<div style="margin:0 0 12px;padding:10px 14px;border-radius:12px;background:#d9f0d8;color:#2a7a4a;font-size:14px;">✅ Everyone in ${escapeCm(scopeName)} (${mfNow.total}) has added their availability.</div>`;
   const nameChips = people.length ? people.map(p => {
     const on = admAvail.person === p.id;
@@ -7783,14 +8000,27 @@ function admAvailWire(){
   if(newSave) newSave.addEventListener('click', () => admCreateProfile(false));
   if(newCancel) newCancel.addEventListener('click', () => { admAvail.addOpen = false; admAvailRepaint(); });
   box.querySelectorAll('.adm-cal-profile').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.uid)));
+  const pushMissing = box.querySelector('#admPushMissing');
+  if(pushMissing) pushMissing.addEventListener('click', async () => {
+    const msg = box.querySelector('#admRemindMsg'); const ids = pushMissing.dataset.ids.split(',');
+    if(!confirm('Send a push notification to ' + ids.length + ' people who haven\'t added their availability?' + admLastRemindText('push'))) return;
+    pushMissing.disabled = true; msg.style.color = '#373d3b'; msg.textContent = 'Sending…';
+    try {
+      const d = await admSendPush(ids, '📅 Add your availability', 'Please add your availability so we can pick times that work for everyone.', '/#/clubs');
+      admLoadLastReminders().then(() => admAvailRepaint());
+      msg.style.color = '#2a7a4a'; msg.textContent = `✓ Sent to ${d.sent} device${d.sent === 1 ? '' : 's'}.` + (d.noPush ? ` ${d.noPush} ${d.noPush === 1 ? 'person has' : 'people have'} notifications off.` : '');
+    } catch(err){ msg.style.color = '#c00'; msg.textContent = err.message; }
+    pushMissing.disabled = false;
+  });
   const remindAll = box.querySelector('#admRemindAll');
   if(remindAll) remindAll.addEventListener('click', async () => {
     const msg = box.querySelector('#admRemindMsg');
-    if(!confirm('Send a reminder to ' + remindAll.dataset.ids.split(',').length + ' people? They will see a pop-up the next time they open the app.')) return;
+    if(!confirm('Send a reminder to ' + remindAll.dataset.ids.split(',').length + ' people? They will see a pop-up the next time they open the app.' + admLastRemindText('app'))) return;
     remindAll.disabled = true; msg.textContent = 'Sending…';
     try {
       const res = await fetch('/api/admin/remind-availability', { method:'POST', headers:{ 'Content-Type':'application/json' }, credentials:'include', body: JSON.stringify({ userIds: remindAll.dataset.ids.split(',') }) });
       const d = await res.json(); if(!res.ok) throw new Error(d.error || 'Failed');
+      admLoadLastReminders().then(() => admAvailRepaint());
       msg.style.color = '#2a7a4a'; msg.textContent = `✓ Reminder queued for ${d.reminded}${d.skipped ? ` (${d.skipped} already had one waiting)` : ''}.`;
     } catch(err){ msg.style.color = '#c00'; msg.textContent = err.message; remindAll.disabled = false; }
   });
@@ -7807,6 +8037,7 @@ function wireClubAdminPanel(){
   document.querySelectorAll('.join-req-accept').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'accept'); }));
   document.querySelectorAll('.join-req-decline').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'decline'); }));
   wirePhoneImport();
+  wirePushAdmin();
   const memberSearch = document.getElementById('admMemberSearch');
   if(memberSearch && !memberSearch.dataset.wired){
     memberSearch.dataset.wired = '1';

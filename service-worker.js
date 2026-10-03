@@ -1,4 +1,4 @@
-const CACHE_NAME = '4dasistas-v25';
+const CACHE_NAME = '4dasistas-v27';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/app-icon.svg', '/assets/apple-touch-icon.png', '/assets/icon-192.png', '/assets/icon-512.png'];
 
 self.addEventListener('install', event => {
@@ -41,4 +41,36 @@ self.addEventListener('fetch', event => {
         return Response.error();
       }))
   );
+});
+
+// ---- Push notifications. The server sends an EMPTY push; we fetch the actual text (keyed by a hash of this device's
+// endpoint) and show it. (iOS requires every push to show a notification right away, so we always do — falling back
+// to a generic message if the fetch fails.)
+self.addEventListener('push', event => {
+  event.waitUntil((async () => {
+    let msg = { title: '4DASISTAS', body: 'You have a new update — tap to open.', url: '/' };
+    try {
+      const sub = await self.registration.pushManager.getSubscription();
+      if (sub) {
+        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(sub.endpoint));
+        const hash = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+        const r = await fetch('/api/push/message?e=' + hash, { cache: 'no-store' });
+        if (r.ok) msg = await r.json();
+      }
+    } catch (e) { /* keep the generic message */ }
+    await self.registration.showNotification(msg.title || '4DASISTAS', {
+      body: msg.body || '', icon: '/assets/icon-192.png', badge: '/assets/icon-192.png', data: { url: msg.url || '/' },
+    });
+  })());
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    for (const c of list) {
+      if ('focus' in c) { if (c.navigate) c.navigate(url).catch(() => {}); return c.focus(); }
+    }
+    return self.clients.openWindow(url);
+  }));
 });

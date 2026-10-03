@@ -284,6 +284,41 @@ const notifyAdminOfSuggestion = async (env, ctx, kind, sug) => {
 };
 const notifyAdminOfEventSuggestion = (env, ctx, sug) => notifyAdminOfSuggestion(env, ctx, "event", sug);
 const notifyAdminOfResourceSuggestion = (env, ctx, sug) => notifyAdminOfSuggestion(env, ctx, "resource", sug);
+// ---- Web Push (free phone notifications). A push with NO payload wakes the member's service worker, which then fetches
+// the message text from /api/push/message and shows it (so no payload encryption is needed). Auth is VAPID: a short
+// ES256 JWT signed with VAPID_PRIVATE_JWK (Worker secret); the matching public key is below + in index.html.
+const VAPID_PUBLIC_KEY = "BEMVhYcg0NJP_6Z_-T_ZOqyeFFG0ZN7aNVhqO_lykhIbwX9B7IDGYkwfGfPPR-GyJsaSfU0Ewbezmlzzt6xwqXs";
+const b64urlBytes = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const b64urlText = (text) => b64urlBytes(new TextEncoder().encode(text));
+const pushKey = (userId) => `push:${userId}`;
+const readPushSubs = async (env, userId) => { try { return JSON.parse((await env.SITE_DATA.get(pushKey(userId))) || "[]"); } catch { return []; } };
+const endpointHash = (endpoint) => sha256Hex(endpoint);
+const vapidAuthHeader = async (env, endpoint) => {
+  const jwk = JSON.parse(env.VAPID_PRIVATE_JWK);
+  const key = await crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const aud = new URL(endpoint).origin;
+  const head = b64urlText(JSON.stringify({ typ: "JWT", alg: "ES256" }));
+  const claims = b64urlText(JSON.stringify({ aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: "mailto:admin@4dasistas.ca" }));
+  const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, new TextEncoder().encode(`${head}.${claims}`));
+  return `vapid t=${head}.${claims}.${b64urlBytes(sig)}, k=${VAPID_PUBLIC_KEY}`;
+};
+// Send one notification to every device a member registered. Returns { sent, removed, devices }.
+const sendPushToUser = async (env, userId, message) => {
+  const subs = await readPushSubs(env, userId);
+  if (!subs.length || !env.VAPID_PRIVATE_JWK) return { sent: 0, removed: 0, devices: subs.length };
+  let sent = 0; const keep = [];
+  for (const sub of subs) {
+    try {
+      await env.SITE_DATA.put(`pushmsg:${await endpointHash(sub.endpoint)}`, JSON.stringify({ title: message.title, body: message.body, url: message.url || "/", at: Date.now() }), { expirationTtl: 86400 });
+      const res = await fetch(sub.endpoint, { method: "POST", headers: { Authorization: await vapidAuthHeader(env, sub.endpoint), TTL: "86400", Urgency: "normal", "Content-Length": "0" } });
+      if (res.status === 404 || res.status === 410) continue; // the device unsubscribed / app removed: drop it
+      keep.push(sub);
+      if (res.ok) sent++; else console.error("Push rejected", res.status, (await res.text().catch(() => "")).slice(0, 160));
+    } catch (e) { keep.push(sub); console.error("Push failed", String(e)); }
+  }
+  if (keep.length !== subs.length) await env.SITE_DATA.put(pushKey(userId), JSON.stringify(keep));
+  return { sent, removed: subs.length - keep.length, devices: subs.length };
+};
 const notifyAdminOfJoinRequest = (env, ctx, user, club) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
   const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
@@ -1321,6 +1356,26 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       notifyAdminOfResourceSuggestion(env, ctx, sug);
       return jsonResponse({ ok: true }, 201, corsHeaders);
     }
+    // ---- Web Push: a member registers this device ----
+    if (path === "/api/push/subscribe" && request.method === "POST") {
+      const meId = await memberIdFromRequest();
+      if (!meId) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const sub = body && body.subscription;
+      if (!sub || typeof sub.endpoint !== "string" || !/^https:\/\//.test(sub.endpoint) || sub.endpoint.length > 600) return jsonResponse({ error: "Invalid subscription" }, 400, corsHeaders);
+      const subs = (await readPushSubs(env, meId)).filter((x) => x.endpoint !== sub.endpoint);
+      subs.push({ endpoint: sub.endpoint, at: Date.now() });
+      await env.SITE_DATA.put(pushKey(meId), JSON.stringify(subs.slice(-5)));
+      return jsonResponse({ ok: true, devices: Math.min(subs.length, 5) }, 200, corsHeaders);
+    }
+    // The service worker fetches the text of the notification it was just woken for (keyed by a hash of its own endpoint).
+    if (path === "/api/push/message" && request.method === "GET") {
+      const h = (url.searchParams.get("e") || "").slice(0, 80);
+      let msg = null;
+      try { msg = JSON.parse((await env.SITE_DATA.get(`pushmsg:${h}`)) || "null"); } catch {}
+      return jsonResponse(msg || { title: "4DASISTAS", body: "You have a new update — tap to open.", url: "/" }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
     // Fresh membership + pending requests for the signed-in person (the cached session goes stale once an admin approves).
     if (path === "/api/me" && request.method === "GET") {
       const meId = await memberIdFromRequest();
@@ -1331,7 +1386,20 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const clubs = await allClubIdsContaining(env, me.id);
       let notices = [];
       try { notices = JSON.parse((await env.SITE_DATA.get(`notice:${me.id}`)) || "[]"); } catch {}
-      return jsonResponse({ ...publicUser(me), clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs), notices }, 200, corsHeaders);
+      return jsonResponse({ ...publicUser(me), clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs), notices, push: (await readPushSubs(env, me.id)).length > 0, phone: me.phone || "", phoneConfirmed: !!me.phoneConfirmedAt }, 200, corsHeaders);
+    }
+    // A member confirms (or enters) their own phone number — asked once at sign-in, saved to their profile for the admins.
+    if (path === "/api/me/phone" && request.method === "POST") {
+      const meId = await memberIdFromRequest();
+      const me = meId ? await readUser(env, meId) : null;
+      if (!me) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const phone = sanitizePhone(body.phone);
+      if (!phone) return jsonResponse({ error: "That doesn't look like a phone number — please include the area code." }, 400, corsHeaders);
+      me.phone = phone; me.phoneConfirmedAt = Date.now();
+      await writeUser(env, me);
+      return jsonResponse({ ok: true, phone }, 200, corsHeaders);
     }
     if (path === "/api/me/notices/ack" && request.method === "POST") {
       const meId = await memberIdFromRequest();
@@ -1530,7 +1598,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
 
     if (requiresAuth) {
       const token = getSessionToken(request);
@@ -1703,6 +1771,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const clubTitle = ((await readClubRoster(env)).find((c) => c.id === clubId) || {}).title || "the club";
         existing.push({ id: crypto.randomUUID(), type: adminJoinActionMatch[3] === "accept" ? "accepted" : "declined", clubId, clubTitle, at: Date.now() });
         await env.SITE_DATA.put(noticeKey, JSON.stringify(existing.slice(-10)));
+        ctx.waitUntil(sendPushToUser(env, userId, adminJoinActionMatch[3] === "accept" ? { title: "You're in! 🎉", body: `Your request to join ${clubTitle} was approved.`, url: "/#/clubs" } : { title: "Update on your request", body: `Your request to join ${clubTitle} wasn't approved this time.`, url: "/#/clubs" }).catch(() => {}));
       } catch {}
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
@@ -1830,17 +1899,41 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       }
       const pendingByUser = {};
       for (const r of await listJoinRequests(env)) (pendingByUser[r.userId] = pendingByUser[r.userId] || []).push(r.clubId);
+      const pushIds = new Set();
+      for (const k of (await env.SITE_DATA.list({ prefix: "push:" })).keys) pushIds.add(k.name.slice(5));
       const out = [];
       let cursor;
       do {
         const page = await env.SITE_DATA.list({ prefix: "user:", cursor });
         for (const k of page.keys) {
           const u = await readUser(env, k.name.slice(5));
-          if (u) out.push({ ...publicUser(u), phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [] });
+          if (u) out.push({ ...publicUser(u), phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: pushIds.has(u.id) });
         }
         cursor = page.list_complete ? undefined : page.cursor;
       } while (cursor);
       return jsonResponse({ users: out }, 200, corsHeaders);
+    }
+    // Admin: send a notification to chosen members (or everyone who turned notifications on).
+    if (path === "/api/admin/push/send" && request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const title = String(body.title || "").replace(/[\x00-\x1f]/g, " ").trim().slice(0, 80);
+      const text = String(body.body || "").replace(/[\x00-\x1f]/g, " ").trim().slice(0, 240);
+      if (!title || !text) return jsonResponse({ error: "A title and a message are required" }, 400, corsHeaders);
+      const link = typeof body.url === "string" && /^\/[#/A-Za-z0-9._~!$&'()*+,;=:@%-]*$/.test(body.url) ? body.url : "/";
+      const ids = [...new Set((Array.isArray(body.userIds) ? body.userIds : []).map(String))].slice(0, 500);
+      let sent = 0, noPush = 0, removed = 0;
+      for (const id of ids) {
+        const r = await sendPushToUser(env, id, { title, body: text, url: link });
+        if (!r.devices) noPush++; else { sent += r.sent; removed += r.removed; }
+      }
+      await env.SITE_DATA.put("meta:lastRemind:push", JSON.stringify({ at: Date.now(), sent, noPush, asked: ids.length, title }));
+      return jsonResponse({ sent, noPush, removed, asked: ids.length }, 200, corsHeaders);
+    }
+    // Admin: when did I last remind people? (shown as a disclaimer before sending another one)
+    if (path === "/api/admin/reminders/last" && request.method === "GET") {
+      const read = async (k) => { try { return JSON.parse((await env.SITE_DATA.get(k)) || "null"); } catch { return null; } };
+      return jsonResponse({ app: await read("meta:lastRemind:app"), push: await read("meta:lastRemind:push") }, 200, corsHeaders);
     }
     // Admin: nudge people to add their availability — they see a one-time pop-up next time they open the app.
     if (path === "/api/admin/remind-availability" && request.method === "POST") {
@@ -1858,6 +1951,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         await env.SITE_DATA.put(key, JSON.stringify(list.slice(-10)));
         reminded++;
       }
+      await env.SITE_DATA.put("meta:lastRemind:app", JSON.stringify({ at: Date.now(), count: reminded, asked: ids.length }));
       return jsonResponse({ reminded, skipped: ids.length - reminded }, 200, corsHeaders);
     }
     // Admin: delete a whole profile (not just one club membership): memberships, join requests, availability, username.
@@ -1875,6 +1969,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const reqKeys = await env.SITE_DATA.list({ prefix: "joinreq:" });
       for (const k of reqKeys.keys) if (k.name.split(":")[2] === userId) await env.SITE_DATA.delete(k.name);
       await env.SITE_DATA.delete(ideaAvailKey(`m:${userId}`));
+      await env.SITE_DATA.delete(pushKey(userId));
       await releaseUsername(env, user.username);
       await deleteUser(env, userId); // their login token stops working because the user no longer exists
       return jsonResponse({ ok: true }, 200, corsHeaders);
