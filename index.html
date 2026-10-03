@@ -101,7 +101,7 @@
   .search-suggestion:last-child{ border-bottom:0; }
   .search-suggestion strong{ display:block; font-family:'Inter',sans-serif; }
   .search-suggestion span{ display:block; color:var(--muted); font-size:11px; }
-  .search-suggestion-hint{ padding:8px 14px; font-size:11px; color:var(--muted); text-align:center; background:rgba(201,170,173,0.15); }
+  .search-suggestion-hint{ padding:8px 14px; font-size:11px; color:var(--muted); text-align:center; background:var(--brand-blush); }
   .tab-btn{
     flex-shrink:0; font-family:'Inter',sans-serif; font-weight:500; font-size:14px;
     padding:8px 14px; border-radius:0; border:none; border-bottom:2px solid transparent;
@@ -109,7 +109,7 @@
     text-transform:uppercase; letter-spacing:0.06em; transition:border-color 0.12s ease;
   }
   .tab-btn.active{ border-bottom-color:var(--charcoal); font-weight:700; }
-  .tab-btn:focus-visible{ outline:3px solid var(--pink); outline-offset:2px; }
+  .tab-btn:focus-visible{ outline:3px solid var(--brand-rose); outline-offset:2px; }
   .context-back{ display:none; max-width:760px; margin:12px auto 0; padding:0 20px; }
   .context-back.visible{ display:block; }
   .context-back button{ border:0; background:none; color:var(--rose-deep); font-family:'Inter',sans-serif; font-size:13px; font-weight:700; cursor:pointer; padding:4px 0; }
@@ -128,7 +128,7 @@
   .controls-center{ justify-content:center; }
   .view-toggle{ display:flex; background:white; border:2px solid var(--charcoal); border-radius:999px; overflow:hidden; }
   .view-toggle button{ border:none; background:transparent; padding:7px 15px; font-size:13px; font-weight:600; font-family:'Inter',sans-serif; cursor:pointer; color:var(--charcoal); }
-  .view-toggle button.active{ background:var(--pink); color:white; }
+  .view-toggle button.active{ background:var(--brand-rose); color:white; }
 
   #list-view{ padding-bottom: 8px; }
   .list-and-pagination{ display:flex; flex-direction:column; gap:28px; }
@@ -224,7 +224,7 @@
   .month-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
   .day-cell{ min-height:78px; border:1.5px solid rgba(33,30,28,0.15); border-radius:8px; background:white; padding:4px; overflow:visible; }
   .day-cell.empty{ border:none; background:transparent; }
-  .day-cell.today{ border:2px solid var(--pink); }
+  .day-cell.today{ border:2px solid var(--brand-rose); }
   /* Calendar month-grid striping. Both tones sit close together and lighter than
      the page background (--cream #fff7e6) so the grid reads as bright and subtle,
      not a strong beige block. Tune --beige (row-even) and the row-odd hex to taste. */
@@ -350,7 +350,7 @@
 .club-card-more strong{ font-weight:700; }
   .clubs-grid .club-card{ width:100%; }
   .panel-card{ background:var(--card); border:2px solid var(--charcoal); border-radius:16px; padding:18px; margin-bottom:16px; box-shadow:3px 3px 0 var(--charcoal); text-align:left; position:relative; }
-  .resource-photo{ width:100%; height:180px; object-fit:cover; display:block; margin:-2px 0 14px; border-radius:10px; background:var(--lightblue); }
+  .resource-photo{ width:100%; height:180px; object-fit:cover; display:block; margin:-2px 0 14px; border-radius:10px; background:var(--brand-blush); }
 
   .home-quicklinks{ display:flex; justify-content:center; flex-wrap:wrap; gap:12px; margin:20px 0 4px; }
   body.on-home main{ padding-bottom:0; }
@@ -358,7 +358,7 @@
   body.on-home #resourcePagination{ display:none; }
   body.on-home .list-and-pagination{ gap:0; }
   /* Travel / About buttons: same tan-pink as the nav bar, smaller squares */
-  .home-quicklinks .club-guide-btn, .home-quicklinks .club-guide-btn:last-child{ flex:0 0 108px; width:108px; aspect-ratio:1; padding:8px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:16px; background:rgba(201,170,173,0.45); }
+  .home-quicklinks .club-guide-btn, .home-quicklinks .club-guide-btn:last-child{ flex:0 0 108px; width:108px; aspect-ratio:1; padding:8px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:16px; background:var(--brand-blush); }
   .home-tiles{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
   .home-tile{ display:block; width:100%; text-align:left; border:2px solid var(--charcoal); border-radius:18px; padding:24px 22px; cursor:pointer; box-shadow:4px 4px 0 var(--charcoal); transition:transform 0.12s ease, box-shadow 0.12s ease; font-family:'Inter',sans-serif; position:relative; }
   .home-tile[data-hometab="homescreen"]{ padding-top:8px; padding-bottom:8px; min-height:auto; align-self:center; justify-self:center; width:100%; grid-column:1 / -1; box-shadow:none; border-color:rgba(55,61,59,0.2); }
@@ -377,7 +377,7 @@
   .today-section h3{ font-family:'Inter',sans-serif; font-size:22px; margin-bottom:4px; text-align:center; }
   .today-day-btn{ width:32px; height:32px; border:2px solid var(--charcoal); border-radius:50%; background:var(--card); color:var(--charcoal); font-size:22px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; }
   .today-day-btn:disabled{ opacity:0.3; cursor:default; }
-  .today-day-btn:focus-visible{ outline:3px solid var(--pink); outline-offset:2px; }
+  .today-day-btn:focus-visible{ outline:3px solid var(--brand-rose); outline-offset:2px; }
   .today-date{ color:var(--muted); font-size:13px; margin-bottom:10px; text-align:center; }
   .today-actions{ display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; margin-top:16px; }
   .today-actions .today-subscribe{ margin-top:0; }
@@ -426,7 +426,7 @@
   .today-subscribe-btn{ display:inline-block; width:auto; padding:8px 16px; border:1.5px solid rgba(55,61,59,0.4); border-radius:999px; background:none; color:var(--muted); font-family:'Inter',sans-serif; font-size:12.5px; font-weight:600; cursor:pointer; box-shadow:none; }
   .today-subscribe-form{ display:flex; gap:8px; margin-top:10px; }
   .today-subscribe-form input{ min-width:0; flex:1; padding:11px 13px; border:2px solid var(--charcoal); border-radius:999px; background:var(--card); color:var(--charcoal); font:inherit; }
-  .today-subscribe-form button{ padding:11px 16px; border:2px solid var(--charcoal); border-radius:999px; background:var(--coral); color:var(--charcoal); font-family:'Inter',sans-serif; font-weight:700; cursor:pointer; }
+  .today-subscribe-form button{ padding:11px 16px; border:2px solid var(--charcoal); border-radius:999px; background:var(--brand-pink); color:var(--charcoal); font-family:'Inter',sans-serif; font-weight:700; cursor:pointer; }
   .today-subscribe-status{ position:absolute; top:100%; left:50%; width:max-content; max-width:calc(100vw - 24px); transform:translateX(-50%); min-height:18px; margin-top:8px; color:var(--muted); font-size:12px; }
 
   .rules-content{ background:var(--card); border:2px solid var(--charcoal); border-radius:16px; padding:24px 22px; box-shadow:3px 3px 0 var(--charcoal); text-align:left; }
@@ -436,7 +436,7 @@
   .rules-content li{ font-size:14px; line-height:1.5; color:#4a4640; }
   .club-guide-actions{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; margin:0 0 12px; }
   .club-guide-btn{ border:2px solid var(--charcoal); border-radius:14px; padding:15px 16px; background:var(--blush); color:var(--charcoal); box-shadow:3px 3px 0 var(--charcoal); cursor:pointer; font-family:'Inter',sans-serif; font-size:14px; font-weight:700; text-align:left; }
-  .club-guide-btn:last-child{ background:var(--lightblue); }
+  .club-guide-btn:last-child{ background:var(--brand-blush); }
   .club-guide-btn:hover{ transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--charcoal); }
   .fall-cta-btn{ display:flex; align-items:center; justify-content:center; text-align:center; border:none; border-radius:16px; padding:8px; background:var(--blush); color:var(--charcoal); font-family:'Inter',sans-serif; font-weight:700; font-size:14px; line-height:1.2; cursor:pointer; box-shadow:0 4px 14px rgba(202,170,173,0.35); transition:transform 0.12s ease, box-shadow 0.12s ease; }
   .fall-cta-btn:hover{ transform:translate(0,-2px); box-shadow:0 6px 18px rgba(202,170,173,0.45); }
@@ -483,7 +483,7 @@
   .ideas-form{ display:flex; flex-direction:column; gap:8px; margin-bottom:8px; padding:12px; border:2px dashed var(--charcoal); border-radius:14px; }
   .idea-price-quick{ display:flex; gap:8px; margin-top:-2px; }
   .idea-price-btn{ flex:1; padding:8px; border-radius:10px; border:1.5px solid var(--charcoal); background:#fff; font-family:'Inter',sans-serif; font-weight:700; font-size:13px; cursor:pointer; color:var(--charcoal); }
-  .idea-price-btn.active{ background:var(--pink); }
+  .idea-price-btn.active{ background:var(--brand-pink); }
   .idea-pop-price{ display:inline-block; margin:0 6px 4px 0; padding:3px 10px; border-radius:999px; background:#fff; border:1.5px solid var(--charcoal); font-size:12px; font-weight:700; }
   .ideas-form .club-guide-btn{ padding:12px 20px; text-align:center; }
   .ideas-form .ideas-hint{ margin:0; }
@@ -564,7 +564,7 @@
   .av-club-chip.active{ background:var(--charcoal); color:var(--cream); }
   .av-msg{ font-size:14px; margin:8px 0; }
   .av-steps{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin:0 0 12px; }
-  .av-step{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:5px; font-size:12px; line-height:1.25; padding:8px 4px; border-radius:12px; background:rgba(201,170,173,0.25); }
+  .av-step{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:5px; font-size:12px; line-height:1.25; padding:8px 4px; border-radius:12px; background:var(--brand-blush); }
   .av-step b{ width:24px; height:24px; border-radius:50%; background:var(--charcoal); color:var(--cream); display:flex; align-items:center; justify-content:center; font-size:13px; }
   .av-legend{ display:flex; justify-content:center; gap:16px; flex-wrap:wrap; font-size:12px; margin-bottom:10px; }
   .av-legend span{ display:flex; align-items:center; gap:6px; }
@@ -596,7 +596,7 @@
   .av-b-morning{ background:#ffe27a; } .av-b-afternoon{ background:#ffb066; } .av-b-night{ background:#8fb8ff; }
   .av-short{ display:none; }
   @media (max-width:560px){ .av-long{ display:none; } .av-short{ display:inline; } }
-  .av-note{ font-size:12px; line-height:1.6; text-align:center; margin:12px 0 6px; padding:8px 10px; border-radius:10px; background:rgba(201,170,173,0.25); }
+  .av-note{ font-size:12px; line-height:1.6; text-align:center; margin:12px 0 6px; padding:8px 10px; border-radius:10px; background:var(--brand-blush); }
   .av-status-line{ min-height:22px; text-align:center; font-size:13px; }
   .av-link{ background:none; border:none; padding:6px 0; font-family:'Inter',sans-serif; font-size:13px; text-decoration:underline; cursor:pointer; color:var(--charcoal); }
   .av-sheet{ position:fixed; left:0; right:0; bottom:0; z-index:60; max-width:640px; margin:0 auto; padding:16px 16px calc(16px + env(safe-area-inset-bottom, 0px)); background:var(--cream); border:2px solid var(--charcoal); border-bottom:none; border-radius:20px 20px 0 0; box-shadow:0 -8px 28px rgba(0,0,0,0.22); }
@@ -623,7 +623,7 @@
   .fall-hero h2{ font-family:'Inter',sans-serif; font-weight:700; font-size:24px; margin-bottom:10px; }
   .fall-hero p{ font-size:14.5px; color:#4a4640; line-height:1.55; max-width:480px; margin:0 auto; }
   .fall-hero p + p{ margin-top:12px; }
-  .fall-goodtoknow{ background:var(--tan); }
+  .fall-goodtoknow{ background:var(--brand-blush); }
   .fall-goodtoknow ul{ margin:10px 0 0; padding-left:18px; display:flex; flex-direction:column; gap:10px; }
   .fall-goodtoknow li{ font-size:13px; color:#4a4640; line-height:1.5; }
   .fall-goodtoknow li strong{ color:var(--charcoal); }
@@ -636,7 +636,7 @@
   .fall-other-input{ margin-top:8px; }
   .fall-checkbox-grid{ display:flex; flex-direction:column; gap:10px; margin-top:14px; }
   .fall-option{ display:flex; align-items:flex-start; gap:12px; border:2px solid rgba(55,61,59,0.12); border-radius:16px; padding:13px 14px; cursor:pointer; transition:border-color 0.12s ease, background 0.12s ease; background:var(--cream); }
-  .fall-option:has(input:checked){ border-color:var(--pink); background:var(--blush); }
+  .fall-option:has(input:checked){ border-color:var(--brand-rose); background:var(--blush); }
   .fall-option:has(input:disabled){ opacity:0.4; cursor:not-allowed; }
   .fall-option input{ margin-top:3px; flex-shrink:0; width:18px; height:18px; accent-color:var(--rose-deep); }
   .fall-option-emoji{ font-size:20px; line-height:1.3; }
@@ -646,7 +646,7 @@
   .fall-option-text strong{ color:var(--charcoal); font-family:'Inter',sans-serif; }
   .fall-radio-group{ display:flex; flex-direction:column; gap:10px; margin-top:14px; }
   .fall-option-compact{ padding:12px 14px; font-size:14px; font-weight:600; color:var(--charcoal); }
-  .fall-section-chitchat{ background:var(--coral); }
+  .fall-section-chitchat{ background:var(--brand-pink); }
   .fall-section-chitchat p{ font-size:13.5px; color:#4a4640; line-height:1.5; margin:6px 0 14px; }
   .fall-terms{ background:var(--blush); }
   .fall-terms a{ color:var(--charcoal); font-weight:700; text-decoration:underline; }
@@ -792,13 +792,13 @@
   .update-banner[hidden]{ display:none; }
   .update-banner span{ flex:1 1 auto; min-width:0; }
   .update-banner button{ font-family:inherit; font-weight:700; border-radius:999px; border:none; cursor:pointer; padding:6px 12px; font-size:12.5px; }
-  #updateBannerRefresh{ background:var(--pink); color:var(--charcoal); }
+  #updateBannerRefresh{ background:var(--brand-pink); color:var(--charcoal); }
   #updateBannerDismiss{ background:transparent; color:#fff; opacity:0.7; padding:6px 8px; }
   .footer-admin-corner{ position:absolute; top:14px; right:14px; text-align:right; z-index:5; display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
   .footer-admin-btn{ font-family:'Inter',sans-serif; font-weight:700; font-size:11px; padding:7px 12px; border-radius:999px; border:2px solid var(--charcoal); background:rgba(255,255,255,0.85); color:var(--charcoal); cursor:pointer; box-shadow:2px 2px 0 var(--charcoal); }
   .ev-created-box{ background:#e7f4ec; border:2px solid #5aa276; border-radius:12px; padding:12px; }
   .footer-admin-btn:hover{ transform:translate(-1px,-1px); box-shadow:3px 3px 0 var(--charcoal); }
-  .footer-missing-btn{ background:var(--gold); }
+  .footer-missing-btn{ background:var(--brand-pink); }
   .footer-admin-modal-overlay{ position:fixed; inset:0; background:rgba(33,30,28,0.5); z-index:6000; display:none; align-items:center; justify-content:center; padding:20px; padding-bottom:calc(20px + env(safe-area-inset-bottom)); }
   .footer-admin-modal-overlay.open{ display:flex; }
   .footer-admin-modal{ background:white; border:2px solid var(--charcoal); border-radius:14px; padding:20px; width:100%; max-width:280px; box-shadow:4px 4px 0 var(--charcoal); text-align:left; }
@@ -899,6 +899,37 @@
   }
 }
 @media (prefers-reduced-motion:reduce){ .ideas-cloud.floaty .idea-bubble{ animation:none !important; } }
+
+/* ===== BRAND PASS: every button / pill / chip / card outside the calendar's event types uses the brand palette
+   (#ce8491 rose, #76220b brown, #fef7f4 cream, #ffc1c1 pink, #f2d8d7 blush). Club things use the club colours (set inline).
+   Event types keep their own colours; the page background and nav bar are untouched. ===== */
+.club-guide-btn{ border-color:var(--brand-brown); box-shadow:3px 3px 0 var(--brand-brown); color:var(--brand-brown); }
+.club-guide-btn:hover{ box-shadow:4px 4px 0 var(--brand-brown); }
+.fall-cta-btn{ color:var(--brand-brown); }
+.iav-edit-btn{ background:var(--brand-pink); border-color:var(--brand-brown); color:var(--brand-brown); }
+.iav-done-btn{ background:var(--brand-brown); border-color:var(--brand-brown); color:var(--brand-cream); }
+.subscribe-btn{ background:var(--brand-brown); color:var(--brand-cream); }
+.view-toggle{ border-color:var(--brand-brown); }
+.view-toggle button{ color:var(--brand-brown); }
+.view-toggle button.active{ color:#fff; }
+.filter-chip{ border-color:var(--brand-rose); color:var(--brand-brown); }
+.filter-chip.active{ background:var(--brand-brown); border-color:var(--brand-brown); color:var(--brand-cream); }
+.resource-filter-chip{ border-color:var(--brand-brown); color:var(--brand-brown); }
+.resource-filter-chip.active{ background:var(--brand-brown); color:var(--brand-cream); }
+.fall-submit-btn{ background:var(--brand-brown); color:var(--brand-cream); }
+.link-btn{ border-color:var(--brand-brown); }
+.link-btn.primary{ background:var(--brand-brown); color:var(--brand-cream); }
+.link-btn.secondary{ color:var(--brand-brown); }
+.add-resource-pill{ border-color:var(--brand-brown); color:var(--brand-brown); box-shadow:3px 3px 0 var(--brand-brown); }
+.add-resource-pill:hover{ box-shadow:4px 4px 0 var(--brand-brown); }
+.av-signout{ border-color:var(--brand-brown); color:var(--brand-brown); }
+.av-link{ color:var(--brand-brown); }
+.back-btn{ color:var(--brand-brown); }
+.ideas-join input, .ideas-form input{ border-color:var(--brand-brown); }
+.ideas-form{ border-color:var(--brand-brown); }
+.panel-card{ border-color:var(--brand-brown); box-shadow:3px 3px 0 var(--brand-brown); }
+.today-day-btn{ border-color:var(--brand-brown); color:var(--brand-brown); }
+.today-subscribe-btn{ border-color:var(--brand-rose); color:var(--brand-brown); }
 </style>
 </head>
 <body>
@@ -2364,7 +2395,7 @@ function renderHomescreenSlot(){
   const title = siteText.homeTileHomescreenTitle || 'Add this to your Home Screen';
   const desc = siteText.homeTileHomescreenDesc || 'Install 4DASISTAS like an app for quick access.';
   slot.style.cssText = 'display:block;max-width:760px;margin:12px auto 20px;padding:0 20px;box-sizing:border-box;';
-  slot.innerHTML = `<div class="home-tiles bottom-row"><button type="button" class="home-tile" style="background:#F1F6F2;color:#373d3b;grid-column:1/-1;justify-self:center;max-width:560px;width:100%" data-hometab="homescreen"><div class="home-tile-title">${title}</div><div class="home-tile-desc">${desc}</div><div class="home-tile-arrow">→</div></button></div>`;
+  slot.innerHTML = `<div class="home-tiles bottom-row"><button type="button" class="home-tile" style="background:var(--brand-blush);color:var(--brand-brown);grid-column:1/-1;justify-self:center;max-width:560px;width:100%" data-hometab="homescreen"><div class="home-tile-title">${title}</div><div class="home-tile-desc">${desc}</div><div class="home-tile-arrow">→</div></button></div>`;
   slot.querySelector('.home-tile').addEventListener('click', () => goToTab('homescreen'));
 }
 
@@ -2805,9 +2836,9 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         <p style="font-size:13px;margin-bottom:10px;">Sign in with your username and the PIN an organizer gave you.</p>
         <div id="clubsLoginError" style="color:#c00;font-size:13px;margin-bottom:8px;"></div>
         ${getLastLogin() ? `<p style="font-size:14px;margin:0 0 10px;text-align:center;">Welcome back, <strong>${escapeCm(getLastLogin().name || getLastLogin().username)}</strong> — just enter your PIN. <button type="button" id="clubsLoginForgetBtn" class="av-link" style="font-size:13px;">Not you?</button></p>` : ''}
-        <input id="clubsLoginUsername" value="${getLastLogin() ? escapeCm(getLastLogin().username) : ''}" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);margin-bottom:10px;box-sizing:border-box;">
-        <input id="clubsLoginPin" type="password" autocomplete="current-password" placeholder="PIN" inputmode="numeric" maxlength="4" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);margin-bottom:10px;box-sizing:border-box;">
-        <button class="club-guide-btn" id="clubsLoginSubmitBtn" style="width:100%;background:var(--lightblue);">Sign In</button>
+        <input id="clubsLoginUsername" value="${getLastLogin() ? escapeCm(getLastLogin().username) : ''}" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);margin-bottom:10px;box-sizing:border-box;">
+        <input id="clubsLoginPin" type="password" autocomplete="current-password" placeholder="PIN" inputmode="numeric" maxlength="4" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);margin-bottom:10px;box-sizing:border-box;">
+        <button class="club-guide-btn" id="clubsLoginSubmitBtn" style="width:100%;background:var(--brand-blush);">Sign In</button>
         <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;">Forgot your PIN? An admin can reset it for you — just message us.</p>
       `}
     </div>` : ''}
@@ -3259,15 +3290,15 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         <form id="volunteerForm" action="https://formspree.io/f/mkjnonrr" method="POST" style="display:none; margin-top:16px; flex-direction:column; gap:12px;">
           <div>
             <label style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Name</label>
-            <input type="text" name="name" required style="width:100%; padding:10px 12px; border:1.5px solid var(--charcoal); border-radius:8px; font-size:14px; box-sizing:border-box;">
+            <input type="text" name="name" required style="width:100%; padding:10px 12px; border:1.5px solid var(--brand-brown); border-radius:8px; font-size:14px; box-sizing:border-box;">
           </div>
           <div>
             <label style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Phone Number</label>
-            <input type="tel" name="phone" required style="width:100%; padding:10px 12px; border:1.5px solid var(--charcoal); border-radius:8px; font-size:14px; box-sizing:border-box;">
+            <input type="tel" name="phone" required style="width:100%; padding:10px 12px; border:1.5px solid var(--brand-brown); border-radius:8px; font-size:14px; box-sizing:border-box;">
           </div>
           <div>
             <label style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Email</label>
-            <input type="email" name="email" required style="width:100%; padding:10px 12px; border:1.5px solid var(--charcoal); border-radius:8px; font-size:14px; box-sizing:border-box;">
+            <input type="email" name="email" required style="width:100%; padding:10px 12px; border:1.5px solid var(--brand-brown); border-radius:8px; font-size:14px; box-sizing:border-box;">
           </div>
           <div>
             <label style="display:block; font-size:13px; font-weight:600; margin-bottom:8px;">I'd like to help with:</label>
@@ -3275,7 +3306,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
             <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:8px;"><input type="checkbox" name="interests[]" value="Social media content creation"> Social media content creation</label>
             <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:8px;"><input type="checkbox" name="interests[]" value="Outreach & check for events"> Outreach &amp; check for events</label>
             <label style="display:flex; align-items:center; gap:8px; font-size:14px; margin-bottom:6px;"><input type="checkbox" name="interests[]" value="Other" id="volOtherCheck"> Other:</label>
-            <input type="text" name="other_details" id="volOtherText" placeholder="Tell us more..." style="width:100%; padding:8px 10px; border:1.5px solid var(--charcoal); border-radius:8px; font-size:13px; box-sizing:border-box; display:none;">
+            <input type="text" name="other_details" id="volOtherText" placeholder="Tell us more..." style="width:100%; padding:8px 10px; border:1.5px solid var(--brand-brown); border-radius:8px; font-size:13px; box-sizing:border-box; display:none;">
           </div>
           <button type="submit" class="link-btn primary" style="width:100%; text-align:center;">Submit</button>
         </form>
@@ -3311,18 +3342,18 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       <div class="rules-content">
         <p class="rules-lead">Add 4DASISTAS to your Home Screen for quick access, just like an app.</p>
         <img src="https://www.google.com/chrome/static/images/chrome-logo.svg" alt="Chrome logo" style="width:48px;height:48px;margin-bottom:12px;">
-        <h3>iPhone / iPad (Safari)</h3>
+        <h3>iPhone / iPad</h3>
         <ol>
-          <li>Open this site in Safari.</li>
-          <li>Tap the <strong>Share</strong> button <span style="font-size:18px;">⎋</span> at the bottom.</li>
+          <li>Open this site in your browser.</li>
+          <li>Tap the <strong>Share</strong> button <span style="font-size:18px;">⎋</span> (the square with an arrow pointing up) in your browser's toolbar or menu.</li>
           <li>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
           <li>Name it <strong>4DASISTAS</strong> and tap <strong>Add</strong>.</li>
         </ol>
-        <h3>Android (Chrome)</h3>
+        <h3>Android</h3>
         <ol>
-          <li>Open this site in Chrome.</li>
-          <li>Tap the <strong>Menu</strong> button <span style="font-size:18px;">⋮</span> (three dots).</li>
-          <li>Tap <strong>Add to Home screen</strong>.</li>
+          <li>Open this site in your browser.</li>
+          <li>Tap your browser's <strong>Menu</strong> button <span style="font-size:18px;">⋮</span> (three dots or lines).</li>
+          <li>Tap <strong>Add to Home screen</strong> (or <strong>Install app</strong>).</li>
           <li>Name it <strong>4DASISTAS</strong> and tap <strong>Add</strong>.</li>
         </ol>
         <h3>Desktop (Chrome / Edge)</h3>
@@ -3341,10 +3372,10 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         <p style="margin-bottom:14px;">Select the categories you want, then download your custom .ics file. For auto-updating subscription, use the main calendar feed and filter in your calendar app.</p>
         <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
           <button class="club-guide-btn" id="subSelectAll" style="background:var(--blush);">Select All</button>
-          <button class="club-guide-btn" id="subClearAll" style="background:var(--lightblue);">Clear All</button>
+          <button class="club-guide-btn" id="subClearAll" style="background:var(--brand-blush);">Clear All</button>
         </div>
         <div id="subscribeChecks" style="display:flex; flex-direction:column; gap:10px;"></div>
-        <button class="club-guide-btn" id="subDownload" style="margin-top:18px; background:var(--charcoal); color:var(--cream); width:100%; text-align:center;">Download Calendar (.ics)</button>
+        <button class="club-guide-btn" id="subDownload" style="margin-top:18px; background:var(--brand-brown); color:var(--brand-cream); width:100%; text-align:center;">Download Calendar (.ics)</button>
       </div>
 `;
     setTimeout(() => {
@@ -3364,18 +3395,18 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         <p class="rules-lead">Know an event we should add?</p>
         <p style="margin-bottom:12px;">Send it to us — everything below is required, and an admin reviews every submission.</p>
         <form id="eventSubForm" novalidate style="display:flex;flex-direction:column;gap:10px;">
-          <input id="esLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="Link to the event (https://…)" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
-          <input id="esName" type="text" maxlength="120" placeholder="Event name" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
-          <input id="esDate" type="date" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
-          <select id="esGenre" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;background:#fff;">
+          <input id="esLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="Link to the event (https://…)" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
+          <input id="esName" type="text" maxlength="120" placeholder="Event name" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
+          <input id="esDate" type="date" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
+          <select id="esGenre" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;background:#fff;">
             <option value="">Genre of event…</option>
             ${[['sports','Sports'],['activities','Activities'],['functions','Community function (market, festival, gathering)'],['trips','Trip'],['knowledge','Knowledge (class, talk, mosque program)']].map(([k, l]) => `<option value="${k}">${escapeCm(l)}</option>`).join('')}
             <option value="other">Other (type it in)</option>
           </select>
-          <input id="esGenreOther" type="text" maxlength="40" placeholder="What kind of event is it?" style="display:none;padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
-          <input id="esCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
+          <input id="esGenreOther" type="text" maxlength="40" placeholder="What kind of event is it?" style="display:none;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
+          <input id="esCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
           <label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:44px;"><input id="esVirtual" type="checkbox" style="width:22px;height:22px;"> It's a virtual event (no city)</label>
-          <textarea id="esComments" rows="3" maxlength="600" placeholder="Comments (optional) — anything we should know?" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;font-family:inherit;"></textarea>
+          <textarea id="esComments" rows="3" maxlength="600" placeholder="Comments (optional) — anything we should know?" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;"></textarea>
           <input id="esWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;">
           <div id="esStatus" style="min-height:18px;font-size:13px;color:#c00;" aria-live="polite"></div>
           <button type="submit" class="club-guide-btn" id="esSubmit" style="background:#ce8491;color:#fff;width:100%;text-align:center;min-height:46px;">Submit event</button>
@@ -3389,17 +3420,17 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         <p class="rules-lead">Know a business or resource we should add?</p>
         <p style="margin-bottom:12px;">Send it to us — everything below is required, and an admin reviews every submission.</p>
         <form id="resSubForm" novalidate style="display:flex;flex-direction:column;gap:10px;">
-          <input id="rsTitle" type="text" maxlength="120" placeholder="Name of the business / resource" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
-          <select id="rsType" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;background:#fff;">
+          <input id="rsTitle" type="text" maxlength="120" placeholder="Name of the business / resource" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
+          <select id="rsType" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;background:#fff;">
             <option value="">Type of resource…</option>
             ${RESOURCE_CATEGORIES.map(([k, l]) => `<option value="${k}">${escapeCm(l)}</option>`).join('')}
             <option value="other">Other (type it in)</option>
           </select>
-          <input id="rsTypeOther" type="text" maxlength="40" placeholder="What kind of resource is it?" style="display:none;padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
-          <input id="rsLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="Instagram or WhatsApp link" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
-          <input id="rsCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;">
+          <input id="rsTypeOther" type="text" maxlength="40" placeholder="What kind of resource is it?" style="display:none;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
+          <input id="rsLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="Instagram or WhatsApp link" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
+          <input id="rsCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
           <label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:44px;"><input id="rsVirtual" type="checkbox" style="width:22px;height:22px;"> It's virtual / online only (no city)</label>
-          <textarea id="rsComments" rows="3" maxlength="600" placeholder="Comments (optional) — anything we should know?" style="padding:12px;border-radius:12px;border:2px solid var(--charcoal);font-size:16px;font-family:inherit;"></textarea>
+          <textarea id="rsComments" rows="3" maxlength="600" placeholder="Comments (optional) — anything we should know?" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;"></textarea>
           <input id="rsWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;">
           <div id="rsStatus" style="min-height:18px;font-size:13px;color:#c00;" aria-live="polite"></div>
           <button type="submit" class="club-guide-btn" id="rsSubmit" style="background:#ce8491;color:#fff;width:100%;text-align:center;min-height:46px;">Submit resource</button>
@@ -3794,7 +3825,7 @@ function renderEventEditView(){
   const alsoShowIn = Array.isArray(d.alsoShowIn) ? d.alsoShowIn : [];
   const alsoSportKeys = Array.isArray(d.alsoSportKeys) ? d.alsoSportKeys : [];
   const extraDates = Array.isArray(d.extraDates) ? d.extraDates : [];
-  const fieldStyle = 'width:100%;padding:8px;border-radius:8px;border:1.5px solid var(--charcoal);margin-top:4px;box-sizing:border-box;';
+  const fieldStyle = 'width:100%;padding:8px;border-radius:8px;border:1.5px solid var(--brand-brown);margin-top:4px;box-sizing:border-box;';
   const labelStyle = 'font-size:12px;font-weight:700;flex:1;';
   // labels sitting side-by-side in a row: allow them to wrap onto their own line and shrink instead of overflowing
   const rowLabelStyle = 'font-size:12px;font-weight:700;flex:1 1 130px;min-width:0;';
@@ -3804,7 +3835,7 @@ function renderEventEditView(){
 
   card.innerHTML = `
     <button class="back-btn" id="eventEditCancelBtn" type="button">← ${reviewMode ? 'Exit review' : 'Cancel'}</button>
-    ${reviewMode ? `<div style="background:var(--blush);border:2px solid var(--charcoal);border-radius:10px;padding:10px;margin-bottom:12px;">
+    ${reviewMode ? `<div style="background:var(--blush);border:2px solid var(--brand-brown);border-radius:10px;padding:10px;margin-bottom:12px;">
       <strong style="font-size:13px;">Reviewing ${reviewPos} of ${state.reviewTotal}</strong>
       <div style="font-size:12px;margin-top:4px;">Missing: ${missing.length ? missing.map(escapeCm).join(', ') : '<em>nothing left — safe to save</em>'}</div>
     </div>` : ''}
@@ -3903,7 +3934,7 @@ function renderEventEditView(){
         <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Extra one-off dates (e.g. a 3-part workshop on specific days)</div>
         <div id="extraDatesRows" style="display:flex;flex-direction:column;gap:6px;">
           ${extraDates.map((ed, i) => `<div style="display:flex;gap:6px;align-items:center;">
-            <input type="date" class="editExtraDate" value="${(ed && ed.date) || ''}" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--charcoal);box-sizing:border-box;">
+            <input type="date" class="editExtraDate" value="${(ed && ed.date) || ''}" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--brand-brown);box-sizing:border-box;">
             <button type="button" class="removeExtraDateBtn link-btn secondary" data-idx="${i}" style="padding:6px 10px;font-size:11px;">Remove</button>
           </div>`).join('')}
         </div>
@@ -3937,7 +3968,7 @@ function renderEventEditView(){
           <datalist id="sportKeyOptions">${CANONICAL_SPORT_KEYS.map(k => `<option value="${escapeCm(k)}">`).join('')}</datalist>
           <div id="alsoSportKeyRows" style="display:flex;flex-direction:column;gap:6px;">
             ${alsoSportKeys.map((k, i) => `<div style="display:flex;gap:6px;align-items:center;">
-              <input type="text" class="editAlsoSportKey" list="sportKeyOptions" value="${escapeCm(k)}" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--charcoal);box-sizing:border-box;">
+              <input type="text" class="editAlsoSportKey" list="sportKeyOptions" value="${escapeCm(k)}" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--brand-brown);box-sizing:border-box;">
               <button type="button" class="removeAlsoSportKeyBtn link-btn secondary" data-idx="${i}" style="padding:6px 10px;font-size:11px;">Remove</button>
             </div>`).join('')}
           </div>
@@ -4452,7 +4483,7 @@ function renderResourceEditView(){
     return;
   }
 
-  const fieldStyle = 'width:100%;padding:8px;border-radius:8px;border:1.5px solid var(--charcoal);margin-top:4px;box-sizing:border-box;';
+  const fieldStyle = 'width:100%;padding:8px;border-radius:8px;border:1.5px solid var(--brand-brown);margin-top:4px;box-sizing:border-box;';
   const labelStyle = 'font-size:12px;font-weight:700;flex:1;';
 
   card.innerHTML = `
@@ -4642,7 +4673,7 @@ function renderAboutEditView(){
     <button class="back-btn" id="aboutEditCancelBtn" type="button">← Cancel</button>
     <h2 style="margin-bottom:10px;">Edit About Page</h2>
     <p style="font-size:12px;color:#776867;margin-bottom:8px;">This is the raw HTML shown on the About tab (community rules + safety process). The "Want to Volunteer?" form below it isn't editable here.</p>
-    <textarea id="aboutEditTextarea" rows="20" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--charcoal);box-sizing:border-box;font-family:monospace;font-size:12px;">${escapeCm(state.aboutEditValue)}</textarea>
+    <textarea id="aboutEditTextarea" rows="20" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--brand-brown);box-sizing:border-box;font-family:monospace;font-size:12px;">${escapeCm(state.aboutEditValue)}</textarea>
     ${state.aboutEditError ? `<p style="color:#c00;font-size:13px;margin-top:8px;">${escapeCm(state.aboutEditError)}</p>` : ''}
     ${state.aboutEditSaved ? `<p style="color:#2a7a4a;font-size:13px;margin-top:8px;">Saved! The site rebuilds automatically — this can take a minute or two to appear live.</p>` : ''}
     <div style="display:flex;gap:10px;margin-top:10px;">
@@ -4820,8 +4851,8 @@ function choosePinHtml(){
   return `<div class="av-welcome" style="flex-direction:column;align-items:stretch;gap:8px;">
     <span>You're signed in with the starting PIN <strong>1234</strong> — choose your own 4-digit PIN now.</span>
     <div style="display:flex;gap:8px;">
-      <input id="cpnNewPin" type="password" autocomplete="new-password" placeholder="New 4-digit PIN" inputmode="numeric" maxlength="4" style="flex:1;padding:9px;border-radius:10px;border:2px solid var(--charcoal);box-sizing:border-box;">
-      <button type="button" class="club-guide-btn" id="cpnSaveBtn" style="background:var(--lightblue);padding:9px 16px;">Save</button>
+      <input id="cpnNewPin" type="password" autocomplete="new-password" placeholder="New 4-digit PIN" inputmode="numeric" maxlength="4" style="flex:1;padding:9px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;">
+      <button type="button" class="club-guide-btn" id="cpnSaveBtn" style="background:var(--brand-blush);padding:9px 16px;">Save</button>
     </div>
     <div id="cpnStatus" style="font-size:12px;color:#c00;"></div>
   </div>`;
@@ -5140,7 +5171,7 @@ function ideaLocationHtml(idea){
   if(!map) return '<p class="av-msg">No location yet.</p>';
   return `<button type="button" class="club-guide-btn idea-pop-map idea-loc-btn" style="width:100%;">📍 Location</button>
     <div class="idea-loc-box" hidden style="margin:0 0 10px;">
-      <iframe title="Map of ${escapeCm(idea.title)}" src="about:blank" data-src="${escapeCm(ideaMapEmbedUrl(idea))}" referrerpolicy="no-referrer-when-downgrade" style="width:100%;height:240px;border:2px solid var(--charcoal);border-radius:12px;display:block;"></iframe>
+      <iframe title="Map of ${escapeCm(idea.title)}" src="about:blank" data-src="${escapeCm(ideaMapEmbedUrl(idea))}" referrerpolicy="no-referrer-when-downgrade" style="width:100%;height:240px;border:2px solid var(--brand-brown);border-radius:12px;display:block;"></iframe>
       <a class="idea-pop-maplink" href="${escapeCm(map)}" target="_blank" rel="noopener">Open in Google Maps ↗</a>
     </div>`;
 }
@@ -5311,6 +5342,8 @@ function renderPublicIdeasFeedHtml(title, hint, emptyMsg){
    then tap "Allow notifications". Old members get the same screen the next time they open the app.
    ============================================================ */
 const VAPID_PUBLIC_KEY = 'BEMVhYcg0NJP_6Z_-T_ZOqyeFFG0ZN7aNVhqO_lykhIbwX9B7IDGYkwfGfPPR-GyJsaSfU0Ewbezmlzzt6xwqXs';
+// 'Done' / 'Skip for now' on the add-to-Home-Screen step silences it for a week (they can still add it any time).
+function installGateSkipped(){ try { return Date.now() - Number(localStorage.getItem('installGateSkippedAt') || 0) < 7 * 86400000; } catch { return false; } }
 function pushSupported(){ return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
 function isMobileDevice(){ return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
 function isStandaloneApp(){ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
@@ -5335,7 +5368,7 @@ async function pushEnable(){
 function pushGateMode(){
   const sess = getCmSession();
   if(!sess || state.meLoadedFor !== sess.token) return false; // wait until /api/me told us whether this person already registered
-  if(isMobileDevice() && !isStandaloneApp()) return 'install';
+  if(isMobileDevice() && !isStandaloneApp() && !installGateSkipped()) return 'install';
   if(!pushSupported()) return false;
   if(Notification.permission === 'granted' && state.pushRegistered) return false;
   return 'enable';
@@ -5366,7 +5399,7 @@ function renderPhoneGate(note){
       <div style="font-size:44px;text-align:center;">📞</div>
       <h2 style="text-align:center;margin:8px 0 6px;color:#76220b;">${had ? 'Confirm your phone number' : 'Add your phone number'}</h2>
       <p style="text-align:center;margin:0 0 14px;line-height:1.5;">${had ? 'Is this still your number?' : "We don't have your number yet."} The admins only use it to reach you about your clubs and events. You'll only be asked once.</p>
-      <input id="phoneGateInput" type="tel" inputmode="tel" autocomplete="tel" placeholder="e.g. 416-555-0123" value="${escapeCm(state.myPhone || '')}" style="width:100%;padding:14px;border-radius:14px;border:2px solid var(--charcoal);font-size:18px;box-sizing:border-box;text-align:center;">
+      <input id="phoneGateInput" type="tel" inputmode="tel" autocomplete="tel" placeholder="e.g. 416-555-0123" value="${escapeCm(state.myPhone || '')}" style="width:100%;padding:14px;border-radius:14px;border:2px solid var(--brand-brown);font-size:18px;box-sizing:border-box;text-align:center;">
       <div id="phoneGateNote" style="min-height:20px;text-align:center;margin-top:10px;font-size:14px;color:#b3261e;" aria-live="polite">${note ? escapeCm(note) : ''}</div>
       <button type="button" id="phoneGateSave" style="width:100%;min-height:54px;border-radius:999px;border:2px solid #76220b;background:#ce8491;color:#fff;font-size:17px;font-weight:700;cursor:pointer;margin-top:6px;">${had ? 'Yes, that\'s my number' : 'Save my number'}</button>
       <p style="text-align:center;font-size:13px;color:#776867;margin-top:18px;">Stuck? <a href="${IG_DM_URL}" target="_blank" rel="noopener">Message an admin</a> · <button type="button" id="phoneGateLogout" class="av-link" style="font-size:13px;">Log out</button></p></div>`;
@@ -5404,26 +5437,28 @@ function renderPushGate(mode, note){
   const shareIcon = '<span style="display:inline-block;border:1.5px solid #76220b;border-radius:6px;padding:0 6px;font-weight:700;">⬆︎</span>';
   const instructions = inApp ? `
         <strong>First, open 4DASISTAS in your phone's browser</strong> — you're inside another app's built-in browser, which can't add it to the Home Screen.
-        ${step(1, ios ? `Tap the <strong>⋯</strong> or <strong>Share</strong> button and choose <strong>Open in Safari</strong>.` : `Tap the <strong>⋮</strong> menu and choose <strong>Open in Chrome</strong> (or <strong>Open in browser</strong>).`)}
+        ${step(1, ios ? `Tap the <strong>⋯</strong> or <strong>Share</strong> button and choose <strong>Open in browser</strong>.` : `Tap the <strong>⋮</strong> menu and choose <strong>Open in browser</strong>.`)}
         ${step(2, 'Come back to this screen there and follow the steps to add it to your Home Screen.')}
         <button type="button" id="pushCopyLink" style="margin-top:6px;min-height:46px;width:100%;border-radius:999px;border:2px solid #76220b;background:#fff;color:#76220b;font-weight:700;font-size:15px;cursor:pointer;">📋 Copy the link</button>`
     : ios ? `
-        <strong>On your iPhone</strong> (use Safari if you can):
-        ${step(1, `Tap the <strong>Share</strong> button ${shareIcon} — in Safari it's the square-with-arrow at the <strong>bottom</strong> of the screen (in Chrome it's at the top right).`)}
+        <strong>On your iPhone:</strong>
+        ${step(1, `Tap the <strong>Share</strong> button ${shareIcon} — the square with an arrow pointing up, in your browser's toolbar or menu.`)}
         ${step(2, 'Scroll down and tap <strong>Add to Home Screen</strong>.')}
         ${step(3, 'Tap <strong>Add</strong> (top right).')}
         ${step(4, 'Open <strong>4DASISTAS from your Home Screen</strong>, sign in again, then tap <strong>Allow notifications</strong>.')}`
     : `
-        <strong>On your Android phone</strong>${samsung ? ' (Samsung Internet)' : ' (Chrome)'}:
-        ${step(1, samsung ? `Tap the <strong>≡</strong> menu at the bottom right.` : `Tap the <strong>⋮</strong> menu at the top right.`)}
-        ${step(2, samsung ? `Tap <strong>Add page to</strong> → <strong>Home screen</strong>.` : `Tap <strong>Install app</strong> (or <strong>Add to Home screen</strong>).`)}
+        <strong>On your Android phone:</strong>
+        ${step(1, `Tap your browser's <strong>menu</strong> button (<strong>⋮</strong> or <strong>≡</strong>).`)}
+        ${step(2, `Tap <strong>Install app</strong>, <strong>Add to Home screen</strong>, or <strong>Add page to → Home screen</strong>.`)}
         ${step(3, 'Tap <strong>Install</strong> / <strong>Add</strong>.')}
         ${step(4, 'Open <strong>4DASISTAS from your Home Screen</strong>, sign in again, then tap <strong>Allow notifications</strong>.')}`;
   const body = mode === 'install' ? `
       <div style="font-size:44px;text-align:center;">📲</div>
       <h2 style="text-align:center;margin:8px 0 6px;color:#76220b;">One more step</h2>
       <p style="text-align:center;margin:0 0 14px;line-height:1.5;">To get reminders and updates (like when you're accepted into a club), 4DASISTAS needs to be on your <strong>Home Screen</strong>.</p>
-      <div style="background:#f2d8d7;border-radius:16px;padding:16px;line-height:1.55;color:#76220b;">${instructions}</div>` : `
+      <div style="background:#f2d8d7;border-radius:16px;padding:16px;line-height:1.55;color:#76220b;">${instructions}</div>
+      <button type="button" id="pushInstallDone" style="${btn}">✅ Done</button>
+      <div style="text-align:center;margin-top:6px;"><button type="button" id="pushInstallSkip" class="av-link" style="font-size:15px;">Skip for now</button></div>` : `
       <div style="font-size:44px;text-align:center;">🔔</div>
       <h2 style="text-align:center;margin:8px 0 6px;color:#76220b;">Turn on notifications</h2>
       <p style="text-align:center;margin:0;line-height:1.5;">We'll only use them for things that matter: club approvals, availability reminders and event updates. Tap the button, then choose <strong>Allow</strong>.</p>
@@ -5432,8 +5467,12 @@ function renderPushGate(mode, note){
   gate.innerHTML = `<div style="max-width:480px;margin:0 auto;">${body}
       <div id="pushGateNote" style="min-height:20px;text-align:center;margin-top:12px;font-size:14px;color:#b3261e;">${note ? escapeCm(note) : ''}</div>
       <p style="text-align:center;font-size:13px;color:#776867;margin-top:18px;">Stuck? <a href="${IG_DM_URL}" target="_blank" rel="noopener">Message an admin</a> · <button type="button" id="pushGateLogout" class="av-link" style="font-size:13px;">Log out</button></p></div>`;
+  const leaveInstall = () => { try { localStorage.setItem('installGateSkippedAt', String(Date.now())); } catch {} gate.remove(); document.body.style.overflow = ''; maybeShowPushGate(); };
+  const doneBtn = gate.querySelector('#pushInstallDone'), skipBtn = gate.querySelector('#pushInstallSkip');
+  if(doneBtn) doneBtn.addEventListener('click', leaveInstall);
+  if(skipBtn) skipBtn.addEventListener('click', leaveInstall);
   const copyBtn = gate.querySelector('#pushCopyLink');
-  if(copyBtn) copyBtn.addEventListener('click', async () => { try { await navigator.clipboard.writeText('https://4dasistas.ca/'); copyBtn.textContent = '✓ Copied — paste it in Safari / Chrome'; } catch { window.prompt('Copy this link:', 'https://4dasistas.ca/'); } });
+  if(copyBtn) copyBtn.addEventListener('click', async () => { try { await navigator.clipboard.writeText('https://4dasistas.ca/'); copyBtn.textContent = '✓ Copied — paste it in your browser'; } catch { window.prompt('Copy this link:', 'https://4dasistas.ca/'); } });
   const allow = gate.querySelector('#pushAllowBtn');
   if(allow) allow.addEventListener('click', async () => {
     allow.disabled = true; allow.textContent = 'One moment…';
@@ -5510,20 +5549,20 @@ function wireMyClubsSection(){
   document.querySelectorAll('.join-req-btn').forEach(b => b.addEventListener('click', () => { b.disabled = true; requestToJoinClub(b.dataset.clubId); }));
 }
 function changePinButtonHtml(){
-  const pill = 'min-height:44px;padding:10px 20px;border-radius:999px;border:2px solid var(--charcoal);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;';
+  const pill = 'min-height:44px;padding:10px 20px;border-radius:999px;border:2px solid var(--brand-brown);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;';
   const sess = getCmSession();
   return `<p style="text-align:center;margin:0 0 10px;font-size:15px;">You're logged in as: <strong>${escapeCm((sess && sess.name) || '')}</strong></p>
   <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-    <button type="button" id="myEditProfileBtn" style="${pill}background:var(--lightblue);color:var(--charcoal);">✏️ Edit profile</button>
+    <button type="button" id="myEditProfileBtn" style="${pill}background:var(--brand-blush);color:var(--brand-brown);">✏️ Edit profile</button>
     <button type="button" id="mySignOutBtn" style="${pill}background:transparent;color:var(--charcoal);">Log out</button>
   </div>`;
 }
 function openEditProfilePopup(){
   const session = getCmSession();
   if(!session) return;
-  const photoHtml = () => { const sess = getCmSession() || session; return sess.photo ? `<img src="${escapeCm(sess.photo)}" alt="" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:2px solid var(--charcoal);">` : `<div class="monogram" style="width:96px;height:96px;font-size:36px;margin:0 auto;">${escapeCm((session.name||'?').charAt(0).toUpperCase())}</div>`; };
+  const photoHtml = () => { const sess = getCmSession() || session; return sess.photo ? `<img src="${escapeCm(sess.photo)}" alt="" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:2px solid var(--brand-brown);">` : `<div class="monogram" style="width:96px;height:96px;font-size:36px;margin:0 auto;">${escapeCm((session.name||'?').charAt(0).toUpperCase())}</div>`; };
   const rowStyle = 'display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #0001;font-size:15px;';
-  const pill = 'min-height:44px;padding:10px 18px;border-radius:999px;border:2px solid var(--charcoal);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;background:var(--lightblue);color:var(--charcoal);';
+  const pill = 'min-height:44px;padding:10px 18px;border-radius:999px;border:2px solid var(--brand-brown);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;background:var(--brand-blush);color:var(--brand-brown);';
   const { wrap, close } = ideaPopup(`
     <h3 style="margin:0 0 12px;text-align:center;">Edit profile</h3>
     <div id="epPhoto" style="text-align:center;margin-bottom:10px;">${photoHtml()}</div>
@@ -5568,7 +5607,7 @@ function openEditProfilePopup(){
 function openChangePinPopup(){
   const session = getCmSession();
   if(!session) return;
-  const inputStyle = 'width:100%;padding:11px;margin-bottom:8px;border-radius:10px;border:2px solid var(--charcoal);box-sizing:border-box;font-size:16px;';
+  const inputStyle = 'width:100%;padding:11px;margin-bottom:8px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;';
   const { wrap, close } = ideaPopup(`
     <h3 style="margin:0 0 6px;">Change my PIN</h3>
     <p class="ideas-hint" style="margin:0 0 10px;">Forgot your current PIN? An admin can reset it for you.</p>
@@ -5576,7 +5615,7 @@ function openChangePinPopup(){
     <input id="cpNewPin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="New 4-digit PIN" style="${inputStyle}">
     <input id="cpNewPin2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="New PIN again" style="${inputStyle}">
     <div id="cpPinStatus" style="font-size:13px;color:#c00;min-height:18px;margin-bottom:6px;"></div>
-    <button type="button" class="club-guide-btn" id="cpPinSaveBtn" style="width:100%;background:var(--lightblue);text-align:center;">Save new PIN</button>`);
+    <button type="button" class="club-guide-btn" id="cpPinSaveBtn" style="width:100%;background:var(--brand-blush);text-align:center;">Save new PIN</button>`);
   const status = wrap.querySelector('#cpPinStatus'), btn = wrap.querySelector('#cpPinSaveBtn');
   btn.addEventListener('click', async () => {
     const cur = wrap.querySelector('#cpCurrentPin').value.trim(), n1 = wrap.querySelector('#cpNewPin').value.trim(), n2 = wrap.querySelector('#cpNewPin2').value.trim();
@@ -5608,10 +5647,10 @@ function renderMyClubsSectionHtml(){
   const others = all.filter(c => !mine.has(c.id));
   const waiting = others.filter(c => pending.has(c.id)).map(c => `<strong>${escapeCm(c.title)}</strong>`);
   const pendingBanner = waiting.length ? `<div class="av-waitlist" style="max-width:520px;margin:0 auto 14px;text-align:center;">⏳ Waiting for an admin to approve: ${waiting.join(', ')}. It will show up here once approved.</div>` : '';
-  const rowStyle = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border:2px solid var(--charcoal);border-radius:12px;background:var(--card);';
+  const rowStyle = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border:2px solid var(--brand-brown);border-radius:12px;background:var(--card);';
   const rows = others.map(c => `<div style="${rowStyle}"><span>${c.emoji ? escapeCm(c.emoji) + ' ' : ''}<strong>${escapeCm(c.title)}</strong></span>${pending.has(c.id)
     ? `<span style="font-size:13px;color:var(--muted);text-align:right;">Requested ✓<br>waiting for approval</span>`
-    : `<button type="button" class="club-guide-btn join-req-btn" data-club-id="${escapeCm(c.id)}" style="min-height:44px;padding:8px 14px;text-align:center;background:var(--lightblue);">Request to join</button>`}</div>`).join('');
+    : `<button type="button" class="club-guide-btn join-req-btn" data-club-id="${escapeCm(c.id)}" style="min-height:44px;padding:8px 14px;text-align:center;background:var(--brand-blush);">Request to join</button>`}</div>`).join('');
   const requestSection = others.length ? `
     <h3 class="clubs-popular-title" style="margin-top:26px;">${myClubs.length ? 'REQUEST ANOTHER CLUB' : 'REQUEST TO JOIN A CLUB'}</h3>
     <p class="ideas-hint" style="text-align:center;margin:0 0 10px;">An admin approves every request.</p>
@@ -6576,9 +6615,9 @@ function renderClubMembersView(el){
         <p class="rules-lead">Sign in with your username and the PIN an organizer gave you.</p>
         ${state.cmError ? `<p style="color:#c00;margin-bottom:10px;">${escapeCm(state.cmError)}</p>` : ''}
         <div style="display:flex; flex-direction:column; gap:10px;">
-          <input id="cmUsernameLoginInput" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="padding:12px;border-radius:10px;border:2px solid var(--charcoal);font-size:15px;">
-          <input id="cmPinInput" type="password" autocomplete="current-password" placeholder="PIN" inputmode="numeric" maxlength="4" style="padding:12px;border-radius:10px;border:2px solid var(--charcoal);font-size:15px;">
-          <button class="club-guide-btn" id="cmSignInBtn" style="background:var(--lightblue);">Sign In</button>
+          <input id="cmUsernameLoginInput" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="padding:12px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;">
+          <input id="cmPinInput" type="password" autocomplete="current-password" placeholder="PIN" inputmode="numeric" maxlength="4" style="padding:12px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;">
+          <button class="club-guide-btn" id="cmSignInBtn" style="background:var(--brand-blush);">Sign In</button>
         </div>
         <p style="font-size:11px;color:#776867;margin-top:12px;">Don't have a login yet? Ask an organizer to add you.</p>
       </div>`;
@@ -6678,7 +6717,7 @@ function renderCmEventView(el){
       </div>
       ${mode === 'mine' ? '<p style="font-size:12px;margin-bottom:8px;">Click a slot, or click-and-drag across several, to mark yourself free (30-min slots). Click again to unmark.</p>' : '<p style="font-size:12px;margin-bottom:8px;">Darker = more people free. Click a slot to see who.</p>'}
       ${(mode === 'mine' && state.cmSuggestedSlots && state.cmSuggestedSlots.length) ? `
-      <div style="background:var(--lightblue);border:2px solid var(--charcoal);border-radius:10px;padding:10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div style="background:var(--brand-blush);border:2px solid var(--brand-brown);border-radius:10px;padding:10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
         <span style="font-size:12px;">You've marked yourself free at similar times before — apply that here?</span>
         <div style="display:flex;gap:6px;">
           <button type="button" class="club-guide-btn" id="cmApplySuggestedBtn" style="padding:6px 12px;font-size:12px;">Apply</button>
@@ -6686,7 +6725,7 @@ function renderCmEventView(el){
         </div>
       </div>` : ''}
       <div style="overflow-x:auto;" id="cmEventGridWrap">${cmEventGridHtml(event, mode, data)}</div>
-      ${mode === 'mine' ? `<button class="club-guide-btn" id="cmSaveEventBtn" style="margin-top:14px;background:var(--charcoal);color:var(--cream);">Save my availability</button><span id="cmSaveStatus" style="margin-left:10px;font-size:12px;"></span>` : '<div id="cmSlotWho" style="margin-top:14px;font-size:13px;"></div>'}
+      ${mode === 'mine' ? `<button class="club-guide-btn" id="cmSaveEventBtn" style="margin-top:14px;background:var(--brand-brown);color:var(--brand-cream);">Save my availability</button><span id="cmSaveStatus" style="margin-left:10px;font-size:12px;"></span>` : '<div id="cmSlotWho" style="margin-top:14px;font-size:13px;"></div>'}
     </div>`;
   setTimeout(() => {
     document.getElementById('cmBackToDashboard').addEventListener('click', () => { state.cmView = 'dashboard'; render(); });
@@ -6743,11 +6782,11 @@ function cmEventGridHtml(event, mode, data){
         const slot = d + '|' + h;
         if(mode === 'mine'){
           const active = mySlots.has(slot);
-          return `<td><button type="button" class="cm-cell" data-slot="${slot}" style="width:38px;height:20px;border:1px solid var(--charcoal);background:${active ? 'var(--mint,#A9D6B8)' : 'transparent'};cursor:pointer;padding:0;"></button></td>`;
+          return `<td><button type="button" class="cm-cell" data-slot="${slot}" style="width:38px;height:20px;border:1px solid var(--brand-brown);background:${active ? 'var(--mint,#A9D6B8)' : 'transparent'};cursor:pointer;padding:0;"></button></td>`;
         }
         const count = aggregate[slot] || 0;
         const opacity = count ? (0.15 + 0.75 * (count/maxCount)) : 0;
-        return `<td><div class="cm-cell" data-slot="${slot}" style="width:38px;height:20px;border:1px solid var(--charcoal);background:rgba(169,214,184,${opacity});cursor:${count?'pointer':'default'};"></div></td>`;
+        return `<td><div class="cm-cell" data-slot="${slot}" style="width:38px;height:20px;border:1px solid var(--brand-brown);background:rgba(169,214,184,${opacity});cursor:${count?'pointer':'default'};"></div></td>`;
       }).join('')}</tr>`).join('')}
     </tbody>
   </table>`;
@@ -6993,9 +7032,9 @@ function admAgo(ms){
 // for people who aren't in any club yet, who don't appear in the player-card list at all).
 function admProfileEdit(wrap, u){
   const card = wrap.querySelector('.idea-pop-card');
-  const inp = 'width:100%;padding:11px;margin-bottom:8px;border-radius:10px;border:2px solid var(--charcoal);box-sizing:border-box;font-size:16px;';
+  const inp = 'width:100%;padding:11px;margin-bottom:8px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;';
   const mine = new Set(u.clubs || []);
-  const btn = (id, bg, color, label) => `<button type="button" id="${id}" style="flex:1;min-height:46px;padding:10px;border-radius:999px;border:2px solid var(--charcoal);background:${bg};color:${color};font-weight:700;font-size:15px;cursor:pointer;">${label}</button>`;
+  const btn = (id, bg, color, label) => `<button type="button" id="${id}" style="flex:1;min-height:46px;padding:10px;border-radius:999px;border:2px solid var(--brand-brown);background:${bg};color:${color};font-weight:700;font-size:15px;cursor:pointer;">${label}</button>`;
   card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
     <h3 style="margin:0 0 10px;">Edit ${escapeCm(u.name)}</h3>
     <input id="apeName" value="${escapeCm(u.name)}" placeholder="Name" style="${inp}">
@@ -7057,7 +7096,7 @@ async function openAdminProfile(userId){
     if(!res.ok) throw new Error(u.error || 'Could not load profile');
     const row = (label, html) => `<div style="display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #0001;font-size:15px;"><span style="color:var(--muted);flex:none;">${label}</span><span style="text-align:right;">${html}</span></div>`;
     const tags = ids => ids.length ? ids.map(cid => { const col = clubCol(cid); return `<span style="display:inline-block;margin:2px 0 2px 4px;padding:3px 10px;border-radius:999px;background:${col.bg};color:${col.fg};font-size:12px;font-weight:700;">${escapeCm(avClubTitle(cid))}</span>`; }).join('') : '<span style="color:var(--muted);">None</span>';
-    const avatar = u.photo ? `<img src="${escapeCm(u.photo)}" alt="" style="width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid var(--charcoal);">` : `<div class="monogram" style="width:84px;height:84px;font-size:32px;margin:0 auto;">${escapeCm((u.name || '?').charAt(0).toUpperCase())}</div>`;
+    const avatar = u.photo ? `<img src="${escapeCm(u.photo)}" alt="" style="width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid var(--brand-brown);">` : `<div class="monogram" style="width:84px;height:84px;font-size:32px;margin:0 auto;">${escapeCm((u.name || '?').charAt(0).toUpperCase())}</div>`;
     const card = wrap.querySelector('.idea-pop-card');
     card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
       <div style="text-align:center;margin-bottom:8px;">${avatar}<h3 style="margin:10px 0 0;">${escapeCm(u.name)}</h3><div style="font-size:13px;color:var(--muted);">${escapeCm(u.username)}</div></div>
@@ -7069,7 +7108,7 @@ async function openAdminProfile(userId){
       ${(u.pending || []).length ? row('Requested', tags(u.pending)) : ''}
       ${(u.waitlist || []).filter(c => !(u.clubs || []).includes(c)).length ? row('Standby for', tags(u.waitlist.filter(c => !(u.clubs || []).includes(c)))) : ''}
       <p class="ideas-hint" style="margin:10px 0 0;">Sign-in and activity times only start being recorded from now, so older members show "Not recorded yet" until they next sign in.</p>
-      <div style="margin-top:14px;text-align:center;"><button type="button" id="admProfEditBtn" style="min-height:46px;padding:11px 26px;border-radius:999px;border:2px solid var(--charcoal);background:var(--lightblue);color:var(--charcoal);font-weight:700;font-size:15px;cursor:pointer;">✏️ Edit profile</button></div>`;
+      <div style="margin-top:14px;text-align:center;"><button type="button" id="admProfEditBtn" style="min-height:46px;padding:11px 26px;border-radius:999px;border:2px solid var(--brand-brown);background:var(--brand-blush);color:var(--brand-brown);font-weight:700;font-size:15px;cursor:pointer;">✏️ Edit profile</button></div>`;
     card.querySelector('#admProfEditBtn').addEventListener('click', () => admProfileEdit(wrap, u));
   } catch(err){ wrap.innerHTML = `<p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`; }
 }
@@ -7150,12 +7189,12 @@ function pushAdminHtml(){
   return `<div class="cp-box"><h4 style="margin:0 0 4px;">📲 Push notifications</h4>
     <p style="font-size:13px;margin:0 0 8px;"><strong>${on.length}</strong> of ${users.length} profiles have notifications turned on.${off.length ? ` <button type="button" id="pushShowOff" class="av-link" style="font-size:13px;">Who hasn't? (${off.length})</button>` : ''}</p>
     <div id="pushOffList" style="display:none;font-size:13px;line-height:1.9;margin-bottom:8px;"></div>
-    <select id="pushAudience" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);font-size:15px;background:#fff;margin-bottom:8px;">
+    <select id="pushAudience" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;background:#fff;margin-bottom:8px;">
       <option value="on">Everyone with notifications on (${on.length})</option>
       <option value="noavail">Haven't added availability yet</option>${clubOpts}
     </select>
-    <input id="pushTitle" maxlength="80" placeholder="Title" value="📅 Add your availability" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);font-size:16px;margin-bottom:8px;box-sizing:border-box;">
-    <textarea id="pushBody" maxlength="240" rows="2" placeholder="Message" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--charcoal);font-size:16px;font-family:inherit;margin-bottom:8px;box-sizing:border-box;">Please add your availability so we can pick times that work for everyone.</textarea>
+    <input id="pushTitle" maxlength="80" placeholder="Title" value="📅 Add your availability" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;margin-bottom:8px;box-sizing:border-box;">
+    <textarea id="pushBody" maxlength="240" rows="2" placeholder="Message" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;margin-bottom:8px;box-sizing:border-box;">Please add your availability so we can pick times that work for everyone.</textarea>
     <div id="pushLastLine" style="margin-bottom:8px;">${admLastRemindLine('push')}</div>
     <button type="button" id="pushSendBtn" class="club-guide-btn" style="width:100%;min-height:46px;background:#ce8491;color:#fff;text-align:center;">📲 Send notification</button>
     <div id="pushResult" style="font-size:13px;margin-top:8px;min-height:18px;" aria-live="polite"></div></div>`;
@@ -7204,7 +7243,7 @@ function resourceSuggestionsAdminHtml(){
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Submitted resources${list.length ? ` (${list.length})` : ''}</h4>
     ${list.length ? list.map(x => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
       <span style="min-width:0;"><strong>${escapeCm(x.title)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(x.type === 'other' ? 'Other: ' + (x.typeOther || '') : label(x.type))} · ${escapeCm(x.city)}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
-      <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--lightblue);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn res-sug-dismiss" data-id="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted resources.</p>'}</div>`;
+      <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--brand-blush);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn res-sug-dismiss" data-id="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted resources.</p>'}</div>`;
 }
 async function cmAdminLoadEventSuggestions(){
   try {
@@ -7218,7 +7257,7 @@ function eventSuggestionsAdminHtml(){
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Submitted events${list.length ? ` (${list.length})` : ''}</h4>
     ${list.length ? list.map(x => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
       <span style="min-width:0;"><strong>${escapeCm(x.name)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(x.date)} · ${escapeCm(x.city)}${x.genre ? ' · ' + escapeCm(x.genre === 'other' ? 'Other: ' + (x.genreOther || '') : x.genre) : ''}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
-      <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--lightblue);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn event-sug-dismiss" data-id="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted events.</p>'}</div>`;
+      <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--brand-blush);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn event-sug-dismiss" data-id="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted events.</p>'}</div>`;
 }
 function joinRequestsAdminHtml(){
   const reqs = state.cmAdminJoinRequests;
@@ -7226,7 +7265,7 @@ function joinRequestsAdminHtml(){
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Join requests${reqs.length ? ` (${reqs.length})` : ''}</h4>
     ${reqs.length ? reqs.map(r => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
       <span><button type="button" class="adm-profile-link" data-user-id="${escapeCm(r.userId)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(r.name)}</button> <span style="color:#776867;font-size:12px;">${escapeCm(r.username)}</span><br>wants to join <strong>${escapeCm(r.clubTitle)}</strong></span>
-      <span style="display:flex;gap:6px;"><button type="button" class="club-guide-btn join-req-accept" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:var(--lightblue);text-align:center;">Accept</button><button type="button" class="club-guide-btn join-req-decline" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:transparent;text-align:center;">Decline</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No pending requests.</p>'}
+      <span style="display:flex;gap:6px;"><button type="button" class="club-guide-btn join-req-accept" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:var(--brand-blush);text-align:center;">Accept</button><button type="button" class="club-guide-btn join-req-decline" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:transparent;text-align:center;">Decline</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No pending requests.</p>'}
     <p id="joinReqAdminStatus" style="color:#c00;font-size:12px;margin:6px 0 0;"></p></div>`;
 }
 // ---------------------------------------------------------------------------------------------------------
@@ -7325,7 +7364,7 @@ function admRenderPanel(){
     }
     const x = i.x, isEv = i.kind === 'event';
     return `<div style="padding:12px 0;border-top:1px solid #0001;">${dot}<strong>${escapeCm(isEv ? x.name : x.title)}</strong> <span style="font-size:12px;color:var(--muted);">· ${isEv ? 'event' : 'resource'} · ${ago(x.at)}</span><br><span style="font-size:13px;color:var(--muted);">${isEv ? escapeCm(x.date + ' · ' + x.city) : escapeCm(x.city)}</span>
-      <div style="margin-top:8px;"><a class="club-guide-btn" href="${escapeCm(x.reviewUrl || '#')}" target="_blank" rel="noopener" style="padding:10px 16px;background:var(--lightblue);text-align:center;text-decoration:none;display:inline-block;">Review</a></div></div>`;
+      <div style="margin-top:8px;"><a class="club-guide-btn" href="${escapeCm(x.reviewUrl || '#')}" target="_blank" rel="noopener" style="padding:10px 16px;background:var(--brand-blush);text-align:center;text-decoration:none;display:inline-block;">Review</a></div></div>`;
   }).join('');
   card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 4px;">🔔 Waiting for you</h3>
     <p class="ideas-hint" style="margin:0 0 6px;text-align:left;">${admNotif.items.length ? 'Join requests and submitted events / resources.' : ''}</p>
@@ -7518,17 +7557,17 @@ function renderAdminAllMembersPanels(){
     (m.name || '').toLowerCase().includes(q) || (m.username || '').toLowerCase().includes(q) ||
     (qDigits.length >= 3 && (m.phone || '').replace(/\D/g, '').includes(qDigits)) ||
     m.clubIds.some(cid => avClubTitle(cid).toLowerCase().includes(q)));
-  const searchBox = `<div style="margin-bottom:12px;"><input id="admMemberSearch" type="search" value="${escapeCm(state.cmAdminMemberQuery || '')}" placeholder="🔍 Search profiles by name, username, phone or club" autocomplete="off" autocapitalize="none" style="width:100%;padding:12px 14px;border-radius:999px;border:2px solid var(--charcoal);font-size:16px;box-sizing:border-box;background:#fff;"><div style="font-size:12px;color:#776867;margin:6px 4px 0;">${q ? `${people.length} of ${everyone.length} profiles` : `${everyone.length} profiles`}</div></div>`;
+  const searchBox = `<div style="margin-bottom:12px;"><input id="admMemberSearch" type="search" value="${escapeCm(state.cmAdminMemberQuery || '')}" placeholder="🔍 Search profiles by name, username, phone or club" autocomplete="off" autocapitalize="none" style="width:100%;padding:12px 14px;border-radius:999px;border:2px solid var(--brand-brown);font-size:16px;box-sizing:border-box;background:#fff;"><div style="font-size:12px;color:#776867;margin:6px 4px 0;">${q ? `${people.length} of ${everyone.length} profiles` : `${everyone.length} profiles`}</div></div>`;
   if(!people.length) return searchBox + '<p style="font-size:13px;">No profiles match that search.</p>';
   return searchBox + `<div class="clubs-grid">${people.map(m => {
     const firstClub = m.clubIds[0] || 'none'; // the club id in these admin URLs is ignored by the server (it edits the person)
     if(state.cmAdminEditingId === m.id){
       const memberClubs = new Set(cmAdminMemberClubs(m.id));
       return `<div class="panel-card" style="text-align:left;">
-        <input id="cmAdminEditName" value="${escapeCm(m.name)}" placeholder="Name" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--charcoal);box-sizing:border-box;">
-        <input id="cmAdminEditUsername" value="${escapeCm(m.username)}" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--charcoal);box-sizing:border-box;">
-        <input id="cmAdminEditPhone" type="tel" value="${escapeCm(m.phone || '')}" placeholder="Phone / WhatsApp number" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--charcoal);box-sizing:border-box;">
-        <input id="cmAdminEditPin" type="password" autocomplete="new-password" placeholder="New 4-digit PIN (leave blank to keep current)" inputmode="numeric" maxlength="4" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--charcoal);box-sizing:border-box;">
+        <input id="cmAdminEditName" value="${escapeCm(m.name)}" placeholder="Name" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--brand-brown);box-sizing:border-box;">
+        <input id="cmAdminEditUsername" value="${escapeCm(m.username)}" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--brand-brown);box-sizing:border-box;">
+        <input id="cmAdminEditPhone" type="tel" value="${escapeCm(m.phone || '')}" placeholder="Phone / WhatsApp number" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--brand-brown);box-sizing:border-box;">
+        <input id="cmAdminEditPin" type="password" autocomplete="new-password" placeholder="New 4-digit PIN (leave blank to keep current)" inputmode="numeric" maxlength="4" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--brand-brown);box-sizing:border-box;">
         <p style="font-size:11px;color:#776867;margin:6px 0 4px;">Clubs this member belongs to:</p>
         <div id="cmAdminEditClubs" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;max-height:140px;overflow-y:auto;">
           ${clubsData.map(c => `<label style="display:flex;align-items:center;gap:6px;font-size:12px;">
@@ -7537,7 +7576,7 @@ function renderAdminAllMembersPanels(){
         </div>
         <div style="display:flex;gap:8px;">
           <button class="cm-admin-save-member" data-club-id="${firstClub}" data-member-id="${m.id}" style="flex:1;padding:8px;border-radius:8px;border:none;background:var(--charcoal);color:var(--cream);cursor:pointer;">Save</button>
-          <button class="cm-admin-cancel-edit" style="flex:1;padding:8px;border-radius:8px;border:2px solid var(--charcoal);background:transparent;cursor:pointer;">Cancel</button>
+          <button class="cm-admin-cancel-edit" style="flex:1;padding:8px;border-radius:8px;border:2px solid var(--brand-brown);background:transparent;cursor:pointer;">Cancel</button>
         </div>
         <button type="button" class="cm-admin-delete-profile" data-member-id="${m.id}" data-name="${escapeCm(m.name)}" style="width:100%;margin-top:10px;padding:10px;border-radius:999px;border:none;background:#b3261e;color:#fff;font-weight:700;cursor:pointer;">🗑 Delete this profile</button>
         <span id="cmAdminEditStatus" style="font-size:12px;color:#c00;"></span>
@@ -7556,8 +7595,8 @@ function renderAdminAllMembersPanels(){
       <div style="font-size:11px;color:#776867;line-height:1.6;margin-bottom:8px;">Joined: ${m.createdAt ? escapeCm(new Date(m.createdAt).toLocaleDateString('en-CA', { dateStyle:'medium' })) : '—'}<br>${(m.lastLoginAt && m.lastSeenAt && Math.abs(m.lastSeenAt - m.lastLoginAt) < 600000) ? 'Last signed in &amp; active: ' + escapeCm(admFmtDate(m.lastLoginAt)) + ' (' + escapeCm(admAgo(m.lastLoginAt)) + ')' : `Last signed in: ${m.lastLoginAt ? escapeCm(admFmtDate(m.lastLoginAt)) + ' (' + escapeCm(admAgo(m.lastLoginAt)) + ')' : 'not recorded yet'}<br>Last active: ${m.lastSeenAt ? escapeCm(admFmtDate(m.lastSeenAt)) + ' (' + escapeCm(admAgo(m.lastSeenAt)) + ')' : 'not recorded yet'}`}</div>
       <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;">${tags}${noClubTag}</div>
       <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
-        <button class="cm-admin-edit-member" data-club-id="${firstClub}" data-member-id="${m.id}" style="padding:6px 10px;border-radius:8px;border:2px solid var(--charcoal);background:transparent;cursor:pointer;font-size:11px;">Edit</button>
-        <button class="cm-admin-reset-member-pin" data-club-id="${firstClub}" data-member-id="${m.id}" style="padding:6px 10px;border-radius:8px;border:2px solid var(--charcoal);background:transparent;cursor:pointer;font-size:11px;">Reset PIN</button>
+        <button class="cm-admin-edit-member" data-club-id="${firstClub}" data-member-id="${m.id}" style="padding:6px 10px;border-radius:8px;border:2px solid var(--brand-brown);background:transparent;cursor:pointer;font-size:11px;">Edit</button>
+        <button class="cm-admin-reset-member-pin" data-club-id="${firstClub}" data-member-id="${m.id}" style="padding:6px 10px;border-radius:8px;border:2px solid var(--brand-brown);background:transparent;cursor:pointer;font-size:11px;">Reset PIN</button>
       </div>
     </div>`;
   }).join('')}</div>`;
@@ -7572,21 +7611,21 @@ function clubDirEditFormHtml(){
   return `<div class="cp-box" style="margin-top:10px;">
     <h4 style="margin:0 0 6px;">${isNew ? 'Add a new club' : 'Edit ' + escapeCm((club && club.title) || editing)}</h4>
     <div style="display:flex;flex-direction:column;gap:8px;">
-      <input id="cdTitle" placeholder="Club title" value="${escapeCm(draft.title || '')}" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
-      <textarea id="cdDesc" placeholder="Description" rows="3" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);font-family:inherit;">${escapeCm(draft.desc || '')}</textarea>
-      <input id="cdSignup" placeholder="Signup link (WhatsApp/Instagram, optional)" value="${escapeCm(draft.signup || '')}" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
+      <input id="cdTitle" placeholder="Club title" value="${escapeCm(draft.title || '')}" style="padding:10px;border-radius:10px;border:2px solid var(--brand-brown);">
+      <textarea id="cdDesc" placeholder="Description" rows="3" style="padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-family:inherit;">${escapeCm(draft.desc || '')}</textarea>
+      <input id="cdSignup" placeholder="Signup link (WhatsApp/Instagram, optional)" value="${escapeCm(draft.signup || '')}" style="padding:10px;border-radius:10px;border:2px solid var(--brand-brown);">
       <div style="display:flex;gap:8px;">
-        <input id="cdEmoji" placeholder="Emoji (optional)" maxlength="8" value="${escapeCm(draft.emoji || '')}" style="width:90px;padding:10px;border-radius:10px;border:2px solid var(--charcoal);text-align:center;">
+        <input id="cdEmoji" placeholder="Emoji (optional)" maxlength="8" value="${escapeCm(draft.emoji || '')}" style="width:90px;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);text-align:center;">
         <label style="flex:1;display:flex;align-items:center;gap:8px;font-size:12px;color:#776867;">Text colour
-          <input id="cdTextColour" type="color" value="${escapeCm(draft.textColour || '#373d3b')}" style="width:44px;height:38px;padding:0;border-radius:8px;border:2px solid var(--charcoal);cursor:pointer;">
+          <input id="cdTextColour" type="color" value="${escapeCm(draft.textColour || '#373d3b')}" style="width:44px;height:38px;padding:0;border-radius:8px;border:2px solid var(--brand-brown);cursor:pointer;">
         </label>
         <label style="flex:1;display:flex;align-items:center;gap:8px;font-size:12px;color:#776867;">Card colour
-          <input id="cdColour" type="color" value="${escapeCm(draft.colour || '#e1eaf1')}" style="width:44px;height:38px;padding:0;border-radius:8px;border:2px solid var(--charcoal);cursor:pointer;">
+          <input id="cdColour" type="color" value="${escapeCm(draft.colour || '#e1eaf1')}" style="width:44px;height:38px;padding:0;border-radius:8px;border:2px solid var(--brand-brown);cursor:pointer;">
         </label>
       </div>
       ${!isNew ? `<p style="font-size:11px;color:#776867;margin:0;">Link: 4dasistas.ca/clubs/${escapeCm((club && club.slug) || '')} (fixed once created)</p>` : `<p style="font-size:11px;color:#776867;margin:0;">Its link will be 4dasistas.ca/clubs/&lt;title-as-a-slug&gt;, fixed once you create it.</p>`}
       <div style="display:flex;align-items:center;gap:10px;">
-        ${draft.logo ? `<img src="${draft.logo}" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--charcoal);">` : ''}
+        ${draft.logo ? `<img src="${draft.logo}" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid var(--brand-brown);">` : ''}
         <label class="club-guide-btn" style="font-size:12px;padding:8px 12px;cursor:pointer;">Choose photo<input id="cdLogoFile" type="file" accept="image/*" style="display:none;"></label>
       </div>
       <div style="display:flex;gap:8px;">
@@ -7603,12 +7642,12 @@ function clubDirListHtml(){
   return `<h3>Club Directory</h3>
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
       ${clubsData.map(c => `
-        <div style="display:flex;justify-content:space-between;align-items:center;border:2px solid var(--charcoal);border-radius:10px;padding:10px;gap:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;border:2px solid var(--brand-brown);border-radius:10px;padding:10px;gap:10px;">
           <div style="display:flex;align-items:center;gap:10px;min-width:0;">
             ${c.logo ? `<img src="${c.logo}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex:none;">` : ''}
             <strong style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeCm(c.title)}</strong>
           </div>
-          <button class="cd-edit-btn" data-club-id="${c.id}" style="padding:6px 10px;font-size:12px;border-radius:8px;border:2px solid var(--charcoal);background:transparent;cursor:pointer;flex:none;">Edit</button>
+          <button class="cd-edit-btn" data-club-id="${c.id}" style="padding:6px 10px;font-size:12px;border-radius:8px;border:2px solid var(--brand-brown);background:transparent;cursor:pointer;flex:none;">Edit</button>
         </div>`).join('')}
     </div>
     <button class="club-guide-btn" id="cdAddBtn" style="width:100%;">+ Add a new club</button>
@@ -7643,7 +7682,7 @@ function renderClubAdminPanel(){
       <h4 style="margin:0 0 6px;">Create a profile</h4>
       <p style="font-size:11px;color:#776867;margin:0 0 10px;">Makes the member and puts them in every club you tick. Their username (e.g. amina.k) is made automatically from their name.</p>
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <input id="cpName" placeholder="Name (first name + last initial, e.g. Amina K.)" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
+        <input id="cpName" placeholder="Name (first name + last initial, e.g. Amina K.)" style="padding:10px;border-radius:10px;border:2px solid var(--brand-brown);">
         <p style="font-size:11px;color:#776867;margin:0;">Their PIN starts as <strong>1234</strong> — they'll be asked to pick their own the first time they sign in.</p>
         <div class="cp-clubs">${adminClubChoices().map(c => `<label class="cp-club"><input type="checkbox" class="cp-club-check" value="${escapeCm(c.id)}"> ${escapeCm(c.title)}</label>`).join('')}</div>
         <button class="club-guide-btn" id="cpCreateBtn" style="background:var(--blush);">Create profile</button>
@@ -7659,29 +7698,29 @@ function renderClubAdminPanel(){
       <h4>Create Member</h4>
       <p style="font-size:11px;color:#776867;margin-top:-4px;">Their username (e.g. amina.k) is made automatically from their name. To add someone who's already a member elsewhere, use their profile's club checkboxes instead.</p>
       <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px;">
-        <input id="cmAdminMemberName" placeholder="Name (first name + last initial, e.g. Amina K.)" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
-        <input id="cmAdminMemberPin" type="password" autocomplete="new-password" placeholder="PIN (optional — leave blank to auto-generate)" inputmode="numeric" maxlength="4" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
+        <input id="cmAdminMemberName" placeholder="Name (first name + last initial, e.g. Amina K.)" style="padding:10px;border-radius:10px;border:2px solid var(--brand-brown);">
+        <input id="cmAdminMemberPin" type="password" autocomplete="new-password" placeholder="PIN (optional — leave blank to auto-generate)" inputmode="numeric" maxlength="4" style="padding:10px;border-radius:10px;border:2px solid var(--brand-brown);">
         <button class="club-guide-btn" id="cmAdminMemberCreateBtn" style="background:var(--blush);">Create Member</button>
         <span id="cmAdminMemberCreateStatus" style="font-size:12px;color:#c00;"></span>
       </div>
 
       <h3>Events</h3>
       <div id="cmAdminEventsList">${state.cmAdminEvents === null ? 'Loading…' : (state.cmAdminEvents.length ? state.cmAdminEvents.map(e => `
-        <div style="display:flex;justify-content:space-between;align-items:center;border:2px solid var(--charcoal);border-radius:10px;padding:10px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;border:2px solid var(--brand-brown);border-radius:10px;padding:10px;margin-bottom:8px;">
           <div><strong>${escapeCm(e.title)}</strong><br><span style="font-size:12px;">${escapeCm(e.startDate)} – ${escapeCm(e.endDate)}, ${e.startHour}:00–${e.endHour}:00</span></div>
           <button class="cm-admin-delete-event" data-event-id="${e.id}" style="background:#c00;color:#fff;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;">Delete</button>
         </div>`).join('') : '<p style="font-size:13px;">No events yet for this club.</p>')}</div>
       <h4 style="margin-top:18px;">Create Event</h4>
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <input id="cmAdminTitle" placeholder="Event title" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
-        <input id="cmAdminDesc" placeholder="Description (optional)" style="padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
+        <input id="cmAdminTitle" placeholder="Event title" style="padding:10px;border-radius:10px;border:2px solid var(--brand-brown);">
+        <input id="cmAdminDesc" placeholder="Description (optional)" style="padding:10px;border-radius:10px;border:2px solid var(--brand-brown);">
         <div style="display:flex;gap:8px;">
-          <input id="cmAdminStartDate" type="date" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
-          <input id="cmAdminEndDate" type="date" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--charcoal);">
+          <input id="cmAdminStartDate" type="date" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);">
+          <input id="cmAdminEndDate" type="date" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);">
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
-          <label style="font-size:12px;">From hour <input id="cmAdminStartHour" type="number" min="0" max="23" value="9" style="width:60px;padding:8px;border-radius:8px;border:2px solid var(--charcoal);"></label>
-          <label style="font-size:12px;">To hour <input id="cmAdminEndHour" type="number" min="1" max="24" value="21" style="width:60px;padding:8px;border-radius:8px;border:2px solid var(--charcoal);"></label>
+          <label style="font-size:12px;">From hour <input id="cmAdminStartHour" type="number" min="0" max="23" value="9" style="width:60px;padding:8px;border-radius:8px;border:2px solid var(--brand-brown);"></label>
+          <label style="font-size:12px;">To hour <input id="cmAdminEndHour" type="number" min="1" max="24" value="21" style="width:60px;padding:8px;border-radius:8px;border:2px solid var(--brand-brown);"></label>
         </div>
         <button class="club-guide-btn" id="cmAdminCreateBtn" style="background:var(--charcoal);color:var(--cream);">Create Event</button>
         <span id="cmAdminCreateStatus" style="font-size:12px;color:#c00;"></span>
@@ -7990,13 +8029,13 @@ function admAddProfileHtml(){
   if(!admAvail.addOpen){
     return `<div style="margin:0 0 12px;"><button type="button" id="admAddProfileBtn" style="min-height:44px;padding:10px 20px;border-radius:999px;border:2px solid #76220b;background:#fef7f4;color:#76220b;font-weight:700;font-size:14px;cursor:pointer;">➕ Add a profile${title ? ' to ' + escapeCm(title) : ''}</button></div>`;
   }
-  const inp = 'width:100%;padding:11px;border-radius:10px;border:2px solid var(--charcoal);box-sizing:border-box;font-size:16px;margin-bottom:8px;';
+  const inp = 'width:100%;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;margin-bottom:8px;';
   return `<div style="margin:0 0 12px;padding:14px;border-radius:14px;border:2px solid #76220b;background:#fef7f4;">
     <strong>➕ New profile${title ? ' in ' + escapeCm(title) : ' (no club yet)'}</strong>
     <input id="admNewName" placeholder="First name + last initial (e.g. Amina K.)" style="${inp}margin-top:8px;">
     <input id="admNewPhone" type="tel" placeholder="Phone / WhatsApp (optional)" style="${inp}">
     <div id="admNewStatus" style="font-size:13px;min-height:18px;margin-bottom:6px;color:#c00;" aria-live="polite"></div>
-    <div style="display:flex;gap:8px;"><button type="button" id="admNewSave" style="flex:1;min-height:44px;border-radius:999px;border:2px solid var(--charcoal);background:#d9f0d8;font-weight:700;cursor:pointer;">Create profile</button><button type="button" id="admNewCancel" style="flex:1;min-height:44px;border-radius:999px;border:2px solid var(--charcoal);background:transparent;font-weight:700;cursor:pointer;">Cancel</button></div>
+    <div style="display:flex;gap:8px;"><button type="button" id="admNewSave" style="flex:1;min-height:44px;border-radius:999px;border:2px solid var(--brand-brown);background:#d9f0d8;font-weight:700;cursor:pointer;">Create profile</button><button type="button" id="admNewCancel" style="flex:1;min-height:44px;border-radius:999px;border:2px solid var(--brand-brown);background:transparent;font-weight:700;cursor:pointer;">Cancel</button></div>
     <div style="font-size:12px;color:#776867;margin-top:8px;">Their starting PIN is <strong>1234</strong>; they'll choose their own the first time they sign in.</div></div>`;
 }
 async function admCreateProfile(allowDuplicate){
