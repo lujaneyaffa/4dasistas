@@ -7567,7 +7567,7 @@ async function clubDirDelete(){
 const ADM_AVAIL_MIN_MONTH = '2026-10';
 const ADM_AVAIL_MAX_MONTH = '2027-12';
 const ADM_PARTS = [['morning','Morning','M'],['afternoon','Afternoon','A'],['evening','Evening','E']];
-const admAvail = { people:null, loading:false, error:'', month:ADM_AVAIL_MIN_MONTH, club:'all', person:null, day:null };
+const admAvail = { people:null, loading:false, error:'', month:ADM_AVAIL_MIN_MONTH, club:'all', person:null, day:null, addOpen:false, justAdded:'' };
 async function admAvailLoad(){
   if(admAvail.loading) return;
   admAvail.loading = true; admAvail.error = '';
@@ -7659,6 +7659,8 @@ function admAvailCalendarHtml(){
   return `
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">${clubChips}</div>
     ${missingBox}
+    ${admAvail.justAdded ? `<div style="margin:0 0 10px;padding:10px 14px;border-radius:12px;background:#d9f0d8;color:#2a7a4a;font-size:14px;">${escapeCm(admAvail.justAdded)}</div>` : ''}
+    ${admAddProfileHtml()}
     <p class="ideas-hint" style="margin:0 0 6px;text-align:left;">${sel ? `Showing only <strong>${escapeCm(sel.name)}</strong> — tap their name again to see everyone.` : `Tap a name to see only their availability. ${people.length} ${people.length === 1 ? 'person' : 'people'} shown.`}</p>
     ${sel && sel.id.startsWith('m:') ? `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(sel.id.slice(2))}" style="margin:0 0 10px;min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #76220b;background:#fef7f4;color:#76220b;font-weight:700;font-size:14px;cursor:pointer;">👤 View ${escapeCm(sel.name)}'s profile</button>` : ''}
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">${nameChips}</div>
@@ -7669,6 +7671,43 @@ function admAvailCalendarHtml(){
     <p class="ideas-hint" style="margin-top:8px;text-align:left;">${sel ? 'Green = preferred, red = can\'t, yellow = not filled (counts as available). M / A / E = morning / afternoon / evening.' : 'Big number = people free that day (darker = more). M / A / E = people free in the morning / afternoon / evening. Tap a day for names.'}</p>
     ${detail}`;
 }
+
+// "Add a profile" right inside the availability calendar, for whichever club chip is selected (or no club under "All").
+function admAddProfileHtml(){
+  const cid = admAvail.club;
+  const title = cid === 'all' ? null : (clubsData.find(c => c.id === cid) || {}).title;
+  if(!admAvail.addOpen){
+    return `<div style="margin:0 0 12px;"><button type="button" id="admAddProfileBtn" style="min-height:44px;padding:10px 20px;border-radius:999px;border:2px solid #76220b;background:#fef7f4;color:#76220b;font-weight:700;font-size:14px;cursor:pointer;">➕ Add a profile${title ? ' to ' + escapeCm(title) : ''}</button></div>`;
+  }
+  const inp = 'width:100%;padding:11px;border-radius:10px;border:2px solid var(--charcoal);box-sizing:border-box;font-size:16px;margin-bottom:8px;';
+  return `<div style="margin:0 0 12px;padding:14px;border-radius:14px;border:2px solid #76220b;background:#fef7f4;">
+    <strong>➕ New profile${title ? ' in ' + escapeCm(title) : ' (no club yet)'}</strong>
+    <input id="admNewName" placeholder="First name + last initial (e.g. Amina K.)" style="${inp}margin-top:8px;">
+    <input id="admNewPhone" type="tel" placeholder="Phone / WhatsApp (optional)" style="${inp}">
+    <div id="admNewStatus" style="font-size:13px;min-height:18px;margin-bottom:6px;color:#c00;" aria-live="polite"></div>
+    <div style="display:flex;gap:8px;"><button type="button" id="admNewSave" style="flex:1;min-height:44px;border-radius:999px;border:2px solid var(--charcoal);background:#d9f0d8;font-weight:700;cursor:pointer;">Create profile</button><button type="button" id="admNewCancel" style="flex:1;min-height:44px;border-radius:999px;border:2px solid var(--charcoal);background:transparent;font-weight:700;cursor:pointer;">Cancel</button></div>
+    <div style="font-size:12px;color:#776867;margin-top:8px;">Their starting PIN is <strong>1234</strong>; they'll choose their own the first time they sign in.</div></div>`;
+}
+async function admCreateProfile(allowDuplicate){
+  const st = document.getElementById('admNewStatus'), name = document.getElementById('admNewName').value.trim();
+  st.style.color = '#c00';
+  if(!name || name.split(/\s+/).length < 2){ st.textContent = 'Enter a first name and last initial (e.g. Amina K.).'; return; }
+  st.style.color = '#373d3b'; st.textContent = 'Creating…';
+  try {
+    const res = await fetch('/api/admin/club-members/' + encodeURIComponent(admAvail.club === 'all' ? 'none' : admAvail.club), { method:'POST', headers:{ 'Content-Type':'application/json' }, credentials:'include', body: JSON.stringify({ name, phone: document.getElementById('admNewPhone').value.trim(), allowDuplicate: allowDuplicate === true }) });
+    const d = await res.json();
+    if(res.status === 409 && d.duplicate){
+      st.style.color = '#c00'; st.innerHTML = escapeCm(d.error) + ' <button type="button" id="admNewDup" style="border:none;background:none;text-decoration:underline;font-weight:700;cursor:pointer;color:#c00;">It\'s a different person — create anyway</button>';
+      document.getElementById('admNewDup').addEventListener('click', () => admCreateProfile(true));
+      return;
+    }
+    if(!res.ok) throw new Error(d.error || 'Could not create the profile');
+    admAvail.addOpen = false; admAvail.justAdded = `✓ Created ${d.name} (${d.username}) — starting PIN 1234.`;
+    admAvail.people = null; await cmAdminLoadAllMembers();
+    admAvailRepaint(); admAvailLoad();
+  } catch(err){ st.style.color = '#c00'; st.textContent = err.message; }
+}
+
 function admAvailSectionHtml(){
   return `<h3 style="margin-top:6px;">Availability calendar</h3><div id="admAvailBox" style="margin-bottom:22px;">${admAvailCalendarHtml()}</div>`;
 }
@@ -7681,9 +7720,14 @@ function admAvailRepaint(){
 function admAvailWire(){
   const box = document.getElementById('admAvailBox');
   if(!box) return;
-  box.querySelectorAll('.adm-club').forEach(b => b.addEventListener('click', () => { admAvail.club = b.dataset.club; admAvail.person = null; admAvailRepaint(); }));
+  box.querySelectorAll('.adm-club').forEach(b => b.addEventListener('click', () => { admAvail.club = b.dataset.club; admAvail.person = null; admAvail.addOpen = false; admAvail.justAdded = ''; admAvailRepaint(); }));
   box.querySelectorAll('.adm-person').forEach(b => b.addEventListener('click', () => { admAvail.person = admAvail.person === b.dataset.person ? null : b.dataset.person; admAvailRepaint(); }));
   box.querySelectorAll('.adm-day').forEach(b => b.addEventListener('click', () => { admAvail.day = admAvail.day === b.dataset.day ? null : b.dataset.day; admAvailRepaint(); }));
+  const addBtn = box.querySelector('#admAddProfileBtn');
+  if(addBtn) addBtn.addEventListener('click', () => { admAvail.addOpen = true; admAvail.justAdded = ''; admAvailRepaint(); const n = document.getElementById('admNewName'); if(n) n.focus(); });
+  const newSave = box.querySelector('#admNewSave'), newCancel = box.querySelector('#admNewCancel');
+  if(newSave) newSave.addEventListener('click', () => admCreateProfile(false));
+  if(newCancel) newCancel.addEventListener('click', () => { admAvail.addOpen = false; admAvailRepaint(); });
   box.querySelectorAll('.adm-cal-profile').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.uid)));
   const remindAll = box.querySelector('#admRemindAll');
   if(remindAll) remindAll.addEventListener('click', async () => {

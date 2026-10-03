@@ -1731,15 +1731,29 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!name) return jsonResponse({ error: "Name is required" }, 400, corsHeaders);
       const username = await generateUniqueUsername(env, name);
       if (!username) return jsonResponse({ error: "Please enter a first name and last initial (e.g. Amina K.)" }, 400, corsHeaders);
+      if (clubId !== "none" && !(await isKnownClubId(env, clubId))) return jsonResponse({ error: "That club no longer exists" }, 404, corsHeaders);
+      // Same name as an existing profile = almost certainly the same person: stop (this is how ayana.s2 / .s3 happened)
+      // unless the admin explicitly says it's a different person.
+      if (username !== usernameBaseFromName(name) && body.allowDuplicate !== true) {
+        const norm = (n) => String(n || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        let cursor;
+        do {
+          const page = await env.SITE_DATA.list({ prefix: "user:", cursor });
+          const hit = page.keys.find((k) => norm(k.metadata && k.metadata.name) === norm(name));
+          if (hit) return jsonResponse({ error: `There's already a profile called ${name}. Search for her instead — or confirm it's a different person.`, duplicate: true }, 409, corsHeaders);
+          cursor = page.list_complete ? undefined : page.cursor;
+        } while (cursor);
+      }
       // Not everyone has an account yet — admin-created profiles all start on the same PIN 1234 so
       // Lujane doesn't have to hand out/track a different code per person; the member is required to
       // pick their own on first sign-in (mustChangePin, enforced client-side right after /api/login).
       const pin = "1234";
       const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, createdAt: Date.now(), mustChangePin: true };
+      const phone = sanitizePhone(body.phone);
+      if (phone) user.phone = phone;
       await writeUser(env, user);
       await reserveUsername(env, username, user.id);
-      memberIds.push(user.id);
-      await writeClubMemberIds(env, clubId, memberIds);
+      if (clubId !== "none") { memberIds.push(user.id); await writeClubMemberIds(env, clubId, memberIds); } // 'none' = a profile with no club yet
       return jsonResponse({ id: user.id, name: user.name, username: user.username, pin }, 201, corsHeaders);
     }
 
