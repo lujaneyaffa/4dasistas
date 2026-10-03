@@ -1313,7 +1313,7 @@ let state = {
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
   eavClub:'mine', pushRegistered:false, phoneConfirmed:true, myPhone:'', ideaAvail:null, ideaAvailOwner:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
   publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
-  myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, clubsLoginPrefill:false, cmAdminEventSugs:null, cmAdminResSugs:null, cmAdminMemberQuery:'',
+  myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, clubsLoginPrefill:false, cmAdminEventSugs:null, cmAdminResSugs:null, cmAdminMemberQuery:'', cmAdminMemberSort:'alpha',
   ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{}, iavEditing:false,
   membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventJustCreated:false, eventEditDeleting:false,
@@ -7512,9 +7512,9 @@ function renderAdminAllMembersPanels(){
     (m.name || '').toLowerCase().includes(q) || (m.username || '').toLowerCase().includes(q) ||
     (qDigits.length >= 3 && (m.phone || '').replace(/\D/g, '').includes(qDigits)) ||
     m.clubIds.some(cid => avClubTitle(cid).toLowerCase().includes(q)));
-  const searchBox = `<div style="margin-bottom:12px;"><input id="admMemberSearch" type="search" value="${escapeCm(state.cmAdminMemberQuery || '')}" placeholder="🔍 Search profiles by name, username, phone or club" autocomplete="off" autocapitalize="none" style="width:100%;padding:12px 14px;border-radius:999px;border:2px solid var(--brand-brown);font-size:16px;box-sizing:border-box;background:#fff;"><div style="font-size:12px;color:#776867;margin:6px 4px 0;">${q ? `${people.length} of ${everyone.length} profiles` : `${everyone.length} profiles`}</div></div>`;
+  const searchBox = `<div style="margin-bottom:12px;"><input id="admMemberSearch" type="search" value="${escapeCm(state.cmAdminMemberQuery || '')}" placeholder="🔍 Search profiles by name, username, phone or club" autocomplete="off" autocapitalize="none" style="width:100%;padding:12px 14px;border-radius:999px;border:2px solid var(--brand-brown);font-size:16px;box-sizing:border-box;background:#fff;"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 4px 0;"><span style="font-size:12px;color:#776867;">${q ? `${people.length} of ${everyone.length} profiles` : `${everyone.length} profiles`} · Sort by:</span>${[['alpha','A–Z'],['joined','Join date'],['club','Club']].map(([k, l]) => { const on = (state.cmAdminMemberSort || 'alpha') === k; return `<button type="button" class="adm-sort" data-sort="${k}" style="min-height:34px;padding:5px 14px;border-radius:999px;border:2px solid var(--brand-brown);background:${on ? 'var(--brand-brown)' : 'transparent'};color:${on ? 'var(--brand-cream)' : 'var(--brand-brown)'};font-weight:700;font-size:13px;cursor:pointer;">${l}</button>`; }).join('')}</div></div>`;
   if(!people.length) return searchBox + '<p style="font-size:13px;">No profiles match that search.</p>';
-  return searchBox + `<div class="clubs-grid">${people.map(m => {
+  const renderCard = (m) => {
     const firstClub = m.clubIds[0] || 'none'; // the club id in these admin URLs is ignored by the server (it edits the person)
     if(state.cmAdminEditingId === m.id){
       const memberClubs = new Set(cmAdminMemberClubs(m.id));
@@ -7547,12 +7547,24 @@ function renderAdminAllMembersPanels(){
       <h4 style="font-size:14px;margin-bottom:2px;"><button type="button" class="adm-profile-link" data-user-id="${escapeCm(m.id)}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:inherit;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button></h4>
       <div style="font-size:11px;color:#776867;margin-bottom:8px;">${escapeCm(m.username)}</div>
       <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;">${tags}${noClubTag}</div>
-      <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
-        <button class="cm-admin-edit-member" data-club-id="${firstClub}" data-member-id="${m.id}" style="padding:6px 10px;border-radius:8px;border:2px solid var(--brand-brown);background:transparent;cursor:pointer;font-size:11px;">Edit</button>
-        <button class="cm-admin-reset-member-pin" data-club-id="${firstClub}" data-member-id="${m.id}" style="padding:6px 10px;border-radius:8px;border:2px solid var(--brand-brown);background:transparent;cursor:pointer;font-size:11px;">Reset PIN</button>
-      </div>
     </div>`;
-  }).join('')}</div>`;
+  };
+  // sort: A–Z (default), newest joiners first, or grouped by club
+  const mode = state.cmAdminMemberSort || 'alpha';
+  const byName = (x, y) => (x.name || '').localeCompare(y.name || '');
+  const firstClubTitle = m => m.clubIds.length ? m.clubIds.map(c => avClubTitle(c)).sort()[0] : '\uffff';
+  const sortedPeople = people.slice().sort(mode === 'joined' ? (x, y) => ((y.createdAt || 0) - (x.createdAt || 0)) || byName(x, y)
+    : mode === 'club' ? (x, y) => firstClubTitle(x).localeCompare(firstClubTitle(y)) || byName(x, y) : byName);
+  let lastGroup = null;
+  const cardsHtml = sortedPeople.map(m => {
+    let heading = '';
+    if(mode === 'club'){
+      const g = m.clubIds.length ? firstClubTitle(m) : 'No clubs yet';
+      if(g !== lastGroup){ heading = `<div style="grid-column:1/-1;font-weight:800;color:var(--brand-brown);margin:6px 0 -4px;border-bottom:2px solid var(--brand-rose);padding-bottom:4px;">${escapeCm(g)}</div>`; lastGroup = g; }
+    }
+    return heading + renderCard(m);
+  }).join('');
+  return searchBox + `<div class="clubs-grid">${cardsHtml}</div>`;
 }
 
 function clubDirEditFormHtml(){
@@ -7641,8 +7653,8 @@ function renderClubAdminPanel(){
         <span id="cpStatus" style="font-size:12px;color:#c00;"></span>
       </div>
     </div>
-    <h3 style="margin-top:20px;">Club Events Admin</h3>
-    <p style="font-size:11px;color:#776867;margin-top:-6px;">Pick a club to manage its members and events.</p>
+    <h3 style="margin-top:20px;">Admin Profiles</h3>
+    <p style="font-size:11px;color:#776867;margin-top:-6px;">Pick a club to add a profile or manage its events, or search every profile below.</p>
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;">
       ${clubsData.map(c => `<button type="button" class="club-guide-btn cm-admin-club-pick" data-club-id="${escapeCm(c.id)}" style="padding:8px 14px;font-size:12px;${clubId===c.id?'background:var(--blush);':'background:transparent;'}">${escapeCm(c.title)}</button>`).join('')}
     </div>
@@ -8068,6 +8080,7 @@ function wireClubAdminPanel(){
   document.querySelectorAll('.join-req-accept').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'accept'); }));
   document.querySelectorAll('.join-req-decline').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'decline'); }));
   wirePushAdmin();
+  document.querySelectorAll('.adm-sort').forEach(b => b.addEventListener('click', () => { state.cmAdminMemberSort = b.dataset.sort; render(); }));
   const memberSearch = document.getElementById('admMemberSearch');
   if(memberSearch && !memberSearch.dataset.wired){
     memberSearch.dataset.wired = '1';
