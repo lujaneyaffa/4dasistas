@@ -496,10 +496,36 @@ const ideaPeople = (idea) => ({
   by: idea.by && typeof idea.by === "object" ? idea.by : { id: String(idea.by || ""), name: "Member" },
   voters: (Array.isArray(idea.votes) ? idea.votes : []).map((v) => (typeof v === "object" ? v : { id: String(v), name: "Member" })),
 });
+// Automatic emoji for an idea, picked from its title / cuisine (so every submitted activity gets one). Falls back to the
+// club's own emoji, then a sparkle. Admins can override it when editing.
+const IDEA_EMOJI_RULES = [
+  [/thai|pad ?thai|curry|laksa|tom yum/i, "🍜"], [/ramen|noodle|pho\b|udon|soba|dumpling|dim ?sum/i, "🍜"], [/sushi|japan|omakase|hibachi|teppanyaki/i, "🍣"],
+  [/korean|k-?bbq|bulgogi|kimchi|galbi/i, "🥩"], [/pizza|pizzeria/i, "🍕"], [/burger|smash/i, "🍔"], [/taco|mexican|burrito|nacho|quesadilla/i, "🌮"],
+  [/shawarma|wrap|kebab|falafel|lebanese|syrian|turkish|mandi|mezze|mezza|grill|gyro/i, "🥙"], [/biryani|indian|pakistani|desi|karahi|nihari|tikka|butter chicken|halal cart/i, "🍛"],
+  [/pasta|italian|spaghetti|lasagn|risotto/i, "🍝"], [/dessert|ice ?cream|gelato|waffle|crepe|cake|bakery|donut|cookie|sweet|baklava|kunafa|knafeh|pastry|cheesecake/i, "🍰"],
+  [/coffee|cafe|café|latte|matcha|\btea\b|boba|bubble tea|chai/i, "☕"], [/brunch|breakfast|pancake|french toast/i, "🥞"], [/seafood|fish|lobster|crab|shrimp|oyster/i, "🦐"],
+  [/chicken|wings|fried|nando/i, "🍗"], [/poutine|fries/i, "🍟"], [/picnic/i, "🧺"], [/steak|prime|ribs/i, "🥩"], [/salad|vegan|vegetarian|healthy|bowl/i, "🥗"],
+  [/dinner|restaurant|lunch|eat\b|food|feast|potluck|buffet|crawl/i, "🍽️"],
+  [/pottery|ceramic|clay|wheel/i, "🏺"], [/paint|canvas|sketch|draw|craft|diy|workshop|crochet|knit|embroider|calligraph|art\b/i, "🎨"], [/candle|soap|resin|jewel|bead/i, "🕯️"],
+  [/photo|photograph|photoshoot/i, "📸"], [/escape room|escape/i, "🔐"], [/laser tag|paintball|axe|archery|shooting/i, "🎯"], [/vr\b|virtual reality|arcade|gaming|game night|board game|trampoline|karting|go.?kart|bowling|billiard|pool hall/i, "🎮"],
+  [/hike|hiking|trail|trek|waterfall|conservation/i, "🥾"], [/lake|beach|swim|kayak|canoe|paddle|boat|cruise|island/i, "🌊"], [/camp|cabin|bonfire|glamp|retreat|cottage/i, "🏕️"],
+  [/ski|snow|skat|ice rink|sledd?/i, "⛷️"], [/bike|cycl|ride\b/i, "🚴"], [/yoga|pilates|stretch|meditat|wellness|spa\b|massage/i, "🧘"],
+  [/badminton|pickleball|tennis|court|padel|volleyball|basketball|soccer|football|sport|run club|\brun\b/i, "🏸"], [/walk|steps|stroll/i, "🚶"],
+  [/book|read|library|novel|story/i, "📚"], [/movie|film|cinema|theatre|theater|musical|show\b/i, "🎬"], [/concert|music|karaoke|sing|open mic/i, "🎤"], [/museum|gallery|exhibit|aquarium|zoo/i, "🖼️"],
+  [/shop|market|mall|thrift|bazaar|boutique/i, "🛍️"], [/flower|garden|bloom|tulip|blossom|farm|apple|pumpkin|berry|orchard|maze/i, "🌸"],
+  [/trip|travel|road ?trip|getaway|day trip|niagara|toronto|montreal|ottawa|banff/i, "🧳"], [/quran|dua\b|halaqa|islamic|mosque|masjid|iftar|ramadan|eid\b|taraweeh/i, "🕌"],
+  [/party|birthday|celebrat|bridal|henna|mehndi|sleepover|gala/i, "🎉"], [/cowork|study|work session|laptop/i, "💻"], [/dance|zumba|salsa/i, "💃"], [/swim/i, "🏊"],
+];
+const pickIdeaEmoji = (title, cuisine, fallback) => {
+  const text = `${title || ""} ${cuisine || ""}`;
+  for (const [re, em] of IDEA_EMOJI_RULES) if (re.test(text)) return em;
+  return fallback || "✨";
+};
 const publicIdea = (idea, me) => {
   const { by, voters } = ideaPeople(idea);
   return {
     id: idea.id, title: idea.title, mapUrl: idea.mapUrl || "", date: idea.date || "", cuisine: idea.cuisine || "", price: idea.price || "",
+    emoji: idea.emoji || pickIdeaEmoji(idea.title, idea.cuisine, ""),
     votes: Math.max(0, voters.length + (idea.adjust || 0)), adjust: idea.adjust || 0,
     // Only signed-in members and the admin see who added / voted; the public (and name-only guests) get a flag instead.
     namesHidden: !(me && (me.id === "admin" || me.id.startsWith("m:"))),
@@ -832,6 +858,35 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ ok: true, id: finalSlug }, 200, corsHeaders);
     }
 
+    // Clean shareable links for the two public forms: 4dasistas.ca/submit-event and 4dasistas.ca/add-resource. Like the club
+    // links, a chat app's preview crawler reads THIS page's tags (it never runs JS / sees a #hash); a person who clicks is bounced
+    // straight into the normal site, on the right form, with the full navigation around it.
+    const shareFormMatch = path.match(/^\/(submit-event|add-resource)\/?$/);
+    if (shareFormMatch && request.method === "GET") {
+      const isEvent = shareFormMatch[1] === "submit-event";
+      const title = isEvent ? "Submit an event — 4DASISTAS" : "Add a resource — 4DASISTAS";
+      const desc = isEvent ? "Know an event we should add to the 4DASISTAS calendar? Send it in — an admin reviews every one." : "Know a business or resource we should add to the 4DASISTAS directory? Send it in — an admin reviews every one.";
+      const pageUrl = `https://4dasistas.ca/${shareFormMatch[1]}`;
+      const dest = `/#/${shareFormMatch[1]}`;
+      const html = `<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(title)}</title>
+<meta name="description" content="${escapeHtml(desc)}">
+<meta property="og:title" content="${escapeHtml(title)}">
+<meta property="og:description" content="${escapeHtml(desc)}">
+<meta property="og:image" content="https://4dasistas.ca/assets/og-4ds.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="${escapeHtml(pageUrl)}">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://4dasistas.ca/assets/og-4ds.png">
+<meta http-equiv="refresh" content="0; url=${escapeHtml(dest)}">
+<script>location.replace(${JSON.stringify(dest)});</script>
+</head><body>Opening 4DASISTAS… <a href="${escapeHtml(dest)}">Tap here</a> if nothing happens.</body></html>`;
+      return new Response(html, { headers: { "Content-Type": "text/html; charset=UTF-8", "Cache-Control": "no-store, must-revalidate", ...corsHeaders } });
+    }
     // A club's shared link (4dasistas.ca/clubs/<slug>) gets its own preview title/description/image when
     // pasted into Instagram/WhatsApp/iMessage. Hash routes (#/clubs/<slug>) can't do this — a share-card
     // crawler fetches the URL and reads its HTML, it never runs JS to see location.hash. This page is a
@@ -1179,7 +1234,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (ideas.filter((i) => ideaPeople(i).by.id === who.id).length >= IDEAS_MAX_PER_PERSON) return jsonResponse({ error: `You already added ${IDEAS_MAX_PER_PERSON} options here — remove one to add another` }, 400, corsHeaders);
       if (ideas.some((i) => i.title.toLowerCase() === title.toLowerCase())) return jsonResponse({ error: "Someone already suggested that — go vote for it!" }, 409, corsHeaders);
       refreshName(ideas, who);
-      ideas.push({ id: crypto.randomUUID(), title, mapUrl, date: "", ...(cuisine ? { cuisine } : {}), ...(price ? { price } : {}), by: who, at: Date.now(), votes: [who], adjust: 0 });
+      const clubEmoji = ((await readClubRoster(env)).find((c) => c.id === clubId) || {}).emoji || "";
+      ideas.push({ id: crypto.randomUUID(), title, mapUrl, date: "", emoji: pickIdeaEmoji(title, cuisine, clubEmoji), ...(cuisine ? { cuisine } : {}), ...(price ? { price } : {}), by: who, at: Date.now(), votes: [who], adjust: 0 });
       await writeClubIdeas(env, clubId, ideas);
       return jsonResponse({ ideas: sortedPublicIdeas(ideas, who) }, 201, corsHeaders);
     }
@@ -1395,6 +1451,13 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       let notices = [];
       try { notices = JSON.parse((await env.SITE_DATA.get(`notice:${me.id}`)) || "[]"); } catch {}
       return jsonResponse({ ...publicUser(me), clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs), notices, push: (await readPushSubs(env, me.id)).length > 0, phone: me.phone || "", phoneConfirmed: !!me.phoneConfirmedAt }, 200, corsHeaders);
+    }
+    // A member logs out: invalidate their token on the server too (clearing it in the browser alone left it valid).
+    if (path === "/api/logout" && request.method === "POST") {
+      const authHeader = request.headers.get("Authorization") || "";
+      const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+      if (token) await env.SITE_DATA.delete(`membersession:${token}`);
+      return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     // A member confirms (or enters) their own phone number — asked once at sign-in, saved to their profile for the admins.
     if (path === "/api/me/phone" && request.method === "POST") {
@@ -1738,6 +1801,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (body.price !== undefined) {
         const price = sanitizePrice(body.price);
         if (price) idea.price = price; else delete idea.price;
+      }
+      if (body.emoji !== undefined) {
+        const em = String(body.emoji || "").trim().slice(0, 8);
+        if (em) idea.emoji = em; else idea.emoji = pickIdeaEmoji(idea.title, idea.cuisine, "");
       }
       if (body.done !== undefined) {
         // "We did this one" + when (admin only). A done idea stops taking votes.

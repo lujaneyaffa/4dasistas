@@ -492,6 +492,7 @@
   .ideas-cloud{ display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:10px; padding:8px 0 4px; }
   .idea-bubble{ position:relative; border-radius:50%; border:3px solid var(--line); background:var(--fill); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:14px; box-sizing:border-box; cursor:pointer; font-family:'Inter',sans-serif; color:var(--charcoal); text-align:center; transition:width .4s cubic-bezier(.3,1.5,.5,1), height .4s cubic-bezier(.3,1.5,.5,1), transform .15s, box-shadow .2s; -webkit-tap-highlight-color:transparent; }
   .idea-bubble:active{ transform:scale(.95); }
+  .idea-emoji{ font-size:24px; line-height:1; margin-bottom:2px; }
   .idea-bubble.done{ opacity:.78; border-style:dashed; }
   .idea-bubble.voted{ box-shadow:0 0 0 3px var(--cream), 0 0 0 5px var(--line); }
   .idea-date{ font-size:11px; font-weight:700; margin-bottom:3px; opacity:0.9; }
@@ -888,11 +889,9 @@
 @media (min-width:1100px){
   /* the board's column is only 640px wide: let the floating cloud break out to use the whole page width */
   .ideas-cloud.floaty{ display:block; position:relative; padding:0; width:min(1120px, calc(100vw - 80px)); left:50%; transform:translateX(-50%); }
-  .ideas-cloud.floaty .idea-bubble{ position:absolute; margin:0; animation:ideaFloat var(--dur,14s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:width .8s cubic-bezier(.25,.8,.3,1), height .8s cubic-bezier(.25,.8,.3,1), left .8s cubic-bezier(.25,.8,.3,1), top .8s cubic-bezier(.25,.8,.3,1), translate 1.4s ease-in-out; }
-  /* hovering the cloud nudges EVERY bubble a little (via the separate `translate` property, with a transition, so it glides
-     instead of restarting the drift animation — that restart is what looked glitchy) */
-  .ideas-cloud.floaty:hover .idea-bubble{ translate:var(--hx,10px) var(--hy,-10px); }
-  .ideas-cloud.floaty .idea-bubble:hover{ z-index:5; }
+  .ideas-cloud.floaty .idea-bubble{ position:absolute; margin:0; animation:ideaFloat var(--dur,14s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:width .8s cubic-bezier(.25,.8,.3,1), height .8s cubic-bezier(.25,.8,.3,1), left .8s cubic-bezier(.25,.8,.3,1), top .8s cubic-bezier(.25,.8,.3,1), translate .45s cubic-bezier(.2,.8,.2,1), scale .3s cubic-bezier(.2,.8,.2,1); }
+  /* hover is interactive (see floatIdeaClouds / wireCloudHover): bubbles near the pointer glide away from it, and the one under it swells */
+  .ideas-cloud.floaty .idea-bubble:hover{ z-index:5; scale:1.07; }
   @keyframes ideaFloat{
     from{ transform:translate(0,0); }
     to{ transform:translate(var(--dx,18px), var(--dy,-18px)); }
@@ -5078,7 +5077,9 @@ async function cmMemberSignOut(){
   try { if(state.availDirty) await availSave(); } catch {}
   try { if(state.ideaAvailDirty) await ideaAvailSave(); } catch {} // still under the OLD person's login
   rememberLastLogin(getCmSession());
+  { const sess = getCmSession(); if(sess && sess.token) fetch('/api/logout', { method:'POST', headers:{ 'Authorization':'Bearer ' + sess.token } }).catch(() => {}); } // end the session on the server too
   clearCmSession();
+  try { localStorage.removeItem('ideaGuest'); } catch {}
   resetUserScopedState();
   { const g = document.getElementById('pushGate'); if(g){ g.remove(); document.body.style.overflow = ''; } }
   availReset();
@@ -5123,6 +5124,30 @@ function ideaColorIndex(id){ let h = 0; for(let i = 0; i < id.length; i++) h = (
 // overlaps, and let each drift a little. On phones/tablets the normal wrapped layout stays exactly as it was.
 // Positions are REMEMBERED per bubble (x as a fraction of the width, y in px) so nothing jumps when someone votes or the page
 // redraws: a bubble that gets bigger/smaller grows around its own centre, and CSS transitions glide any movement.
+
+// Cool hover (desktop with a mouse only): bubbles near the pointer glide away from it — the closer, the further — and glide
+// back when it leaves. It only ever sets the CSS `translate` property (with a transition), so it can never restart the
+// drift animation or cause a sudden jump.
+function wireCloudHover(box){
+  if(box.dataset.hoverWired || !window.matchMedia('(hover:hover) and (pointer:fine)').matches) return;
+  box.dataset.hoverWired = '1';
+  let raf = 0, last = null;
+  const apply = () => {
+    raf = 0; if(!last || !box.classList.contains('floaty')) return;
+    const R = 280, MAX = 52, rect = box.getBoundingClientRect();
+    const px = last.x - rect.left, py = last.y - rect.top;
+    box.querySelectorAll('.idea-bubble').forEach(b => {
+      const d = b.offsetWidth, cx = b.offsetLeft + d / 2, cy = b.offsetTop + d / 2;
+      let vx = cx - px, vy = cy - py; const dist = Math.hypot(vx, vy) || 1;
+      const reach = R + d / 2, k = Math.max(0, 1 - dist / reach); // 1 = pointer on top of it, 0 = out of range
+      const push = MAX * k * k;                                   // ease: gentle at the edge, strongest up close
+      b.style.translate = (vx / dist * push).toFixed(1) + 'px ' + (vy / dist * push).toFixed(1) + 'px';
+    });
+  };
+  box.addEventListener('pointermove', e => { if(e.pointerType && e.pointerType !== 'mouse') return; last = { x:e.clientX, y:e.clientY }; if(document.hidden) apply(); else if(!raf) raf = requestAnimationFrame(apply); });
+  box.addEventListener('pointerleave', () => { last = null; if(raf){ cancelAnimationFrame(raf); raf = 0; } box.querySelectorAll('.idea-bubble').forEach(b => { b.style.translate = '0px 0px'; }); });
+}
+
 const floatCache = {};
 function floatIdeaClouds(){
   const wide = window.matchMedia('(min-width:1100px)').matches;
@@ -5135,6 +5160,7 @@ function floatIdeaClouds(){
     const ids = bubbles.map((b, i) => b.dataset.ideaid || ('i' + i));
     Object.keys(cache.pos).forEach(k => { if(!ids.includes(k)) delete cache.pos[k]; }); // forget bubbles that were removed
     box.classList.add('floaty');
+    wireCloudHover(box);
     const W = box.clientWidth, GAP = 40, EDGE = 28;
     const size = b => parseFloat(b.style.width) || b.offsetWidth || 120; // the TARGET size (the width may still be animating)
     const hash = str => { let h = 0; for(let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0; return h; };
@@ -5221,7 +5247,7 @@ function safeMapUrl(u){
 }
 
 // --- who is voting: a signed-in member, or a guest who only gave a name ---
-function ideaGuest(){ try { const g = JSON.parse(localStorage.getItem('ideaGuest') || 'null'); return g && g.id && g.name ? g : null; } catch { return null; } }
+function ideaGuest(){ try { localStorage.removeItem('ideaGuest'); } catch {} return null; /* name-only guests can no longer vote or add ideas (members only), and a leftover guest identity was what kept old votes highlighted after logging out */ } function __oldIdeaGuest(){ try { const g = JSON.parse('null'); return g && g.id && g.name ? g : null; } catch { return null; } }
 function ideaNewId(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return 'g' + Date.now().toString(36) + Math.random().toString(36).slice(2, 12) + Math.random().toString(36).slice(2, 12);
@@ -5284,6 +5310,7 @@ function ideaBubbleHtml(idea){
   return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}${idea.done ? ' done' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${clubCol(state.ideasClubId).bg};--line:${clubCol(state.ideasClubId).fg};color:${clubCol(state.ideasClubId).fg};width:${size}px;height:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}${idea.voted ? ', you voted' : ''}">
     ${idea.date ? `<span class="idea-date">📅 ${escapeCm(ideaDateLabel(idea.date))}</span>` : ''}
     ${idea.cuisine ? `<span class="idea-cuisine">🍽 ${escapeCm(idea.cuisine)}</span>` : ''}
+    ${idea.emoji ? `<span class="idea-emoji" aria-hidden="true">${escapeCm(idea.emoji)}</span>` : ''}
     ${idea.done ? `<span class="idea-cuisine" style="font-weight:800;">✅ Done${idea.doneDate ? ' · ' + escapeCm(ideaDateLabel(idea.doneDate)) : ''}</span>` : ''}
     <span class="idea-title">${escapeCm(idea.title)}</span>
     <span class="idea-votes">${ideaVotesLabel(idea.votes)}${idea.voted ? ' ✓' : ''}</span>
@@ -5341,6 +5368,7 @@ function publicIdeaBubbleHtml(idea){
   return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}${idea.done ? ' done' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${clubCol(idea._clubId).bg};--line:${clubCol(idea._clubId).fg};color:${clubCol(idea._clubId).fg};width:${size}px;height:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}, from ${escapeCm(idea._clubTitle)}">
     <span class="idea-cuisine">🏷 ${escapeCm(idea._clubTitle)}</span>
     ${idea.date ? `<span class="idea-date">📅 ${escapeCm(ideaDateLabel(idea.date))}</span>` : ''}
+    ${idea.emoji ? `<span class="idea-emoji" aria-hidden="true">${escapeCm(idea.emoji)}</span>` : ''}
     ${idea.done ? `<span class="idea-cuisine" style="font-weight:800;">✅ Done${idea.doneDate ? ' · ' + escapeCm(ideaDateLabel(idea.doneDate)) : ''}</span>` : ''}
     <span class="idea-title">${escapeCm(idea.title)}</span>
     <span class="idea-votes">${ideaVotesLabel(idea.votes)}${idea.voted ? ' ✓' : ''}</span>
@@ -5709,7 +5737,7 @@ function openPublicIdeaInfo(id){
     ${idea.date ? `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(idea.date))}</p>` : ''}
     ${idea.cuisine ? `<span class="idea-pop-cuisine">🍽 ${escapeCm(idea.cuisine)}</span>` : ''}
     ${idea.price ? `<span class="idea-pop-price">💸 ${escapeCm(idea.price)}</span>` : ''}
-    <h3 style="margin:4px 0 8px;">${escapeCm(idea.title)}</h3>
+    <h3 style="margin:4px 0 8px;">${idea.emoji ? escapeCm(idea.emoji) + ' ' : ''}${escapeCm(idea.title)}</h3>
     ${ideaLocationHtml(idea)}
     ${idea.namesHidden ? `<p class="idea-pop-h">${ideaVotesLabel(idea.votes)}</p><p class="av-msg">🔒 Names hidden for privacy.</p>` : `<p class="idea-pop-by">Added by <strong>${escapeCm(idea.by || 'someone')}</strong></p>
     <p class="idea-pop-h">${ideaVotesLabel(idea.votes)}${names.length ? ' — who voted' : ''}</p>
@@ -5757,11 +5785,11 @@ function renderClubIdeas(el){
   else cloud = `<div class="ideas-cloud">${state.ideas.map(ideaBubbleHtml).join('')}</div>`;
 
   const guest = ideaGuest();
-  const joinForm = `<form class="ideas-join" id="ideaJoinForm">
-      <input id="ideaNameInput" type="text" maxlength="30" value="${escapeCm(state.ideasRenaming && guest ? guest.name : '')}" placeholder="Your name — no password needed" autocomplete="given-name">
-      <button type="submit" class="club-guide-btn">${state.ideasRenaming ? 'Save' : 'Join'}</button>
-    </form>
-    <p class="ideas-hint">Enter your name to vote and add options. No account needed.</p>`;
+  const joinForm = `<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:6px 0 4px;">
+      <button type="button" class="club-guide-btn" id="ideaLoginBtn" style="min-height:44px;padding:8px 22px;text-align:center;">Log in</button>
+      <button type="button" class="club-guide-btn" id="ideaSignupBtn" style="min-height:44px;padding:8px 22px;text-align:center;background:var(--brand-rose);color:#fff;">Sign up</button>
+    </div>
+    <p class="ideas-hint" style="text-align:center;">Club members log in to vote and add ideas.</p>`;
   const whoBlock = (me && !state.ideasRenaming)
     ? `<div class="ideas-who">Voting as <strong>${escapeCm(me.name)}</strong>${me.kind === 'guest' ? ` · <button type="button" class="av-link" id="ideaRenameBtn">change name</button>` : me.kind === 'admin' ? ' (admin)' : ' (member)'}</div>`
     : joinForm;
@@ -6264,6 +6292,9 @@ function wireClubIdeas(){
   if(state.ideas === null && !state.ideasLoading && !state.ideasError) ideasLoad();
   wireIdeaAvailGrid();
   wireEveryoneAvailGrid();
+  const ideaLogin = document.getElementById('ideaLoginBtn'), ideaSignup = document.getElementById('ideaSignupBtn');
+  if(ideaLogin) ideaLogin.addEventListener('click', () => document.getElementById('navLoginBtn').click());
+  if(ideaSignup) ideaSignup.addEventListener('click', () => document.getElementById('navSignupBtn').click());
   const join = document.getElementById('ideaJoinForm');
   if(join) join.addEventListener('submit', e => {
     e.preventDefault();
@@ -6401,7 +6432,7 @@ function openIdeaInfo(id){
     ${idea.date ? `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(idea.date))}</p>` : ''}
     ${idea.cuisine ? `<span class="idea-pop-cuisine">🍽 ${escapeCm(idea.cuisine)}</span>` : ''}
     ${idea.price ? `<span class="idea-pop-price">💸 ${escapeCm(idea.price)}</span>` : ''}
-    <h3 style="margin:4px 0 8px;">${escapeCm(idea.title)}</h3>
+    <h3 style="margin:4px 0 8px;">${idea.emoji ? escapeCm(idea.emoji) + ' ' : ''}${escapeCm(idea.title)}</h3>
     ${ideaLocationHtml(idea)}
     ${idea.namesHidden ? `<p class="idea-pop-h">${ideaVotesLabel(idea.votes)}</p><p class="av-msg">🔒 Names hidden for privacy.</p>` : `<p class="idea-pop-by">Added by <strong>${escapeCm(idea.by || 'someone')}</strong></p>
     <p class="idea-pop-h">${ideaVotesLabel(idea.votes)}${names.length ? ' — who voted' : ''}</p>
@@ -6421,6 +6452,7 @@ function openIdeaEdit(id){
     <h3 style="margin:0 0 10px;">Edit option (admin)</h3>
     ${state.ideasClubId === 'club-cuisine' ? `<label class="idea-edit-l">Cuisine type<input id="ieCuisine" type="text" maxlength="30" value="${escapeCm(idea.cuisine || '')}"></label>` : ''}
     <label class="idea-edit-l">${state.ideasClubId === 'club-cuisine' ? 'Name of the place' : 'Title'}<input id="ieTitle" type="text" maxlength="80" value="${escapeCm(idea.title)}"></label>
+    <label class="idea-edit-l">Emoji (automatic — clear it to re-pick from the title)<input id="ieEmoji" type="text" maxlength="8" value="${escapeCm(idea.emoji || '')}" style="max-width:120px;text-align:center;font-size:22px;"></label>
     <label class="idea-edit-l">Google Maps link<input id="ieMap" type="text" inputmode="url" value="${escapeCm(idea.mapUrl || '')}" placeholder="https://maps.app.goo.gl/…"></label>
     <label class="idea-edit-l">Price (optional)<input id="iePrice" type="text" maxlength="20" value="${escapeCm(idea.price || '')}" placeholder="Free, $20, $50…"></label>
     <label class="idea-edit-l">Date (shown on top of the bubble)<input id="ieDate" type="date" value="${escapeCm(idea.date || '')}"></label>
@@ -6443,7 +6475,8 @@ function openIdeaEdit(id){
           ...(wrap.querySelector('#ieCuisine') ? { cuisine: wrap.querySelector('#ieCuisine').value } : {}),
           price: wrap.querySelector('#iePrice').value,
           date: wrap.querySelector('#ieDate').value, votes: Number(wrap.querySelector('#ieVotes').value),
-          done: wrap.querySelector('#ieDone').checked, doneDate: wrap.querySelector('#ieDoneDate').value
+          done: wrap.querySelector('#ieDone').checked, doneDate: wrap.querySelector('#ieDoneDate').value,
+          emoji: wrap.querySelector('#ieEmoji').value
         })
       });
       state.ideasStatus = 'Option updated.';
