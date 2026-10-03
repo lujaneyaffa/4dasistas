@@ -1251,7 +1251,7 @@ let state = {
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
   ideaAvail:null, ideaAvailOwner:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
   publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
-  myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, clubsLoginPrefill:false, cmAdminEventSugs:null, cmAdminResSugs:null,
+  myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, clubsLoginPrefill:false, cmAdminEventSugs:null, cmAdminResSugs:null, cmAdminMemberQuery:'',
   ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{}, iavEditing:false,
   membersList:null, membersError:'', membersFilter:'all', membersLoading:false,
   eventEditOpen:false, eventEditId:null, eventEditData:null, eventEditError:'', eventEditSaving:false, eventEditSaved:false, eventJustCreated:false, eventEditDeleting:false,
@@ -6977,9 +6977,18 @@ function renderAdminAllMembersPanels(){
       byId.get(m.id).clubIds.push(clubId);
     });
   });
-  const people = [...byId.values()];
-  if(!people.length) return '<p style="font-size:13px;">No members yet across any club.</p>';
-  return `<div class="clubs-grid">${people.map(m => {
+  const everyone = [...byId.values()];
+  if(!everyone.length) return '<p style="font-size:13px;">No members yet across any club.</p>';
+  // search box: name, username, phone or club
+  const q = (state.cmAdminMemberQuery || '').trim().toLowerCase();
+  const qDigits = q.replace(/\D/g, '');
+  const people = !q ? everyone : everyone.filter(m =>
+    (m.name || '').toLowerCase().includes(q) || (m.username || '').toLowerCase().includes(q) ||
+    (qDigits.length >= 3 && (m.phone || '').replace(/\D/g, '').includes(qDigits)) ||
+    m.clubIds.some(cid => avClubTitle(cid).toLowerCase().includes(q)));
+  const searchBox = `<div style="margin-bottom:12px;"><input id="admMemberSearch" type="search" value="${escapeCm(state.cmAdminMemberQuery || '')}" placeholder="🔍 Search profiles by name, username, phone or club" autocomplete="off" autocapitalize="none" style="width:100%;padding:12px 14px;border-radius:999px;border:2px solid var(--charcoal);font-size:16px;box-sizing:border-box;background:#fff;"><div style="font-size:12px;color:#776867;margin:6px 4px 0;">${q ? `${people.length} of ${everyone.length} profiles` : `${everyone.length} profiles`}</div></div>`;
+  if(!people.length) return searchBox + '<p style="font-size:13px;">No profiles match that search.</p>';
+  return searchBox + `<div class="clubs-grid">${people.map(m => {
     const firstClub = m.clubIds[0];
     if(state.cmAdminEditingId === m.id){
       const memberClubs = new Set(cmAdminMemberClubs(m.id));
@@ -7425,6 +7434,20 @@ function wireClubAdminPanel(){
   document.querySelectorAll('.join-req-accept').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'accept'); }));
   document.querySelectorAll('.join-req-decline').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'decline'); }));
   wirePhoneImport();
+  const memberSearch = document.getElementById('admMemberSearch');
+  if(memberSearch && !memberSearch.dataset.wired){
+    memberSearch.dataset.wired = '1';
+    let t = null;
+    memberSearch.addEventListener('input', () => {
+      clearTimeout(t);
+      t = setTimeout(() => {
+        state.cmAdminMemberQuery = memberSearch.value;
+        render();
+        const el = document.getElementById('admMemberSearch'); // the panel was redrawn: put the cursor back
+        if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+      }, 180);
+    });
+  }
   document.querySelectorAll('.cm-admin-delete-profile').forEach(b => b.addEventListener('click', () => cmAdminDeleteProfile(b.dataset.memberId, b.dataset.name)));
   document.querySelectorAll('.adm-profile-link').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.userId)));
   document.querySelectorAll('.res-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/resource-suggestions/' + encodeURIComponent(b.dataset.id), { method:'DELETE', credentials:'include' }); await cmAdminLoadResourceSuggestions(); render(); }));
