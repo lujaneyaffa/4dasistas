@@ -1001,6 +1001,7 @@
     <div class="search-suggestions" id="searchSuggestions" style="display:none;"></div>
   </div>
 </nav>
+<div id="dualBanner" style="display:none;"></div>
 
 <div class="context-back" id="contextBack"><button type="button" id="contextBackButton">← Back to Calendar</button></div>
 
@@ -1104,8 +1105,10 @@
 <div class="footer-admin-modal-overlay" id="footerAdminModalOverlay">
   <form class="footer-admin-modal" id="footerAdminForm">
     <h3>Admin Login</h3>
+    <input type="text" id="footerAdminUsername" placeholder="Club admin username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" style="display:none;">
     <input type="password" id="footerAdminPassword" placeholder="Admin password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go">
     <button type="submit" id="footerAdminSubmitBtn">Sign In</button>
+    <button type="button" class="footer-admin-cancel" id="footerAdminLeadToggle" style="text-decoration:underline;">I'm a club admin (not the main admin)</button>
     <button type="button" class="footer-admin-cancel" id="footerAdminCancelBtn">Cancel</button>
     <div id="footerAdminError" style="color:#c00;font-size:12px;margin-top:6px;"></div>
   </form>
@@ -1315,7 +1318,7 @@ let state = {
   calYear: today.getFullYear(), calMonth: today.getMonth(),
   clubMembersId:null, clubMembersTitle:'', cmView:'auth', cmError:'', cmMembers:[], cmMe:null,
   cmEvents:[], cmEventData:null, cmEventMode:'mine', cmMySlots:[], cmSuggestedSlots:[],
-  cmAdminOpen:false, cmAdminLoggedIn:null, cmAdminError:'', cmAdminClub:null, cmAdminEvents:null,
+  cmAdminOpen:false, cmAdminLoggedIn:null, cmLead:null, cmLeads:null, cmAdminError:'', cmAdminClub:null, cmAdminEvents:null,
   cmAdminClubDirEditing:null, cmAdminClubDirDraft:null, cmAdminClubDirError:'', cmAdminClubDirSaving:false,
   cmAdminAllMembers:null, cmAdminAllUsers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false, fallQuickLogin:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
@@ -2956,7 +2959,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
     </a>
     <div class="public-ideas-section">${renderPublicIdeasFeedHtml()}</div>
     ` : renderMyClubsSectionHtml()}
-    ${state.cmAdminLoggedIn === true ? renderClubAdminPanel() : ''}`;
+    ${adminUiOn() ? renderClubAdminPanel() : ''}`;
     setTimeout(() => {
       const loginBtn = document.getElementById('clubsLoginOpenBtn');
       if(loginBtn) loginBtn.addEventListener('click', () => {
@@ -2988,7 +2991,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       });
       // One admin login site-wide (the footer's) — once you're signed in there, the Create-a-profile /
       // All Members panel just appears at the bottom of Clubs, no separate button to press.
-      if(state.cmAdminLoggedIn === true && !state.cmAdminOpen) openClubAdmin();
+      if(adminUiOn() && !state.cmAdminOpen) openClubAdmin();
       wireClubAdminPanel();
       if(anon){
         if(state.publicIdeasAll === null && !state.publicIdeasAllLoading) publicIdeasLoadAll();
@@ -7133,6 +7136,18 @@ async function cmDoSignIn(){
    IN-SITE ADMIN PANEL (small "Admin" button under GALS CLUBS —
    create/manage per-club events)
    ============================================================ */
+// A club lead is a scoped admin (assigned one or more clubs by the main admin). They get the admin panel for those clubs only.
+function adminClubs(){
+  if(state.cmAdminLoggedIn === true || !state.cmLead) return clubsData;
+  const own = new Set(state.cmLead.clubs || []);
+  return clubsData.filter(c => own.has(c.id));
+}
+function adminUiOn(){ return state.cmAdminLoggedIn === true || !!state.cmLead; }
+async function cmLeadLogout(){
+  await fetch('/api/clubadmin/logout', { method:'POST', credentials:'include' }).catch(() => {});
+  state.cmLead = null; state.cmAdminOpen = false; state.cmAdminAllMembers = null; state.cmAdminAllUsers = null;
+  render();
+}
 async function openClubAdmin(){
   state.cmAdminOpen = true;
   state.cmAdminError = '';
@@ -7142,8 +7157,9 @@ async function openClubAdmin(){
     const res = await fetch('/api/admin/session', { credentials:'include' });
     const data = await res.json();
     state.cmAdminLoggedIn = !!data.loggedIn;
+    state.cmLead = data.lead || null;
   } catch { state.cmAdminLoggedIn = false; }
-  if(state.cmAdminLoggedIn){
+  if(state.cmAdminLoggedIn || state.cmLead){
     await cmAdminLoadAllMembers();
   } else {
     // One admin login site-wide — reuse the footer's password modal instead of a second inline
@@ -7188,8 +7204,80 @@ async function cmAdminLoadAllMembers(){
     state.cmAdminAllUsers = ur.ok ? ((await ur.json()).users || []) : null;
   } catch { state.cmAdminAllUsers = null; }
   await cmAdminLoadJoinRequests();
+  if(state.cmAdminLoggedIn !== true) return; // club leads only see their own clubs' people + requests
   await cmAdminLoadEventSuggestions();
   await cmAdminLoadResourceSuggestions();
+  await cmAdminLoadLeads();
+}
+async function cmAdminLoadLeads(){
+  try {
+    const r = await fetch('/api/admin/club-leads', { credentials:'include' });
+    state.cmLeads = r.ok ? ((await r.json()).leads || []) : [];
+  } catch { state.cmLeads = []; }
+}
+function clubLeadsAdminHtml(){
+  const leads = state.cmLeads || [];
+  const titleOf = id => (clubsData.find(c => c.id === id) || {}).title || id;
+  const inp = 'padding:10px;border-radius:10px;border:2px solid var(--brand-brown);';
+  return `<div class="cp-box" id="leadsBox">
+    <h4 style="margin:0 0 4px;">Club admins</h4>
+    <p style="font-size:11px;color:#776867;margin:0 0 10px;">A club admin has their own login and can ONLY manage the clubs you give them: add official events, see / add / edit / remove that club's profiles, and see its availability. Nothing else.</p>
+    ${leads.length ? leads.map(l => `<div style="border:2px solid var(--brand-brown);border-radius:12px;padding:10px;margin-bottom:8px;">
+      <strong>${escapeCm(l.name)}</strong> <span style="font-size:12px;color:#776867;">@${escapeCm(l.username)}</span><br>
+      <span style="font-size:12px;">${(l.clubs || []).map(c => escapeCm(titleOf(c))).join(', ')}</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+        <button type="button" class="club-guide-btn lead-edit" data-u="${escapeCm(l.username)}" style="padding:6px 12px;font-size:12px;">Edit clubs</button>
+        <button type="button" class="club-guide-btn lead-pw" data-u="${escapeCm(l.username)}" style="padding:6px 12px;font-size:12px;">New password</button>
+        <button type="button" class="club-guide-btn lead-del" data-u="${escapeCm(l.username)}" style="padding:6px 12px;font-size:12px;background:#b3261e;color:#fff;">Delete</button>
+      </div></div>`).join('') : '<p style="font-size:12px;color:#776867;">No club admins yet.</p>'}
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
+      <strong style="font-size:13px;">Create a club admin</strong>
+      <input id="leadName" placeholder="Their name" style="${inp}">
+      <input id="leadUser" placeholder="Username (letters/numbers, e.g. amina.cuisine)" autocapitalize="none" autocorrect="off" style="${inp}">
+      <input id="leadPass" type="text" placeholder="Password (6+ characters) — tell them privately" autocomplete="off" style="${inp}">
+      <div class="cp-clubs">${clubsData.map(c => `<label class="cp-club"><input type="checkbox" class="lead-club-check" value="${escapeCm(c.id)}"> ${escapeCm(c.title)}</label>`).join('')}</div>
+      <button type="button" class="club-guide-btn" id="leadCreateBtn" style="background:var(--blush);">Create club admin</button>
+      <span id="leadStatus" style="font-size:12px;color:#c00;"></span>
+    </div></div>`;
+}
+async function leadApi(method, url, body){
+  const r = await fetch(url, { method, credentials:'include', headers:{'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined });
+  const d = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(d.error || 'Something went wrong');
+  return d;
+}
+function wireLeadsAdmin(){
+  const create = document.getElementById('leadCreateBtn');
+  if(!create) return;
+  const st = document.getElementById('leadStatus');
+  create.addEventListener('click', async () => {
+    const clubs = [...document.querySelectorAll('.lead-club-check:checked')].map(c => c.value);
+    create.disabled = true; st.style.color = '#c00'; st.textContent = '';
+    try {
+      await leadApi('POST', '/api/admin/club-leads', { name: document.getElementById('leadName').value, username: document.getElementById('leadUser').value, password: document.getElementById('leadPass').value, clubs });
+      await cmAdminLoadLeads(); render();
+    } catch(err){ st.textContent = err.message; create.disabled = false; }
+  });
+  document.querySelectorAll('.lead-del').forEach(b => b.addEventListener('click', async () => {
+    if(!confirm('Delete this club admin login? Their profile/clubs data is not affected.')) return;
+    try { await leadApi('DELETE', '/api/admin/club-leads/' + encodeURIComponent(b.dataset.u)); await cmAdminLoadLeads(); render(); } catch(err){ alert(err.message); }
+  }));
+  document.querySelectorAll('.lead-pw').forEach(b => b.addEventListener('click', async () => {
+    const p = prompt('New password for @' + b.dataset.u + ' (6+ characters):');
+    if(!p) return;
+    try { await leadApi('PUT', '/api/admin/club-leads/' + encodeURIComponent(b.dataset.u), { password: p }); alert('Password changed.'); } catch(err){ alert(err.message); }
+  }));
+  document.querySelectorAll('.lead-edit').forEach(b => b.addEventListener('click', () => {
+    const l = (state.cmLeads || []).find(x => x.username === b.dataset.u); if(!l) return;
+    const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 10px;">${escapeCm(l.name)}'s clubs</h3>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;">${clubsData.map(c => `<label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:38px;"><input type="checkbox" class="lead-pick" value="${escapeCm(c.id)}" ${(l.clubs || []).includes(c.id) ? 'checked' : ''}> ${escapeCm(c.title)}</label>`).join('')}</div>
+      <div id="leadPickErr" style="color:#c00;font-size:13px;min-height:18px;"></div>
+      <button type="button" class="club-guide-btn" id="leadPickSave" style="width:100%;background:var(--blush);">Save</button>`);
+    wrap.querySelector('#leadPickSave').addEventListener('click', async () => {
+      const clubs = [...wrap.querySelectorAll('.lead-pick:checked')].map(c => c.value);
+      try { await leadApi('PUT', '/api/admin/club-leads/' + encodeURIComponent(l.username), { clubs }); close(); await cmAdminLoadLeads(); render(); } catch(err){ wrap.querySelector('#leadPickErr').textContent = err.message; }
+    });
+  }));
 }
 async function cmAdminLoadJoinRequests(){
   try {
@@ -7219,7 +7307,7 @@ function admProfileEdit(wrap, u){
     <input id="apePhone" type="tel" value="${escapeCm(u.phone || '')}" placeholder="Phone / WhatsApp number" style="${inp}">
     <input id="apePin" type="password" autocomplete="new-password" inputmode="numeric" maxlength="4" placeholder="New 4-digit PIN (leave blank to keep)" style="${inp}">
     <p style="font-size:12px;color:var(--muted);margin:2px 0 4px;">Clubs:</p>
-    <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:8px;">${clubsData.map(c => `<label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:38px;"><input type="checkbox" class="ape-club" value="${escapeCm(c.id)}" ${mine.has(c.id) ? 'checked' : ''} style="width:20px;height:20px;"> ${escapeCm(c.title)}</label>`).join('')}</div>
+    <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:8px;">${adminClubs().map(c => `<label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:38px;"><input type="checkbox" class="ape-club" value="${escapeCm(c.id)}" ${mine.has(c.id) ? 'checked' : ''} style="width:20px;height:20px;"> ${escapeCm(c.title)}</label>`).join('')}</div>
     <div id="apeStatus" style="font-size:13px;color:#c00;min-height:18px;margin-bottom:6px;" aria-live="polite"></div>
     <div style="display:flex;gap:8px;margin-bottom:8px;">${btn('apeSave', '#d9f0d8', 'var(--charcoal)', 'Save')}${btn('apeCancel', 'transparent', 'var(--charcoal)', 'Cancel')}</div>
     <div style="display:flex;gap:8px;">${btn('apeReset', '#fff3cf', 'var(--charcoal)', '🔑 Reset PIN')}${btn('apeDelete', '#b3261e', '#fff', '🗑 Delete profile')}</div>`;
@@ -7710,7 +7798,7 @@ function renderAdminAllMembersPanels(){
         <input id="cmAdminEditPin" type="password" autocomplete="new-password" placeholder="New 4-digit PIN (leave blank to keep current)" inputmode="numeric" maxlength="4" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--brand-brown);box-sizing:border-box;">
         <p style="font-size:11px;color:#776867;margin:6px 0 4px;">Clubs this member belongs to:</p>
         <div id="cmAdminEditClubs" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;max-height:140px;overflow-y:auto;">
-          ${clubsData.map(c => `<label style="display:flex;align-items:center;gap:6px;font-size:12px;">
+          ${adminClubs().map(c => `<label style="display:flex;align-items:center;gap:6px;font-size:12px;">
             <input type="checkbox" class="cm-admin-edit-club-cb" value="${c.id}" ${memberClubs.has(c.id) ? 'checked' : ''}> ${escapeCm(c.title)}
           </label>`).join('')}
         </div>
@@ -7811,7 +7899,8 @@ function renderClubAdminPanel(){
   if(state.cmAdminLoggedIn === undefined || state.cmAdminLoggedIn === null){
     return `<div class="rules-content" style="max-width:360px;margin:16px auto;">Loading…</div>`;
   }
-  if(!state.cmAdminLoggedIn){
+  const lead = state.cmAdminLoggedIn !== true && state.cmLead;
+  if(!state.cmAdminLoggedIn && !lead){
     // One admin login site-wide, in the footer — openClubAdmin() already opened that modal for us.
     return `<div class="rules-content" style="max-width:360px;margin:16px auto;text-align:center;">
       ${state.cmAdminError ? `<p style="color:#c00;font-size:13px;">${escapeCm(state.cmAdminError)}</p>` : `<p style="font-size:13px;">Log in with the Admin Login button in the footer.</p>`}
@@ -7820,15 +7909,17 @@ function renderClubAdminPanel(){
   const clubId = state.cmAdminClub;
   return `<div class="rules-content" style="max-width:920px;margin:16px auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;">
-      <h3 style="margin:0;">All Members</h3>
+      <h3 style="margin:0;">${lead ? 'Club admin · ' + escapeCm(lead.name) : 'All Members'}</h3>
       <button class="club-guide-btn" id="cmAdminLogoutBtn" style="padding:6px 12px;font-size:12px;">Log Out</button>
     </div>
+    ${lead ? `<p style="font-size:12px;color:#776867;margin:6px 0 0;">You manage: <strong>${adminClubs().map(c => escapeCm(c.title)).join(', ') || 'no clubs yet'}</strong>. Use "➕ New event" at the bottom of the page to add an official event.</p>` : ''}
     ${admAvailSectionHtml()}
     ${joinRequestsAdminHtml()}
-    ${eventSuggestionsAdminHtml()}
-    ${resourceSuggestionsAdminHtml()}
-    ${pushAdminHtml()}
-    ${clubDirListHtml()}
+    ${lead ? '' : eventSuggestionsAdminHtml()}
+    ${lead ? '' : resourceSuggestionsAdminHtml()}
+    ${lead ? '' : pushAdminHtml()}
+    ${lead ? '' : clubLeadsAdminHtml()}
+    ${lead ? '' : clubDirListHtml()}
     <div class="cp-box">
       <h4 style="margin:0 0 6px;">Create a profile</h4>
       <p style="font-size:11px;color:#776867;margin:0 0 10px;">Makes the member and puts them in every club you tick. Their username (e.g. amina.k) is made automatically from their name.</p>
@@ -7843,7 +7934,7 @@ function renderClubAdminPanel(){
     <h3 style="margin-top:20px;">Admin Profiles</h3>
     <p style="font-size:11px;color:#776867;margin-top:-6px;">Pick a club to add a profile or manage its events, or search every profile below.</p>
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;">
-      ${clubsData.map(c => `<button type="button" class="club-guide-btn cm-admin-club-pick" data-club-id="${escapeCm(c.id)}" style="padding:8px 14px;font-size:12px;${clubId===c.id?'background:var(--blush);':'background:transparent;'}">${escapeCm(c.title)}</button>`).join('')}
+      ${adminClubs().map(c => `<button type="button" class="club-guide-btn cm-admin-club-pick" data-club-id="${escapeCm(c.id)}" style="padding:8px 14px;font-size:12px;${clubId===c.id?'background:var(--blush);':'background:transparent;'}">${escapeCm(c.title)}</button>`).join('')}
     </div>
     ${clubId ? `
       <h4>Create Member</h4>
@@ -7883,7 +7974,7 @@ function renderClubAdminPanel(){
 
 function adminClubChoices(){
   const seen = new Set();
-  return clubsData.filter(c => !seen.has(c.id) && seen.add(c.id));
+  return adminClubs().filter(c => !seen.has(c.id) && seen.add(c.id));
 }
 
 async function cmAdminCreateProfile(){
@@ -8109,7 +8200,7 @@ function admAvailCalendarHtml(){
     const total = seen.size;
     return { total, missing: [...seen.values()].filter(m => !haveAvail.has('m:' + m.id)).sort((a, b) => (a.name || '').localeCompare(b.name || '')) };
   };
-  const clubChips = [['all', 'All clubs']].concat(clubsData.map(c => [c.id, c.title])).map(([id, title]) => {
+  const clubChips = [['all', 'All clubs']].concat(adminClubs().map(c => [c.id, c.title])).map(([id, title]) => {
     const col = id === 'all' ? { bg:'#f2d8d7', fg:'#76220b' } : clubCol(id);
     const on = admAvail.club === id;
     const mf = missingFor(id);
@@ -8120,8 +8211,8 @@ function admAvailCalendarHtml(){
   const scopeName = admAvail.club === 'all' ? 'all clubs' : (clubsData.find(c => c.id === admAvail.club) || {}).title || 'this club';
   const missingBox = !mfNow ? '' : !mfNow.total ? `<div style="margin:0 0 12px;font-size:13px;color:#776867;">No members in ${escapeCm(scopeName)} yet.</div>` : mfNow.missing.length
     ? `<div style="margin:0 0 12px;padding:12px 14px;border-radius:12px;background:#fff3cf;border:2px solid #e6cf86;color:#6b5210;font-size:14px;line-height:1.7;"><strong>⏳ Haven't added their availability yet — ${escapeCm(scopeName)} (${mfNow.missing.length} of ${mfNow.total}):</strong><br>${mfNow.missing.map(m => { const wa = admWhatsAppLink(m.phone, `Hi ${String(m.name || '').split(' ')[0]}! Quick reminder to add your availability on 4DASISTAS so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs`); return `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(m.id)}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button>${wa ? ` <a href="${escapeCm(wa)}" target="_blank" rel="noopener" title="Remind ${escapeCm(m.name)} on WhatsApp" style="text-decoration:none;font-size:12px;font-weight:700;background:#25D366;color:#fff;border-radius:999px;padding:2px 8px;">WhatsApp reminder</a>` : ''}`; }).join(' · ')}
-      <div style="margin-top:10px;">${admLastRemindLine('push')}<br>${admLastRemindLine('app')}</div>
-      <div style="margin-top:8px;"><button type="button" id="admPushMissing" data-ids="${escapeCm(mfNow.missing.map(m => m.id).join(','))}" style="min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #6b5210;background:#ce8491;color:#fff;font-weight:700;font-size:14px;cursor:pointer;margin-right:6px;">📲 Send push reminder</button><button type="button" id="admRemindAll" data-ids="${escapeCm(mfNow.missing.map(m => m.id).join(','))}" style="min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #6b5210;background:#fff;color:#6b5210;font-weight:700;font-size:14px;cursor:pointer;">🔔 Remind everyone in the app</button> <span id="admRemindMsg" style="font-size:13px;"></span></div></div>`
+      ${state.cmAdminLoggedIn !== true ? '' : `<div style="margin-top:10px;">${admLastRemindLine('push')}<br>${admLastRemindLine('app')}</div>
+      <div style="margin-top:8px;"><button type="button" id="admPushMissing" data-ids="${escapeCm(mfNow.missing.map(m => m.id).join(','))}" style="min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #6b5210;background:#ce8491;color:#fff;font-weight:700;font-size:14px;cursor:pointer;margin-right:6px;">📲 Send push reminder</button><button type="button" id="admRemindAll" data-ids="${escapeCm(mfNow.missing.map(m => m.id).join(','))}" style="min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #6b5210;background:#fff;color:#6b5210;font-weight:700;font-size:14px;cursor:pointer;">🔔 Remind everyone in the app</button> <span id="admRemindMsg" style="font-size:13px;"></span></div>`}</div>`
     : `<div style="margin:0 0 12px;padding:10px 14px;border-radius:12px;background:#d9f0d8;color:#2a7a4a;font-size:14px;">✅ Everyone in ${escapeCm(scopeName)} (${mfNow.total}) has added their availability.</div>`;
   const nameChips = people.length ? people.map(p => {
     const on = admAvail.person === p.id;
@@ -8267,6 +8358,7 @@ function wireClubAdminPanel(){
   document.querySelectorAll('.join-req-accept').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'accept'); }));
   document.querySelectorAll('.join-req-decline').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'decline'); }));
   wirePushAdmin();
+  wireLeadsAdmin();
   document.querySelectorAll('.adm-sort').forEach(b => b.addEventListener('click', () => { state.cmAdminMemberSort = b.dataset.sort; render(); }));
   const memberSearch = document.getElementById('admMemberSearch');
   if(memberSearch && !memberSearch.dataset.wired){
@@ -8289,7 +8381,7 @@ function wireClubAdminPanel(){
   const loginBtn = document.getElementById('cmAdminLoginBtn');
   if(loginBtn) loginBtn.addEventListener('click', cmAdminLogin);
   const logoutBtn = document.getElementById('cmAdminLogoutBtn');
-  if(logoutBtn) logoutBtn.addEventListener('click', cmAdminLogout);
+  if(logoutBtn) logoutBtn.addEventListener('click', () => state.cmAdminLoggedIn === true ? cmAdminLogout() : cmLeadLogout());
   document.querySelectorAll('.cm-admin-club-pick').forEach(btn => {
     btn.addEventListener('click', () => cmAdminSelectClub(btn.dataset.clubId === state.cmAdminClub ? '' : btn.dataset.clubId));
   });
@@ -8342,9 +8434,9 @@ function renderFooterAdmin(){
   renderNavAuth();
   const btn = document.getElementById('footerAdminBtn');
   if(!btn) return;
-  btn.textContent = state.cmAdminLoggedIn ? '🔒 Admin: Log Out' : '🔒 Admin Login';
+  btn.textContent = state.cmAdminLoggedIn ? '🔒 Admin: Log Out' : state.cmLead ? '🔒 Club admin: Log Out' : '🔒 Admin Login';
   const newEventBtn = document.getElementById('footerNewEventBtn');
-  if(newEventBtn) newEventBtn.style.display = state.cmAdminLoggedIn ? '' : 'none';
+  if(newEventBtn) newEventBtn.style.display = adminUiOn() ? '' : 'none';
   const missingBtn = document.getElementById('footerMissingDetailsBtn');
   if(!missingBtn) return;
   if(!state.cmAdminLoggedIn || !ALL_ITEMS.length){ missingBtn.style.display = 'none'; return; }
@@ -8358,6 +8450,7 @@ async function checkAdminSession(){
     const res = await fetch('/api/admin/session', { credentials:'include' });
     const data = await res.json();
     state.cmAdminLoggedIn = !!data.loggedIn;
+    state.cmLead = data.lead || null;
   } catch { state.cmAdminLoggedIn = false; }
   render();
 }
@@ -8840,11 +8933,24 @@ function goLogin(){
   setTimeout(() => { const f = document.getElementById(getLastLogin() ? 'clubsLoginPin' : 'clubsLoginUsername'); if(f) f.focus(); }, 120);
 }
 function goSignup(){ state.fallQuickLogin = false; goToTab('fallsignup'); }
+function renderDualBanner(){
+  const el = document.getElementById('dualBanner'); if(!el) return;
+  const sess = getCmSession(), staff = state.cmAdminLoggedIn === true ? 'admin' : (state.cmLead ? 'club admin' : '');
+  if(!sess || !staff){ el.style.display = 'none'; el.innerHTML = ''; return; }
+  el.style.cssText = 'display:block;background:#fff3cf;color:#6b5210;border-bottom:2px solid #e6cf86;padding:10px 14px;font-size:13px;line-height:1.5;text-align:center;';
+  el.innerHTML = `⚠️ You're signed in as <strong>${staff}</strong> AND as member <strong>${escapeCm(sess.name || sess.username || '')}</strong> at the same time. Votes and availability go to the member account.<br>
+    <button type="button" id="dualOutMember" style="margin:6px 4px 0;min-height:34px;padding:0 14px;border-radius:999px;border:2px solid #6b5210;background:#fff;color:#6b5210;font-weight:700;cursor:pointer;">Log out member</button>
+    <button type="button" id="dualOutStaff" style="margin:6px 4px 0;min-height:34px;padding:0 14px;border-radius:999px;border:2px solid #6b5210;background:#fff;color:#6b5210;font-weight:700;cursor:pointer;">Log out ${staff}</button>`;
+  document.getElementById('dualOutMember').onclick = () => cmMemberSignOut();
+  document.getElementById('dualOutStaff').onclick = () => state.cmAdminLoggedIn === true ? cmAdminLogout() : cmLeadLogout();
+}
 function renderNavAuth(){
+  renderDualBanner();
   const menu = document.getElementById('pwrMenu');
   if(!menu) return;
   const sess = getCmSession(), admin = state.cmAdminLoggedIn === true;
   if(admin) menu.innerHTML = '<div class="pwr-hi">Admin</div><button type="button" data-pwr="adminout">Admin log out</button>';
+  else if(state.cmLead && !sess) menu.innerHTML = '<div class="pwr-hi">Club admin</div><button type="button" data-pwr="leadout">Log out</button>';
   else if(sess) menu.innerHTML = `<div class="pwr-hi">Hi, ${escapeCm(sess.name || sess.username || 'friend')}</div><button type="button" data-pwr="out">Log out</button>`;
   else menu.innerHTML = '<button type="button" class="primary" data-pwr="login">Log in</button><button type="button" data-pwr="signup">Sign up</button>';
 }
@@ -8861,6 +8967,7 @@ function renderNavAuth(){
     else if(k === 'signup') goSignup();
     else if(k === 'out'){ await cmMemberSignOut(); }
     else if(k === 'adminout'){ await cmAdminLogout(); render(); }
+    else if(k === 'leadout'){ await cmLeadLogout(); }
   });
 })();
 
@@ -8870,12 +8977,20 @@ document.getElementById('footerAdminBtn').addEventListener('click', async () => 
     render();
     return;
   }
+  if(state.cmLead){ await cmLeadLogout(); return; }
   document.getElementById('footerAdminError').textContent = '';
   document.getElementById('footerAdminModalOverlay').classList.add('open');
   setTimeout(() => document.getElementById('footerAdminPassword').focus(), 50);
 });
 document.getElementById('footerMissingDetailsBtn').addEventListener('click', startMissingDetailsReview);
 document.getElementById('footerNewEventBtn').addEventListener('click', openEventCreate);
+document.getElementById('footerAdminLeadToggle').addEventListener('click', () => {
+  const u = document.getElementById('footerAdminUsername'), on = u.style.display === 'none';
+  u.style.display = on ? '' : 'none';
+  document.getElementById('footerAdminPassword').placeholder = on ? 'Club admin password' : 'Admin password';
+  document.getElementById('footerAdminLeadToggle').textContent = on ? "I'm the main admin" : "I'm a club admin (not the main admin)";
+  (on ? u : document.getElementById('footerAdminPassword')).focus();
+});
 document.getElementById('footerAdminCancelBtn').addEventListener('click', () => {
   document.getElementById('footerAdminModalOverlay').classList.remove('open');
   document.getElementById('footerAdminPassword').value = '';
@@ -8888,13 +9003,25 @@ document.getElementById('footerAdminModalOverlay').addEventListener('click', e =
 document.getElementById('footerAdminForm').addEventListener('submit', async e => {
   e.preventDefault();
   const password = document.getElementById('footerAdminPassword').value;
+  const leadMode = document.getElementById('footerAdminUsername').style.display !== 'none';
   const errEl = document.getElementById('footerAdminError');
   const submitBtn = document.getElementById('footerAdminSubmitBtn');
   submitBtn.disabled = true;
   try {
-    const res = await fetch('/api/admin/login', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ password }) });
+    const res = await fetch(leadMode ? '/api/clubadmin/login' : '/api/admin/login', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify(leadMode ? { username: document.getElementById('footerAdminUsername').value, password } : { password }) });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || 'Login failed');
+    if(leadMode){
+      const sr = await (await fetch('/api/admin/session', { credentials:'include' })).json();
+      state.cmLead = sr.lead || null;
+      state.cmAdminOpen = false; // reopens (and loads) via the Clubs page
+      document.getElementById('footerAdminModalOverlay').classList.remove('open');
+      document.getElementById('footerAdminPassword').value = '';
+      errEl.textContent = '';
+      submitBtn.disabled = false;
+      goToTab('clubs'); render();
+      return;
+    }
     state.cmAdminLoggedIn = true;
     document.getElementById('footerAdminModalOverlay').classList.remove('open');
     document.getElementById('footerAdminPassword').value = '';

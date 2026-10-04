@@ -1707,16 +1707,105 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
     }
 
+    // ---- Club leads: a scoped admin that can only manage the clubs they were assigned ----
+    const getLeadToken = (req) => {
+      const m = (req.headers.get("Cookie") || "").match(/(?:^|;\s*)leadsession=([^;]+)/);
+      return m ? m[1] : null;
+    };
+    const getLead = async (req) => {
+      const t = getLeadToken(req);
+      if (!t) return null;
+      let sess;
+      try { sess = JSON.parse((await env.SITE_DATA.get(`leadsession:${t}`)) || "null"); } catch { return null; }
+      if (!sess || (sess.expiresAt && Date.now() > sess.expiresAt)) return null;
+      let rec;
+      try { rec = JSON.parse((await env.SITE_DATA.get(`clublead:${sess.username}`)) || "null"); } catch { return null; }
+      if (!rec) return null;
+      return { username: rec.username, name: rec.name, clubs: Array.isArray(rec.clubs) ? rec.clubs : [] };
+    };
+    const leadCookie = (t, maxAge) => `leadsession=${t}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`;
+
+    if (path === "/api/clubadmin/login" && request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const username = String(body.username || "").trim().toLowerCase().slice(0, 40);
+      const password = String(body.password || "");
+      const hourSlot = Math.floor(Date.now() / 3600000);
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+      const keys = [`loginrate:leadip:${ip}:${hourSlot}`, `loginrate:lead:${username}:${hourSlot}`];
+      const counts = await Promise.all(keys.map((k) => env.SITE_DATA.get(k)));
+      if (counts.some((c) => Number(c || 0) >= 10)) return jsonResponse({ error: "Too many attempts — try again in an hour" }, 429, corsHeaders);
+      await Promise.all(keys.map((k, i) => env.SITE_DATA.put(k, String(Number(counts[i] || 0) + 1), { expirationTtl: 3700 })));
+      let rec = null;
+      try { rec = JSON.parse((await env.SITE_DATA.get(`clublead:${username}`)) || "null"); } catch {}
+      if (!rec || !username || rec.passHash !== await sha256Hex(`${rec.salt}:${password}`)) return jsonResponse({ error: "Incorrect username or password" }, 401, corsHeaders);
+      const token = crypto.randomUUID();
+      await env.SITE_DATA.put(`leadsession:${token}`, JSON.stringify({ username, expiresAt: Date.now() + SESSION_TTL * 1000 }), { expirationTtl: SESSION_TTL });
+      const headers = new Headers({ "Content-Type": "application/json", ...corsHeaders });
+      headers.set("Set-Cookie", leadCookie(token, SESSION_TTL));
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
+    }
+
+    if (path === "/api/clubadmin/logout" && request.method === "POST") {
+      const t = getLeadToken(request);
+      if (t) await env.SITE_DATA.delete(`leadsession:${t}`).catch(() => {});
+      const headers = new Headers({ "Content-Type": "application/json", ...corsHeaders });
+      headers.set("Set-Cookie", leadCookie("", 0));
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
+    }
+
     if (path === "/api/admin/session" && request.method === "GET") {
       const loggedIn = await isValidSession(getSessionToken(request));
-      return jsonResponse({ loggedIn }, 200, corsHeaders);
+      const lead = await getLead(request);
+      return jsonResponse({ loggedIn, lead }, 200, corsHeaders);
+    }
+
+    // A lead may only use these admin routes, and only for their own clubs. Anything else stays full-admin.
+    let leadCtx = null;
+    if (path.startsWith("/api/admin/") && !(await isValidSession(getSessionToken(request)))) {
+      const lead = await getLead(request);
+      if (lead) {
+        const own = new Set(lead.clubs);
+        const memberOf = async (clubId, userId) => (await readClubMemberIds(env, clubId)).includes(userId);
+        const inAnyOwn = async (userId) => { for (const c of lead.clubs) if (await memberOf(c, userId)) return true; return false; };
+        const seg = path.split("/").slice(3).map((x) => decodeURIComponent(x));
+        const M = request.method;
+        let ok = false;
+        if (path === "/api/admin/club-members" && M === "GET") ok = true;
+        else if (path === "/api/admin/users" && M === "GET") ok = true;
+        else if (path === "/api/admin/idea-availability" && M === "GET") ok = true;
+        else if (path === "/api/admin/join-requests" && M === "GET") ok = true;
+        else if (path === "/api/admin/calendar-event" && M === "POST") ok = true;
+        else if (seg[0] === "join-requests" && seg.length === 4 && M === "POST") ok = own.has(seg[1]);
+        else if (seg[0] === "club-events" && own.has(seg[1]) && ((seg.length === 2 && (M === "GET" || M === "POST")) || (seg.length === 3 && M === "DELETE"))) ok = true;
+        else if (seg[0] === "club-members" && own.has(seg[1])) {
+          if (seg.length === 2 && M === "POST") ok = true;
+          else if (seg.length === 3 && (M === "PUT" || M === "DELETE")) ok = await memberOf(seg[1], seg[2]);
+          else if (seg.length === 4 && seg[3] === "reset-pin" && M === "POST") ok = await memberOf(seg[1], seg[2]);
+        }
+        else if (seg[0] === "users" && seg.length === 3 && seg[2] === "profile" && M === "GET") ok = await inAnyOwn(seg[1]);
+        else if (seg[0] === "users" && seg.length === 3 && seg[2] === "clubs" && M === "PUT") {
+          ok = await inAnyOwn(seg[1]);
+          if (ok) {
+            // They can only add/remove the clubs they lead; the person's other clubs are left exactly as they are.
+            let b = {};
+            try { b = await request.clone().json(); } catch {}
+            const current = await allClubIdsContaining(env, seg[1]);
+            const wanted = (Array.isArray(b.clubs) ? b.clubs.map(String) : []).filter((c) => own.has(c));
+            const merged = [...new Set([...current.filter((c) => !own.has(c)), ...wanted])];
+            request = new Request(request.url, { method: "PUT", headers: request.headers, body: JSON.stringify({ clubs: merged }) });
+          }
+        }
+        if (!ok) return jsonResponse({ error: "Club leads can't do that" }, 403, corsHeaders);
+        leadCtx = lead;
+      }
     }
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads");
 
-    if (requiresAuth) {
+    if (requiresAuth && !leadCtx) {
       const token = getSessionToken(request);
       const valid = await isValidSession(token);
       if (!valid) {
@@ -1753,12 +1842,59 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- API routes ----
 
+    // Admin only: create / list / edit / delete club-lead logins (a scoped admin for one or more clubs).
+    if (path === "/api/admin/club-leads" && request.method === "GET") {
+      const out = [];
+      for (const k of (await env.SITE_DATA.list({ prefix: "clublead:" })).keys) {
+        try { const r = JSON.parse(await env.SITE_DATA.get(k.name)); if (r) out.push({ username: r.username, name: r.name, clubs: r.clubs || [], createdAt: r.createdAt || 0 }); } catch {}
+      }
+      return jsonResponse({ leads: out }, 200, corsHeaders);
+    }
+    if (path === "/api/admin/club-leads" && request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const name = String(body.name || "").trim().slice(0, 60);
+      const username = String(body.username || "").trim().toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 40);
+      const password = String(body.password || "");
+      const clubs = (Array.isArray(body.clubs) ? body.clubs : []).map(String);
+      if (!name || !username) return jsonResponse({ error: "Name and username are required" }, 400, corsHeaders);
+      if (password.length < 6) return jsonResponse({ error: "Password must be at least 6 characters" }, 400, corsHeaders);
+      if (!clubs.length) return jsonResponse({ error: "Pick at least one club" }, 400, corsHeaders);
+      if (await env.SITE_DATA.get(`clublead:${username}`)) return jsonResponse({ error: "That username is already taken" }, 409, corsHeaders);
+      const salt = crypto.randomUUID();
+      const rec = { username, name, clubs, salt, passHash: await sha256Hex(`${salt}:${password}`), createdAt: Date.now() };
+      await env.SITE_DATA.put(`clublead:${username}`, JSON.stringify(rec));
+      return jsonResponse({ ok: true, username }, 201, corsHeaders);
+    }
+    const leadAdminMatch = path.match(/^\/api\/admin\/club-leads\/([^/]+)\/?$/);
+    if (leadAdminMatch && (request.method === "PUT" || request.method === "DELETE")) {
+      const username = decodeURIComponent(leadAdminMatch[1]).toLowerCase();
+      let rec;
+      try { rec = JSON.parse((await env.SITE_DATA.get(`clublead:${username}`)) || "null"); } catch { rec = null; }
+      if (!rec) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
+      if (request.method === "DELETE") {
+        await env.SITE_DATA.delete(`clublead:${username}`);
+        return jsonResponse({ ok: true }, 200, corsHeaders);
+      }
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      if (body.name !== undefined) rec.name = String(body.name).trim().slice(0, 60) || rec.name;
+      if (Array.isArray(body.clubs)) { if (!body.clubs.length) return jsonResponse({ error: "Pick at least one club" }, 400, corsHeaders); rec.clubs = body.clubs.map(String); }
+      if (body.password) {
+        if (String(body.password).length < 6) return jsonResponse({ error: "Password must be at least 6 characters" }, 400, corsHeaders);
+        rec.salt = crypto.randomUUID(); rec.passHash = await sha256Hex(`${rec.salt}:${body.password}`);
+      }
+      await env.SITE_DATA.put(`clublead:${username}`, JSON.stringify(rec));
+      return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+
     // Admin: manage club members / reset PINs (session-cookie gated above)
     if (path === "/api/admin/club-members" && request.method === "GET") {
       const list = await env.SITE_DATA.list({ prefix: "clubmembers:" });
       const out = {};
       for (const key of list.keys) {
         const clubId = key.name.replace("clubmembers:", "");
+        if (leadCtx && !leadCtx.clubs.includes(clubId)) continue;
         out[clubId] = (await resolveClubMembers(env, clubId)).map((u) => ({ ...publicUser(u), phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0 })); // phone + activity: admin-only
       }
       return jsonResponse(out, 200, corsHeaders);
@@ -1806,7 +1942,9 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const clubId = key.name.slice("clubmembers:".length);
         for (const uid of await readClubMemberIds(env, clubId)) (clubsByUser[uid] = clubsByUser[uid] || []).push(clubId);
       }
-      return jsonResponse({ people: people.map((p) => ({ ...p, clubs: p.id.startsWith("m:") ? (clubsByUser[p.id.slice(2)] || []) : [] })) }, 200, corsHeaders);
+      const withClubs = people.map((p) => ({ ...p, clubs: p.id.startsWith("m:") ? (clubsByUser[p.id.slice(2)] || []) : [] }));
+      if (leadCtx) return jsonResponse({ people: withClubs.filter((p) => p.clubs.some((c) => leadCtx.clubs.includes(c))).map((p) => ({ ...p, clubs: p.clubs.filter((c) => leadCtx.clubs.includes(c)) })) }, 200, corsHeaders);
+      return jsonResponse({ people: withClubs }, 200, corsHeaders);
     }
 
     const adminIdeaMatch = path.match(/^\/api\/admin\/club-ideas\/([^/]+)\/([^/]+)\/?$/);
@@ -1873,6 +2011,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const roster = await readClubRoster(env);
       const out = [];
       for (const r of (await listJoinRequests(env)).sort((a, b) => a.at - b.at)) {
+        if (leadCtx && !leadCtx.clubs.includes(r.clubId)) continue;
         const user = await readUser(env, r.userId);
         if (!user) continue;
         out.push({ clubId: r.clubId, clubTitle: (roster.find((c) => c.id === r.clubId) || {}).title || r.clubId, userId: r.userId, name: user.name, username: user.username, phone: user.phone || "", at: r.at });
@@ -2039,6 +2178,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         }
         cursor = page.list_complete ? undefined : page.cursor;
       } while (cursor);
+      if (leadCtx) return jsonResponse({ users: out.filter((u) => (u.clubs || []).some((c) => leadCtx.clubs.includes(c))).map((u) => ({ ...u, clubs: u.clubs.filter((c) => leadCtx.clubs.includes(c)), pending: (u.pending || []).filter((c) => leadCtx.clubs.includes(c)) })) }, 200, corsHeaders);
       return jsonResponse({ users: out }, 200, corsHeaders);
     }
     // Admin: send a notification to chosen members (or everyone who turned notifications on).
@@ -2195,7 +2335,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({
         id: user.id, name: user.name, username: user.username, photo: user.photo || null,
         phone: user.phone || "", createdAt: user.createdAt || 0, lastLoginAt: user.lastLoginAt || 0, lastSeenAt: user.lastSeenAt || 0,
-        clubs: await allClubIdsContaining(env, user.id), pending: await pendingClubIdsFor(env, user.id), waitlist: Array.isArray(user.waitlist) ? user.waitlist : [],
+        clubs: (await allClubIdsContaining(env, user.id)).filter((c) => !leadCtx || leadCtx.clubs.includes(c)), pending: (await pendingClubIdsFor(env, user.id)).filter((c) => !leadCtx || leadCtx.clubs.includes(c)), waitlist: Array.isArray(user.waitlist) ? user.waitlist : [],
       }, 200, corsHeaders);
     }
     const adminUserClubsMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/clubs\/?$/);
