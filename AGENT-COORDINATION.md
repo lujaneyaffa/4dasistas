@@ -823,6 +823,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-04 · Claude · index.html, service-worker.js (v41) · Admin 'sort by last login' now shows date+time; idea bubbles auto-size to fit their title (ideaSize, clamp 8 lines); phone search is an icon in the nav row that expands under the nav; availability 'missing' list's 💬 is now a labelled WhatsApp reminder pill.
+
 - 2026-10-03 · Claude · index.html, service-worker.js (v40) · Removed nav Log in/Sign up buttons (messy on mobile); fixed top-right WhatsApp icon replaced by a power-button menu (Log in/Sign up, or Log out / Admin log out); Admin Login moved to the very bottom of the footer under the logo; squad 'Log in to request' stays on one line.
 
 _(most recent first — add new entries to the top, trim past ~15)_

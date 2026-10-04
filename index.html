@@ -306,9 +306,14 @@
     .wa-btn span, .ig-btn span, .tiktok-btn span{ display:none; }
     .tabs{ flex-wrap:wrap; overflow-x:visible; gap:4px 4px; padding:10px 8px; }
     .tab-btn{ font-size:11px; padding:8px 6px; letter-spacing:0.02em; }
-    .top-search-wrap{ flex:1 1 100%; width:100%; justify-content:center; margin-top:4px; }
-    .top-search-shell{ max-width:100%; }
-    .search-suggestions{ right:0; width:180px; }
+    .top-search-wrap{ flex:0 0 auto; width:auto; justify-content:center; margin:0; }
+    .top-search-shell{ width:36px; height:36px; padding:0; justify-content:center; cursor:pointer; }
+    .top-search-shell svg{ width:18px; height:18px; opacity:1; }
+    .top-search-shell input{ display:none; }
+    .top-search-wrap.open .top-search-shell{ position:fixed; left:8px; right:8px; top:var(--search-top,100px); width:auto; max-width:none; height:auto; padding:9px 14px; justify-content:flex-start; z-index:70; box-shadow:3px 3px 0 var(--charcoal); }
+    .top-search-wrap.open .top-search-shell svg{ width:16px; height:16px; opacity:.7; }
+    .top-search-wrap.open .top-search-shell input{ display:block; }
+    .search-suggestions{ position:fixed; left:8px; right:8px; width:auto; top:calc(var(--search-top,100px) + 50px); z-index:71; }
     .subfilter-row, .category-row, .tabs { justify-content:center; }
     .resource-filter-row{ grid-template-columns:repeat(2,minmax(0,1fr)); }
     .mental-health-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
@@ -501,7 +506,7 @@
   .idea-bubble.done{ opacity:.78; border-style:dashed; }
   .idea-bubble.voted{ box-shadow:0 0 0 3px var(--cream), 0 0 0 5px var(--line); }
   .idea-date{ font-size:11px; font-weight:700; margin-bottom:3px; opacity:0.9; }
-  .idea-title{ font-weight:700; font-size:13px; line-height:1.2; display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
+  .idea-title{ font-weight:700; font-size:13px; line-height:1.2; display:-webkit-box; -webkit-line-clamp:8; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; hyphens:auto; }
   .idea-votes{ margin-top:6px; font-size:12px; font-weight:600; opacity:0.85; }
   .idea-mini{ position:absolute; width:22px; height:22px; border-radius:50%; border:1.5px solid var(--line); background:#fff; font-size:11px; line-height:19px; text-align:center; cursor:pointer; font-weight:700; }
   .idea-info{ top:3%; left:8%; font-style:italic; font-family:Georgia,serif; }
@@ -5281,8 +5286,12 @@ window.addEventListener('resize', () => { clearTimeout(floatIdeaClouds._t); floa
 function ideaSize(votes, title, hasDate){  // hasDate: also true when the bubble shows an extra line (date / cuisine)
   const byVotes = 112 + 34 * Math.sqrt(Math.max(0, votes - 1));
   const len = (title || '').length;
-  const byText = (len > 32 ? 160 : len > 20 ? 136 : 112) + (hasDate ? 14 : 0);
-  return Math.min(210, Math.round(Math.max(byVotes, byText)));
+  // fit the title: text area (with word-wrap waste) + the fixed lines (votes, emoji, optional date) inside the circle's inscribed square
+  const extra = 40 + (hasDate ? 18 : 0);
+  const textArea = Math.max(8, len) * 7.6 * 16 * 1.45;
+  const side = (extra + Math.sqrt(extra * extra + 4 * textArea)) / 2;
+  const byText = side / 0.68 + 14;
+  return Math.min(250, Math.round(Math.max(byVotes, byText, 112)));
 }
 function ideaVotesLabel(n){ return n + (n === 1 ? ' vote' : ' votes'); }
 function ideaDateLabel(d){ return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' }) : ''; }
@@ -7331,7 +7340,7 @@ function wirePushAdmin(){
   if(off) off.addEventListener('click', () => {
     const box = document.getElementById('pushOffList');
     box.style.display = box.style.display === 'none' ? 'block' : 'none';
-    box.innerHTML = users.filter(u => !u.push).map(u => { const wa = admWhatsAppLink(u.phone, `Hi ${String(u.name || '').split(' ')[0]}! Please open 4DASISTAS from your Home Screen and tap Allow notifications so we can send you reminders 💛 4dasistas.ca`); return `${escapeCm(u.name)}${wa ? ` <a href="${escapeCm(wa)}" target="_blank" rel="noopener" title="Nudge on WhatsApp" style="text-decoration:none;">💬</a>` : ''}`; }).join(' · ');
+    box.innerHTML = users.filter(u => !u.push).map(u => { const wa = admWhatsAppLink(u.phone, `Hi ${String(u.name || '').split(' ')[0]}! Please open 4DASISTAS from your Home Screen and tap Allow notifications so we can send you reminders 💛 4dasistas.ca`); return `${escapeCm(u.name)}${wa ? ` <a href="${escapeCm(wa)}" target="_blank" rel="noopener" title="Nudge on WhatsApp" style="text-decoration:none;font-size:12px;font-weight:700;background:#25D366;color:#fff;border-radius:999px;padding:2px 8px;">WhatsApp reminder</a>` : ''}`; }).join(' · ');
   });
   send.addEventListener('click', async () => {
     const aud = document.getElementById('pushAudience').value, res = document.getElementById('pushResult');
@@ -7722,7 +7731,7 @@ function renderAdminAllMembersPanels(){
       ${m.photo ? `<img src="${escapeCm(m.photo)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;margin:0 auto 8px;display:block;">` : `<div class="monogram" style="margin:0 auto 8px;">${escapeCm((m.name || '?').charAt(0).toUpperCase())}</div>`}
       <h4 style="font-size:14px;margin-bottom:2px;"><button type="button" class="adm-profile-link" data-user-id="${escapeCm(m.id)}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:inherit;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button></h4>
       <div style="font-size:11px;color:#776867;margin-bottom:${(state.cmAdminMemberSort === 'login') ? '2px' : '8px'};">${escapeCm(m.username)}</div>
-      ${(state.cmAdminMemberSort === 'login') ? `<div style="font-size:11px;color:${m.lastLoginAt ? '#776867' : '#b3261e'};margin-bottom:8px;">${m.lastLoginAt ? 'Last login: ' + escapeCm(admAgo(m.lastLoginAt)) : 'Never logged in'}</div>` : ''}
+      ${(state.cmAdminMemberSort === 'login') ? `<div style="font-size:11px;color:${m.lastLoginAt ? '#776867' : '#b3261e'};margin-bottom:8px;">${m.lastLoginAt ? 'Last login: ' + escapeCm(admFmtDate(m.lastLoginAt)) + ' (' + escapeCm(admAgo(m.lastLoginAt)) + ')' : 'Never logged in'}</div>` : ''}
       <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;">${tags}${noClubTag}</div>
     </div>`;
   };
@@ -8110,7 +8119,7 @@ function admAvailCalendarHtml(){
   const mfNow = missingFor(admAvail.club);
   const scopeName = admAvail.club === 'all' ? 'all clubs' : (clubsData.find(c => c.id === admAvail.club) || {}).title || 'this club';
   const missingBox = !mfNow ? '' : !mfNow.total ? `<div style="margin:0 0 12px;font-size:13px;color:#776867;">No members in ${escapeCm(scopeName)} yet.</div>` : mfNow.missing.length
-    ? `<div style="margin:0 0 12px;padding:12px 14px;border-radius:12px;background:#fff3cf;border:2px solid #e6cf86;color:#6b5210;font-size:14px;line-height:1.7;"><strong>⏳ Haven't added their availability yet — ${escapeCm(scopeName)} (${mfNow.missing.length} of ${mfNow.total}):</strong><br>${mfNow.missing.map(m => { const wa = admWhatsAppLink(m.phone, `Hi ${String(m.name || '').split(' ')[0]}! Quick reminder to add your availability on 4DASISTAS so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs`); return `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(m.id)}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button>${wa ? ` <a href="${escapeCm(wa)}" target="_blank" rel="noopener" title="Remind ${escapeCm(m.name)} on WhatsApp" style="text-decoration:none;">💬</a>` : ''}`; }).join(' · ')}
+    ? `<div style="margin:0 0 12px;padding:12px 14px;border-radius:12px;background:#fff3cf;border:2px solid #e6cf86;color:#6b5210;font-size:14px;line-height:1.7;"><strong>⏳ Haven't added their availability yet — ${escapeCm(scopeName)} (${mfNow.missing.length} of ${mfNow.total}):</strong><br>${mfNow.missing.map(m => { const wa = admWhatsAppLink(m.phone, `Hi ${String(m.name || '').split(' ')[0]}! Quick reminder to add your availability on 4DASISTAS so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs`); return `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(m.id)}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button>${wa ? ` <a href="${escapeCm(wa)}" target="_blank" rel="noopener" title="Remind ${escapeCm(m.name)} on WhatsApp" style="text-decoration:none;font-size:12px;font-weight:700;background:#25D366;color:#fff;border-radius:999px;padding:2px 8px;">WhatsApp reminder</a>` : ''}`; }).join(' · ')}
       <div style="margin-top:10px;">${admLastRemindLine('push')}<br>${admLastRemindLine('app')}</div>
       <div style="margin-top:8px;"><button type="button" id="admPushMissing" data-ids="${escapeCm(mfNow.missing.map(m => m.id).join(','))}" style="min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #6b5210;background:#ce8491;color:#fff;font-weight:700;font-size:14px;cursor:pointer;margin-right:6px;">📲 Send push reminder</button><button type="button" id="admRemindAll" data-ids="${escapeCm(mfNow.missing.map(m => m.id).join(','))}" style="min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #6b5210;background:#fff;color:#6b5210;font-weight:700;font-size:14px;cursor:pointer;">🔔 Remind everyone in the app</button> <span id="admRemindMsg" style="font-size:13px;"></span></div></div>`
     : `<div style="margin:0 0 12px;padding:10px 14px;border-radius:12px;background:#d9f0d8;color:#2a7a4a;font-size:14px;">✅ Everyone in ${escapeCm(scopeName)} (${mfNow.total}) has added their availability.</div>`;
@@ -9013,6 +9022,20 @@ document.getElementById('globalSearch').addEventListener('keydown', e => {
   e.target.blur();
   goToTab('events'); // events tab's list already live-filters by state.searchQuery
 });
+// Phones: the search is a small icon in the nav row; tapping it opens the bar just under the nav.
+(function(){
+  const wrap = document.getElementById('globalSearchShell'), shell = wrap.querySelector('.top-search-shell');
+  const isPhone = () => window.matchMedia('(max-width:480px)').matches;
+  shell.addEventListener('click', () => {
+    if(!isPhone() || wrap.classList.contains('open')) return;
+    const r = document.getElementById('tabs').getBoundingClientRect();
+    wrap.style.setProperty('--search-top', Math.max(0, r.bottom + 6) + 'px');
+    wrap.classList.add('open');
+    setTimeout(() => document.getElementById('globalSearch').focus(), 30);
+  });
+  document.addEventListener('click', e => { if(!e.target.closest('#globalSearchShell')) wrap.classList.remove('open'); });
+  window.addEventListener('scroll', () => { if(!document.getElementById('globalSearch').value) wrap.classList.remove('open'); }, { passive:true });
+})();
 document.addEventListener('click', e => {
   if(!e.target.closest('#globalSearchShell')){
     const suggestions = document.getElementById('searchSuggestions');
