@@ -176,7 +176,7 @@
   .sort-dir-btn{ font-size:15px; padding:6px 10px; border-radius:999px; border:1.5px solid rgba(33,30,28,0.25); background:white; cursor:pointer; }
   .sub-note{ font-size:11.5px; color:var(--muted); width:100%; margin-top:2px; text-align:center; }
 
-  main{ max-width:760px; margin:0 auto; padding:6px 20px 60px; }
+  main{ max-width:760px; margin:0 auto; padding:6px 20px 20px; }
 
   .event-list{ display:flex; flex-direction:column; gap:12px; }
   .event-card{ display:flex; gap:14px; align-items:center; background:var(--card); border-radius:14px; padding:15px 17px; border:2px solid var(--charcoal); box-shadow:3px 3px 0 var(--charcoal); }
@@ -207,7 +207,7 @@
   }
 
   @media (min-width: 768px){
-    main{ max-width: 980px; padding: 12px 28px 80px; }
+    main{ max-width: 980px; padding: 12px 28px 20px; }
     header{ padding: 36px 28px 24px; }
     .tabs{ gap:8px; padding: 10px 20px; }
     .tab-btn{ font-size:14px; padding:8px 16px; }
@@ -713,7 +713,7 @@
   .resource-map-side{ display:flex; flex-direction:column; gap:12px; width:100%; max-width:100%; }
   /* Bottom-of-page contribution CTAs ("Add a resource" / "Add a trip"): always
      the last thing above the footer, on every tab that offers one. */
-  .page-cta-slot{ display:flex; justify-content:center; padding:40px 16px 26px; }
+  .page-cta-slot{ display:flex; justify-content:center; padding:16px 16px 26px; }
   .add-resource-pill{ display:inline-flex; align-items:center; gap:8px; padding:11px 22px; border:2px solid var(--charcoal); border-radius:999px; background:#fff; color:var(--charcoal); font-family:'Inter',sans-serif; font-weight:700; font-size:13.5px; text-decoration:none; box-shadow:3px 3px 0 var(--charcoal); transition:transform 0.12s ease, box-shadow 0.12s ease; }
   .add-resource-pill:hover{ transform:translate(-1px,-1px); box-shadow:4px 4px 0 var(--charcoal); }
   .travel-earth-layout{ display:grid; grid-template-columns:minmax(300px,340px) minmax(0,1fr); gap:16px; align-items:stretch; width:100%; }
@@ -918,7 +918,7 @@
   .ideas-cloud.floaty{ display:block; position:relative; padding:0; width:min(1120px, calc(100vw - 80px)); left:50%; transform:translateX(-50%); }
   .ideas-cloud.floaty .idea-bubble{ position:absolute; margin:0; animation:ideaFloat var(--dur,14s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:width .8s cubic-bezier(.25,.8,.3,1), height .8s cubic-bezier(.25,.8,.3,1), left .8s cubic-bezier(.25,.8,.3,1), top .8s cubic-bezier(.25,.8,.3,1), translate .45s cubic-bezier(.2,.8,.2,1), scale .3s cubic-bezier(.2,.8,.2,1); }
   /* hover is interactive (see floatIdeaClouds / wireCloudHover): bubbles near the pointer glide away from it, and the one under it swells */
-  .ideas-cloud.floaty .idea-bubble:hover{ z-index:5; scale:1.07; }
+  .ideas-cloud.floaty .idea-bubble:hover{ z-index:5; scale:1.04; }
   @keyframes ideaFloat{
     from{ transform:translate(0,0); }
     to{ transform:translate(var(--dx,18px), var(--dy,-18px)); }
@@ -1130,6 +1130,9 @@
     </a>
   </div>
   <img class="footer-logo" src="assets/OFFICIAL%20LOGO.png" alt="Not a cult (Yet)">
+  <a class="club-card-more" href="https://www.instagram.com/4dasistas.ca/" target="_blank" rel="noopener" style="margin-top:6px;">
+    <span>✨</span> <strong>More to Launch</strong> — Have an idea? Hit us up!!
+  </a>
   <div class="footer-admin-corner">
     <button type="button" class="footer-admin-btn" id="footerNewEventBtn" style="display:none;">➕ New event</button>
     <button type="button" class="footer-admin-btn footer-missing-btn" id="footerMissingDetailsBtn" style="display:none;">📋 Needs details</button>
@@ -2913,6 +2916,7 @@ function wireSquadsPage(){
   if(sess && state.meLoadedFor !== sess.token) refreshMe();
   document.querySelectorAll('.squad-request-btn').forEach(b => b.addEventListener('click', () => { b.disabled = true; squadRequest(b.dataset.squadId); }));
   document.querySelectorAll('.squad-login-btn').forEach(b => b.addEventListener('click', () => goLogin()));
+  const topLogin = document.getElementById('squadsLoginTop'); if(topLogin) topLogin.addEventListener('click', () => goLogin());
   document.querySelectorAll('.squad-act').forEach(b => b.addEventListener('click', () => { b.disabled = true; admAnswerSquad(b.dataset.squadId, b.dataset.userId, b.dataset.act); }));
   document.querySelectorAll('.adm-profile-link').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.userId)));
   document.querySelectorAll('.squad-link-save').forEach(b => b.addEventListener('click', async () => {
@@ -2937,7 +2941,10 @@ function renderDirectory(){
   const el = document.getElementById('directory-view');
   if(state.tab === 'squads'){
     document.getElementById('resourcePagination').innerHTML = '';
-    el.innerHTML = `<h3 class="clubs-popular-title">THE SQUADS</h3>
+    el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="justify-content:center;gap:14px;margin-bottom:6px;">
+    <button type="button" class="club-guide-btn" id="squadsLoginTop" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;font-size:15px;text-align:center;">Log In</button>
+    <button class="fall-cta-btn join-club-btn" data-hometab="fallsignup" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;">Sign Up</button>
+    </div>`}<h3 class="clubs-popular-title">THE SQUADS</h3>
       ${getCmSession() ? '<p class="ideas-hint" style="text-align:center;margin:-4px 0 12px;">Request any squad — an admin approves it and you get that squad\'s private invite link right here.</p>' : ''}
       ${state.squadReqError ? `<p style="color:#c00;text-align:center;font-size:13px;">${escapeCm(state.squadReqError)}</p>` : ''}
       <div class="clubs-grid squads-grid">${SQUADS.map(q => squadCardHtml(q)).join('')}</div>
@@ -3025,9 +3032,6 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
     ${anon ? `
     <h3 class="clubs-popular-title">MOST POPULAR CLUBS</h3>
     <div class="clubs-grid clubs-grid-row">${clubsForGrid().map(c => clubCardHtml(c, false)).join('')}</div>
-    <a class="club-card-more" href="https://www.instagram.com/4dasistas.ca/" target="_blank" rel="noopener">
-      <span>✨</span> <strong>More to Launch</strong> — Have an idea? Hit us up!!
-    </a>
     <div class="public-ideas-section">${renderPublicIdeasFeedHtml()}</div>
     ` : renderMyClubsSectionHtml()}
     `;
@@ -5301,7 +5305,7 @@ function wireCloudHover(box){
   let raf = 0, last = null;
   const apply = () => {
     raf = 0; if(!last || !box.classList.contains('floaty')) return;
-    const R = 280, MAX = 52, rect = box.getBoundingClientRect();
+    const R = 280, MAX = 14, rect = box.getBoundingClientRect();
     const px = last.x - rect.left, py = last.y - rect.top;
     box.querySelectorAll('.idea-bubble').forEach(b => {
       const d = b.offsetWidth, cx = b.offsetLeft + d / 2, cy = b.offsetTop + d / 2;
@@ -5328,22 +5332,22 @@ function floatIdeaClouds(){
     Object.keys(cache.pos).forEach(k => { if(!ids.includes(k)) delete cache.pos[k]; }); // forget bubbles that were removed
     box.classList.add('floaty');
     wireCloudHover(box);
-    const W = box.clientWidth, GAP = 40, EDGE = 28;
+    const W = box.clientWidth, GAP = 34, EDGE = 18; // GAP > the most two neighbours can drift/swell toward each other, so nothing ever overlaps
     const size = b => parseFloat(b.style.width) || b.offsetWidth || 120; // the TARGET size (the width may still be animating)
     const hash = str => { let h = 0; for(let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0; return h; };
     const rngFor = id => { let seed = hash(id) || 1; return () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }; };
     const missing = ids.map((id, i) => ({ id, d: size(bubbles[i]), b: bubbles[i] })).filter(x => !cache.pos[x.id]).sort((p1, p2) => p2.d - p1.d);
     if(missing.length){
       const occupied = () => ids.filter(id => cache.pos[id]).map(id => { const bb = bubbles[ids.indexOf(id)]; return { cx: cache.pos[id].fx * W, cy: cache.pos[id].y, d: size(bb) }; });
-      if(!cache.H) cache.H = Math.max(380, Math.round(ids.reduce((acc, id, i) => acc + (size(bubbles[i]) + GAP) ** 2, 0) / W * 1.6));
+      if(!cache.H) cache.H = Math.max(240, Math.round(ids.reduce((acc, id, i) => acc + (size(bubbles[i]) + GAP) ** 2, 0) / W * 1.3));
       for(const m of missing){
         const rnd = rngFor(m.id);
         let spot = null;
         for(let round = 0; round < 8 && !spot; round++){
           const occ = occupied();
-          for(let t = 0; t < 300 && !spot; t++){
+          for(let t = 0; t < 300; t++){ // random spots, but of the ones that fit, take the highest: the cloud stays compact and short
             const cx = EDGE + m.d / 2 + rnd() * Math.max(1, W - m.d - 2 * EDGE), cy = EDGE + m.d / 2 + rnd() * Math.max(1, cache.H - m.d - 2 * EDGE);
-            if(occ.every(o => Math.hypot(cx - o.cx, cy - o.cy) >= (m.d + o.d) / 2 + GAP)) spot = { cx, cy };
+            if(occ.every(o => Math.hypot(cx - o.cx, cy - o.cy) >= (m.d + o.d) / 2 + GAP) && (!spot || cy < spot.cy)) spot = { cx, cy };
           }
           if(!spot) cache.H = Math.round(cache.H * 1.15) + 20; // no room: make the cloud taller (existing bubbles keep their spots)
         }
@@ -5351,13 +5355,14 @@ function floatIdeaClouds(){
         cache.pos[m.id] = { fx: spot.cx / W, y: spot.cy };
       }
     }
-    box.style.height = cache.H + 'px';
+    const usedH = Math.round(Math.max(...ids.map((id, i) => cache.pos[id].y + size(bubbles[i]) / 2)) + EDGE);
+    box.style.height = Math.min(cache.H, usedH) + 'px';
     bubbles.forEach((b, i) => {
       const id = ids[i], p = cache.pos[id], d = size(b);
       b.style.left = Math.round(p.fx * W - d / 2) + 'px'; b.style.top = Math.round(p.y - d / 2) + 'px';
       if(!b.style.getPropertyValue('--dx')){ // drift personality: set once per bubble, so it never changes mid-motion
         const rnd = rngFor(id + ':drift'), sgn = () => rnd() < .5 ? -1 : 1;
-        b.style.setProperty('--dx', Math.round(sgn() * (12 + rnd() * 14)) + 'px'); b.style.setProperty('--dy', Math.round(sgn() * (12 + rnd() * 14)) + 'px');
+        b.style.setProperty('--dx', Math.round(sgn() * (5 + rnd() * 4)) + 'px'); b.style.setProperty('--dy', Math.round(sgn() * (5 + rnd() * 4)) + 'px');
         b.style.setProperty('--hx', Math.round(sgn() * (8 + rnd() * 8)) + 'px'); b.style.setProperty('--hy', Math.round(sgn() * (8 + rnd() * 8)) + 'px');
         b.style.setProperty('--dur', (12 + rnd() * 8).toFixed(1) + 's'); b.style.setProperty('--delay', (-rnd() * 14).toFixed(1) + 's');
       }

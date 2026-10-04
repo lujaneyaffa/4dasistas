@@ -823,6 +823,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-04 · Claude · index.html, service-worker.js (v51) · (1) Public idea bubbles: tighter packing (GAP 34, top-biased placement, box height fits the bubbles, gentler drift ±5–9px and hover push 14px) so they sit close, never overlap, and take less vertical space. (2) '✨ More to Launch' link moved from the Clubs page to the footer under the logo (above Admin Login). (3) Squads page has the same Log In / Sign Up buttons as Clubs for logged-out visitors. (4) Removed the big gap between the page content and the Submit-event / Add-resource pills (main bottom padding 80→20px, pill slot top padding 40→16px).
+
 - 2026-10-04 · Claude · index.html, service-worker.js (v50) · (1) ONE mobile nav for every width <=900px: tabs never wrap (font/padding scale with vw, scroll as a last resort) and the search is a round icon at the end of the SAME row (rules consolidated in the last `@media (max-width:900px)` block; JS isPhone() now 900). Verified single row at 320/360/393/430/520/820. (2) Signed-in members' 'CLUBS YOU'RE IN' are now round floating bubbles (`.club-bubbles`/`clubBubbleHtml`, same shape/float/hover-glide as Home Travel/About, club colours + logos, always one line). Public Clubs view unchanged.
 
 - 2026-10-04 · Claude · index.html, service-worker.js (v49) · Best/Worst timing: tied slots now list every date together and state the counts once (e.g. 'Sat Oct 10 evening · Sun Oct 11 evening (4 available, 3 can't each)') instead of repeating them per date.
