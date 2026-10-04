@@ -1105,10 +1105,13 @@
 <div class="footer-admin-modal-overlay" id="footerAdminModalOverlay">
   <form class="footer-admin-modal" id="footerAdminForm">
     <h3>Admin Login</h3>
+    <div style="display:flex;gap:6px;margin-bottom:10px;" role="tablist">
+      <button type="button" class="fa-role" data-role="main" aria-pressed="true" style="flex:1;min-height:40px;border-radius:999px;border:2px solid var(--charcoal);font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;">Main admin</button>
+      <button type="button" class="fa-role" data-role="club" aria-pressed="false" style="flex:1;min-height:40px;border-radius:999px;border:2px solid var(--charcoal);font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;">Club admin</button>
+    </div>
     <input type="text" id="footerAdminUsername" placeholder="Club admin username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" style="display:none;">
     <input type="password" id="footerAdminPassword" placeholder="Admin password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="go">
     <button type="submit" id="footerAdminSubmitBtn">Sign In</button>
-    <button type="button" class="footer-admin-cancel" id="footerAdminLeadToggle" style="text-decoration:underline;">I'm a club admin (not the main admin)</button>
     <button type="button" class="footer-admin-cancel" id="footerAdminCancelBtn">Cancel</button>
     <div id="footerAdminError" style="color:#c00;font-size:12px;margin-top:6px;"></div>
   </form>
@@ -8984,13 +8987,22 @@ document.getElementById('footerAdminBtn').addEventListener('click', async () => 
 });
 document.getElementById('footerMissingDetailsBtn').addEventListener('click', startMissingDetailsReview);
 document.getElementById('footerNewEventBtn').addEventListener('click', openEventCreate);
-document.getElementById('footerAdminLeadToggle').addEventListener('click', () => {
-  const u = document.getElementById('footerAdminUsername'), on = u.style.display === 'none';
-  u.style.display = on ? '' : 'none';
-  document.getElementById('footerAdminPassword').placeholder = on ? 'Club admin password' : 'Admin password';
-  document.getElementById('footerAdminLeadToggle').textContent = on ? "I'm the main admin" : "I'm a club admin (not the main admin)";
-  (on ? u : document.getElementById('footerAdminPassword')).focus();
-});
+function setAdminRole(role, focus){
+  const club = role === 'club';
+  document.querySelectorAll('.fa-role').forEach(b => {
+    const on = b.dataset.role === role;
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.style.background = on ? 'var(--charcoal)' : '#fff';
+    b.style.color = on ? '#fff' : 'var(--charcoal)';
+  });
+  const u = document.getElementById('footerAdminUsername'), p = document.getElementById('footerAdminPassword');
+  u.style.display = club ? '' : 'none';
+  p.placeholder = club ? 'Club admin password' : 'Admin password';
+  document.getElementById('footerAdminError').textContent = '';
+  if(focus) (club ? u : p).focus();
+}
+document.querySelectorAll('.fa-role').forEach(b => b.addEventListener('click', () => setAdminRole(b.dataset.role, true)));
+setAdminRole('main');
 document.getElementById('footerAdminCancelBtn').addEventListener('click', () => {
   document.getElementById('footerAdminModalOverlay').classList.remove('open');
   document.getElementById('footerAdminPassword').value = '';

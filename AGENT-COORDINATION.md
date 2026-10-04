@@ -823,6 +823,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-04 · Claude · index.html, service-worker.js (v44) · Admin Login popup now opens with two buttons, Main admin / Club admin (replaces the small 'I'm a club admin' link).
+
 - 2026-10-04 · Claude · index.html, workers/src/worker.js, service-worker.js (v43) · Club admins can now send push + in-app availability reminders (`/api/admin/push/send`, `/remind-availability`, `/reminders/last`); worker drops any userId not in a club they lead.
 
 - 2026-10-04 · Claude · index.html, workers/src/worker.js, service-worker.js (v42) · (1) Warning banner under the nav when someone is signed in as admin/club admin AND as a member at once (buttons to log out of either). (2) NEW club-admin ('club lead') logins: main admin creates them in Admin → 'Club admins' (name, username, password, one or more clubs). Separate `leadsession` cookie + KV `clublead:{username}` / `leadsession:{token}`; login `POST /api/clubadmin/login`, `/api/clubadmin/logout`; `/api/admin/session` now also returns `lead`. Server-side scoping in worker (`leadCtx`, before the auth gate): they can only use club-events, club-members, users (filtered), idea-availability (filtered), join-requests (filtered), calendar-event POST, and users/:id/clubs limited to their own clubs. Everything else returns 403. Admin-only routes: `/api/admin/club-leads*`. Footer Admin Login has an 'I'm a club admin' toggle.
