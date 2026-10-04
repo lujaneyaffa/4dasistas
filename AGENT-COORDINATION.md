@@ -823,6 +823,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-04 · Claude · index.html, service-worker.js (v50) · (1) ONE mobile nav for every width <=900px: tabs never wrap (font/padding scale with vw, scroll as a last resort) and the search is a round icon at the end of the SAME row (rules consolidated in the last `@media (max-width:900px)` block; JS isPhone() now 900). Verified single row at 320/360/393/430/520/820. (2) Signed-in members' 'CLUBS YOU'RE IN' are now round floating bubbles (`.club-bubbles`/`clubBubbleHtml`, same shape/float/hover-glide as Home Travel/About, club colours + logos, always one line). Public Clubs view unchanged.
+
 - 2026-10-04 · Claude · index.html, service-worker.js (v49) · Best/Worst timing: tied slots now list every date together and state the counts once (e.g. 'Sat Oct 10 evening · Sun Oct 11 evening (4 available, 3 can't each)') instead of repeating them per date.
 
 - 2026-10-04 · Claude · index.html, service-worker.js (v48) · Admin now has its OWN page (`#/admin`, tab `admin`, reached after login, from the power menu, or the footer '🛠 Admin page' button) — removed from Clubs and Squads pages. Sections are collapsible (`admSec()` + `state.admOpen`): one combined '🔔 Notifications' (join requests + submitted events + submitted resources), Availability calendar, Push notifications, Club admins (names only; '➕ Add club admin' reveals the form), Squads, Names of categories & genres, Club directory, Create a profile. Club admins get the same page with only inbox(join requests)/availability/create-profile + profiles.

@@ -305,16 +305,6 @@
     .wa-btn, .ig-btn, .tiktok-btn{ padding:0; width:44px; height:44px; gap:0; justify-content:center; }
     .wa-btn svg, .ig-btn svg, .tiktok-btn svg{ width:20px; height:20px; }
     .wa-btn span, .ig-btn span, .tiktok-btn span{ display:none; }
-    .tabs{ flex-wrap:wrap; overflow-x:visible; gap:4px 4px; padding:10px 8px; }
-    .tab-btn{ font-size:11px; padding:8px 6px; letter-spacing:0.02em; }
-    .top-search-wrap{ flex:0 0 auto; width:auto; justify-content:center; margin:0; }
-    .top-search-shell{ width:36px; height:36px; padding:0; justify-content:center; cursor:pointer; }
-    .top-search-shell svg{ width:18px; height:18px; opacity:1; }
-    .top-search-shell input{ display:none; }
-    .top-search-wrap.open .top-search-shell{ position:fixed; left:8px; right:8px; top:var(--search-top,100px); width:auto; max-width:none; height:auto; padding:9px 14px; justify-content:flex-start; z-index:70; box-shadow:3px 3px 0 var(--charcoal); }
-    .top-search-wrap.open .top-search-shell svg{ width:16px; height:16px; opacity:.7; }
-    .top-search-wrap.open .top-search-shell input{ display:block; }
-    .search-suggestions{ position:fixed; left:8px; right:8px; width:auto; top:calc(var(--search-top,100px) + 50px); z-index:71; }
     .subfilter-row, .category-row, .tabs { justify-content:center; }
     .resource-filter-row{ grid-template-columns:repeat(2,minmax(0,1fr)); }
     .mental-health-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
@@ -374,6 +364,16 @@
   /* Travel / About buttons: same tan-pink as the nav bar, smaller squares */
   .home-quicklinks .club-guide-btn, .home-quicklinks .club-guide-btn:last-child{ flex:0 0 116px; width:116px; aspect-ratio:1; border-radius:50%; animation:qlFloat var(--dur,9s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:translate .5s cubic-bezier(.2,.8,.2,1), scale .3s cubic-bezier(.2,.8,.2,1), box-shadow .2s; padding:8px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:16px; background:var(--brand-blush); }
   .home-quicklinks .club-guide-btn:hover{ scale:1.1; }
+  /* "Clubs you're in" for signed-in members: same round shape + gentle float as Travel / About, always ONE line, club colours + logos */
+  .club-bubbles{ --ds:1; display:flex; flex-wrap:nowrap; justify-content:center; align-items:center; gap:clamp(16px, 4vw, 44px); padding:22px 8px; margin:6px auto 4px; max-width:900px; }
+  .club-bubble{ flex:0 1 clamp(58px, 19vw, 150px); min-width:0; aspect-ratio:1; border-radius:50%; border:2px solid; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:4px; box-sizing:border-box; cursor:pointer; font-family:'Inter',sans-serif; font-weight:800; text-align:center; animation:clubBubbleFloat var(--dur,9s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:translate .5s cubic-bezier(.2,.8,.2,1), scale .3s cubic-bezier(.2,.8,.2,1); -webkit-tap-highlight-color:transparent; }
+  .club-bubble:hover{ scale:1.1; }
+  .club-bubble img{ width:54%; height:auto; max-height:54%; object-fit:contain; border-radius:50%; display:block; }
+  .club-bubble .cb-emoji{ font-size:clamp(20px, 6vw, 38px); line-height:1; }
+  .club-bubble .cb-title{ font-size:clamp(8.5px, 2.3vw, 14px); line-height:1.1; letter-spacing:.02em; max-width:88%; overflow-wrap:anywhere; }
+  @keyframes clubBubbleFloat{ from{ transform:translate(0,0); } to{ transform:translate(calc(var(--dx,12px) * var(--ds,1)), calc(var(--dy,-14px) * var(--ds,1))); } }
+  @media (max-width:600px){ .club-bubbles{ --ds:.45; } }
+  @media (prefers-reduced-motion:reduce){ .club-bubble{ animation:none !important; } }
   @keyframes qlFloat{ from{ transform:translate(0,0); } to{ transform:translate(var(--dx,12px), var(--dy,-14px)); } }
   @media (prefers-reduced-motion:reduce){ .home-quicklinks .club-guide-btn{ animation:none !important; } }
   .adm-sec{ border:2px solid var(--brand-brown); border-radius:14px; background:#fff; margin:10px 0; overflow:hidden; }
@@ -957,6 +957,24 @@
 .today-day-btn{ border-color:var(--brand-brown); color:var(--brand-brown); }
 .today-subscribe-btn{ border-color:var(--brand-rose); color:var(--brand-brown); }
 
+
+  /* ---- ONE nav for every phone / small tablet width (<=900px): a single row — the tabs shrink to fit (and scroll if a very narrow
+     screen still can't) and the search is a round icon at the END of that same row. It can never wrap onto its own row. ---- */
+  @media (max-width:900px){
+    .tabs{ flex-wrap:nowrap; overflow-x:auto; justify-content:flex-start; gap:2px; padding:8px 8px; }
+    .tabs > :first-child{ margin-left:auto; }
+    .tabs > :last-child{ margin-right:auto; }
+    .tab-btn{ flex:0 0 auto; min-height:44px; font-size:clamp(9px, 2.9vw, 12.5px); padding:8px clamp(3px, 1.2vw, 8px); letter-spacing:0.02em; }
+    .tab-btn .the{ display:none; }
+    .top-search-wrap{ flex:0 0 auto; width:auto; justify-content:center; margin:0; }
+    .top-search-shell{ width:36px; height:36px; padding:0; justify-content:center; cursor:pointer; }
+    .top-search-shell svg{ width:18px; height:18px; opacity:1; }
+    .top-search-shell input{ display:none; }
+    .top-search-wrap.open .top-search-shell{ position:fixed; left:8px; right:8px; top:var(--search-top,100px); width:auto; max-width:none; height:auto; padding:9px 14px; justify-content:flex-start; z-index:70; box-shadow:3px 3px 0 var(--charcoal); }
+    .top-search-wrap.open .top-search-shell svg{ width:16px; height:16px; opacity:.7; }
+    .top-search-wrap.open .top-search-shell input{ display:block; }
+    .search-suggestions{ position:fixed; left:8px; right:8px; width:auto; top:calc(var(--search-top,100px) + 50px); z-index:71; }
+  }
 </style>
 </head>
 <body>
@@ -2610,6 +2628,25 @@ function clubCol(id){
   const c = clubsData.find(x => x.id === id);
   return (c && c.colour) ? { bg:c.colour, fg:c.textColour || '#373d3b' } : { bg:'#373d3b', fg:'#fef7f4' };
 }
+function clubBubbleHtml(c, i){
+  const col = clubCol(c.id);
+  const dx = [12,-10,9,-12,10][i % 5], dy = [-14,12,-10,13,-12][i % 5];
+  return `<button type="button" class="club-card club-bubble" data-club-id="${escapeCm(c.id)}" aria-label="Open the ${escapeCm(c.title)} idea board" style="background:${col.bg};color:${col.fg};border-color:${col.fg};box-shadow:3px 3px 0 ${col.fg};--dx:${dx}px;--dy:${dy}px;--dur:${8 + (i % 4) * 1.3}s;--delay:${-i * 2.7}s;">
+    ${c.logo ? `<img src="${escapeCm(c.logo)}" alt="" style="background:${col.bg};">` : `<span class="cb-emoji">${escapeCm(c.emoji || '')}</span>`}
+    <span class="cb-title">${escapeCm(c.title)}</span></button>`;
+}
+function wireClubBubbles(){
+  const box = document.querySelector('.club-bubbles');
+  if(!box || box.dataset.wired || !window.matchMedia('(hover:hover)').matches) return;
+  box.dataset.wired = '1';
+  const btns = [...box.querySelectorAll('.club-bubble')];
+  box.addEventListener('pointermove', e => btns.forEach(b => {
+    const r = b.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, dx = cx - e.clientX, dy = cy - e.clientY, d = Math.hypot(dx, dy) || 1;
+    const f = d < 190 ? (190 - d) / 190 * 22 : 0;
+    b.style.translate = (dx / d * f).toFixed(1) + 'px ' + (dy / d * f).toFixed(1) + 'px';
+  }));
+  box.addEventListener('pointerleave', () => btns.forEach(b => { b.style.translate = '0px 0px'; }));
+}
 function clubCardHtml(c, hideDesc){
   const col = clubCol(c.id);
   const monogramHtml = c.logo ? `<div class="monogram" style="background:${col.bg};"><img src="${c.logo}" alt="${c.title} logo" style="background:${col.bg};"></div>` : `<div class="monogram" style="background:${col.bg};color:${col.fg}">${c.title.charAt(0)}</div>`;
@@ -3006,6 +3043,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         if(state.clubsLoginPickerOpen && getLastLogin()) setTimeout(() => { const pin = document.getElementById('clubsLoginPin'); if(pin) pin.focus(); }, 60);
       });
       wireAvailabilityPanel();
+      wireClubBubbles();
       const welcomeClose = document.getElementById('avWelcomeClose');
       if(welcomeClose) welcomeClose.addEventListener('click', () => { state.availWelcome = ''; state.clubsNotice = ''; render(); });
       const cpnSaveBtn = document.getElementById('cpnSaveBtn');
@@ -5873,7 +5911,7 @@ function renderMyClubsSectionHtml(){
   }
   return `${topRow}${pendingBanner}
     <h3 class="clubs-popular-title">CLUBS YOU'RE IN</h3>
-    <div class="clubs-grid clubs-grid-row">${myClubs.map(c => clubCardHtml(c, true)).join('')}</div>
+    <div class="club-bubbles">${myClubs.map((c, i) => clubBubbleHtml(c, i)).join('')}</div>
     <div class="my-avail-section" style="max-width:640px;margin:18px auto 0;">${ideaAvailSectionHtml(ideaMe())}${everyoneAvailSectionHtml(ideaMe())}</div>
     ${requestSection}${clubsWhatsappDisclaimerHtml()}`;
 }
@@ -9374,7 +9412,7 @@ document.getElementById('globalSearch').addEventListener('keydown', e => {
 // Phones: the search is a small icon in the nav row; tapping it opens the bar just under the nav.
 (function(){
   const wrap = document.getElementById('globalSearchShell'), shell = wrap.querySelector('.top-search-shell');
-  const isPhone = () => window.matchMedia('(max-width:480px)').matches;
+  const isPhone = () => window.matchMedia('(max-width:900px)').matches;
   shell.addEventListener('click', () => {
     if(!isPhone() || wrap.classList.contains('open')) return;
     const r = document.getElementById('tabs').getBoundingClientRect();
