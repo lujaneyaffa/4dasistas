@@ -6230,8 +6230,10 @@ function eavBestWorstHtml(){
   const bestAll = slots.filter(x => bestKey(x) === maxB).sort(sortDate), worstAll = slots.filter(x => worstKey(x) === minW).sort(sortDate);
   const more = (all) => all.length > CAP ? ` <span style="opacity:.8">(+${all.length - CAP} more tied)</span>` : '';
   const best = bestAll.slice(0, CAP), worst = worstAll.slice(0, CAP);
-  const fb = (list, all) => list.map(x => `<strong>${escapeCm(x.label)}</strong> (${x.a} available${x.p ? `, ${x.p} preferred` : ''})`).join(' · ') + more(all);
-  const fw = (list, all) => list.map(x => `<strong>${escapeCm(x.label)}</strong> (${x.a} available${x.x ? `, ${x.x} can't` : ''})`).join(' · ') + more(all);
+  // Tied slots share the same numbers, so the dates are listed together and the counts are stated ONCE.
+  const names = list => list.map(x => `<strong>${escapeCm(x.label)}</strong>`).join(' · ');
+  const fb = (list, all) => `${names(list)}${more(all)} (${list[0].a} available${list[0].p ? `, ${list[0].p} preferred` : ''}${list.length > 1 ? ' each' : ''})`;
+  const fw = (list, all) => `${names(list)}${more(all)} (${list[0].a} available${list[0].x ? `, ${list[0].x} can't` : ''}${list.length > 1 ? ' each' : ''})`;
   return `<div style="margin:6px 0 10px;padding:12px 14px;border-radius:12px;background:#f2d8d7;color:#76220b;font-size:14px;line-height:1.55;">
     <div>🌟 <strong>Best timing${best.length > 1 ? 's (tied)' : ''} for everyone:</strong> ${fb(best, bestAll)}</div>
     <div style="margin-top:6px;">⚠️ <strong>Worst timing${worst.length > 1 ? 's (tied)' : ''} for everyone:</strong> ${fw(worst, worstAll)}</div></div>`;

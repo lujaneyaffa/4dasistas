@@ -823,6 +823,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-04 · Claude · index.html, service-worker.js (v49) · Best/Worst timing: tied slots now list every date together and state the counts once (e.g. 'Sat Oct 10 evening · Sun Oct 11 evening (4 available, 3 can't each)') instead of repeating them per date.
+
 - 2026-10-04 · Claude · index.html, service-worker.js (v48) · Admin now has its OWN page (`#/admin`, tab `admin`, reached after login, from the power menu, or the footer '🛠 Admin page' button) — removed from Clubs and Squads pages. Sections are collapsible (`admSec()` + `state.admOpen`): one combined '🔔 Notifications' (join requests + submitted events + submitted resources), Availability calendar, Push notifications, Club admins (names only; '➕ Add club admin' reveals the form), Squads, Names of categories & genres, Club directory, Create a profile. Club admins get the same page with only inbox(join requests)/availability/create-profile + profiles.
 
 - 2026-10-04 · Claude · index.html, workers/src/worker.js, service-worker.js (v47) · (1) Main admin can rename resource categories + event genres: Admin panel 'Names of resource categories & event genres' → KV `labels`, public `GET /api/labels`, admin `PUT /api/admin/labels`; frontend `LABELS`/`applyLabels()` rewrites resourceFilterList, RESOURCE_CATEGORIES, categoryList, EVENT_EDIT_SECTIONS, TYPE_MULTI_NAMES, submit genre select. Keys never change, only display names. (2) Home 'Travel' / 'About' squares are now round floating bubbles (qlFloat drift + pointer glide). (3) Idea bubbles can no longer clip text: `ideaSize()` measures the title with canvas and grows the bubble until every word/line fits; horizontal padding is `calc(var(--bs) * .18)` (set wherever width is set).
