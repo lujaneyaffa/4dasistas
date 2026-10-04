@@ -63,7 +63,9 @@
     --brand-rose:#ce8491; --brand-brown:#76220b; --brand-cream:#fef7f4; --brand-pink:#ffc1c1; --brand-blush:#f2d8d7;
   }
   *{ box-sizing:border-box; margin:0; padding:0; }
-  html{ touch-action:manipulation; }
+  /* Nothing may show beneath the pink footer: no rubber-band overscroll, and if a browser still stretches past the page it shows footer-pink, never the cream page colour. */
+  html{ touch-action:manipulation; background:#ce8491; overscroll-behavior-y:none; }
+  body{ min-height:100vh; min-height:100dvh; overscroll-behavior-y:none; }
   body{ background:var(--cream); color:var(--charcoal); font-family:'Inter',sans-serif; line-height:1.5; -webkit-font-smoothing:antialiased; touch-action:manipulation; }
   button{ font-family:inherit; }
   a{ color:inherit; }
@@ -824,7 +826,7 @@
   .update-banner button{ font-family:inherit; font-weight:700; border-radius:999px; border:none; cursor:pointer; padding:6px 12px; font-size:12.5px; }
   #updateBannerRefresh{ background:var(--brand-pink); color:var(--charcoal); }
   #updateBannerDismiss{ background:transparent; color:#fff; opacity:0.7; padding:6px 8px; }
-  .footer-admin-corner{ position:static; display:flex; flex-direction:row; flex-wrap:wrap; justify-content:center; align-items:center; gap:8px; margin:12px 0 4px; }
+  .footer-admin-corner{ position:static; display:flex; flex-direction:row; flex-wrap:wrap; justify-content:center; align-items:center; gap:8px; margin:20px 0 6px; }
   .footer-admin-btn{ font-family:'Inter',sans-serif; font-weight:700; font-size:11px; padding:7px 12px; border-radius:999px; border:2px solid var(--charcoal); background:rgba(255,255,255,0.85); color:var(--charcoal); cursor:pointer; box-shadow:2px 2px 0 var(--charcoal); }
   .ev-created-box{ background:#e7f4ec; border:2px solid #5aa276; border-radius:12px; padding:12px; }
   .footer-admin-btn:hover{ transform:translate(-1px,-1px); box-shadow:3px 3px 0 var(--charcoal); }
@@ -837,7 +839,7 @@
   .footer-admin-modal button[type="submit"]{ width:100%; padding:10px; border-radius:8px; border:none; background:var(--charcoal); color:var(--cream); font-weight:700; cursor:pointer; font-size:13px; }
   .footer-admin-modal .footer-admin-cancel{ width:100%; padding:8px; border-radius:8px; border:none; background:transparent; color:var(--charcoal); cursor:pointer; font-size:12px; margin-top:6px; }
   @media (max-width:520px){
-    .footer-admin-corner{ position:static; flex-direction:row; flex-wrap:wrap; justify-content:center; align-items:center; margin:0 0 12px; }
+    .footer-admin-corner{ position:static; flex-direction:row; flex-wrap:wrap; justify-content:center; align-items:center; margin:22px 0 12px; }
     .footer-admin-btn{ font-size:10px; padding:6px 10px; }
   }
   .footer-btns{ display:flex; justify-content:center; flex-wrap:nowrap; gap:10px; margin:10px 0; }
@@ -1163,6 +1165,71 @@
    DATA
    ============================================================ */
 
+/* ============================================================
+   OFFLINE: votes, availability ("scheduling") and new ideas are saved on this phone when there's no connection and sent
+   automatically when it's back (on reconnect, on page load, and every 30s). Everything else already reads from the
+   service worker's cache. Availability saves REPLACE any earlier queued save for the same record; votes replay in order.
+   ============================================================ */
+(function(){
+  const QKEY = 'offlineQueue';
+  const RULES = [
+    { m:'POST', re:/^\/api\/clubs\/[^/]+\/ideas\/[^/]+\/vote$/ },
+    { m:'POST', re:/^\/api\/clubs\/[^/]+\/ideas$/ },
+    { m:'PUT',  re:/^\/api\/idea-availability$/, replace:true },
+    { m:'PUT',  re:/^\/api\/clubs\/[^/]+\/availability\/[^/]+$/, replace:true },
+  ];
+  const origFetch = window.fetch.bind(window);
+  const read = () => { try { return JSON.parse(localStorage.getItem(QKEY) || '[]'); } catch { return []; } };
+  const write = q => { try { localStorage.setItem(QKEY, JSON.stringify(q)); } catch {} bar(); };
+  const ruleFor = (url, method) => { let u; try { u = new URL(url, location.href); } catch { return null; } if(u.origin !== location.origin) return null; return RULES.find(r => r.m === method && r.re.test(u.pathname)) ? u : null; };
+  const toast = t => { try { if(typeof admToastLite === 'function') admToastLite(t); } catch {} };
+  function bar(){
+    let el = document.getElementById('offlineBar');
+    const n = read().length, off = navigator.onLine === false;
+    if(!off && !n){ if(el) el.remove(); return; }
+    if(!el){ el = document.createElement('div'); el.id = 'offlineBar'; el.setAttribute('role', 'status'); el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom));z-index:9400;background:#373d3b;color:#fff;padding:8px 16px;border-radius:999px;font:600 13px Inter,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.25);max-width:92vw;text-align:center;'; (document.body || document.documentElement).appendChild(el); }
+    el.textContent = off ? '📴 Offline — your changes are saved and will sync automatically' + (n ? ' (' + n + ' waiting)' : '') : '⏳ Syncing ' + n + ' saved change' + (n === 1 ? '' : 's') + '…';
+  }
+  window.fetch = async function(input, init){
+    const method = String((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+    const url = typeof input === 'string' ? input : ((input && input.url) || String(input));
+    const u = method !== 'GET' ? ruleFor(url, method) : null;
+    if(!u) return origFetch(input, init);
+    if(navigator.onLine !== false){ try { return await origFetch(input, init); } catch(e){ if(!(e instanceof TypeError)) throw e; } }
+    const rule = RULES.find(r => r.m === method && r.re.test(u.pathname));
+    const headers = {}; try { new Headers((init && init.headers) || {}).forEach((v, k) => { headers[k] = v; }); } catch {}
+    let q = read();
+    if(rule.replace) q = q.filter(it => !(it.method === method && it.url === u.pathname + u.search));
+    q.push({ id: Date.now() + Math.random().toString(36).slice(2, 7), url: u.pathname + u.search, method, headers, body: (init && typeof init.body === 'string') ? init.body : undefined, at: Date.now() });
+    write(q);
+    return new Response(JSON.stringify({ queued:true }), { status:202, headers:{ 'Content-Type':'application/json' } });
+  };
+  let replaying = false;
+  async function replay(){
+    if(replaying || navigator.onLine === false) return;
+    let q = read(); if(!q.length) return;
+    replaying = true; let done = 0;
+    try {
+      while(q.length){
+        const it = q[0];
+        let res;
+        try { res = await origFetch(it.url, { method: it.method, headers: it.headers, body: it.body }); } catch { break; } // still no connection: try again later
+        if(res.status >= 500 || res.status === 429) break;
+        q.shift(); if(res.ok) done++; write(q); // 4xx (e.g. the idea was removed, or the login expired) can never succeed: drop it
+      }
+    } finally { replaying = false; }
+    bar();
+    if(done){
+      toast('✓ Synced ' + done + ' offline change' + (done === 1 ? '' : 's'));
+      try { state.eavCache = {}; state.ideaAvailAllLoadedFor = null; state.ideas = null; if(typeof render === 'function') render(); } catch {}
+    }
+  }
+  window.addEventListener('online', () => { bar(); replay(); });
+  window.addEventListener('offline', bar);
+  setInterval(replay, 30000);
+  setTimeout(() => { bar(); replay(); }, 1500);
+})();
+
 let sportsData = [];
 let gatheringsData = [];
 let dayActivitiesData = [];
@@ -1367,7 +1434,7 @@ let state = {
   cmAdminAllMembers:null, cmAdminAllUsers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false, fallQuickLogin:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
-  mySquads:[], squadPending:[], squadReqError:'', squadAdmin:null, squadAdminLoading:false, eavClub:'mine', pushRegistered:false, phoneConfirmed:true, myPhone:'', ideaAvail:null, ideaAvailOwner:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
+  mySquads:[], squadPending:[], squadReqError:'', squadAdmin:null, squadAdminLoading:false, eavClub:'mine', eavCache:{}, eavInflight:{}, pushRegistered:false, phoneConfirmed:true, myPhone:'', ideaAvail:null, ideaAvailOwner:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
   publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
   myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, clubsLoginPrefill:false, cmAdminEventSugs:null, cmAdminResSugs:null, cmAdminMemberQuery:'', cmAdminMemberSort:'alpha',
   ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{}, iavEditing:false,
@@ -3266,8 +3333,8 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
     // only needs quick buttons for the two tabs that got demoted out of the nav.
     const quickLinks = [
       {tab:'travel', label: siteText.homeTileTravelTitle || 'Travel'},
-      {tab:'rules', label: 'About'},
       {tab:'homescreen', label: 'Add to Home Screen'},
+      {tab:'rules', label: 'About'},
     ];
     const selectedToday = new Date(today);
     selectedToday.setDate(today.getDate() + state.todayOffset);
@@ -4935,7 +5002,7 @@ function resetUserScopedState(){
   Object.assign(state, {
     ideaAvail:null, ideaAvailNo:{}, ideaAvailSubmitted:false, ideaAvailOwner:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'',
     ideaAvailStatus:'', ideaAvailDirty:false, ideaAvailSaving:false, ideaAvailResave:false, iavEditing:false, iavUnsetWarned:false,
-    mySquads:[], squadPending:[], squadReqError:'', eavClub:'mine', ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{},
+    mySquads:[], squadPending:[], squadReqError:'', eavClub:'mine', eavCache:{}, eavInflight:{}, ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{},
     pushRegistered:false, phoneConfirmed:true, myPhone:'', myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
     ideas:null, ideasError:'', ideasStatus:'',
   });
@@ -6206,11 +6273,12 @@ async function ideaAvailSave(){
   state.ideaAvailSaving = true;
   iavSetStatus('Saving…');
   try {
-    await cmApiRaw('/api/idea-availability', {
+    const savedRes = await cmApiRaw('/api/idea-availability', {
       method:'PUT', headers: ideaHeaders(), body: snapshot
     });
     state.ideaAvailSubmitted = true;
-    if(snap() === snapshot){ state.ideaAvailDirty = false; iavSetStatus('Saved ✓'); everyoneAvailLoad(true); }
+    if(savedRes && savedRes.queued){ state.ideaAvailDirty = false; iavSetStatus('Saved on this phone ✓ — it will sync when you\'re back online'); }
+    else if(snap() === snapshot){ state.ideaAvailDirty = false; iavSetStatus('Saved ✓'); state.eavCache = {}; everyoneAvailLoad(true); }
     else state.ideaAvailResave = true;
   } catch(err){
     iavSetStatus('Couldn’t save (' + err.message + ').');
@@ -6305,25 +6373,49 @@ function everyoneAvailSectionHtml(me){
     ${body}
   </div>`;
 }
+// Per-club cache: switching club chips is instant when that club has been loaded (all of a member's clubs are fetched in
+// the background after the first one), and a stale copy is shown at once while a fresh one loads quietly.
+function eavApply(d){
+  state.ideaAvailAll = d.counts; state.ideaAvailAllPreferred = d.preferred; state.ideaAvailAllUnavailable = d.unavailable;
+  state.ideaAvailAllRespondents = d.respondents; state.ideaAvailAllPeople = d.people; state.ideaAvailAllLoadedFor = true; state.ideaAvailAllError = '';
+}
+async function everyoneAvailFetch(key){
+  const data = await cmApiRaw('/api/idea-availability/all' + (key && key !== 'mine' ? '?club=' + encodeURIComponent(key) : ''), { headers: ideaHeaders() });
+  // Any signed-in member (or the site admin) also gets everyone's name, not just the anonymous count (data.people).
+  const d = { counts: data.counts || {}, preferred: data.preferred || {}, unavailable: data.unavailable || {}, respondents: data.respondents || 0, people: data.people || null, at: Date.now() };
+  state.eavCache[key] = d;
+  return d;
+}
 async function everyoneAvailLoad(force){
-  if(state.ideaAvailAllLoading) return;
-  if(!force && state.ideaAvailAllLoadedFor) return;
   if(!ideaMe()) return;
-  state.ideaAvailAllLoading = true;
-  state.ideaAvailAllError = '';
+  const key = state.eavClub || 'mine';
+  const cached = state.eavCache[key];
+  if(cached){
+    eavApply(cached);
+    if(!force && Date.now() - cached.at < 60000){ eavPrefetch(); return; }
+  } else {
+    state.ideaAvailAll = null; state.ideaAvailAllPeople = null; state.ideaAvailAllRespondents = 0; state.ideaAvailAllLoadedFor = null;
+  }
+  if(state.eavInflight[key]) return;
+  state.eavInflight[key] = true;
+  state.ideaAvailAllLoading = !cached; state.ideaAvailAllError = '';
   try {
-    const data = await cmApiRaw('/api/idea-availability/all' + (state.eavClub && state.eavClub !== 'mine' ? '?club=' + encodeURIComponent(state.eavClub) : ''), { headers: ideaHeaders() });
-    state.ideaAvailAll = data.counts || {};
-    state.ideaAvailAllPreferred = data.preferred || {};
-    state.ideaAvailAllUnavailable = data.unavailable || {};
-    state.ideaAvailAllRespondents = data.respondents || 0;
-    state.ideaAvailAllLoadedFor = true;
-    // Any signed-in member (or the site admin) also gets everyone's name, not just the anonymous count,
-    // so tapping a square can list who — a name-only guest still only sees counts (data.people is absent).
-    state.ideaAvailAllPeople = data.people || null;
-  } catch(err){ state.ideaAvailAllError = err.message; }
-  state.ideaAvailAllLoading = false;
+    const d = await everyoneAvailFetch(key);
+    if((state.eavClub || 'mine') === key) eavApply(d);
+  } catch(err){ if(!cached && (state.eavClub || 'mine') === key) state.ideaAvailAllError = err.message; }
+  state.eavInflight[key] = false;
+  if((state.eavClub || 'mine') === key) state.ideaAvailAllLoading = false;
   if(state.tab === 'clubideas' || state.tab === 'clubs') render();
+  eavPrefetch();
+}
+function eavPrefetch(){
+  const mineIds = ((getCmSession() || {}).clubs || []).filter(id => clubsData.some(c => c.id === id));
+  if(mineIds.length < 2) return;
+  const todo = ['mine'].concat(mineIds).filter(k => !state.eavCache[k] && !state.eavInflight[k]);
+  if(!todo.length) return;
+  const k = todo[0];
+  state.eavInflight[k] = true;
+  setTimeout(() => { everyoneAvailFetch(k).catch(() => {}).finally(() => { state.eavInflight[k] = false; eavPrefetch(); }); }, 250);
 }
 // Names for one slot: PREFERRED (green) and AVAILABLE (didn't fill it in — counts as free, just not their preferred
 // time). People who marked it red are left out.
@@ -6338,7 +6430,7 @@ function eavNamesFor(date, part){
   return { preferred, available };
 }
 function wireEveryoneAvailGrid(){
-  document.querySelectorAll('.eav-club-chip').forEach(b => b.addEventListener('click', () => { state.eavClub = b.dataset.club; state.ideaAvailAllLoadedFor = null; everyoneAvailLoad(true); render(); }));
+  document.querySelectorAll('.eav-club-chip').forEach(b => b.addEventListener('click', () => { state.eavClub = b.dataset.club; everyoneAvailLoad(); render(); }));
   if(state.ideaAvailAll === null && !state.ideaAvailAllLoading && !state.ideaAvailAllError) everyoneAvailLoad();
   if(state.ideaAvailAllPeople){
     document.querySelectorAll('.eav-cell.eav-tappable').forEach(cell => cell.addEventListener('click', () => {
@@ -6551,6 +6643,11 @@ function wireClubIdeas(){
     const btn = document.getElementById('ideaAddBtn'); btn.disabled = true;
     try {
       const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(state.ideasClubId) + '/ideas', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ title: text, mapUrl: map, cuisine, price }) });
+      if(data && data.queued){
+        state.ideas = (state.ideas || []).concat([{ id:'local-' + Date.now(), title:text, mapUrl:map, cuisine, price, votes:1, voted:true, mine:true, by:'You', emoji:'' }]);
+        state.ideasStatus = 'Saved on this phone — it will post when you\'re back online.';
+        render(); return;
+      }
       state.ideas = data.ideas; state.ideasStatus = 'Added — thanks! Others can vote on it now.';
       render();
     } catch(err){
@@ -6581,6 +6678,7 @@ async function ideaVote(id, bubble){
   floatIdeaClouds();
   try {
     const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(state.ideasClubId) + '/ideas/' + encodeURIComponent(id) + '/vote', { method:'POST', headers: ideaHeaders() });
+    if(data && data.queued){ ideasSetStatus('Saved on this phone — your vote will sync when you\'re back online'); return; }
     // Sync with the server WITHOUT redrawing the board (a redraw rebuilt every bubble and made them jump): update each bubble in place.
     const mine = new Map((state.ideas || []).map(i => [i.id, i]));
     state.ideas = (data.ideas || []).map(n => Object.assign({}, n, { voted: n.id === id ? idea.voted : (mine.has(n.id) ? mine.get(n.id).voted : n.voted) }));
@@ -6740,7 +6838,10 @@ async function availSave(){
       headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.token },
       body: JSON.stringify({ days: JSON.parse(snapshot) })
     });
-    if(JSON.stringify(state.availDays) === snapshot){
+    if(data && data.queued){
+      state.availDirty = false;
+      state.availStatus = 'Saved on this phone ✓ — it will sync when you\'re back online';
+    } else if(JSON.stringify(state.availDays) === snapshot){
       state.availDays = data.days || {};
       state.availDirty = false;
       state.availStatus = 'Saved ✓';

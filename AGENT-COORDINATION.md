@@ -823,6 +823,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-04 · Claude · index.html, service-worker.js (v56) · (1) OFFLINE: service worker precaches data/*.json, caches CDN script/style/font, and serves cached read-only API (`/api/clubs*`, `/idea-availability*`, `/members*`, `/labels`) network-first with 6s fallback, cached PER sign-in (key = hash of Authorization); admin/me/other API never cached. Page-side write queue (top of main script, wraps `window.fetch`): offline votes, idea adds and availability saves (both kinds) are stored in localStorage `offlineQueue`, replayed on `online`/load/every 30s; availability PUTs replace earlier queued ones, 4xx dropped, 5xx kept; bar `#offlineBar` + toast; callers handle the synthetic `{queued:true}` 202. (2) Club chips in 'Everyone's availability' are instant: per-club cache `state.eavCache` + background prefetch of all my clubs (was a server fetch on every tap and showed the previous club's data while loading). (3) Nothing may show under the pink footer: html background footer-pink + overscroll-behavior-y:none. (4) Footer admin buttons get more space below 'More to Launch'. (5) Home bubbles order: Travel · Add to Home Screen · About.
+
 - 2026-10-04 · Claude · index.html, service-worker.js (v55) · Squads: removed the per-card 'Log in to request' button for logged-out visitors; only the Log In / Sign Up buttons at the top remain. Logged-in members see 'Request to join' → pending → "You're already in this squad".
 
 - 2026-10-04 · Claude · index.html, service-worker.js (v54) · Home bubbles (Travel / About / Add to Home Screen): tighter gap (clamp 10–22px) and faster float (5–6.5s per drift, was 8.5–10.5s).

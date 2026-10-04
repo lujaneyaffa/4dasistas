@@ -1,8 +1,15 @@
-const CACHE_NAME = '4dasistas-v55';
+const CACHE_NAME = '4dasistas-v56';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/app-icon.svg', '/assets/apple-touch-icon.png', '/assets/icon-192.png', '/assets/icon-512.png'];
 
+// Everything the app needs to open and show its content with no connection. Data files are added one by one so a missing
+// file can never fail the whole install.
+const DATA_FILES = ['/data/sports.json', '/data/gatherings.json', '/data/dayactivities.json', '/data/mosquegatherings.json', '/data/trips.json', '/data/clubs.json', '/data/resources.json', '/data/supportprograms.json', '/data/sitetext.json'];
+
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
+  event.waitUntil(caches.open(CACHE_NAME).then(async cache => {
+    await cache.addAll(APP_SHELL);
+    await Promise.all(DATA_FILES.map(f => cache.add(f).catch(() => {})));
+  }));
   self.skipWaiting();
 });
 
@@ -15,20 +22,57 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
+// Read-only API calls that are safe to show from the cache when offline. They are cached PER SIGN-IN (the key includes a hash
+// of the Authorization header), so one person's data can never be served to someone else who logs in on the same phone.
+const CACHEABLE_API = /^\/api\/(clubs|idea-availability|members|labels)(\/|$)/;
+async function apiCacheKey(request, url) {
+  const auth = request.headers.get('Authorization') || '';
+  let h = 'anon';
+  if (auth) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(auth));
+    h = [...new Uint8Array(buf)].slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  return new Request(location.origin + '/__api__/' + h + url.pathname + url.search);
+}
+async function networkFirstApi(event, url) {
+  const key = await apiCacheKey(event.request, url);
+  const cache = await caches.open(CACHE_NAME);
+  const fromCache = () => cache.match(key);
+  const network = fetch(event.request).then(response => {
+    if (response.ok) cache.put(key, response.clone());
+    return response;
+  });
+  // A slow or dead connection falls back to the saved copy after a few seconds instead of leaving the screen waiting.
+  const timeout = new Promise(resolve => setTimeout(() => resolve(null), 6000));
+  try {
+    const first = await Promise.race([network.catch(() => null), timeout]);
+    if (first) return first;
+    const cached = await fromCache();
+    if (cached) return cached;
+    return await network;
+  } catch (e) {
+    return (await fromCache()) || Response.error();
+  }
+}
+
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  const path = url.pathname;
 
-  // Never cache the CMS admin app, its config, or any API call — these must
-  // always be fresh. The Cache-Control: no-store rules in _headers only stop
-  // the browser's own HTTP cache; this service worker's cache.put() below
-  // ignores Cache-Control entirely, so it needs its own explicit exclusion.
-  const path = new URL(event.request.url).pathname;
-  if (path.startsWith('/admin') || path.startsWith('/api') || path === '/editor') return;
+  // Never cache the CMS admin app, its config, or admin/private API calls — these must always be fresh.
+  if (path.startsWith('/admin') || path === '/editor') return;
+  if (path.startsWith('/api')) {
+    if (url.origin === location.origin && CACHEABLE_API.test(path)) event.respondWith(networkFirstApi(event, url));
+    return;
+  }
 
+  const sameOrigin = url.origin === location.origin;
+  const crossStatic = !sameOrigin && ['script', 'style', 'font'].includes(event.request.destination); // CDN libraries + fonts, so maps/globe/fonts also work offline
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        if (response.ok && new URL(event.request.url).origin === location.origin) {
+        if ((sameOrigin && response.ok) || (crossStatic && (response.ok || response.type === 'opaque'))) {
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, response.clone()));
         }
         return response;
