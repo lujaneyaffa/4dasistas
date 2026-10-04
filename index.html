@@ -2851,7 +2851,7 @@ function squadCardHtml(q){
       ? `<div style="background:#fff3cf;color:#6b5210;border-radius:14px;padding:10px 12px;font-weight:700;font-size:14px;">⏳ Request sent — waiting for approval</div>`
       : st.kind === 'can'
         ? `<button type="button" class="squad-request-btn" data-squad-id="${escapeCm(q.id)}" style="${btn}background:#ce8491;color:#fff;">Request to join</button>`
-        : `<button type="button" class="squad-login-btn" style="${btn}background:#f2d8d7;color:#76220b;">Log in to request</button>`;
+        : ''; // logged out: no per-card button — the Log In / Sign Up buttons at the top of the Squads page are the way in
   return `<div class="panel-card squad-card" style="background:#fbf0ee;color:#76220b;border:2px solid #ce8491;box-shadow:3px 3px 0 #ce8491;">
     <div class="panel-top" style="flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;">
       <div class="monogram" style="background:#fbf0ee;font-size:26px;">${q.logo ? `<img src="${q.logo}" alt="${escapeCm(q.title)} logo" style="background:#fbf0ee;">` : q.emoji}</div>
