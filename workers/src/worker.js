@@ -1373,6 +1373,16 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!raw) return null;
       try { return JSON.parse(raw).userId || null; } catch { return null; }
     };
+    // Signed-in people (members, admin, club admins) have no hourly submission limit.
+    const isSignedInAnyone = async () => {
+      if (await memberIdFromRequest()) return true;
+      const ck = request.headers.get("Cookie") || "";
+      for (const [name, prefix] of [["session", "session:"], ["leadsession", "leadsession:"]]) {
+        const m = ck.match(new RegExp("(?:^|;\\s*)" + name + "=([^;]+)"));
+        if (m && (await env.SITE_DATA.get(prefix + m[1]))) return true;
+      }
+      return false;
+    };
     // ---- Public: anyone can suggest an event (link, name, date, city). Stored for the admin + emailed. ----
     if (path === "/api/event-suggestions" && request.method === "POST") {
       let body;
@@ -1395,7 +1405,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const ip = request.headers.get("CF-Connecting-IP") || "unknown";
       const rateKey = `sugrate:${ip}:${Math.floor(Date.now() / 3600000)}`;
       const used = Number(await env.SITE_DATA.get(rateKey) || 0);
-      if (used >= EVENT_SUGGESTION_MAX_PER_IP_PER_HOUR) return jsonResponse({ error: "Too many submissions — please try again later" }, 429, corsHeaders);
+      if (!(await isSignedInAnyone()) && used >= EVENT_SUGGESTION_MAX_PER_IP_PER_HOUR) return jsonResponse({ error: "Too many submissions — please try again later" }, 429, corsHeaders);
       const pending = await env.SITE_DATA.list({ prefix: "eventsug:" });
       if (pending.keys.length >= EVENT_SUGGESTION_MAX_PENDING) return jsonResponse({ error: "The submission box is full right now — please try again later" }, 503, corsHeaders);
       await env.SITE_DATA.put(rateKey, String(used + 1), { expirationTtl: 3700 });
@@ -1433,7 +1443,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const ip = request.headers.get("CF-Connecting-IP") || "unknown";
       const rateKey = `sugrate:${ip}:${Math.floor(Date.now() / 3600000)}`;
       const used = Number(await env.SITE_DATA.get(rateKey) || 0);
-      if (used >= EVENT_SUGGESTION_MAX_PER_IP_PER_HOUR) return jsonResponse({ error: "Too many submissions — please try again later" }, 429, corsHeaders);
+      if (!(await isSignedInAnyone()) && used >= EVENT_SUGGESTION_MAX_PER_IP_PER_HOUR) return jsonResponse({ error: "Too many submissions — please try again later" }, 429, corsHeaders);
       const pending = await env.SITE_DATA.list({ prefix: "ressug:" });
       if (pending.keys.length >= EVENT_SUGGESTION_MAX_PENDING) return jsonResponse({ error: "The submission box is full right now — please try again later" }, 503, corsHeaders);
       await env.SITE_DATA.put(rateKey, String(used + 1), { expirationTtl: 3700 });
@@ -1721,7 +1731,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       let rec;
       try { rec = JSON.parse((await env.SITE_DATA.get(`clublead:${sess.username}`)) || "null"); } catch { return null; }
       if (!rec) return null;
-      return { username: rec.username, name: rec.name, clubs: Array.isArray(rec.clubs) ? rec.clubs : [] };
+      return { username: rec.username, name: rec.name, clubs: Array.isArray(rec.clubs) ? rec.clubs : [], mustChange: !!rec.mustChange };
     };
     const leadCookie = (t, maxAge) => `leadsession=${t}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`;
 
@@ -1744,6 +1754,22 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const headers = new Headers({ "Content-Type": "application/json", ...corsHeaders });
       headers.set("Set-Cookie", leadCookie(token, SESSION_TTL));
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
+    }
+
+    if (path === "/api/clubadmin/password" && request.method === "POST") {
+      const lead = await getLead(request);
+      if (!lead) return jsonResponse({ error: "Please log in again" }, 401, corsHeaders);
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const next = String(body.password || "");
+      if (next.length < 8) return jsonResponse({ error: "Use at least 8 characters" }, 400, corsHeaders);
+      let rec;
+      try { rec = JSON.parse((await env.SITE_DATA.get(`clublead:${lead.username}`)) || "null"); } catch { rec = null; }
+      if (!rec) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
+      if (rec.passHash === await sha256Hex(`${rec.salt}:${next}`)) return jsonResponse({ error: "Pick a new password, different from the one you were given" }, 400, corsHeaders);
+      rec.salt = crypto.randomUUID(); rec.passHash = await sha256Hex(`${rec.salt}:${next}`); rec.mustChange = false;
+      await env.SITE_DATA.put(`clublead:${lead.username}`, JSON.stringify(rec));
+      return jsonResponse({ ok: true }, 200, corsHeaders);
     }
 
     if (path === "/api/clubadmin/logout" && request.method === "POST") {
@@ -1794,6 +1820,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           else if (seg.length === 4 && seg[3] === "reset-pin" && M === "POST") ok = await memberOf(seg[1], seg[2]);
         }
         else if (seg[0] === "users" && seg.length === 3 && seg[2] === "profile" && M === "GET") ok = await inAnyOwn(seg[1]);
+        else if (seg[0] === "users" && seg.length === 3 && seg[2] === "archive" && M === "PUT") ok = await inAnyOwn(seg[1]);
         else if (seg[0] === "users" && seg.length === 3 && seg[2] === "clubs" && M === "PUT") {
           ok = await inAnyOwn(seg[1]);
           if (ok) {
@@ -1872,7 +1899,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!clubs.length) return jsonResponse({ error: "Pick at least one club" }, 400, corsHeaders);
       if (await env.SITE_DATA.get(`clublead:${username}`)) return jsonResponse({ error: "That username is already taken" }, 409, corsHeaders);
       const salt = crypto.randomUUID();
-      const rec = { username, name, clubs, salt, passHash: await sha256Hex(`${salt}:${password}`), createdAt: Date.now() };
+      const rec = { username, name, clubs, salt, passHash: await sha256Hex(`${salt}:${password}`), createdAt: Date.now(), mustChange: true };
       await env.SITE_DATA.put(`clublead:${username}`, JSON.stringify(rec));
       return jsonResponse({ ok: true, username }, 201, corsHeaders);
     }
@@ -1892,7 +1919,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (Array.isArray(body.clubs)) { if (!body.clubs.length) return jsonResponse({ error: "Pick at least one club" }, 400, corsHeaders); rec.clubs = body.clubs.map(String); }
       if (body.password) {
         if (String(body.password).length < 6) return jsonResponse({ error: "Password must be at least 6 characters" }, 400, corsHeaders);
-        rec.salt = crypto.randomUUID(); rec.passHash = await sha256Hex(`${rec.salt}:${body.password}`);
+        rec.salt = crypto.randomUUID(); rec.passHash = await sha256Hex(`${rec.salt}:${body.password}`); rec.mustChange = true;
       }
       await env.SITE_DATA.put(`clublead:${username}`, JSON.stringify(rec));
       return jsonResponse({ ok: true }, 200, corsHeaders);
@@ -2184,7 +2211,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const page = await env.SITE_DATA.list({ prefix: "user:", cursor });
         for (const k of page.keys) {
           const u = await readUser(env, k.name.slice(5));
-          if (u) out.push({ ...publicUser(u), phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: pushIds.has(u.id) });
+          if (u) out.push({ ...publicUser(u), phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, archived: u.archived || null, archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: pushIds.has(u.id) });
         }
         cursor = page.list_complete ? undefined : page.cursor;
       } while (cursor);
@@ -2344,9 +2371,24 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!user) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
       return jsonResponse({
         id: user.id, name: user.name, username: user.username, photo: user.photo || null,
-        phone: user.phone || "", createdAt: user.createdAt || 0, lastLoginAt: user.lastLoginAt || 0, lastSeenAt: user.lastSeenAt || 0,
+        phone: user.phone || "", createdAt: user.createdAt || 0, lastLoginAt: user.lastLoginAt || 0, lastSeenAt: user.lastSeenAt || 0, archived: user.archived || null,
         clubs: (await allClubIdsContaining(env, user.id)).filter((c) => !leadCtx || leadCtx.clubs.includes(c)), pending: (await pendingClubIdsFor(env, user.id)).filter((c) => !leadCtx || leadCtx.clubs.includes(c)), waitlist: Array.isArray(user.waitlist) ? user.waitlist : [],
       }, 200, corsHeaders);
+    }
+    const adminUserArchiveMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/archive\/?$/);
+    if (adminUserArchiveMatch && request.method === "PUT") {
+      const userId = decodeURIComponent(adminUserArchiveMatch[1]);
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const user = await readUser(env, userId);
+      if (!user) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
+      if (body.archived) {
+        const reason = body.reason === "travelling" ? "travelling" : "past";
+        const until = reason === "travelling" && isValidDateString(String(body.until || "")) ? String(body.until) : "";
+        user.archived = { reason, until, at: Date.now() };
+      } else delete user.archived;
+      await writeUser(env, user);
+      return jsonResponse({ ok: true, archived: user.archived || null }, 200, corsHeaders);
     }
     const adminUserClubsMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/clubs\/?$/);
     if (adminUserClubsMatch && request.method === "PUT") {

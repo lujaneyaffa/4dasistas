@@ -823,6 +823,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-04 · Claude · index.html, workers/src/worker.js, service-worker.js (v45) · Club admins: single-club leads see only their club's availability calendar (multi-club keep 'All clubs'); 'Press a date to check all details' hint; first sign-in shows Home Screen how-to then forced password change (`POST /api/clubadmin/password`, `mustChange` flag set on create/reset). Profile popup: removed 'Last active' (only Last signed in). Archives section under Admin Profiles (`PUT /api/admin/users/:id/archive`, user.archived {reason past|travelling, until}; travelling auto-returns after date; archived people excluded from 'missing availability'). Event/resource suggestions have no hourly limit for signed-in people (member Bearer, admin or lead cookie). Squad 'Log in to request'/'Request' buttons pinned to card bottoms so they form one straight row. Power menu keeps Log in/Sign up when staff-logged-in, with 'currently logged in as an admin' disclaimer + yellow dot.
+
 - 2026-10-04 · Claude · index.html, service-worker.js (v44) · Admin Login popup now opens with two buttons, Main admin / Club admin (replaces the small 'I'm a club admin' link).
 
 - 2026-10-04 · Claude · index.html, workers/src/worker.js, service-worker.js (v43) · Club admins can now send push + in-app availability reminders (`/api/admin/push/send`, `/remind-availability`, `/reminders/last`); worker drops any userId not in a club they lead.
