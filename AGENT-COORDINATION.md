@@ -823,6 +823,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-04 · Claude · index.html, service-worker.js (v53) · 'Add this to your Home Screen' wide tile on Home replaced by a third round floating bubble ('Add to Home Screen') next to Travel / About; bubbles stay on one row at phone widths (width clamp, drift scaled down ≤600px so they don't touch).
+
 - 2026-10-04 · Claude · index.html, service-worker.js (v52) · Calendar day cells whiter so they don't blend into the page: row tones #fffefd / #f9f8f7 (were cream #fffdf7 / #fdf9f0), border 0.24 alpha, light shadow.
 
 - 2026-10-04 · Claude · index.html, service-worker.js (v51) · (1) Public idea bubbles: tighter packing (GAP 34, top-biased placement, box height fits the bubbles, gentler drift ±5–9px and hover push 14px) so they sit close, never overlap, and take less vertical space. (2) '✨ More to Launch' link moved from the Clubs page to the footer under the logo (above Admin Login). (3) Squads page has the same Log In / Sign Up buttons as Clubs for logged-out visitors. (4) Removed the big gap between the page content and the Submit-event / Add-resource pills (main bottom padding 80→20px, pill slot top padding 40→16px).

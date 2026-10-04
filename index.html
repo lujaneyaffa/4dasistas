@@ -356,14 +356,15 @@
   .panel-card{ background:var(--card); border:2px solid var(--charcoal); border-radius:16px; padding:18px; margin-bottom:16px; box-shadow:3px 3px 0 var(--charcoal); text-align:left; position:relative; }
   .resource-photo{ width:100%; height:180px; object-fit:cover; display:block; margin:-2px 0 14px; border-radius:10px; background:var(--brand-blush); }
 
-  .home-quicklinks{ display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:56px; margin:20px 0 4px; padding:22px 12px; min-height:170px; }
+  .home-quicklinks{ display:flex; justify-content:center; align-items:center; flex-wrap:nowrap; gap:clamp(12px, 5vw, 56px); margin:20px 0 4px; padding:22px 12px; min-height:170px; }
   body.on-home main{ padding-bottom:0; }
   body.on-events main{ padding-bottom:14px; }
   body.on-home #resourcePagination{ display:none; }
   body.on-home .list-and-pagination{ gap:0; }
   /* Travel / About buttons: same tan-pink as the nav bar, smaller squares */
-  .home-quicklinks .club-guide-btn, .home-quicklinks .club-guide-btn:last-child{ flex:0 0 116px; width:116px; aspect-ratio:1; border-radius:50%; animation:qlFloat var(--dur,9s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:translate .5s cubic-bezier(.2,.8,.2,1), scale .3s cubic-bezier(.2,.8,.2,1), box-shadow .2s; padding:8px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:16px; background:var(--brand-blush); }
+  .home-quicklinks .club-guide-btn, .home-quicklinks .club-guide-btn:last-child{ flex:0 0 auto; width:clamp(86px, 27vw, 116px); aspect-ratio:1; border-radius:50%; animation:qlFloat var(--dur,9s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:translate .5s cubic-bezier(.2,.8,.2,1), scale .3s cubic-bezier(.2,.8,.2,1), box-shadow .2s; padding:8px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:16px; background:var(--brand-blush); }
   .home-quicklinks .club-guide-btn:hover{ scale:1.1; }
+  .home-quicklinks .club-guide-btn[data-hometab="homescreen"]{ font-size:13px; line-height:1.2; }
   /* "Clubs you're in" for signed-in members: same round shape + gentle float as Travel / About, always ONE line, club colours + logos */
   .club-bubbles{ --ds:1; display:flex; flex-wrap:nowrap; justify-content:center; align-items:center; gap:clamp(16px, 4vw, 44px); padding:22px 8px; margin:6px auto 4px; max-width:900px; }
   .club-bubble{ flex:0 1 clamp(58px, 19vw, 150px); min-width:0; aspect-ratio:1; border-radius:50%; border:2px solid; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:4px; box-sizing:border-box; cursor:pointer; font-family:'Inter',sans-serif; font-weight:800; text-align:center; animation:clubBubbleFloat var(--dur,9s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:translate .5s cubic-bezier(.2,.8,.2,1), scale .3s cubic-bezier(.2,.8,.2,1); -webkit-tap-highlight-color:transparent; }
@@ -374,7 +375,8 @@
   @keyframes clubBubbleFloat{ from{ transform:translate(0,0); } to{ transform:translate(calc(var(--dx,12px) * var(--ds,1)), calc(var(--dy,-14px) * var(--ds,1))); } }
   @media (max-width:600px){ .club-bubbles{ --ds:.45; } }
   @media (prefers-reduced-motion:reduce){ .club-bubble{ animation:none !important; } }
-  @keyframes qlFloat{ from{ transform:translate(0,0); } to{ transform:translate(var(--dx,12px), var(--dy,-14px)); } }
+  @keyframes qlFloat{ from{ transform:translate(0,0); } to{ transform:translate(calc(var(--dx,12px) * var(--ds,1)), calc(var(--dy,-14px) * var(--ds,1))); } }
+  @media (max-width:600px){ .home-quicklinks{ --ds:.4; } }
   @media (prefers-reduced-motion:reduce){ .home-quicklinks .club-guide-btn{ animation:none !important; } }
   .adm-sec{ border:2px solid var(--brand-brown); border-radius:14px; background:#fff; margin:10px 0; overflow:hidden; }
   .adm-sec > summary{ list-style:none; cursor:pointer; padding:14px 16px; font-weight:800; font-size:16px; color:var(--brand-brown); display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:48px; }
@@ -2445,7 +2447,8 @@ function pageCtaForTab(){
 function renderHomescreenSlot(){
   const slot = document.getElementById('homescreenSlot');
   if(!slot) return;
-  if(state.tab !== 'home'){ slot.style.display = 'none'; slot.innerHTML = ''; return; }
+  slot.style.display = 'none'; slot.innerHTML = ''; return; // the Home Screen link is now the third round bubble next to Travel / About
+  if(state.tab !== 'home'){ return; }
   const title = siteText.homeTileHomescreenTitle || 'Add this to your Home Screen';
   const desc = siteText.homeTileHomescreenDesc || 'Install 4DASISTAS like an app for quick access.';
   slot.style.cssText = 'display:block;max-width:760px;margin:12px auto 20px;padding:0 20px;box-sizing:border-box;';
@@ -3264,6 +3267,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
     const quickLinks = [
       {tab:'travel', label: siteText.homeTileTravelTitle || 'Travel'},
       {tab:'rules', label: 'About'},
+      {tab:'homescreen', label: 'Add to Home Screen'},
     ];
     const selectedToday = new Date(today);
     selectedToday.setDate(today.getDate() + state.todayOffset);
@@ -3323,7 +3327,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       </div></div>
     </section>`;
     el.innerHTML = `${todaySection}<div class="home-quicklinks">${quickLinks.map((q, i) => `
-      <button type="button" class="club-guide-btn" data-hometab="${q.tab}" style="--dx:${[12,-10][i % 2]}px;--dy:${[-14,12][i % 2]}px;--dur:${[8.5,10.5][i % 2]}s;--delay:${-i * 3}s;">${q.label}</button>`).join('')}</div>`;
+      <button type="button" class="club-guide-btn" data-hometab="${q.tab}" style="--dx:${[12,-10,9][i % 3]}px;--dy:${[-14,12,-11][i % 3]}px;--dur:${[8.5,10.5,9.5][i % 3]}s;--delay:${-i * 3}s;">${q.label}</button>`).join('')}</div>`;
     (function(){ // bubbles glide gently away from the pointer, like the club bubbles
       const box = document.querySelector('.home-quicklinks'); if(!box || !window.matchMedia('(hover:hover)').matches) return;
       const btns = [...box.querySelectorAll('.club-guide-btn')];
