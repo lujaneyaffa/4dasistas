@@ -1840,7 +1840,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels");
 
     if (requiresAuth && !leadCtx) {
       const token = getSessionToken(request);
@@ -1878,6 +1878,27 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     }
 
     // ---- API routes ----
+
+    // Editable display names for resource categories and event genres (keys stay fixed; only the words people see change).
+    const LABEL_KEYS = { resource: RESOURCE_CATEGORIES, event: ["sports", "activities", "functions", "trips", "mosqueprograms"] };
+    if (path === "/api/labels" && request.method === "GET") {
+      let o = {};
+      try { o = JSON.parse((await env.SITE_DATA.get("labels")) || "{}") || {}; } catch {}
+      return jsonResponse({ resource: o.resource || {}, event: o.event || {} }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    if (path === "/api/admin/labels" && request.method === "PUT") {
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const out = { resource: {}, event: {} };
+      for (const group of ["resource", "event"]) {
+        for (const key of LABEL_KEYS[group]) {
+          const v = String((body[group] || {})[key] || "").replace(/[\x00-\x1f<>]/g, " ").trim().slice(0, 40);
+          if (v) out[group][key] = v;
+        }
+      }
+      await env.SITE_DATA.put("labels", JSON.stringify(out));
+      return jsonResponse({ ok: true, ...out }, 200, corsHeaders);
+    }
 
     // Admin only: create / list / edit / delete club-lead logins (a scoped admin for one or more clubs).
     if (path === "/api/admin/club-leads" && request.method === "GET") {

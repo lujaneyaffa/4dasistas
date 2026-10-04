@@ -366,13 +366,16 @@
   .panel-card{ background:var(--card); border:2px solid var(--charcoal); border-radius:16px; padding:18px; margin-bottom:16px; box-shadow:3px 3px 0 var(--charcoal); text-align:left; position:relative; }
   .resource-photo{ width:100%; height:180px; object-fit:cover; display:block; margin:-2px 0 14px; border-radius:10px; background:var(--brand-blush); }
 
-  .home-quicklinks{ display:flex; justify-content:center; flex-wrap:wrap; gap:12px; margin:20px 0 4px; }
+  .home-quicklinks{ display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:56px; margin:20px 0 4px; padding:22px 12px; min-height:170px; }
   body.on-home main{ padding-bottom:0; }
   body.on-events main{ padding-bottom:14px; }
   body.on-home #resourcePagination{ display:none; }
   body.on-home .list-and-pagination{ gap:0; }
   /* Travel / About buttons: same tan-pink as the nav bar, smaller squares */
-  .home-quicklinks .club-guide-btn, .home-quicklinks .club-guide-btn:last-child{ flex:0 0 108px; width:108px; aspect-ratio:1; padding:8px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:16px; background:var(--brand-blush); }
+  .home-quicklinks .club-guide-btn, .home-quicklinks .club-guide-btn:last-child{ flex:0 0 116px; width:116px; aspect-ratio:1; border-radius:50%; animation:qlFloat var(--dur,9s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:translate .5s cubic-bezier(.2,.8,.2,1), scale .3s cubic-bezier(.2,.8,.2,1), box-shadow .2s; padding:8px; display:flex; align-items:center; justify-content:center; text-align:center; font-size:16px; background:var(--brand-blush); }
+  .home-quicklinks .club-guide-btn:hover{ scale:1.1; }
+  @keyframes qlFloat{ from{ transform:translate(0,0); } to{ transform:translate(var(--dx,12px), var(--dy,-14px)); } }
+  @media (prefers-reduced-motion:reduce){ .home-quicklinks .club-guide-btn{ animation:none !important; } }
   .home-tiles{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
   .home-tile{ display:block; width:100%; text-align:left; border:2px solid var(--charcoal); border-radius:18px; padding:24px 22px; cursor:pointer; box-shadow:4px 4px 0 var(--charcoal); transition:transform 0.12s ease, box-shadow 0.12s ease; font-family:'Inter',sans-serif; position:relative; }
   .home-tile[data-hometab="homescreen"]{ padding-top:8px; padding-bottom:8px; min-height:auto; align-self:center; justify-self:center; width:100%; grid-column:1 / -1; box-shadow:none; border-color:rgba(55,61,59,0.2); }
@@ -504,7 +507,7 @@
   .ideas-status{ min-height:20px; text-align:center; font-size:13px; margin-bottom:6px; }
   .ideas-status.ideas-status-err{ color:#c00; font-weight:700; background:#fdecea; border:1.5px solid #c00; border-radius:10px; padding:8px 10px; }
   .ideas-cloud{ display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:10px; padding:8px 0 4px; }
-  .idea-bubble{ position:relative; border-radius:50%; border:3px solid var(--line); background:var(--fill); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:14px; box-sizing:border-box; cursor:pointer; font-family:'Inter',sans-serif; color:var(--charcoal); text-align:center; transition:width .4s cubic-bezier(.3,1.5,.5,1), height .4s cubic-bezier(.3,1.5,.5,1), transform .15s, box-shadow .2s; -webkit-tap-highlight-color:transparent; }
+  .idea-bubble{ position:relative; border-radius:50%; border:3px solid var(--line); background:var(--fill); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:14px calc(var(--bs, 120px) * .18); box-sizing:border-box; cursor:pointer; font-family:'Inter',sans-serif; color:var(--charcoal); text-align:center; transition:width .4s cubic-bezier(.3,1.5,.5,1), height .4s cubic-bezier(.3,1.5,.5,1), transform .15s, box-shadow .2s; -webkit-tap-highlight-color:transparent; }
   .idea-bubble:active{ transform:scale(.95); }
   .idea-emoji{ font-size:24px; line-height:1; margin-bottom:2px; }
   .idea-bubble.done{ opacity:.78; border-style:dashed; }
@@ -1442,7 +1445,7 @@ function eventTypeLabel(item){
       mentalhealth:'Mental Health', catering:'Catering', eventservices:'Events', clothing:'Clothing', legal:'Legal Service', mosques:'Mosque',
       communityorg:'Community Organization', wellness:'Wellness'
     };
-    return resourceLabels[item.category] || item.type || 'Resource';
+    return LABELS.resource[item.category] || resourceLabels[item.category] || item.type || 'Resource';
   }
   const labels = {
     'cat-sports':'Sports', 'cat-trip':'Trip', 'cat-club':'Club',
@@ -3255,8 +3258,18 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         <p class="today-subscribe-status" id="todaySubscribeStatus"></p>
       </div></div>
     </section>`;
-    el.innerHTML = `${todaySection}<div class="home-quicklinks">${quickLinks.map(q => `
-      <button type="button" class="club-guide-btn" data-hometab="${q.tab}">${q.label}</button>`).join('')}</div>`;
+    el.innerHTML = `${todaySection}<div class="home-quicklinks">${quickLinks.map((q, i) => `
+      <button type="button" class="club-guide-btn" data-hometab="${q.tab}" style="--dx:${[12,-10][i % 2]}px;--dy:${[-14,12][i % 2]}px;--dur:${[8.5,10.5][i % 2]}s;--delay:${-i * 3}s;">${q.label}</button>`).join('')}</div>`;
+    (function(){ // bubbles glide gently away from the pointer, like the club bubbles
+      const box = document.querySelector('.home-quicklinks'); if(!box || !window.matchMedia('(hover:hover)').matches) return;
+      const btns = [...box.querySelectorAll('.club-guide-btn')];
+      box.addEventListener('pointermove', e => btns.forEach(b => {
+        const r = b.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, dx = cx - e.clientX, dy = cy - e.clientY, d = Math.hypot(dx, dy) || 1;
+        const f = d < 190 ? (190 - d) / 190 * 22 : 0;
+        b.style.translate = (dx / d * f).toFixed(1) + 'px ' + (dy / d * f).toFixed(1) + 'px';
+      }));
+      box.addEventListener('pointerleave', () => btns.forEach(b => { b.style.translate = '0px 0px'; }));
+    })();
     document.getElementById('todaySortSelect').addEventListener('change', e => {
       state.eventSort = e.target.value;
       render();
@@ -3516,7 +3529,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
           <input id="esDate" type="date" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
           <select id="esGenre" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;background:#fff;">
             <option value="">Genre of event…</option>
-            ${[['sports','Sports'],['activities','Activities'],['functions','Community function (market, festival, gathering)'],['trips','Trip'],['knowledge','Knowledge (class, talk, mosque program)']].map(([k, l]) => `<option value="${k}">${escapeCm(l)}</option>`).join('')}
+            ${[['sports','Sports','sports'],['activities','Activities','activities'],['functions','Community function (market, festival, gathering)','functions'],['trips','Trip','trips'],['knowledge','Knowledge (class, talk, mosque program)','mosqueprograms']].map(([k, l, lk]) => `<option value="${k}">${escapeCm(LABELS.event[lk] || l)}</option>`).join('')}
             <option value="other">Other (type it in)</option>
           </select>
           <input id="esGenreOther" type="text" maxlength="40" placeholder="What kind of event is it?" style="display:none;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
@@ -5293,15 +5306,28 @@ function floatIdeaClouds(){
 }
 window.addEventListener('resize', () => { clearTimeout(floatIdeaClouds._t); floatIdeaClouds._t = setTimeout(floatIdeaClouds, 200); });
 
+// Sizes a bubble so its title ALWAYS fits: the title is measured (canvas, same font as the bubble) and word-wrapped
+// inside the circle's usable width, and the bubble grows until every word and line fits — no clipped letters.
+let _ideaMeasureCtx = null;
+function ideaTextFits(title, D, extra){
+  const ctx = _ideaMeasureCtx || (_ideaMeasureCtx = document.createElement('canvas').getContext('2d'));
+  ctx.font = '700 13px Inter, system-ui, sans-serif';
+  const usable = D * 0.64; // text sits in the middle band of the circle, where the chord is narrower than the diameter
+  const sp = ctx.measureText(' ').width * 1.06;
+  let lines = 1, cur = 0;
+  for(const w of String(title || '').split(/\s+/).filter(Boolean)){
+    const ww = ctx.measureText(w).width * 1.08;
+    if(ww > usable) return false;
+    if(!cur) cur = ww; else if(cur + sp + ww <= usable) cur += sp + ww; else { lines++; cur = ww; }
+  }
+  return lines <= 8 && lines * 16 + extra <= D * 0.62;
+}
 function ideaSize(votes, title, hasDate){  // hasDate: also true when the bubble shows an extra line (date / cuisine)
   const byVotes = 112 + 34 * Math.sqrt(Math.max(0, votes - 1));
-  const len = (title || '').length;
-  // fit the title: text area (with word-wrap waste) + the fixed lines (votes, emoji, optional date) inside the circle's inscribed square
-  const extra = 40 + (hasDate ? 18 : 0);
-  const textArea = Math.max(8, len) * 7.6 * 16 * 1.45;
-  const side = (extra + Math.sqrt(extra * extra + 4 * textArea)) / 2;
-  const byText = side / 0.68 + 14;
-  return Math.min(250, Math.round(Math.max(byVotes, byText, 112)));
+  const extra = 62 + (hasDate ? 18 : 0); // votes line + emoji + spacing (+ date line)
+  let D = Math.round(Math.max(byVotes, 112));
+  while(D < 320 && !ideaTextFits(title, D, extra)) D += 4;
+  return D;
 }
 function ideaVotesLabel(n){ return n + (n === 1 ? ' vote' : ' votes'); }
 function ideaDateLabel(d){ return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' }) : ''; }
@@ -5405,7 +5431,7 @@ async function ideasLoad(){
 function ideaBubbleHtml(idea){
   const ci = ideaColorIndex(idea.id), size = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine));
   const admin = state.cmAdminLoggedIn === true;
-  return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}${idea.done ? ' done' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${clubCol(state.ideasClubId).bg};--line:${clubCol(state.ideasClubId).fg};color:${clubCol(state.ideasClubId).fg};width:${size}px;height:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}${idea.voted ? ', you voted' : ''}">
+  return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}${idea.done ? ' done' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${clubCol(state.ideasClubId).bg};--line:${clubCol(state.ideasClubId).fg};color:${clubCol(state.ideasClubId).fg};width:${size}px;height:${size}px;--bs:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}${idea.voted ? ', you voted' : ''}">
     ${idea.date ? `<span class="idea-date">📅 ${escapeCm(ideaDateLabel(idea.date))}</span>` : ''}
     ${idea.cuisine ? `<span class="idea-cuisine">🍽 ${escapeCm(idea.cuisine)}</span>` : ''}
     ${idea.emoji ? `<span class="idea-emoji" aria-hidden="true">${escapeCm(idea.emoji)}</span>` : ''}
@@ -5463,7 +5489,7 @@ async function publicIdeasLoadAll(clubs){
 }
 function publicIdeaBubbleHtml(idea){
   const ci = ideaColorIndex(idea.id), size = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine));
-  return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}${idea.done ? ' done' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${clubCol(idea._clubId).bg};--line:${clubCol(idea._clubId).fg};color:${clubCol(idea._clubId).fg};width:${size}px;height:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}, from ${escapeCm(idea._clubTitle)}">
+  return `<button type="button" class="idea-bubble${idea.voted ? ' voted' : ''}${idea.done ? ' done' : ''}" data-ideaid="${escapeCm(idea.id)}" style="--fill:${clubCol(idea._clubId).bg};--line:${clubCol(idea._clubId).fg};color:${clubCol(idea._clubId).fg};width:${size}px;height:${size}px;--bs:${size}px;" aria-label="${escapeCm(idea.title)}, ${ideaVotesLabel(idea.votes)}, from ${escapeCm(idea._clubTitle)}">
     <span class="idea-cuisine">🏷 ${escapeCm(idea._clubTitle)}</span>
     ${idea.date ? `<span class="idea-date">📅 ${escapeCm(ideaDateLabel(idea.date))}</span>` : ''}
     ${idea.emoji ? `<span class="idea-emoji" aria-hidden="true">${escapeCm(idea.emoji)}</span>` : ''}
@@ -5854,7 +5880,7 @@ async function publicIdeaVoteAttempt(id, bubble){
   if(idea.done) return; // voting is closed on activities we've already done
   idea.voted = !idea.voted; idea.votes += idea.voted ? 1 : -1;
   bubble.classList.toggle('voted', idea.voted);
-  bubble.style.width = bubble.style.height = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine)) + 'px';
+  { const z = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine)) + 'px'; bubble.style.width = bubble.style.height = z; bubble.style.setProperty('--bs', z); }
   const votesEl = bubble.querySelector('.idea-votes');
   if(votesEl) votesEl.textContent = ideaVotesLabel(idea.votes) + (idea.voted ? ' ✓' : '');
   floatIdeaClouds();
@@ -6479,7 +6505,7 @@ async function ideaVote(id, bubble){
   // Optimistic: grow/shrink the bubble right away, then sync with the server.
   idea.voted = !idea.voted; idea.votes += idea.voted ? 1 : -1;
   bubble.classList.toggle('voted', idea.voted);
-  bubble.style.width = bubble.style.height = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine)) + 'px';
+  { const z = ideaSize(idea.votes, idea.title, !!(idea.date || idea.cuisine)) + 'px'; bubble.style.width = bubble.style.height = z; bubble.style.setProperty('--bs', z); }
   bubble.querySelector('.idea-votes').textContent = ideaVotesLabel(idea.votes) + (idea.voted ? ' ✓' : '');
   floatIdeaClouds();
   try {
@@ -6490,7 +6516,7 @@ async function ideaVote(id, bubble){
     state.ideas.forEach(n => {
       const b = document.querySelector('.idea-bubble[data-ideaid="' + n.id.replace(/"/g, '') + '"]'); if(!b) return;
       const sz = ideaSize(n.votes, n.title, !!(n.date || n.cuisine)) + 'px';
-      b.style.width = b.style.height = sz;
+      b.style.width = b.style.height = sz; b.style.setProperty('--bs', sz);
       const ve = b.querySelector('.idea-votes'); if(ve) ve.textContent = ideaVotesLabel(n.votes) + (n.voted ? ' ✓' : '');
       b.classList.toggle('voted', !!n.voted);
     });
@@ -7221,6 +7247,50 @@ async function cmAdminLoadLeads(){
     const r = await fetch('/api/admin/club-leads', { credentials:'include' });
     state.cmLeads = r.ok ? ((await r.json()).leads || []) : [];
   } catch { state.cmLeads = []; }
+}
+// ---- Editable names for resource categories and event genres ----
+const LABELS = { resource:{}, event:{} };
+const LABEL_DEFAULTS = { resource:null, event:null };
+function applyLabels(){
+  if(!LABEL_DEFAULTS.resource){
+    LABEL_DEFAULTS.resource = {}; resourceFilterList.forEach(c => { if(c.key !== 'all') LABEL_DEFAULTS.resource[c.key] = c.label; });
+    LABEL_DEFAULTS.event = {}; categoryList.forEach(c => { if(c.key !== 'all') LABEL_DEFAULTS.event[c.key] = c.label; });
+  }
+  resourceFilterList.forEach(c => { if(c.key !== 'all') c.label = LABELS.resource[c.key] || LABEL_DEFAULTS.resource[c.key]; });
+  RESOURCE_CATEGORIES.forEach(c => { c[1] = LABELS.resource[c[0]] || LABEL_DEFAULTS.resource[c[0]] || c[1]; });
+  categoryList.forEach(c => { if(c.key !== 'all') c.label = LABELS.event[c.key] || LABEL_DEFAULTS.event[c.key]; });
+  EVENT_EDIT_SECTIONS.forEach(c => { c[1] = LABELS.event[c[0]] || LABEL_DEFAULTS.event[c[0]] || c[1]; });
+  Object.keys(TYPE_MULTI_NAMES).forEach(k => { if(!LABEL_DEFAULTS['tm_' + k]) LABEL_DEFAULTS['tm_' + k] = TYPE_MULTI_NAMES[k]; TYPE_MULTI_NAMES[k] = LABELS.event[k] || LABEL_DEFAULTS['tm_' + k]; });
+}
+async function loadLabels(){
+  try {
+    const r = await fetch('/api/labels', { cache:'no-store' });
+    if(r.ok){ const d = await r.json(); LABELS.resource = d.resource || {}; LABELS.event = d.event || {}; }
+  } catch {}
+  applyLabels();
+}
+function labelsAdminHtml(){
+  applyLabels();
+  const inp = 'padding:9px;border-radius:10px;border:2px solid var(--brand-brown);width:100%;box-sizing:border-box;font-size:15px;';
+  const row = (grp, key, def) => `<label style="display:block;font-size:11px;color:#776867;margin-top:6px;">${escapeCm(def)}<input class="lbl-in" data-grp="${grp}" data-key="${escapeCm(key)}" value="${escapeCm(LABELS[grp][key] || '')}" placeholder="${escapeCm(def)}" maxlength="40" style="${inp}"></label>`;
+  return `<div class="cp-box">
+    <h4 style="margin:0 0 4px;">Names of resource categories &amp; event genres</h4>
+    <p style="font-size:11px;color:#776867;margin:0 0 8px;">Type a new name to rename it everywhere on the site (tabs, filters, submit forms, editors). Leave blank to keep the original.</p>
+    <strong style="font-size:13px;">Resource categories</strong>${Object.keys(LABEL_DEFAULTS.resource).map(k => row('resource', k, LABEL_DEFAULTS.resource[k])).join('')}
+    <div style="margin-top:12px;"><strong style="font-size:13px;">Event genres</strong></div>${Object.keys(LABEL_DEFAULTS.event).map(k => row('event', k, LABEL_DEFAULTS.event[k])).join('')}
+    <button type="button" class="club-guide-btn" id="lblSave" style="margin-top:12px;background:var(--blush);">Save names</button>
+    <span id="lblStatus" style="font-size:12px;margin-left:8px;"></span>
+  </div>`;
+}
+function wireLabelsAdmin(){
+  const btn = document.getElementById('lblSave'); if(!btn) return;
+  btn.addEventListener('click', async () => {
+    const body = { resource:{}, event:{} };
+    document.querySelectorAll('.lbl-in').forEach(i => { if(i.value.trim()) body[i.dataset.grp][i.dataset.key] = i.value.trim(); });
+    const st = document.getElementById('lblStatus'); st.style.color = '#776867'; st.textContent = 'Saving…';
+    try { await leadApi('PUT', '/api/admin/labels', body); await loadLabels(); st.style.color = '#2a7a4a'; st.textContent = 'Saved ✓'; render(); }
+    catch(err){ st.style.color = '#c00'; st.textContent = err.message; }
+  });
 }
 function clubLeadsAdminHtml(){
   const leads = state.cmLeads || [];
@@ -7964,6 +8034,7 @@ function renderClubAdminPanel(){
     ${lead ? '' : resourceSuggestionsAdminHtml()}
     ${lead ? '' : pushAdminHtml()}
     ${lead ? '' : clubLeadsAdminHtml()}
+    ${lead ? '' : labelsAdminHtml()}
     ${lead ? '' : clubDirListHtml()}
     <div class="cp-box">
       <h4 style="margin:0 0 6px;">Create a profile</h4>
@@ -8408,6 +8479,7 @@ function wireClubAdminPanel(){
   document.querySelectorAll('.join-req-decline').forEach(b => b.addEventListener('click', () => { b.disabled = true; cmAdminAnswerJoinRequest(b.dataset.clubId, b.dataset.userId, 'decline'); }));
   wirePushAdmin();
   wireLeadsAdmin();
+  wireLabelsAdmin();
   document.querySelectorAll('.adm-sort').forEach(b => b.addEventListener('click', () => { state.cmAdminMemberSort = b.dataset.sort; render(); }));
   const memberSearch = document.getElementById('admMemberSearch');
   if(memberSearch && !memberSearch.dataset.wired){
@@ -9280,7 +9352,7 @@ document.getElementById('subscribeBtn').addEventListener('click', e => {
 document.getElementById('subscribeFallback').href = `https://${location.host}/calendar.ics`;
 
 restoreStateFromHash();
-loadData().then(() => {
+loadData().then(() => loadLabels()).then(() => {
   syncToggleButtonClasses();
   if(!enterDeepLinkState()) render();
   showLoadWarning();

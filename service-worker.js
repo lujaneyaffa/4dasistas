@@ -1,4 +1,4 @@
-const CACHE_NAME = '4dasistas-v45';
+const CACHE_NAME = '4dasistas-v47';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/app-icon.svg', '/assets/apple-touch-icon.png', '/assets/icon-192.png', '/assets/icon-512.png'];
 
 self.addEventListener('install', event => {
