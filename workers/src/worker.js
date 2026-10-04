@@ -1776,6 +1776,16 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         else if (path === "/api/admin/idea-availability" && M === "GET") ok = true;
         else if (path === "/api/admin/join-requests" && M === "GET") ok = true;
         else if (path === "/api/admin/calendar-event" && M === "POST") ok = true;
+        else if (path === "/api/admin/reminders/last" && M === "GET") ok = true;
+        else if ((path === "/api/admin/push/send" || path === "/api/admin/remind-availability") && M === "POST") {
+          // Reminders go only to people in the clubs they lead; anyone else in the list is silently dropped.
+          ok = true;
+          let b = {};
+          try { b = await request.clone().json(); } catch {}
+          const mine = [];
+          for (const id of (Array.isArray(b.userIds) ? b.userIds.map(String) : []).slice(0, 500)) if (await inAnyOwn(id)) mine.push(id);
+          request = new Request(request.url, { method: "POST", headers: request.headers, body: JSON.stringify({ ...b, userIds: mine }) });
+        }
         else if (seg[0] === "join-requests" && seg.length === 4 && M === "POST") ok = own.has(seg[1]);
         else if (seg[0] === "club-events" && own.has(seg[1]) && ((seg.length === 2 && (M === "GET" || M === "POST")) || (seg.length === 3 && M === "DELETE"))) ok = true;
         else if (seg[0] === "club-members" && own.has(seg[1])) {
