@@ -376,6 +376,16 @@
   .home-quicklinks .club-guide-btn:hover{ scale:1.1; }
   @keyframes qlFloat{ from{ transform:translate(0,0); } to{ transform:translate(var(--dx,12px), var(--dy,-14px)); } }
   @media (prefers-reduced-motion:reduce){ .home-quicklinks .club-guide-btn{ animation:none !important; } }
+  .adm-sec{ border:2px solid var(--brand-brown); border-radius:14px; background:#fff; margin:10px 0; overflow:hidden; }
+  .adm-sec > summary{ list-style:none; cursor:pointer; padding:14px 16px; font-weight:800; font-size:16px; color:var(--brand-brown); display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:48px; }
+  .adm-sec > summary::-webkit-details-marker{ display:none; }
+  .adm-sec > summary::after{ content:'＋'; font-size:20px; flex:none; }
+  .adm-sec[open] > summary::after{ content:'−'; }
+  .adm-sec[open] > summary{ border-bottom:2px solid var(--brand-brown); background:var(--brand-blush); }
+  .adm-sec-body{ padding:14px 16px; }
+  .adm-sec-body .cp-box{ border:none; box-shadow:none; background:none; padding:0; margin:0 0 6px; }
+  .adm-sec:not(.flat) .adm-sec-body .cp-box > h4:first-child{ display:none; }
+  .adm-badge{ background:#d93025; color:#fff; border-radius:999px; padding:1px 8px; font-size:12px; margin-left:8px; }
   .home-tiles{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
   .home-tile{ display:block; width:100%; text-align:left; border:2px solid var(--charcoal); border-radius:18px; padding:24px 22px; cursor:pointer; box-shadow:4px 4px 0 var(--charcoal); transition:transform 0.12s ease, box-shadow 0.12s ease; font-family:'Inter',sans-serif; position:relative; }
   .home-tile[data-hometab="homescreen"]{ padding-top:8px; padding-bottom:8px; min-height:auto; align-self:center; justify-self:center; width:100%; grid-column:1 / -1; box-shadow:none; border-color:rgba(55,61,59,0.2); }
@@ -1105,6 +1115,7 @@
   <div class="footer-admin-corner">
     <button type="button" class="footer-admin-btn" id="footerNewEventBtn" style="display:none;">➕ New event</button>
     <button type="button" class="footer-admin-btn footer-missing-btn" id="footerMissingDetailsBtn" style="display:none;">📋 Needs details</button>
+    <button type="button" class="footer-admin-btn" id="footerAdminPageBtn" style="display:none;">🛠 Admin page</button>
     <button type="button" class="footer-admin-btn" id="footerAdminBtn">🔒 Admin Login</button>
   </div>
 </footer>
@@ -2423,7 +2434,7 @@ function renderHomescreenSlot(){
 
 // Contribution pills above the footer: a pink "Submit an event" and an "Add a resource" on every page EXCEPT
 // the Clubs and Squads areas (and the two submit pages themselves).
-const NO_PILL_TABS = ['clubs','squads','clubideas','clubmembers','clubstart','clubjoin','fallsignup','submitevent','submitresource'];
+const NO_PILL_TABS = ['admin','clubs','squads','clubideas','clubmembers','clubstart','clubjoin','fallsignup','submitevent','submitresource'];
 function renderPageCta(){
   const slot = document.getElementById('pageCtaSlot');
   if(!slot) return;
@@ -2826,7 +2837,7 @@ async function loadSquadAdmin(){
   const [rq, sq] = await Promise.all([get('/api/admin/squad-requests'), get('/api/admin/squads')]);
   state.squadAdmin = { requests: ((rq && rq.requests) || []).filter(r => !admNotif.dismissed.has(`q:${r.squadId}:${r.userId}`)), squads: (sq && sq.squads) || [] };
   state.squadAdminLoading = false;
-  if(state.tab === 'squads') render();
+  if(state.tab === 'squads' || state.tab === 'admin') render();
 }
 function squadAdminHtml(){
   const d = state.squadAdmin;
@@ -2893,7 +2904,20 @@ function renderDirectory(){
       ${getCmSession() ? '<p class="ideas-hint" style="text-align:center;margin:-4px 0 12px;">Request any squad — an admin approves it and you get that squad\'s private invite link right here.</p>' : ''}
       ${state.squadReqError ? `<p style="color:#c00;text-align:center;font-size:13px;">${escapeCm(state.squadReqError)}</p>` : ''}
       <div class="clubs-grid squads-grid">${SQUADS.map(q => squadCardHtml(q)).join('')}</div>
-      ${state.cmAdminLoggedIn === true ? squadAdminHtml() : ''}`;
+      `;
+    wireSquadsPage();
+    return;
+  }
+  if(state.tab === 'admin'){
+    document.getElementById('resourcePagination').innerHTML = '';
+    if(!adminUiOn()){
+      el.innerHTML = `<div class="rules-content" style="max-width:420px;margin:24px auto;text-align:center;"><h3>Admin</h3><p>Log in to see this page.</p><button type="button" class="club-guide-btn" id="admPageLogin" style="background:var(--blush);">🔒 Admin login</button></div>`;
+      document.getElementById('admPageLogin').addEventListener('click', () => document.getElementById('footerAdminBtn').click());
+      return;
+    }
+    if(!state.cmAdminOpen) openClubAdmin();
+    el.innerHTML = `<h3 class="clubs-popular-title">ADMIN</h3>${renderClubAdminPanel()}`;
+    wireClubAdminPanel();
     wireSquadsPage();
     return;
   }
@@ -2969,7 +2993,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
     </a>
     <div class="public-ideas-section">${renderPublicIdeasFeedHtml()}</div>
     ` : renderMyClubsSectionHtml()}
-    ${adminUiOn() ? renderClubAdminPanel() : ''}`;
+    `;
     setTimeout(() => {
       const loginBtn = document.getElementById('clubsLoginOpenBtn');
       if(loginBtn) loginBtn.addEventListener('click', () => {
@@ -3001,8 +3025,6 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       });
       // One admin login site-wide (the footer's) — once you're signed in there, the Create-a-profile /
       // All Members panel just appears at the bottom of Clubs, no separate button to press.
-      if(adminUiOn() && !state.cmAdminOpen) openClubAdmin();
-      wireClubAdminPanel();
       if(anon){
         if(state.publicIdeasAll === null && !state.publicIdeasAllLoading) publicIdeasLoadAll();
         wirePublicIdeasFeed();
@@ -4841,7 +4863,7 @@ async function saveAboutEdit(){
 /* ============================================================
    MAIN RENDER
    ============================================================ */
-const DIRECTORY_TABS = ['clubs','squads','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','submitevent','submitresource','clubmembers','clubideas'];
+const DIRECTORY_TABS = ['admin','clubs','squads','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','submitevent','submitresource','clubmembers','clubideas'];
 
 /* ============================================================
    CLUB MEMBERS SCHEDULE (private per-club sign-in + per-event availability)
@@ -7221,7 +7243,7 @@ async function cmAdminLogin(){
 
 async function cmAdminLogout(){
   await fetch('/api/admin/logout', { method:'POST', credentials:'include' }).catch(() => {});
-  state.cmAdminLoggedIn = false;
+  state.cmAdminLoggedIn = false; state.cmAdminOpen = false;
   state.cmAdminAllMembers = null; state.cmAdminAllUsers = null;
   render();
 }
@@ -7292,26 +7314,42 @@ function wireLabelsAdmin(){
     catch(err){ st.style.color = '#c00'; st.textContent = err.message; }
   });
 }
+function admSec(id, title, body, openDefault, extraClass){
+  const open = state.admOpen && id in state.admOpen ? state.admOpen[id] : !!openDefault;
+  return `<details class="adm-sec${extraClass ? ' ' + extraClass : ''}" data-sec="${id}" ${open ? 'open' : ''}><summary><span>${title}</span></summary><div class="adm-sec-body">${body}</div></details>`;
+}
+document.addEventListener('toggle', e => {
+  const d = e.target;
+  if(d && d.classList && d.classList.contains('adm-sec')) (state.admOpen = state.admOpen || {})[d.dataset.sec] = d.open;
+}, true);
+// ONE notifications section: join requests + submitted events + submitted resources together.
+function admInboxCount(){
+  return (state.cmAdminJoinRequests || []).length + (state.cmAdminEventSugs || []).length + (state.cmAdminResSugs || []).length;
+}
+function inboxAdminHtml(lead){
+  const n = admInboxCount();
+  const body = [(state.cmAdminJoinRequests || []).length ? joinRequestsAdminHtml() : '', (!lead && (state.cmAdminEventSugs || []).length) ? eventSuggestionsAdminHtml() : '', (!lead && (state.cmAdminResSugs || []).length) ? resourceSuggestionsAdminHtml() : ''].join('');
+  return admSec('inbox', `🔔 Notifications${n ? `<span class="adm-badge">${n}</span>` : ''}`, n ? body : '<p class="av-msg" style="margin:0;">Nothing waiting — you\'re all caught up. 🎉</p>', n > 0, 'flat');
+}
 function clubLeadsAdminHtml(){
   const leads = state.cmLeads || [];
   const titleOf = id => (clubsData.find(c => c.id === id) || {}).title || id;
   const inp = 'padding:10px;border-radius:10px;border:2px solid var(--brand-brown);';
   return `<div class="cp-box" id="leadsBox">
-    <h4 style="margin:0 0 4px;">Club admins</h4>
-    <p style="font-size:11px;color:#776867;margin:0 0 10px;">A club admin has their own login and can ONLY manage the clubs you give them: add official events, see / add / edit / remove that club's profiles, and see its availability. Nothing else.</p>
-    ${leads.length ? leads.map(l => `<div style="border:2px solid var(--brand-brown);border-radius:12px;padding:10px;margin-bottom:8px;">
-      <strong>${escapeCm(l.name)}</strong> <span style="font-size:12px;color:#776867;">@${escapeCm(l.username)}</span><br>
-      <span style="font-size:12px;">${(l.clubs || []).map(c => escapeCm(titleOf(c))).join(', ')}</span>
+    <p style="font-size:11px;color:#776867;margin:0 0 10px;">A club admin has their own login and can ONLY manage the clubs you give them: official events, that club's profiles and availability, and reminders to its members.</p>
+    ${leads.length ? leads.map(l => `<details style="border:2px solid var(--brand-brown);border-radius:12px;margin-bottom:8px;">
+      <summary style="cursor:pointer;padding:10px 12px;font-weight:700;">${escapeCm(l.name)} <span style="font-size:12px;color:#776867;font-weight:400;">@${escapeCm(l.username)}</span></summary>
+      <div style="padding:0 12px 12px;"><span style="font-size:12px;">${(l.clubs || []).map(c => escapeCm(titleOf(c))).join(', ')}</span>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
         <button type="button" class="club-guide-btn lead-edit" data-u="${escapeCm(l.username)}" style="padding:6px 12px;font-size:12px;">Edit clubs</button>
         <button type="button" class="club-guide-btn lead-pw" data-u="${escapeCm(l.username)}" style="padding:6px 12px;font-size:12px;">New password</button>
         <button type="button" class="club-guide-btn lead-del" data-u="${escapeCm(l.username)}" style="padding:6px 12px;font-size:12px;background:#b3261e;color:#fff;">Delete</button>
-      </div></div>`).join('') : '<p style="font-size:12px;color:#776867;">No club admins yet.</p>'}
-    <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px;">
-      <strong style="font-size:13px;">Create a club admin</strong>
+      </div></div></details>`).join('') : '<p style="font-size:12px;color:#776867;">No club admins yet.</p>'}
+    <button type="button" class="club-guide-btn" id="leadAddToggle" style="margin-top:6px;background:var(--blush);">➕ Add club admin</button>
+    <div id="leadForm" style="display:${state.leadFormOpen ? 'flex' : 'none'};flex-direction:column;gap:8px;margin-top:12px;">
       <input id="leadName" placeholder="Their name" style="${inp}">
       <input id="leadUser" placeholder="Username (letters/numbers, e.g. amina.cuisine)" autocapitalize="none" autocorrect="off" style="${inp}">
-      <input id="leadPass" type="text" placeholder="Password (6+ characters) — tell them privately" autocomplete="off" style="${inp}">
+      <input id="leadPass" type="text" placeholder="Temporary password (6+ characters) — tell them privately" autocomplete="off" style="${inp}">
       <div class="cp-clubs">${clubsData.map(c => `<label class="cp-club"><input type="checkbox" class="lead-club-check" value="${escapeCm(c.id)}"> ${escapeCm(c.title)}</label>`).join('')}</div>
       <button type="button" class="club-guide-btn" id="leadCreateBtn" style="background:var(--blush);">Create club admin</button>
       <span id="leadStatus" style="font-size:12px;color:#c00;"></span>
@@ -7326,6 +7364,11 @@ async function leadApi(method, url, body){
 function wireLeadsAdmin(){
   const create = document.getElementById('leadCreateBtn');
   if(!create) return;
+  document.getElementById('leadAddToggle').addEventListener('click', () => {
+    const f = document.getElementById('leadForm'); const show = f.style.display === 'none';
+    f.style.display = show ? 'flex' : 'none'; state.leadFormOpen = show;
+    if(show) document.getElementById('leadName').focus();
+  });
   const st = document.getElementById('leadStatus');
   create.addEventListener('click', async () => {
     const clubs = [...document.querySelectorAll('.lead-club-check:checked')].map(c => c.value);
@@ -7427,7 +7470,7 @@ function admProfileEdit(wrap, u){
     admAvail.people = null;
     await cmAdminLoadAllMembers();
     const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-    if(state.tab === 'clubs' && !typing) render();
+    if((state.tab === 'clubs' || state.tab === 'admin') && !typing) render();
   };
   const j = (url, opts) => fetch(url, Object.assign({ credentials:'include' }, opts)).then(async r => { const d = await r.json().catch(() => ({})); if(!r.ok) throw new Error(d.error || 'Something went wrong'); return d; });
   const jsonOpts = (method, body) => ({ method, headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
@@ -7649,7 +7692,7 @@ async function admNotifPoll(){
   if(j){
     state.cmAdminJoinRequests = (j.requests || []).filter(r => !admNotif.dismissed.has(`j:${r.clubId}:${r.userId}`));
     const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
-    if(newOnes.some(i => i.kind === 'join') && state.tab === 'clubs' && !typing) render();
+    if(newOnes.some(i => i.kind === 'join') && (state.tab === 'clubs' || state.tab === 'admin') && !typing) render();
   }
   admUpdateBell();
   if(admNotif.panel) admRenderPanel();
@@ -7735,8 +7778,8 @@ async function admAnswerJoin(clubId, userId, action){
     admNotif.items = admNotif.items.filter(i => i.id !== id);
     state.cmAdminJoinRequests = (state.cmAdminJoinRequests || []).filter(r => !(r.clubId === clubId && r.userId === userId));
     admUpdateBell(); if(admNotif.panel) admRenderPanel();
-    if(state.tab === 'clubs') render();
-    if(action === 'accept'){ admAvail.people = null; cmAdminLoadAllMembers().then(() => { const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName); if(state.tab === 'clubs' && !typing) render(); }); }
+    if(state.tab === 'clubs' || state.tab === 'admin') render();
+    if(action === 'accept'){ admAvail.people = null; cmAdminLoadAllMembers().then(() => { const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName); if((state.tab === 'clubs' || state.tab === 'admin') && !typing) render(); }); }
     const first = req ? String(req.name || '').split(' ')[0] : 'her';
     const wa = req ? admWhatsAppLink(req.phone, action === 'accept'
       ? `Hi ${first}! You've been accepted into the ${req.clubTitle} club on 4DASISTAS 🎉 Open the app to see it.`
@@ -8028,14 +8071,14 @@ function renderClubAdminPanel(){
       <button class="club-guide-btn" id="cmAdminLogoutBtn" style="padding:6px 12px;font-size:12px;">Log Out</button>
     </div>
     ${lead ? `<p style="font-size:12px;color:#776867;margin:6px 0 0;">You manage: <strong>${adminClubs().map(c => escapeCm(c.title)).join(', ') || 'no clubs yet'}</strong>. Reminders only go to your clubs' members. Use "➕ New event" at the bottom of the page to add an official event.</p>` : ''}
-    ${admAvailSectionHtml()}
-    ${joinRequestsAdminHtml()}
-    ${lead ? '' : eventSuggestionsAdminHtml()}
-    ${lead ? '' : resourceSuggestionsAdminHtml()}
-    ${lead ? '' : pushAdminHtml()}
-    ${lead ? '' : clubLeadsAdminHtml()}
-    ${lead ? '' : labelsAdminHtml()}
-    ${lead ? '' : clubDirListHtml()}
+    ${inboxAdminHtml(lead)}
+    ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
+    ${lead ? '' : admSec('push', '📲 Push notifications', pushAdminHtml(), false)}
+    ${lead ? '' : admSec('leads', '🧑‍💼 Club admins' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
+    ${lead ? '' : admSec('squads', '🪁 Squads — requests &amp; invite links', squadAdminHtml(), false)}
+    ${lead ? '' : admSec('labels', '🏷️ Names of categories &amp; genres', labelsAdminHtml(), false)}
+    ${lead ? '' : admSec('clubdir', '🏛️ Club directory', clubDirListHtml(), false)}
+    ${admSec('newprofile', '➕ Create a profile', `
     <div class="cp-box">
       <h4 style="margin:0 0 6px;">Create a profile</h4>
       <p style="font-size:11px;color:#776867;margin:0 0 10px;">Makes the member and puts them in every club you tick. Their username (e.g. amina.k) is made automatically from their name.</p>
@@ -8047,7 +8090,8 @@ function renderClubAdminPanel(){
         <span id="cpStatus" style="font-size:12px;color:#c00;"></span>
       </div>
     </div>
-    <h3 style="margin-top:20px;">Admin Profiles</h3>
+    `, false)}
+    <h3 style="margin-top:24px;">Admin Profiles</h3>
     <p style="font-size:11px;color:#776867;margin-top:-6px;">Pick a club to add a profile or manage its events, or search every profile below.</p>
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;">
       ${adminClubs().map(c => `<button type="button" class="club-guide-btn cm-admin-club-pick" data-club-id="${escapeCm(c.id)}" style="padding:8px 14px;font-size:12px;${clubId===c.id?'background:var(--blush);':'background:transparent;'}">${escapeCm(c.title)}</button>`).join('')}
@@ -8558,6 +8602,7 @@ function renderFooterAdmin(){
   btn.textContent = state.cmAdminLoggedIn ? '🔒 Admin: Log Out' : state.cmLead ? '🔒 Club admin: Log Out' : '🔒 Admin Login';
   const newEventBtn = document.getElementById('footerNewEventBtn');
   if(newEventBtn) newEventBtn.style.display = adminUiOn() ? '' : 'none';
+  const apb = document.getElementById('footerAdminPageBtn'); if(apb) apb.style.display = adminUiOn() ? '' : 'none';
   const missingBtn = document.getElementById('footerMissingDetailsBtn');
   if(!missingBtn) return;
   if(!state.cmAdminLoggedIn || !ALL_ITEMS.length){ missingBtn.style.display = 'none'; return; }
@@ -8654,7 +8699,7 @@ const LAST_TAB_STORAGE_KEY = 'lastAppState';
 // instead of the old #tab=events&cat=all&view=list&... query-string look. The full
 // state (filters, view mode, etc.) still round-trips through localStorage below —
 // only what's actually shown in the URL bar has been simplified.
-const TAB_SLUGS = { events:'calendar', clubs:'clubs', squads:'squads', resources:'resources', travel:'travel', rules:'about', homescreen:'add-to-homescreen', subscribe:'subscribe', submitevent:'submit-event', submitresource:'add-resource' };
+const TAB_SLUGS = { admin:'admin', events:'calendar', clubs:'clubs', squads:'squads', resources:'resources', travel:'travel', rules:'about', homescreen:'add-to-homescreen', subscribe:'subscribe', submitevent:'submit-event', submitresource:'add-resource' };
 const SLUG_TO_TAB = Object.fromEntries(Object.entries(TAB_SLUGS).map(([tab, slug]) => [slug, tab]));
 /* Every page and sub-page has its own shareable link (all hash-based, so they work with the static host):
      #/calendar  #/calendar/sports  #/calendar/sports/badminton  #/calendar/activities/Mississauga
@@ -9110,10 +9155,11 @@ function renderNavAuth(){
   if(!menu) return;
   const sess = getCmSession();
   const staff = state.cmAdminLoggedIn === true ? 'an admin' : (state.cmLead ? 'a club admin' : '');
+  const staffPage = staff ? '<button type="button" data-pwr="adminpage">🛠 Admin page</button>' : '';
   const staffOut = staff ? `<button type="button" data-pwr="${state.cmAdminLoggedIn === true ? 'adminout' : 'leadout'}">Log out of ${state.cmAdminLoggedIn === true ? 'admin' : 'club admin'}</button>` : '';
   const warn = staff ? `<div class="pwr-hi" style="background:#fff3cf;color:#6b5210;border-radius:10px;padding:8px;line-height:1.4;">⚠️ You're currently logged in as ${staff}</div>` : '';
-  if(sess) menu.innerHTML = `<div class="pwr-hi">Hi, ${escapeCm(sess.name || sess.username || 'friend')}</div><button type="button" data-pwr="out">Log out</button>${warn}${staffOut}`;
-  else menu.innerHTML = `${warn}<button type="button" class="primary" data-pwr="login">Log in</button><button type="button" data-pwr="signup">Sign up</button>${staffOut}`;
+  if(sess) menu.innerHTML = `<div class="pwr-hi">Hi, ${escapeCm(sess.name || sess.username || 'friend')}</div><button type="button" data-pwr="out">Log out</button>${warn}${staffPage}${staffOut}`;
+  else menu.innerHTML = `${warn}${staffPage}<button type="button" class="primary" data-pwr="login">Log in</button><button type="button" data-pwr="signup">Sign up</button>${staffOut}`;
   const pb = document.getElementById('pwrBtn'); if(pb) pb.classList.toggle('staff', !!staff);
   leadMaybeOnboard();
 }
@@ -9126,7 +9172,8 @@ function renderNavAuth(){
     const b = e.target.closest('button[data-pwr]'); if(!b) return;
     close();
     const k = b.dataset.pwr;
-    if(k === 'login') goLogin();
+    if(k === 'adminpage') goToTab('admin');
+    else if(k === 'login') goLogin();
     else if(k === 'signup') goSignup();
     else if(k === 'out'){ await cmMemberSignOut(); }
     else if(k === 'adminout'){ await cmAdminLogout(); render(); }
@@ -9146,6 +9193,7 @@ document.getElementById('footerAdminBtn').addEventListener('click', async () => 
   setTimeout(() => document.getElementById('footerAdminPassword').focus(), 50);
 });
 document.getElementById('footerMissingDetailsBtn').addEventListener('click', startMissingDetailsReview);
+document.getElementById('footerAdminPageBtn').addEventListener('click', () => goToTab('admin'));
 document.getElementById('footerNewEventBtn').addEventListener('click', openEventCreate);
 function setAdminRole(role, focus){
   const club = role === 'club';
@@ -9191,7 +9239,7 @@ document.getElementById('footerAdminForm').addEventListener('submit', async e =>
       document.getElementById('footerAdminPassword').value = '';
       errEl.textContent = '';
       submitBtn.disabled = false;
-      goToTab('clubs'); render();
+      goToTab('admin');
       return;
     }
     state.cmAdminLoggedIn = true;
@@ -9202,7 +9250,7 @@ document.getElementById('footerAdminForm').addEventListener('submit', async e =>
       state.cmAdminOpenPending = false;
       await cmAdminLoadAllMembers();
     }
-    render();
+    goToTab('admin');
   } catch(err){ errEl.textContent = err.message; }
   submitBtn.disabled = false;
 });
