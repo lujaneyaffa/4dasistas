@@ -228,14 +228,14 @@
   .weekday-row div{ text-align:center; font-size:11px; font-weight:700; color:var(--rose-deep); text-transform:uppercase; }
 
   .month-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
-  .day-cell{ min-height:78px; border:1.5px solid rgba(33,30,28,0.15); border-radius:8px; background:white; padding:4px; overflow:visible; }
+  .day-cell{ min-height:78px; border:1.5px solid rgba(33,30,28,0.24); border-radius:8px; background:white; box-shadow:0 1px 2px rgba(33,30,28,0.08); padding:4px; overflow:visible; }
   .day-cell.empty{ border:none; background:transparent; }
   .day-cell.today{ border:2px solid var(--brand-rose); }
   /* Calendar month-grid striping. Both tones sit close together and lighter than
      the page background (--cream #fff7e6) so the grid reads as bright and subtle,
      not a strong beige block. Tune --beige (row-even) and the row-odd hex to taste. */
-  .day-cell.row-even{ background:var(--beige); }
-  .day-cell.row-odd{ background:#fdf9f0; }
+  .day-cell.row-even{ background:#fffefd; }
+  .day-cell.row-odd{ background:#f9f8f7; }
   .day-num{ font-family:'Inter',sans-serif; font-size:12px; font-weight:700; color:var(--charcoal); }
   .day-weekday{ display:none; font-size:10px; font-weight:700; color:var(--rose-deep); text-transform:uppercase; line-height:1.1; }
   .day-pip{ display:block; font-size:9.5px; font-weight:600; padding:2px 4px; border-radius:4px; margin-top:2px; cursor:pointer; line-height:1.25; white-space:normal; overflow-wrap:anywhere; word-break:normal; color:var(--charcoal); }
