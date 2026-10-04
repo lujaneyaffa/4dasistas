@@ -823,6 +823,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-03 · Claude · index.html, service-worker.js (v40) · Removed nav Log in/Sign up buttons (messy on mobile); fixed top-right WhatsApp icon replaced by a power-button menu (Log in/Sign up, or Log out / Admin log out); Admin Login moved to the very bottom of the footer under the logo; squad 'Log in to request' stays on one line.
+
 _(most recent first — add new entries to the top, trim past ~15)_
 
 - 2026-10-02 — Claude (chat) — `workers/src/worker.js`, `index.html` — Joining a club now needs admin approval (existing members unchanged): new join-request/accept/decline endpoints, signup's #1 pick becomes a request, signed-in Clubs page shows real memberships + request buttons, admin panel has a Join requests card, and admin gets an email per request (needs ADMIN_NOTIFY_EMAIL secret).

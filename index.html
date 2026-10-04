@@ -73,14 +73,19 @@
   .wordmark-img{ display:block; width:clamp(110px,30vw,150px); height:auto; margin:0 auto; }
   .header-disclaimer{ font-size:11px; color:#2a2022; max-width:440px; margin:8px auto 0; line-height:1.5; text-align:center; }
 
-  .wa-fixed-btn{
+  .pwr-btn{
     position:fixed; top:calc(14px + env(safe-area-inset-top, 0px)); right:14px; z-index:60;
     display:flex; align-items:center; justify-content:center;
     width:38px; height:38px; border-radius:50%;
-    background:var(--wa-green); border:2px solid var(--charcoal);
+    background:var(--brand-blush); color:var(--brand-brown); border:2px solid var(--charcoal); cursor:pointer; padding:0;
     box-shadow:2px 2px 0 var(--charcoal);
   }
-  .wa-fixed-btn svg{ width:18px; height:18px; flex-shrink:0; display:block; }
+  .pwr-btn svg{ width:18px; height:18px; flex-shrink:0; display:block; }
+  .pwr-menu{ position:fixed; top:calc(58px + env(safe-area-inset-top, 0px)); right:12px; z-index:61; display:none; flex-direction:column; gap:6px; min-width:170px; padding:10px; background:var(--brand-cream); border:2px solid var(--charcoal); border-radius:16px; box-shadow:3px 3px 0 var(--charcoal); }
+  .pwr-menu.open{ display:flex; }
+  .pwr-menu button{ font-family:'Inter',sans-serif; font-weight:700; font-size:14px; min-height:42px; padding:0 14px; border-radius:999px; border:2px solid var(--brand-brown); background:var(--brand-blush); color:var(--brand-brown); cursor:pointer; white-space:nowrap; }
+  .pwr-menu button.primary{ background:var(--brand-rose); color:#fff; }
+  .pwr-menu .pwr-hi{ font-size:12px; font-weight:700; text-align:center; color:var(--brand-brown); padding:2px 4px; }
 
   .tabs{ display:flex; justify-content:center; align-items:center; gap:10px; padding:14px 16px; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; background:rgba(201,170,173,0.45); }
   .tabs::-webkit-scrollbar{ display:none; }
@@ -265,7 +270,7 @@
     .week-col .day-label{ font-size:13px; }
     .week-pill{ font-size:13px; padding:8px 9px; }
 
-    .wa-fixed-btn{ width:44px; height:44px; top:calc(10px + env(safe-area-inset-top, 0px)); right:12px; }
+    .pwr-btn{ width:44px; height:44px; top:calc(10px + env(safe-area-inset-top, 0px)); right:12px; }
     .home-tile{ padding:20px 54px 20px 18px; }
     .home-tile-title{ font-size:19px; padding-right:48px; }
     .home-tile[data-hometab="homescreen"] .home-tile-title{ padding-left:44px; padding-right:44px; }
@@ -281,7 +286,7 @@
     .club-guide-actions, .home-tiles{ grid-template-columns:1fr; }
     .home-tile[data-hometab="homescreen"]{ grid-column:1 / -1; width:100%; justify-self:center; }
     .cat-filter-btn{ padding:12px 20px; font-size:13px; }
-    .wa-fixed-btn svg{ width:20px; height:20px; }
+    .pwr-btn svg{ width:20px; height:20px; }
     header{ padding-top:calc(18px + env(safe-area-inset-top, 0px)); }
     .header-disclaimer{ font-size:10.5px; padding:0 30px; }
     .resource-map{ height:52vh; min-height:340px; }
@@ -795,7 +800,7 @@
   .update-banner button{ font-family:inherit; font-weight:700; border-radius:999px; border:none; cursor:pointer; padding:6px 12px; font-size:12.5px; }
   #updateBannerRefresh{ background:var(--brand-pink); color:var(--charcoal); }
   #updateBannerDismiss{ background:transparent; color:#fff; opacity:0.7; padding:6px 8px; }
-  .footer-admin-corner{ position:absolute; top:14px; right:14px; text-align:right; z-index:5; display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
+  .footer-admin-corner{ position:static; display:flex; flex-direction:row; flex-wrap:wrap; justify-content:center; align-items:center; gap:8px; margin:12px 0 4px; }
   .footer-admin-btn{ font-family:'Inter',sans-serif; font-weight:700; font-size:11px; padding:7px 12px; border-radius:999px; border:2px solid var(--charcoal); background:rgba(255,255,255,0.85); color:var(--charcoal); cursor:pointer; box-shadow:2px 2px 0 var(--charcoal); }
   .ev-created-box{ background:#e7f4ec; border:2px solid #5aa276; border-radius:12px; padding:12px; }
   .footer-admin-btn:hover{ transform:translate(-1px,-1px); box-shadow:3px 3px 0 var(--charcoal); }
@@ -930,23 +935,6 @@
 .today-day-btn{ border-color:var(--brand-brown); color:var(--brand-brown); }
 .today-subscribe-btn{ border-color:var(--brand-rose); color:var(--brand-brown); }
 
-/* nav: Log in / Sign up (and admin Log out). Desktop shows the words, phones show just the icon. */
-.nav-auth{ display:flex; align-items:center; gap:6px; flex:0 0 auto; }
-.nav-auth-btn{ display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:40px; padding:0 14px; border-radius:999px; border:2px solid var(--brand-brown); background:var(--brand-blush); color:var(--brand-brown); font-family:'Inter',sans-serif; font-weight:700; font-size:13px; cursor:pointer; white-space:nowrap; }
-.nav-auth-btn.primary{ background:var(--brand-rose); color:#fff; }
-.nav-auth-btn svg{ width:18px; height:18px; flex:none; }
-@media (max-width:1000px){
-  .nav-auth-btn{ width:40px; padding:0; }
-  .nav-auth-txt{ display:none; }
-  .top-search-wrap{ flex:0 1 180px; width:180px; }
-}
-@media (max-width:900px){
-  .tabs{ flex-wrap:wrap; overflow-x:visible; justify-content:center; }
-  .top-search-wrap{ flex:1 1 200px; width:auto; max-width:360px; }
-}
-@media (max-width:480px){
-  .top-search-wrap{ flex:1 1 0; min-width:0; width:auto; max-width:none; }
-}
 </style>
 </head>
 <body>
@@ -985,9 +973,8 @@
   })();
 </script>
 
-<a class="wa-fixed-btn" href="https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS" target="_blank" rel="noopener" aria-label="Join the WhatsApp community">
-  <svg viewBox="0 0 32 32" fill="white"><path d="M16 5C9.4 5 4 9.9 4 16c0 3.2 1.5 6.1 3.9 8.1-.3 1.8-1.1 3.8-2.2 5.4 2.3-.4 4.6-1.3 6.4-2.6 1.2.3 2.5.5 3.9.5 6.6 0 12-4.9 12-11S22.6 5 16 5Z"/></svg>
-</a>
+<button type="button" class="pwr-btn" id="pwrBtn" aria-label="Account menu" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v9"/><path d="M6.4 6.8a8 8 0 1 0 11.2 0"/></svg></button>
+<div class="pwr-menu" id="pwrMenu" role="menu"></div>
 
 <header>
   <a href="#" class="wordmark-link" aria-label="Go to homepage">
@@ -1007,11 +994,6 @@
     <input id="globalSearch" type="search" placeholder="Search for anything..." aria-label="Search for anything" autocomplete="off" />
     </div>
     <div class="search-suggestions" id="searchSuggestions" style="display:none;"></div>
-  </div>
-  <div class="nav-auth" id="navAuth">
-    <button type="button" class="nav-auth-btn" id="navLoginBtn" aria-label="Log in" title="Log in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg><span class="nav-auth-txt">Log in</span></button>
-    <button type="button" class="nav-auth-btn primary" id="navSignupBtn" aria-label="Sign up" title="Sign up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg><span class="nav-auth-txt">Sign up</span></button>
-    <button type="button" class="nav-auth-btn" id="navAdminLogoutBtn" aria-label="Admin log out" title="Admin log out" style="display:none;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg><span class="nav-auth-txt">Log out</span></button>
   </div>
 </nav>
 
@@ -1095,11 +1077,6 @@
 
 
 <footer>
-  <div class="footer-admin-corner">
-    <button type="button" class="footer-admin-btn" id="footerNewEventBtn" style="display:none;">➕ New event</button>
-    <button type="button" class="footer-admin-btn footer-missing-btn" id="footerMissingDetailsBtn" style="display:none;">📋 Needs details</button>
-    <button type="button" class="footer-admin-btn" id="footerAdminBtn">🔒 Admin Login</button>
-  </div>
   <div class="footer-btns">
     <a class="wa-btn" href="https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS" target="_blank" rel="noopener" aria-label="Join the WhatsApp community">
       <svg viewBox="0 0 32 32" fill="white"><path d="M16 5C9.4 5 4 9.9 4 16c0 3.2 1.5 6.1 3.9 8.1-.3 1.8-1.1 3.8-2.2 5.4 2.3-.4 4.6-1.3 6.4-2.6 1.2.3 2.5.5 3.9.5 6.6 0 12-4.9 12-11S22.6 5 16 5Z"/></svg>
@@ -1112,6 +1089,11 @@
     </a>
   </div>
   <img class="footer-logo" src="assets/OFFICIAL%20LOGO.png" alt="Not a cult (Yet)">
+  <div class="footer-admin-corner">
+    <button type="button" class="footer-admin-btn" id="footerNewEventBtn" style="display:none;">➕ New event</button>
+    <button type="button" class="footer-admin-btn footer-missing-btn" id="footerMissingDetailsBtn" style="display:none;">📋 Needs details</button>
+    <button type="button" class="footer-admin-btn" id="footerAdminBtn">🔒 Admin Login</button>
+  </div>
 </footer>
 
 <div class="footer-admin-modal-overlay" id="footerAdminModalOverlay">
@@ -2864,7 +2846,7 @@ function wireSquadsPage(){
   const sess = getCmSession();
   if(sess && state.meLoadedFor !== sess.token) refreshMe();
   document.querySelectorAll('.squad-request-btn').forEach(b => b.addEventListener('click', () => { b.disabled = true; squadRequest(b.dataset.squadId); }));
-  document.querySelectorAll('.squad-login-btn').forEach(b => b.addEventListener('click', () => document.getElementById('navLoginBtn').click()));
+  document.querySelectorAll('.squad-login-btn').forEach(b => b.addEventListener('click', () => goLogin()));
   document.querySelectorAll('.squad-act').forEach(b => b.addEventListener('click', () => { b.disabled = true; admAnswerSquad(b.dataset.squadId, b.dataset.userId, b.dataset.act); }));
   document.querySelectorAll('.adm-profile-link').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.userId)));
   document.querySelectorAll('.squad-link-save').forEach(b => b.addEventListener('click', async () => {
@@ -6395,8 +6377,8 @@ function wireClubIdeas(){
   wireIdeaAvailGrid();
   wireEveryoneAvailGrid();
   const ideaLogin = document.getElementById('ideaLoginBtn'), ideaSignup = document.getElementById('ideaSignupBtn');
-  if(ideaLogin) ideaLogin.addEventListener('click', () => document.getElementById('navLoginBtn').click());
-  if(ideaSignup) ideaSignup.addEventListener('click', () => document.getElementById('navSignupBtn').click());
+  if(ideaLogin) ideaLogin.addEventListener('click', () => goLogin());
+  if(ideaSignup) ideaSignup.addEventListener('click', () => goSignup());
   const join = document.getElementById('ideaJoinForm');
   if(join) join.addEventListener('submit', e => {
     e.preventDefault();
@@ -8842,21 +8824,36 @@ updateTypeMultiUI();
 
 document.getElementById('detailCloseBtn').addEventListener('click', closeDetail);
 
-// Log in / Sign up / admin Log out buttons in the nav bar.
-function renderNavAuth(){
-  const loginB = document.getElementById('navLoginBtn'), signupB = document.getElementById('navSignupBtn'), outB = document.getElementById('navAdminLogoutBtn');
-  if(!loginB) return;
-  const member = !!getCmSession(), admin = state.cmAdminLoggedIn === true;
-  loginB.style.display = signupB.style.display = (member || admin) ? 'none' : '';
-  outB.style.display = admin ? '' : 'none';
-}
-document.getElementById('navLoginBtn').addEventListener('click', () => {
+// Power-button account menu (top right): Log in / Sign up, or Log out.
+function goLogin(){
   state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false;
   goToTab('clubs');
   setTimeout(() => { const f = document.getElementById(getLastLogin() ? 'clubsLoginPin' : 'clubsLoginUsername'); if(f) f.focus(); }, 120);
-});
-document.getElementById('navSignupBtn').addEventListener('click', () => { state.fallQuickLogin = false; goToTab('fallsignup'); });
-document.getElementById('navAdminLogoutBtn').addEventListener('click', async () => { await cmAdminLogout(); render(); });
+}
+function goSignup(){ state.fallQuickLogin = false; goToTab('fallsignup'); }
+function renderNavAuth(){
+  const menu = document.getElementById('pwrMenu');
+  if(!menu) return;
+  const sess = getCmSession(), admin = state.cmAdminLoggedIn === true;
+  if(admin) menu.innerHTML = '<div class="pwr-hi">Admin</div><button type="button" data-pwr="adminout">Admin log out</button>';
+  else if(sess) menu.innerHTML = `<div class="pwr-hi">Hi, ${escapeCm(sess.name || sess.username || 'friend')}</div><button type="button" data-pwr="out">Log out</button>`;
+  else menu.innerHTML = '<button type="button" class="primary" data-pwr="login">Log in</button><button type="button" data-pwr="signup">Sign up</button>';
+}
+(function(){
+  const btn = document.getElementById('pwrBtn'), menu = document.getElementById('pwrMenu');
+  const close = () => { menu.classList.remove('open'); btn.setAttribute('aria-expanded','false'); };
+  btn.addEventListener('click', e => { e.stopPropagation(); renderNavAuth(); const o = menu.classList.toggle('open'); btn.setAttribute('aria-expanded', o ? 'true' : 'false'); });
+  document.addEventListener('click', e => { if(!menu.contains(e.target) && e.target !== btn) close(); });
+  menu.addEventListener('click', async e => {
+    const b = e.target.closest('button[data-pwr]'); if(!b) return;
+    close();
+    const k = b.dataset.pwr;
+    if(k === 'login') goLogin();
+    else if(k === 'signup') goSignup();
+    else if(k === 'out'){ await cmMemberSignOut(); }
+    else if(k === 'adminout'){ await cmAdminLogout(); render(); }
+  });
+})();
 
 document.getElementById('footerAdminBtn').addEventListener('click', async () => {
   if(state.cmAdminLoggedIn){
