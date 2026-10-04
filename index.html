@@ -356,7 +356,7 @@
   .panel-card{ background:var(--card); border:2px solid var(--charcoal); border-radius:16px; padding:18px; margin-bottom:16px; box-shadow:3px 3px 0 var(--charcoal); text-align:left; position:relative; }
   .resource-photo{ width:100%; height:180px; object-fit:cover; display:block; margin:-2px 0 14px; border-radius:10px; background:var(--brand-blush); }
 
-  .home-quicklinks{ display:flex; justify-content:center; align-items:center; flex-wrap:nowrap; gap:clamp(12px, 5vw, 56px); margin:20px 0 4px; padding:22px 12px; min-height:170px; }
+  .home-quicklinks{ display:flex; justify-content:center; align-items:center; flex-wrap:nowrap; gap:clamp(10px, 3vw, 22px); margin:14px 0 4px; padding:18px 12px; min-height:150px; }
   body.on-home main{ padding-bottom:0; }
   body.on-events main{ padding-bottom:14px; }
   body.on-home #resourcePagination{ display:none; }
@@ -3327,7 +3327,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       </div></div>
     </section>`;
     el.innerHTML = `${todaySection}<div class="home-quicklinks">${quickLinks.map((q, i) => `
-      <button type="button" class="club-guide-btn" data-hometab="${q.tab}" style="--dx:${[12,-10,9][i % 3]}px;--dy:${[-14,12,-11][i % 3]}px;--dur:${[8.5,10.5,9.5][i % 3]}s;--delay:${-i * 3}s;">${q.label}</button>`).join('')}</div>`;
+      <button type="button" class="club-guide-btn" data-hometab="${q.tab}" style="--dx:${[12,-10,9][i % 3]}px;--dy:${[-14,12,-11][i % 3]}px;--dur:${[5.2,6.4,5.8][i % 3]}s;--delay:${-i * 3}s;">${q.label}</button>`).join('')}</div>`;
     (function(){ // bubbles glide gently away from the pointer, like the club bubbles
       const box = document.querySelector('.home-quicklinks'); if(!box || !window.matchMedia('(hover:hover)').matches) return;
       const btns = [...box.querySelectorAll('.club-guide-btn')];

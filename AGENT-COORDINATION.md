@@ -823,6 +823,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-04 · Claude · index.html, service-worker.js (v54) · Home bubbles (Travel / About / Add to Home Screen): tighter gap (clamp 10–22px) and faster float (5–6.5s per drift, was 8.5–10.5s).
+
 - 2026-10-04 · Claude · index.html, service-worker.js (v53) · 'Add this to your Home Screen' wide tile on Home replaced by a third round floating bubble ('Add to Home Screen') next to Travel / About; bubbles stay on one row at phone widths (width clamp, drift scaled down ≤600px so they don't touch).
 
 - 2026-10-04 · Claude · index.html, service-worker.js (v52) · Calendar day cells whiter so they don't blend into the page: row tones #fffefd / #f9f8f7 (were cream #fffdf7 / #fdf9f0), border 0.24 alpha, light shadow.
