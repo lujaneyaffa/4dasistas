@@ -7920,8 +7920,12 @@ function admEnsureBell(){
   }
   if(!admNotif.timer){
     admNotifPoll();
-    admNotif.timer = setInterval(() => { if(document.visibilityState === 'visible') admNotifPoll(); }, 600000); // 10 min — each poll costs several KV list calls (free-tier limit)
-    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && state.cmAdminLoggedIn === true && Date.now() - (admNotif.lastPoll || 0) > 180000) admNotifPoll(); });
+    // Each poll costs ~4 KV list calls (free tier: 1,000/day), so it only runs while you're actually using the page: every 15 min,
+    // visible tab, and only if you've touched the page in the last 15 min — a tab left open all day makes NO calls.
+    admNotif.lastActivity = Date.now();
+    ['pointerdown', 'keydown', 'scroll'].forEach(ev => window.addEventListener(ev, () => { admNotif.lastActivity = Date.now(); }, { passive:true }));
+    admNotif.timer = setInterval(() => { if(document.visibilityState === 'visible' && Date.now() - (admNotif.lastActivity || 0) < 900000) admNotifPoll(); }, 900000);
+    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && state.cmAdminLoggedIn === true && Date.now() - (admNotif.lastPoll || 0) > 600000) admNotifPoll(); });
   }
 }
 function admRenderPanel(){
