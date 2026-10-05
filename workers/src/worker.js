@@ -1840,7 +1840,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period");
 
     if (requiresAuth && !leadCtx) {
       const token = getSessionToken(request);
@@ -1878,6 +1878,27 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     }
 
     // ---- API routes ----
+
+    // The availability PERIOD: the fixed block of dates people fill in (and everyone sees, in member + admin views). Nothing outside it is offered
+    // or assumed available. The MAIN admin opens the next one manually. Until one is saved, it defaults to Oct 8 – Oct 20, 2026.
+    const DEFAULT_AVAIL_PERIOD = { start: "2026-10-08", end: "2026-10-20" };
+    const readAvailPeriod = async () => {
+      try { const p = JSON.parse((await env.SITE_DATA.get("availperiod")) || "null"); if (p && isValidDateString(p.start) && isValidDateString(p.end) && p.end >= p.start) return { start: p.start, end: p.end }; } catch {}
+      return DEFAULT_AVAIL_PERIOD;
+    };
+    if (path === "/api/avail-period" && request.method === "GET") {
+      return jsonResponse(await readAvailPeriod(), 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    if (path === "/api/admin/avail-period" && request.method === "PUT") {
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const start = String(body.start || ""), end = String(body.end || "");
+      if (!isValidDateString(start) || !isValidDateString(end)) return jsonResponse({ error: "Pick a start and an end date" }, 400, corsHeaders);
+      if (end < start) return jsonResponse({ error: "The end date can't be before the start date" }, 400, corsHeaders);
+      if ((Date.parse(end + "T00:00:00Z") - Date.parse(start + "T00:00:00Z")) / 86400000 > 45) return jsonResponse({ error: "Keep the period to 45 days or less" }, 400, corsHeaders);
+      await env.SITE_DATA.put("availperiod", JSON.stringify({ start, end, at: Date.now() }));
+      return jsonResponse({ ok: true, start, end }, 200, corsHeaders);
+    }
 
     // Editable display names for resource categories and event genres (keys stay fixed; only the words people see change).
     const LABEL_KEYS = { resource: RESOURCE_CATEGORIES, event: ["sports", "activities", "functions", "trips", "mosqueprograms"] };

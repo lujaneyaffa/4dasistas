@@ -6106,15 +6106,24 @@ const IAV_PARTS = [['morning','Morning'],['afternoon','Afternoon'],['evening','E
 const IAV_PART_KEYS = IAV_PARTS.map(([k]) => k);
 const IAV_RANGES = { morning:'before 12 PM', afternoon:'12 – 5 PM', evening:'after 5 PM' };
 
-// Today and the next 3 days never show here — the soonest a day is offered is 4 days out
-// (matches the same rule new events follow — see minNewEventDate()).
+// The availability PERIOD is a fixed block of dates set by the main admin (Admin page → "Availability period"), the same for
+// members, the "everyone" grid and the admin calendar. Nothing outside it is offered or assumed free; the main admin opens the next
+// block by hand. (Name kept from when this was a rolling 15-day window.) Days that have already passed are skipped.
+let AVAIL_PERIOD = { start:'2026-10-08', end:'2026-10-20' }; // same default as the server until it answers
+async function loadAvailPeriod(){
+  try {
+    const r = await fetch('/api/avail-period', { cache:'no-store' });
+    if(r.ok){ const p = await r.json(); if(p && p.start && p.end) AVAIL_PERIOD = { start:p.start, end:p.end }; }
+  } catch {}
+}
 function iavNext15Dates(){
   const out = [];
-  const base = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 4);
-  for(let i = 0; i < 15; i++){
-    const d = new Date(base);
-    d.setDate(base.getDate() + i);
-    out.push(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`);
+  const todayKey = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+  const d = new Date(AVAIL_PERIOD.start + 'T12:00:00'), end = new Date(AVAIL_PERIOD.end + 'T12:00:00');
+  for(let i = 0; i < 60 && d <= end; i++){
+    const key = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    if(key >= todayKey) out.push(key);
+    d.setDate(d.getDate() + 1);
   }
   return out;
 }
@@ -7437,6 +7446,36 @@ async function cmAdminLoadLeads(){
     state.cmLeads = r.ok ? ((await r.json()).leads || []) : [];
   } catch { state.cmLeads = []; }
 }
+// ---- Availability period (main admin only): the fixed block of dates members fill in; the same dates show everywhere ----
+function periodAdminHtml(){
+  const fmt = k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' });
+  const inp = 'padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;flex:1;min-width:140px;';
+  return `<div class="cp-box" id="periodBox">
+    <p style="margin:0 0 8px;font-size:14px;line-height:1.5;">Members can only fill in — and everyone only sees — <strong>${escapeCm(fmt(AVAIL_PERIOD.start))} → ${escapeCm(fmt(AVAIL_PERIOD.end))}</strong>. Days after that are blocked (nobody is assumed free) until you open the next period here.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+      <label style="flex:1;min-width:140px;font-size:12px;color:#776867;">First day<input type="date" id="periodStart" value="${escapeCm(AVAIL_PERIOD.start)}" style="${inp}width:100%;"></label>
+      <label style="flex:1;min-width:140px;font-size:12px;color:#776867;">Last day<input type="date" id="periodEnd" value="${escapeCm(AVAIL_PERIOD.end)}" style="${inp}width:100%;"></label>
+    </div>
+    <button type="button" class="club-guide-btn" id="periodSave" style="background:var(--blush);">Save period</button>
+    <span id="periodStatus" style="font-size:12px;margin-left:8px;"></span>
+    <p class="ideas-hint" style="text-align:left;margin:8px 0 0;">Changing the period doesn't delete anyone's answers — dates outside it just stop showing. Up to 45 days.</p>
+  </div>`;
+}
+function wirePeriodAdmin(){
+  const btn = document.getElementById('periodSave'); if(!btn) return;
+  btn.addEventListener('click', async () => {
+    const st = document.getElementById('periodStatus'); st.style.color = '#776867'; st.textContent = 'Saving…';
+    const start = document.getElementById('periodStart').value, end = document.getElementById('periodEnd').value;
+    try {
+      const d = await leadApi('PUT', '/api/admin/avail-period', { start, end });
+      AVAIL_PERIOD = { start:d.start, end:d.end };
+      state.eavCache = {}; state.ideaAvailAllLoadedFor = null; admAvail.people = null;
+      admAvail.month = String(d.start).slice(0, 7); admAvail.day = null; admAvail.person = null;
+      st.style.color = '#2a7a4a'; st.textContent = 'Saved ✓'; render();
+    } catch(err){ st.style.color = '#c00'; st.textContent = err.message; }
+  });
+}
+
 // ---- Editable names for resource categories and event genres ----
 const LABELS = { resource:{}, event:{} };
 const LABEL_DEFAULTS = { resource:null, event:null };
@@ -8239,6 +8278,7 @@ function renderClubAdminPanel(){
     </div>
     ${lead ? `<p style="font-size:12px;color:#776867;margin:6px 0 0;">You manage: <strong>${adminClubs().map(c => escapeCm(c.title)).join(', ') || 'no clubs yet'}</strong>. Reminders only go to your clubs' members. Use "➕ New event" at the bottom of the page to add an official event.</p>` : ''}
     ${inboxAdminHtml(lead)}
+    ${lead ? '' : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
     ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
     ${lead ? '' : admSec('push', '📲 Push notifications', pushAdminHtml(), false)}
     ${lead ? '' : admSec('leads', '🧑‍💼 Club admins' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
@@ -8547,7 +8587,7 @@ function admModeAndBestHtml(scope){
   const todayKey = ymdToday(), keys = new Set();
   admWinSet().forEach(k => keys.add(k)); scope.forEach(p => Object.keys(p.days || {}).forEach(k => keys.add(k)));
   const rows = [];
-  [...keys].filter(k => k >= todayKey).forEach(k => { const c = admSlotCounts(scope, k); Object.keys(c).forEach(id => rows.push(Object.assign({ k, id }, c[id]))); });
+  [...keys].filter(k => k >= todayKey && k >= AVAIL_PERIOD.start && k <= AVAIL_PERIOD.end).forEach(k => { const c = admSlotCounts(scope, k); Object.keys(c).forEach(id => rows.push(Object.assign({ k, id }, c[id]))); });
   const score = r => mode === 'pref' ? r.pref : r.avail;
   rows.sort((a, b) => mode === 'pref' ? (b.pref - a.pref) || (b.avail - a.avail) || (a.no - b.no) || a.k.localeCompare(b.k) : (b.avail - a.avail) || (b.pref - a.pref) || (a.no - b.no) || a.k.localeCompare(b.k));
   const top = rows.filter(r => score(r) > 0).slice(0, 6);
@@ -8604,6 +8644,10 @@ function admAvailCalendarHtml(){
   const maxN = Math.max(1, scope.length);
   for(let d = 1; d <= daysInMonth; d++){
     const key = `${y}-${pad(m)}-${pad(d)}`;
+    if(key < AVAIL_PERIOD.start || key > AVAIL_PERIOD.end){ // outside the open availability period: blocked, nobody is assumed free
+      cells += `<div aria-hidden="true" style="min-height:74px;border-radius:10px;background:#efecea;opacity:.55;padding:5px 4px;font-size:12px;font-weight:700;color:#8a8583;">${d}</div>`;
+      continue;
+    }
     const per = { morning:0, afternoon:0, evening:0 }; let any = 0;
     if(sel){
       scope.forEach(p => { const parts = (p.days || {})[key] || []; if(parts.length) any++; parts.forEach(pt => { if(per[pt] !== undefined) per[pt]++; }); });
@@ -8642,7 +8686,7 @@ function admAvailCalendarHtml(){
   let personDays = '';
   if(sel){
     const todayKey = ymdToday();
-    const rowsFor = src => Object.keys(src || {}).filter(d => d >= todayKey && (src[d] || []).length).sort().map(d => {
+    const rowsFor = src => Object.keys(src || {}).filter(d => d >= todayKey && d >= AVAIL_PERIOD.start && d <= AVAIL_PERIOD.end && (src[d] || []).length).sort().map(d => {
       const dt = new Date(d + 'T12:00:00');
       const parts = ADM_PARTS.filter(([id]) => (src[d] || []).includes(id)).map(([, label]) => label).join(', ');
       return `<button type="button" class="adm-slot" data-day="${d}" data-part="" style="display:block;width:100%;text-align:left;padding:7px 4px;border:none;border-bottom:1px solid #0000000f;background:none;font:inherit;color:inherit;cursor:pointer;"><strong>${escapeCm(dayLabelsShort[dt.getDay()])} ${escapeCm(monthNames[dt.getMonth()].slice(0, 3))} ${dt.getDate()}</strong> — ${escapeCm(parts)} <span style="font-size:12px;font-weight:700;text-decoration:underline;">see who</span></button>`;
@@ -8775,6 +8819,7 @@ function wireClubAdminPanel(){
   wirePushAdmin();
   wireLeadsAdmin();
   wireLabelsAdmin();
+  wirePeriodAdmin();
   document.querySelectorAll('.adm-sort').forEach(b => b.addEventListener('click', () => { state.cmAdminMemberSort = b.dataset.sort; render(); }));
   const memberSearch = document.getElementById('admMemberSearch');
   if(memberSearch && !memberSearch.dataset.wired){
@@ -9651,7 +9696,7 @@ document.getElementById('subscribeBtn').addEventListener('click', e => {
 document.getElementById('subscribeFallback').href = `https://${location.host}/calendar.ics`;
 
 restoreStateFromHash();
-loadData().then(() => loadLabels()).then(() => {
+loadData().then(() => Promise.all([loadLabels(), loadAvailPeriod()])).then(() => {
   syncToggleButtonClasses();
   if(!enterDeepLinkState()) render();
   showLoadWarning();
