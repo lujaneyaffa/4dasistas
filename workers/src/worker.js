@@ -1969,6 +1969,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         }
         else if (seg[0] === "users" && seg.length === 3 && seg[2] === "profile" && M === "GET") ok = await inAnyOwn(seg[1]);
         else if (seg[0] === "users" && seg.length === 3 && seg[2] === "archive" && M === "PUT") ok = await inAnyOwn(seg[1]);
+        else if (seg[0] === "users" && seg.length === 3 && seg[2] === "reminded" && M === "POST") ok = await inAnyOwn(seg[1]);
         else if (seg[0] === "users" && seg.length === 3 && seg[2] === "clubs" && M === "PUT") {
           ok = await inAnyOwn(seg[1]);
           if (ok) {
@@ -2389,7 +2390,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       for (const sid of Object.keys(SQUAD_TITLES)) for (const uid of await readSquadMemberIds(env, sid)) (squadsByUser[uid] = squadsByUser[uid] || []).push(sid);
       const out = [];
       for (const u of await listAllUsers(env)) {
-          if (u) out.push({ ...publicUser(u), squads: squadsByUser[u.id] || [], phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, archived: u.archived || null, archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: (await readPushSubs(env, u.id)).length > 0 });
+          if (u) out.push({ ...publicUser(u), waRemindedAt: u.waRemindedAt || 0, squads: squadsByUser[u.id] || [], phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, archived: u.archived || null, archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: (await readPushSubs(env, u.id)).length > 0 });
       }
       if (leadCtx) return jsonResponse({ users: out.filter((u) => (u.clubs || []).some((c) => leadCtx.clubs.includes(c))).map((u) => ({ ...u, clubs: u.clubs.filter((c) => leadCtx.clubs.includes(c)), pending: (u.pending || []).filter((c) => leadCtx.clubs.includes(c)) })) }, 200, corsHeaders);
       if (!leadCtx) saveSnapshot(env, "snap:adminUsers", out);
@@ -2619,6 +2620,15 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await env.DB.prepare("INSERT OR REPLACE INTO meta (k, v) VALUES ('migrated', '0')").run();
       _d1Mode = { at: Date.now(), on: false };
       return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+    // Admin / club admin: remember that a WhatsApp availability reminder was sent to this person.
+    const adminUserRemindedMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/reminded\/?$/);
+    if (adminUserRemindedMatch && request.method === "POST") {
+      const user = await readUser(env, decodeURIComponent(adminUserRemindedMatch[1]));
+      if (!user) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
+      user.waRemindedAt = Date.now();
+      await writeUser(env, user);
+      return jsonResponse({ ok: true, waRemindedAt: user.waRemindedAt }, 200, corsHeaders);
     }
     // Admin: attach what a person wrote on the sign-up form (clubs ranked, comments) to their profile; fills a missing phone number only.
     const adminUserFormMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/signup-form\/?$/);

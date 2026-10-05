@@ -823,6 +823,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-05 · Claude · index.html, workers/src/worker.js, service-worker.js (v72) · WhatsApp availability reminders are remembered: clicking the green pill (`.wa-remind`) POSTs `/api/admin/users/:id/reminded` (admin; club admins for their own clubs) which stores `user.waRemindedAt`; `/api/admin/users` returns it; the missing-availability list then shows '✓ Reminder sent · <date time>' + a small 'send again' link instead of the pill, on any device.
+
 - 2026-10-05 · Claude · index.html, service-worker.js (v71) · Nav tabs are now real links (`<a class="tab-btn" href="#/calendar">` etc.; Home → `/`) so right-click → 'Open link in new tab' and Ctrl/⌘/middle-click work. Plain left-click still calls goToTab() (the tabs click handler skips modified/non-left clicks). Pills stay as pills (Lujane confirmed).
 
 - 2026-10-05 · Claude · workers/src/worker.js · `/api/me` `phoneConfirmed` is now true when the profile already has a phone number (`phoneConfirmedAt || phone`), so numbers added by the admin / imported from sign-up forms don't trigger the phone prompt again. Only people with NO number are asked.
