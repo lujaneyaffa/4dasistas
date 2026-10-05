@@ -6428,15 +6428,7 @@ async function everyoneAvailLoad(force){
   if(state.tab === 'clubideas' || state.tab === 'clubs') render();
   eavPrefetch();
 }
-function eavPrefetch(){
-  const mineIds = ((getCmSession() || {}).clubs || []).filter(id => clubsData.some(c => c.id === id));
-  if(mineIds.length < 2) return;
-  const todo = ['mine'].concat(mineIds).filter(k => !state.eavCache[k] && !state.eavInflight[k]);
-  if(!todo.length) return;
-  const k = todo[0];
-  state.eavInflight[k] = true;
-  setTimeout(() => { everyoneAvailFetch(k).catch(() => {}).finally(() => { state.eavInflight[k] = false; eavPrefetch(); }); }, 250);
-}
+function eavPrefetch(){ /* intentionally empty: prefetching every club multiplied KV reads (free-tier limit). A club loads when tapped, then stays cached. */ }
 // Names for one slot: PREFERRED (green) and AVAILABLE (didn't fill it in — counts as free, just not their preferred
 // time). People who marked it red are left out.
 function eavNamesFor(date, part){
@@ -7881,6 +7873,7 @@ function admUpdateBell(){
 }
 async function admNotifPoll(){
   if(state.cmAdminLoggedIn !== true) return;
+  admNotif.lastPoll = Date.now();
   const get = async u => { try { const r = await fetch(u, { credentials:'include' }); return r.ok ? await r.json() : null; } catch { return null; } };
   const [j, e, rs, sq] = await Promise.all([get('/api/admin/join-requests'), get('/api/admin/event-suggestions'), get('/api/admin/resource-suggestions'), get('/api/admin/squad-requests')]);
   if(!j && !e && !rs && !sq) return;
@@ -7927,8 +7920,8 @@ function admEnsureBell(){
   }
   if(!admNotif.timer){
     admNotifPoll();
-    admNotif.timer = setInterval(() => { if(document.visibilityState === 'visible') admNotifPoll(); }, 40000);
-    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && state.cmAdminLoggedIn === true) admNotifPoll(); });
+    admNotif.timer = setInterval(() => { if(document.visibilityState === 'visible') admNotifPoll(); }, 600000); // 10 min — each poll costs several KV list calls (free-tier limit)
+    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && state.cmAdminLoggedIn === true && Date.now() - (admNotif.lastPoll || 0) > 180000) admNotifPoll(); });
   }
 }
 function admRenderPanel(){
@@ -7962,6 +7955,7 @@ function admRenderPanel(){
 }
 function admOpenPanel(){
   if(admNotif.panel && document.body.contains(admNotif.panel)) return;
+  if(Date.now() - (admNotif.lastPoll || 0) > 60000) admNotifPoll(); // opening the bell refreshes (the background poll is only every 10 min)
   admNotif.openedWithSeen = admSeenAt(); // anything newer than this still gets its red dot inside the panel
   const { wrap } = ideaPopup('<p class="av-msg">Loading…</p>');
   admNotif.panel = wrap;

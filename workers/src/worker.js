@@ -216,14 +216,25 @@ const resolveClubMembers = async (env, clubId) => {
   return users.filter(Boolean);
 };
 
+// KV *list* calls are the scarcest free-tier resource (1,000/day), so hot paths use direct gets over the club roster instead of listing keys.
+const clubIdList = async (env) => {
+  try { const r = await readClubRoster(env); const ids = r.map((c) => c.id).filter(Boolean); if (ids.length) return ids; } catch {}
+  return (await env.SITE_DATA.list({ prefix: "clubmembers:" })).keys.map((k) => k.name.slice("clubmembers:".length));
+};
+const DEFAULT_AVAIL_PERIOD = { start: "2026-10-08", end: "2026-10-20" };
+const readAvailPeriodKV = async (env) => {
+  try { const p = JSON.parse((await env.SITE_DATA.get("availperiod")) || "null"); if (p && /^\d{4}-\d{2}-\d{2}$/.test(p.start) && /^\d{4}-\d{2}-\d{2}$/.test(p.end) && p.end >= p.start) return { start: p.start, end: p.end }; } catch {}
+  return DEFAULT_AVAIL_PERIOD;
+};
+const availPeriodDates = (period) => {
+  const out = [], today = new Date().toISOString().slice(0, 10);
+  const d = new Date(period.start + "T12:00:00Z"), end = new Date(period.end + "T12:00:00Z");
+  for (let i = 0; i < 60 && d <= end; i++) { const k = d.toISOString().slice(0, 10); if (k >= today) out.push(k); d.setUTCDate(d.getUTCDate() + 1); }
+  return out;
+};
 const allClubIdsContaining = async (env, userId) => {
-  const list = await env.SITE_DATA.list({ prefix: "clubmembers:" });
   const out = [];
-  for (const key of list.keys) {
-    const clubId = key.name.replace("clubmembers:", "");
-    const ids = await readClubMemberIds(env, clubId);
-    if (ids.includes(userId)) out.push(clubId);
-  }
+  for (const clubId of await clubIdList(env)) if ((await readClubMemberIds(env, clubId)).includes(userId)) out.push(clubId);
   return out;
 };
 
@@ -241,7 +252,11 @@ const listJoinRequests = async (env) => {
   }
   return out;
 };
-const pendingClubIdsFor = async (env, userId) => (await listJoinRequests(env)).filter((r) => r.userId === userId).map((r) => r.clubId);
+const pendingClubIdsFor = async (env, userId) => {
+  const out = [];
+  for (const clubId of await clubIdList(env)) if (await env.SITE_DATA.get(joinReqKey(clubId, userId))) out.push(clubId);
+  return out;
+};
 const JOIN_REQUESTS_MAX_PENDING_PER_PERSON = 4;
 // Emails the admin each time someone asks to join a club. Needs the ADMIN_NOTIFY_EMAIL secret; if it isn't
 // set (or Resend isn't), the request is still saved and shows up in the admin panel - it just can't email.
@@ -432,7 +447,14 @@ const parseIdeaAvailDoc = (raw) => {
   if (isDoc && parsed.no && typeof parsed.no === "object") for (const [date, v] of Object.entries(parsed.no)) if (Array.isArray(v)) out.no[date] = v;
   return out;
 };
+let _ideaAvailMemo = { at: 0, people: null };
 const readIdeaAvailPeople = async (env) => {
+  if (_ideaAvailMemo.people && Date.now() - _ideaAvailMemo.at < 45000) return _ideaAvailMemo.people.map((p) => ({ ...p })); // fewer KV reads: 45s per server instance
+  const people = await readIdeaAvailPeopleFresh(env);
+  _ideaAvailMemo = { at: Date.now(), people };
+  return people.map((p) => ({ ...p }));
+};
+const readIdeaAvailPeopleFresh = async (env) => {
   const list = await env.SITE_DATA.list({ prefix: `ideaavail:` });
   const people = [];
   for (const k of list.keys) {
@@ -1308,9 +1330,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const myId = who.id.slice(2);
         const mine = new Set();
         const peerClubs = {};
-        const memberKeys = await env.SITE_DATA.list({ prefix: "clubmembers:" });
-        for (const key of memberKeys.keys) {
-          const clubId = key.name.slice("clubmembers:".length);
+        for (const clubId of await clubIdList(env)) {
           const ids = await readClubMemberIds(env, clubId);
           if (ids.includes(myId)) mine.add(clubId);
           for (const uid of ids) (peerClubs[uid] = peerClubs[uid] || new Set()).add(clubId);
@@ -1324,10 +1344,9 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         people = people.filter((p) => p.id.startsWith("m:") && ids.has(p.id.slice(2)));
       }
       // counts = people AVAILABLE per slot (green + unset; red excluded), preferred = green only, unavailable = red.
-      // Unset slots only count inside the 15-day window the grid offers (today+4 ... +18).
+      // Unset slots only count inside the availability PERIOD (set by the main admin).
       const counts = {}, preferred = {}, unavailable = {};
-      const windowDates = [];
-      for (let i = 4; i < 19; i++) windowDates.push(new Date(Date.now() + i * 86400000).toISOString().slice(0, 10));
+      const windowDates = availPeriodDates(await readAvailPeriodKV(env)); // the fixed period the main admin opened (nothing outside it is assumed free)
       const bump = (map, date, part) => { const slot = (map[date] = map[date] || { morning: 0, afternoon: 0, evening: 0 }); slot[part]++; };
       for (const p of people) {
         const dates = new Set([...windowDates, ...Object.keys(p.days), ...Object.keys(p.no)]);
@@ -1361,6 +1380,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       const { days, no } = sanitizeIdeaAvail(body);
       await env.SITE_DATA.put(key, JSON.stringify({ name: who.name, days, no }));
+      _ideaAvailMemo = { at: 0, people: null }; // the next read in this instance is fresh
       return jsonResponse({ days, no, submitted: true }, 200, corsHeaders);
     }
 
@@ -1479,7 +1499,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const me = meId ? await readUser(env, meId) : null;
       if (!me) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
       // "last active" for the admin profile view — written at most once an hour per person (KV writes are limited)
-      if (!me.lastSeenAt || Date.now() - me.lastSeenAt > 3600000) { me.lastSeenAt = Date.now(); await writeUser(env, me); }
+      if (!me.lastSeenAt || Date.now() - me.lastSeenAt > 21600000) { me.lastSeenAt = Date.now(); await writeUser(env, me); }
       const clubs = await allClubIdsContaining(env, me.id);
       let notices = [];
       try { notices = JSON.parse((await env.SITE_DATA.get(`notice:${me.id}`)) || "[]"); } catch {}
@@ -1487,7 +1507,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         // squads: ids the member is IN (with that squad's private invite link) and ids still waiting for approval
         const squads = [];
         for (const id of Object.keys(SQUAD_TITLES)) if ((await readSquadMemberIds(env, id)).includes(me.id)) squads.push({ id, link: (await env.SITE_DATA.get(squadLinkKey(id))) || "" });
-        return { squads, squadPending: (await listSquadRequests(env)).filter((r) => r.userId === me.id).map((r) => r.squadId) };
+        return { squads, squadPending: await (async () => { const out = []; for (const id of Object.keys(SQUAD_TITLES)) if (await env.SITE_DATA.get(squadReqKey(id, me.id))) out.push(id); return out; })() };
       })()) }, 200, corsHeaders);
     }
     // ---- Squads: a signed-in member requests to join one (an admin approves; then they get that squad's private invite link) ----
@@ -1499,7 +1519,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const me = meId ? await readUser(env, meId) : null;
       if (!me) return jsonResponse({ error: "Please log in to request a squad" }, 401, corsHeaders);
       if ((await readSquadMemberIds(env, squadId)).includes(me.id)) return jsonResponse({ error: "You're already in this squad" }, 409, corsHeaders);
-      const mine = (await listSquadRequests(env)).filter((r) => r.userId === me.id);
+      const mine = []; for (const id of Object.keys(SQUAD_TITLES)) if (await env.SITE_DATA.get(squadReqKey(id, me.id))) mine.push({ squadId: id, userId: me.id });
       if (!mine.some((r) => r.squadId === squadId)) {
         if (mine.length >= SQUAD_MAX_PENDING_PER_PERSON) return jsonResponse({ error: "You already have several squad requests waiting" }, 429, corsHeaders);
         await env.SITE_DATA.put(squadReqKey(squadId, me.id), JSON.stringify({ at: Date.now() }));
@@ -1881,11 +1901,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // The availability PERIOD: the fixed block of dates people fill in (and everyone sees, in member + admin views). Nothing outside it is offered
     // or assumed available. The MAIN admin opens the next one manually. Until one is saved, it defaults to Oct 8 – Oct 20, 2026.
-    const DEFAULT_AVAIL_PERIOD = { start: "2026-10-08", end: "2026-10-20" };
-    const readAvailPeriod = async () => {
-      try { const p = JSON.parse((await env.SITE_DATA.get("availperiod")) || "null"); if (p && isValidDateString(p.start) && isValidDateString(p.end) && p.end >= p.start) return { start: p.start, end: p.end }; } catch {}
-      return DEFAULT_AVAIL_PERIOD;
-    };
+    const readAvailPeriod = () => readAvailPeriodKV(env);
     if (path === "/api/avail-period" && request.method === "GET") {
       return jsonResponse(await readAvailPeriod(), 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
@@ -2373,6 +2389,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const reqKeys = await env.SITE_DATA.list({ prefix: "joinreq:" });
       for (const k of reqKeys.keys) if (k.name.split(":")[2] === userId) await env.SITE_DATA.delete(k.name);
       await env.SITE_DATA.delete(ideaAvailKey(`m:${userId}`));
+      _ideaAvailMemo = { at: 0, people: null };
       await env.SITE_DATA.delete(pushKey(userId));
       for (const sid of Object.keys(SQUAD_TITLES)) { await writeSquadMemberIds(env, sid, (await readSquadMemberIds(env, sid)).filter((x) => x !== userId)); await env.SITE_DATA.delete(squadReqKey(sid, userId)); }
       await releaseUsername(env, user.username);
