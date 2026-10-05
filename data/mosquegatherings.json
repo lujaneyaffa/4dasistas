@@ -277,6 +277,44 @@
       "id": "ihsan-in-academia"
     },
     {
+      "section": "mosqueprograms",
+      "title": "Islamic Heritage Series",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "YM Ajax",
+      "eventDate": "2026-10-09",
+      "endDate": "2026-10-09",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [
+        {
+          "date": "2026-10-16"
+        },
+        {
+          "date": "2026-10-23"
+        }
+      ],
+      "virtual": false,
+      "location": "Ajax, ON, Canada",
+      "link": "https://www.instagram.com/p/DdPs8pTm_ON/?img_index=2&stkn=Mzk1NjE0aHVtcmwz",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "islamic-heritage-series"
+    },
+    {
       "id": "isna-thrive-2026",
       "tag": "Mosque Program",
       "title": "ISNA Thrive",
