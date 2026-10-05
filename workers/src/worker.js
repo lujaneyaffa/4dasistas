@@ -1464,6 +1464,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const who = await ideaWho();
       if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
       let people = await readIdeaAvailPeople(env);
+      let waitingIds = []; // people in the viewer's scope who haven't submitted their availability yet
       // A signed-in member only sees (and is only counted with) people from the clubs they're really in;
       // the admin sees everyone. Name-only guests get no names at all (handled below).
       if (who.id.startsWith("m:")) {
@@ -1479,9 +1480,12 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         // Optional narrowing to ONE of the viewer's clubs (members of several clubs choose which crowd to look at).
         const only = url.searchParams.get("club");
         if (only && mine.has(only)) people = people.filter((p) => p.id.startsWith("m:") && (peerClubs[p.id.slice(2)] || new Set()).has(only));
+        const scopeOnly = only && mine.has(only) ? only : null;
+        waitingIds = Object.keys(peerClubs).filter((uid) => uid !== myId && [...peerClubs[uid]].some((c) => (scopeOnly ? c === scopeOnly : mine.has(c))));
       } else if (who.id === "admin" && url.searchParams.get("club")) {
         const ids = new Set(await readClubMemberIds(env, url.searchParams.get("club")));
         people = people.filter((p) => p.id.startsWith("m:") && ids.has(p.id.slice(2)));
+        waitingIds = [...ids];
       }
       // counts = people AVAILABLE per slot (green + unset; red excluded), preferred = green only, unavailable = red.
       // Unset slots only count inside the availability PERIOD (set by the main admin).
@@ -1500,10 +1504,21 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         }
       }
       const respondents = people.length;
+      const responded = new Set(people.map((p) => p.id));
+      const todayIso = new Date().toISOString().slice(0, 10);
+      const waiting = [];
+      for (const uid of waitingIds) {
+        if (responded.has(`m:${uid}`)) continue;
+        const u = await readUser(env, uid);
+        if (!u) continue;
+        if (u.archived && !(u.archived.reason === "travelling" && u.archived.until && u.archived.until < todayIso)) continue; // archived people aren't expected to vote
+        waiting.push(sanitizePersonName(u.name) || "Someone");
+      }
+      waiting.sort((a, b) => a.localeCompare(b));
       // Signed-in members (and the site admin) see who's free by name when they tap a square; a
       // name-only guest still only sees the anonymous counts/colour intensity.
       const showNames = !who.id.startsWith("g:");
-      return jsonResponse({ counts, preferred, unavailable, windowDates, respondents, ...(showNames ? { people } : {}) }, 200, corsHeaders);
+      return jsonResponse({ counts, preferred, unavailable, windowDates, respondents, ...(showNames ? { people, waiting } : {}) }, 200, corsHeaders);
     }
 
     const ideaAvailMatch = path.match(/^\/api\/idea-availability\/?$/);

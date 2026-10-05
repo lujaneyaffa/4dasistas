@@ -6416,12 +6416,12 @@ function everyoneAvailSectionHtml(me){
 // the background after the first one), and a stale copy is shown at once while a fresh one loads quietly.
 function eavApply(d){
   state.ideaAvailAll = d.counts; state.ideaAvailAllPreferred = d.preferred; state.ideaAvailAllUnavailable = d.unavailable;
-  state.ideaAvailAllRespondents = d.respondents; state.ideaAvailAllPeople = d.people; state.ideaAvailAllLoadedFor = true; state.ideaAvailAllError = '';
+  state.ideaAvailAllRespondents = d.respondents; state.ideaAvailAllPeople = d.people; state.ideaAvailAllWaiting = d.waiting || []; state.ideaAvailAllLoadedFor = true; state.ideaAvailAllError = '';
 }
 async function everyoneAvailFetch(key){
   const data = await cmApiRaw('/api/idea-availability/all' + (key && key !== 'mine' ? '?club=' + encodeURIComponent(key) : ''), { headers: ideaHeaders() });
   // Any signed-in member (or the site admin) also gets everyone's name, not just the anonymous count (data.people).
-  const d = { counts: data.counts || {}, preferred: data.preferred || {}, unavailable: data.unavailable || {}, respondents: data.respondents || 0, people: data.people || null, at: Date.now() };
+  const d = { counts: data.counts || {}, preferred: data.preferred || {}, unavailable: data.unavailable || {}, respondents: data.respondents || 0, people: data.people || null, waiting: data.waiting || [], at: Date.now() };
   state.eavCache[key] = d;
   return d;
 }
@@ -6465,6 +6465,7 @@ function eavShowSlot(date, part){
   const label = (IAV_PARTS.find(([k]) => k === part) || [null, part])[1];
   const dt = new Date(date + 'T00:00:00');
   const { preferred, available, unavailable } = eavNamesFor(date, part);
+  const waiting = state.ideaAvailAllWaiting || [];
   const chips = list => list.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('');
   const redChips = list => list.map(n => `<span class="av-club-chip active" style="background:#d9534f;border-color:#b3261e;color:#fff;">${escapeCm(n)}</span>`).join('');
   ideaPopup(`
@@ -6475,6 +6476,8 @@ function eavShowSlot(date, part){
     <div class="idea-pop-names">${available.length ? chips(available) : '<span class="av-msg">Nobody else.</span>'}</div>
     <p class="idea-pop-h" style="margin-top:10px;">🔴 Not available (${unavailable.length})</p>
     <div class="idea-pop-names">${unavailable.length ? redChips(unavailable) : '<span class="av-msg">Nobody marked this as unavailable.</span>'}</div>
+    ${waiting.length ? `<p class="idea-pop-h" style="margin-top:14px;">⏳ Haven't voted yet (${waiting.length})</p>
+    <div class="idea-pop-names">${waiting.map(n => `<span class="av-club-chip" style="background:#f3f0ee;border-color:#c9c2bd;color:#6b6460;">${escapeCm(n)}</span>`).join('')}</div>` : ''}
   `);
 }
 function wireEveryoneAvailGrid(){
