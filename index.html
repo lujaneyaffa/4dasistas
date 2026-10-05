@@ -7453,6 +7453,7 @@ async function cmAdminLoadAllMembers(){
   } else {
     try { const res = await fetch('/api/admin/club-members', { credentials:'include' }); state.cmAdminAllMembers = res.ok ? await res.json() : {}; } catch { state.cmAdminAllMembers = {}; }
   }
+  loadWaTemplates();
   await cmAdminLoadJoinRequests();
   if(state.cmAdminLoggedIn !== true) return; // club leads only see their own clubs' people + requests
   await cmAdminLoadEventSuggestions();
@@ -7730,7 +7731,8 @@ function admProfileEdit(wrap, u){
     <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:8px;">${SQUADS.map(q => `<label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:38px;"><input type="checkbox" class="ape-squad" value="${escapeCm(q.id)}" ${u.squads.includes(q.id) ? 'checked' : ''} style="width:20px;height:20px;"> ${escapeCm(q.title)}</label>`).join('')}</div>` : ''}
     <div id="apeStatus" style="font-size:13px;color:#c00;min-height:18px;margin-bottom:6px;" aria-live="polite"></div>
     <div style="display:flex;gap:8px;margin-bottom:8px;">${btn('apeSave', '#d9f0d8', 'var(--charcoal)', 'Save')}${btn('apeCancel', 'transparent', 'var(--charcoal)', 'Cancel')}</div>
-    <div style="display:flex;gap:8px;">${btn('apeReset', '#fff3cf', 'var(--charcoal)', '🔑 Reset PIN')}${btn('apeDelete', '#b3261e', '#fff', '🗑 Delete profile')}</div>`;
+    <div style="display:flex;gap:8px;margin-bottom:8px;">${btn('apeArchive', '#fff3cf', 'var(--charcoal)', admIsArchived(u) ? '♻️ Restore from archive' : '📦 Archive')}${btn('apeReset', '#fff3cf', 'var(--charcoal)', '🔑 Reset PIN')}</div>
+    <div style="display:flex;gap:8px;">${btn('apeDelete', '#b3261e', '#fff', '🗑 Delete profile')}</div>`;
   const $ = id => card.querySelector('#' + id);
   const st = $('apeStatus');
   const refreshLists = async () => {
@@ -7757,6 +7759,7 @@ function admProfileEdit(wrap, u){
       wrap.remove(); openAdminProfile(u.id);
     } catch(err){ st.style.color = '#c00'; st.textContent = err.message; }
   });
+  $('apeArchive').addEventListener('click', () => admArchiveDialog(u, wrap));
   $('apeReset').addEventListener('click', async () => {
     if(!confirm('Give ' + u.name + ' a new random PIN? Their old PIN stops working.')) return;
     try {
@@ -7858,7 +7861,7 @@ function wirePushAdmin(){
   if(off) off.addEventListener('click', () => {
     const box = document.getElementById('pushOffList');
     box.style.display = box.style.display === 'none' ? 'block' : 'none';
-    box.innerHTML = users.filter(u => !u.push).map(u => { const wa = admWhatsAppLink(u.phone, `Hi ${String(u.name || '').split(' ')[0]}! Please open 4DASISTAS from your Home Screen and tap Allow notifications so we can send you reminders 💛 4dasistas.ca`); return `${escapeCm(u.name)}${wa ? ` <a href="${escapeCm(wa)}" target="_blank" rel="noopener" title="Nudge on WhatsApp" style="text-decoration:none;font-size:12px;font-weight:700;background:#25D366;color:#fff;border-radius:999px;padding:2px 8px;">WhatsApp reminder</a>` : ''}`; }).join(' · ');
+    box.innerHTML = users.filter(u => !u.push).map(u => { const wa = admWhatsAppLink(u.phone, waMsg('notif', u.name)); return `${escapeCm(u.name)}${wa ? ` <a href="${escapeCm(wa)}" target="_blank" rel="noopener" title="Nudge on WhatsApp" style="text-decoration:none;font-size:12px;font-weight:700;background:#25D366;color:#fff;border-radius:999px;padding:2px 8px;">WhatsApp reminder</a>` : ''}`; }).join(' · ');
   });
   send.addEventListener('click', async () => {
     const aud = document.getElementById('pushAudience').value, res = document.getElementById('pushResult');
@@ -7925,6 +7928,38 @@ function joinRequestsAdminHtml(){
 const admNotif = { timer:null, known:null, items:[], dismissed:new Set(), panel:null };
 function admSeenAt(){ try { return Number(localStorage.getItem('admNotifSeenAt') || 0); } catch { return 0; } }
 function admMarkSeen(){ try { localStorage.setItem('admNotifSeenAt', String(Date.now())); } catch {} admUpdateBell(); }
+// Editable WhatsApp wording. {first} = first name, {name} = full name, {club} = club. Saved by the main admin (Admin → Notifications & team → 💬 WhatsApp messages).
+const WA_DEFAULTS = {
+  remind: "Hi {first}! Quick reminder to add your availability on 4DASISTAS so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs",
+  notif: "Hi {first}! Please open 4DASISTAS from your Home Screen and tap Allow notifications so we can send you reminders 💛 4dasistas.ca",
+  joinAccept: "Hi {first}! You've been accepted into the {club} club on 4DASISTAS 🎉 Open the app to see it.",
+  joinDecline: "Hi {first}, thanks for requesting the {club} club on 4DASISTAS. We couldn't approve it this time — message us if you have questions.",
+};
+function waMsg(key, name, club){
+  const t = (state.waTemplates && state.waTemplates[key]) || WA_DEFAULTS[key];
+  const first = String(name || '').trim().split(/\s+/)[0] || 'there';
+  return t.replace(/\{first\}/g, first).replace(/\{name\}/g, String(name || '')).replace(/\{club\}/g, club || 'the');
+}
+async function loadWaTemplates(){
+  try { const r = await fetch('/api/admin/wa-templates', { credentials:'include' }); if(r.ok) state.waTemplates = (await r.json()).templates || {}; } catch {}
+}
+function waTemplatesAdminHtml(){
+  const f = (key, label, hint) => `<label style="display:block;margin-top:10px;font-weight:700;font-size:13px;">${label}<span style="display:block;font-weight:400;font-size:11px;color:#776867;">${hint}</span><textarea class="wa-tpl" data-key="${key}" rows="3" maxlength="600" style="width:100%;margin-top:4px;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:14px;font-family:inherit;box-sizing:border-box;">${escapeCm((state.waTemplates && state.waTemplates[key]) || WA_DEFAULTS[key])}</textarea></label>`;
+  return `<div class="cp-box"><p style="font-size:12px;color:#776867;margin:0;line-height:1.5;">The text that's pre-filled when you tap a WhatsApp button. Use <code>{first}</code> (first name), <code>{name}</code> (full name) and <code>{club}</code> (club). You can still edit it in WhatsApp before sending.</p>
+    ${f('remind', '⏰ Availability reminder', 'The green "WhatsApp reminder" button in the availability calendar.')}
+    ${f('notif', '🔔 Turn on notifications', 'Nudge for people who haven\'t turned notifications on.')}
+    ${f('joinAccept', '✅ Club request accepted', 'Offered after you accept a join request.')}
+    ${f('joinDecline', '❌ Club request declined', 'Offered after you decline a join request.')}
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><button type="button" class="club-guide-btn" id="waTplSave" style="background:var(--blush);">Save wording</button><button type="button" class="club-guide-btn" id="waTplReset" style="padding:6px 14px;font-size:12px;">Reset all to default</button></div>
+    <span id="waTplStatus" style="font-size:12px;display:block;margin-top:6px;"></span></div>`;
+}
+function wireWaTemplates(){
+  const save = document.getElementById('waTplSave'); if(!save) return;
+  const st = document.getElementById('waTplStatus');
+  const collect = () => { const t = {}; document.querySelectorAll('.wa-tpl').forEach(a => { const v = a.value.trim(); if(v && v !== WA_DEFAULTS[a.dataset.key]) t[a.dataset.key] = v; }); return t; };
+  save.addEventListener('click', async () => { st.style.color = '#776867'; st.textContent = 'Saving…'; try { const d = await leadApi('PUT', '/api/admin/wa-templates', { templates: collect() }); state.waTemplates = d.templates || {}; st.style.color = '#2a7a4a'; st.textContent = 'Saved ✓'; } catch(err){ st.style.color = '#c00'; st.textContent = err.message; } });
+  document.getElementById('waTplReset').addEventListener('click', async () => { if(!confirm('Reset all four messages to the original wording?')) return; try { await leadApi('PUT', '/api/admin/wa-templates', { templates: {} }); state.waTemplates = {}; render(); } catch(err){ st.style.color = '#c00'; st.textContent = err.message; } });
+}
 function admWhatsAppLink(phone, text){
   let d = String(phone || '').replace(/\D/g, '');
   if(d.length === 10) d = '1' + d; // Canadian/US number without the country code
@@ -8044,9 +8079,7 @@ async function admAnswerJoin(clubId, userId, action){
     if(state.tab === 'clubs' || state.tab === 'admin') render();
     if(action === 'accept'){ admAvail.people = null; cmAdminLoadAllMembers().then(() => { const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName); if((state.tab === 'clubs' || state.tab === 'admin') && !typing) render(); }); }
     const first = req ? String(req.name || '').split(' ')[0] : 'her';
-    const wa = req ? admWhatsAppLink(req.phone, action === 'accept'
-      ? `Hi ${first}! You've been accepted into the ${req.clubTitle} club on 4DASISTAS 🎉 Open the app to see it.`
-      : `Hi ${first}, thanks for requesting the ${req.clubTitle} club on 4DASISTAS. We couldn't approve it this time — message us if you have questions.`) : '';
+    const wa = req ? admWhatsAppLink(req.phone, waMsg(action === 'accept' ? 'joinAccept' : 'joinDecline', req.name, req.clubTitle)) : '';
     admToast(`${action === 'accept' ? '✅ Accepted' : '❌ Declined'}${req ? ' · ' + escapeCm(req.name) : ''} — they'll see a notice next time they open the app.${wa ? `<br><a href="${escapeCm(wa)}" target="_blank" rel="noopener" style="color:#ffd9d9;font-weight:700;">💬 Also tell ${escapeCm(first)} on WhatsApp</a>` : ''}`);
   } catch(err){
     const st = document.getElementById('joinReqAdminStatus'); if(st) st.textContent = err.message;
@@ -8241,6 +8274,7 @@ function renderAdminAllMembersPanels(){
       <div style="font-size:11px;color:#776867;margin-bottom:${(state.cmAdminMemberSort === 'login') ? '2px' : '8px'};">${escapeCm(m.username)}</div>
       ${(state.cmAdminMemberSort === 'login') ? `<div style="font-size:11px;color:${m.lastLoginAt ? '#776867' : '#b3261e'};margin-bottom:8px;">${m.lastLoginAt ? 'Last login: ' + escapeCm(admFmtDate(m.lastLoginAt)) + ' (' + escapeCm(admAgo(m.lastLoginAt)) + ')' : 'Never logged in'}</div>` : ''}
       <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;">${tags}${noClubTag}</div>
+      ${formInterestChips(m.formRanked)}
     </div>`;
   };
   // sort: A–Z (default), newest joiners first, or grouped by club
@@ -8379,6 +8413,7 @@ function renderClubAdminPanel(){
     ${lead ? '' : admSec('clubdir', '🏛️ Club directory', clubDirListHtml(), false)}
   `;
   const teamGrid = lead ? '' : `
+    ${admSec('watpl', '💬 WhatsApp messages — your wording', waTemplatesAdminHtml(), false)}
     ${admSec('d1', '🗄️ Database (D1) — stops the daily-limit outages', d1AdminHtml(), !(state.d1 && state.d1.migrated))}
     ${lead ? '' : admSec('push', '📲 Push notifications', pushAdminHtml(), false)}
     ${lead ? '' : admSec('leads', '🧑‍💼 Club admins' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
@@ -8386,7 +8421,7 @@ function renderClubAdminPanel(){
     ${lead ? '' : admSec('labels', '🏷️ Names of categories &amp; genres', labelsAdminHtml(), false)}
   `;
   const profilesGrid = `
-    ${lead ? '' : admSec('formimport', '📥 Import sign-up forms (from your email)', formImportHtml(), false)}
+    ${(lead || !/[?&]importforms/.test(location.search)) ? '' : admSec('formimport', '📥 Import sign-up forms (from your email)', formImportHtml(), false)}
     ${admSec('newprofile', '➕ Create a profile', `
     <div class="cp-box">
       <h4 style="margin:0 0 6px;">Create a profile</h4>
@@ -8439,6 +8474,17 @@ function fiMatch(sub, users){
   const byName = users.filter(u => { const x = fiKey(u.name); return x.first === k.first && (k.init ? x.init === k.init : true); });
   if(byName.length === 1 || (byName.length > 1 && k.init)) return { user: byName[0], how: 'name', many: byName.length > 1, weak: !k.init };
   return null;
+}
+// Which club does a free-text pick from the old sign-up form mean today? (null = a club that no longer exists, shown neutral)
+function formClubFor(label){
+  const t = String(label || '').toLowerCase();
+  const id = /active gaming|quest|adrenaline/.test(t) ? 'club-activegaming' : /cuisine/.test(t) ? 'club-cuisine' : /arts/.test(t) ? 'club-artscrafts' : /field|retreat/.test(t) ? 'club-retreats' : null;
+  return id ? clubsData.find(c => c.id === id) : null;
+}
+// "What they signed up wanting", most → least interested, as small numbered chips for the Admin Profiles cards.
+function formInterestChips(ranked){
+  if(!Array.isArray(ranked) || !ranked.length) return '';
+  return `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:-2px 0 10px;" title="Clubs they picked on the sign-up form, most to least interested">${ranked.slice(0, 4).map((r, i) => { const c = formClubFor(r), col = c ? clubCol(c.id) : { bg:'#eee', fg:'#776867' }; return `<span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:${col.bg};color:${col.fg};border:1.5px dashed ${col.fg};font-size:10.5px;font-weight:700;"><span style="opacity:.75;">${i + 1}</span>${escapeCm(c ? c.title : r)}</span>`; }).join('')}</div>`;
 }
 function formImportHtml(){
   const rows = formImport.rows;
@@ -8684,7 +8730,7 @@ function admSlotCounts(scope, key){
   });
   return out;
 }
-const admAvail = { mode:'avail', people:null, loading:false, error:'', month:ADM_AVAIL_MIN_MONTH, club:'all', person:null, day:null, addOpen:false, justAdded:'', lastRemind:null };
+const admAvail = { picked:false, mode:'avail', people:null, loading:false, error:'', month:ADM_AVAIL_MIN_MONTH, club:'all', person:null, day:null, addOpen:false, justAdded:'', lastRemind:null };
 
 // "Last reminded" disclaimer: when the admin last sent an in-app reminder / push notification (kept on the server).
 async function admLoadLastReminders(){
@@ -8788,7 +8834,7 @@ function admAvailCalendarHtml(){
   const mfNow = missingFor(admAvail.club);
   const scopeName = admAvail.club === 'all' ? 'all clubs' : (clubsData.find(c => c.id === admAvail.club) || {}).title || 'this club';
   const missingBox = !mfNow ? '' : !mfNow.total ? `<div style="margin:0 0 12px;font-size:13px;color:#776867;">No members in ${escapeCm(scopeName)} yet.</div>` : mfNow.missing.length
-    ? `<div style="margin:0 0 12px;padding:12px 14px;border-radius:12px;background:#fff3cf;border:2px solid #e6cf86;color:#6b5210;font-size:14px;line-height:1.7;"><strong>⏳ Haven't added their availability yet — ${escapeCm(scopeName)} (${mfNow.missing.length} of ${mfNow.total}):</strong><br>${mfNow.missing.map(m => { const wa = admWhatsAppLink(m.phone, `Hi ${String(m.name || '').split(' ')[0]}! Quick reminder to add your availability on 4DASISTAS so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs`); return `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(m.id)}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button>${wa ? (m.waRemindedAt ? ` <span style="font-size:12px;font-weight:700;color:#2a7a4a;">✓ Reminder sent · ${escapeCm(new Date(m.waRemindedAt).toLocaleString('en-CA', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }))}</span> <a class="wa-remind" data-uid="${escapeCm(m.id)}" href="${escapeCm(wa)}" target="_blank" rel="noopener" style="font-size:11px;color:#6b5210;text-decoration:underline;">send again</a>` : ` <a class="wa-remind" data-uid="${escapeCm(m.id)}" href="${escapeCm(wa)}" target="_blank" rel="noopener" title="Remind ${escapeCm(m.name)} on WhatsApp" style="text-decoration:none;font-size:12px;font-weight:700;background:#25D366;color:#fff;border-radius:999px;padding:2px 8px;">WhatsApp reminder</a>`) : ''}`; }).join(' · ')}
+    ? `<div style="margin:0 0 12px;padding:12px 14px;border-radius:12px;background:#fff3cf;border:2px solid #e6cf86;color:#6b5210;font-size:14px;line-height:1.7;"><strong>⏳ Haven't added their availability yet — ${escapeCm(scopeName)} (${mfNow.missing.length} of ${mfNow.total}):</strong><br>${mfNow.missing.map(m => { const wa = admWhatsAppLink(m.phone, waMsg('remind', m.name)); return `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(m.id)}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button>${wa ? (m.waRemindedAt ? ` <span style="font-size:12px;font-weight:700;color:#2a7a4a;">✓ Reminder sent · ${escapeCm(new Date(m.waRemindedAt).toLocaleString('en-CA', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }))}</span> <a class="wa-remind" data-uid="${escapeCm(m.id)}" href="${escapeCm(wa)}" target="_blank" rel="noopener" style="font-size:11px;color:#6b5210;text-decoration:underline;">send again</a>` : ` <a class="wa-remind" data-uid="${escapeCm(m.id)}" href="${escapeCm(wa)}" target="_blank" rel="noopener" title="Remind ${escapeCm(m.name)} on WhatsApp" style="text-decoration:none;font-size:12px;font-weight:700;background:#25D366;color:#fff;border-radius:999px;padding:2px 8px;">WhatsApp reminder</a>`) : ''}`; }).join(' · ')}
       ${`<div style="margin-top:10px;">${admLastRemindLine('push')}<br>${admLastRemindLine('app')}</div>
       <div style="margin-top:8px;"><button type="button" id="admPushMissing" data-ids="${escapeCm(mfNow.missing.map(m => m.id).join(','))}" style="min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #6b5210;background:#ce8491;color:#fff;font-weight:700;font-size:14px;cursor:pointer;margin-right:6px;">📲 Send push reminder</button><button type="button" id="admRemindAll" data-ids="${escapeCm(mfNow.missing.map(m => m.id).join(','))}" style="min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #6b5210;background:#fff;color:#6b5210;font-weight:700;font-size:14px;cursor:pointer;">🔔 Remind everyone in the app</button> <span id="admRemindMsg" style="font-size:13px;"></span></div>`}</div>`
     : `<div style="margin:0 0 12px;padding:10px 14px;border-radius:12px;background:#d9f0d8;color:#2a7a4a;font-size:14px;">✅ Everyone in ${escapeCm(scopeName)} (${mfNow.total}) has added their availability.</div>`;
@@ -8858,6 +8904,12 @@ function admAvailCalendarHtml(){
   }
   const atMin = admAvail.month <= ADM_AVAIL_MIN_MONTH, atMax = admAvail.month >= ADM_AVAIL_MAX_MONTH;
   const navBtn = (id, label, disabled) => `<button type="button" id="${id}" ${disabled ? 'disabled' : ''} aria-label="${label === '‹' ? 'Previous month' : 'Next month'}" style="width:44px;height:44px;border-radius:50%;border:2px solid #76220b;background:#fef7f4;color:#76220b;font-size:22px;cursor:pointer;${disabled ? 'opacity:.3;cursor:default;' : ''}">${label}</button>`;
+  if(!admAvail.picked){ // landing view: don't dump everyone's availability — ask which club first
+    return `<div style="padding:14px;border-radius:14px;background:#fef7f4;border:2px solid #76220b22;">
+      <div style="font-weight:800;color:#76220b;margin-bottom:4px;">👆 Pick a club to see its availability</div>
+      <p class="ideas-hint" style="margin:0 0 10px;text-align:left;">Choose a club below (or "All clubs" to see everyone together).</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">${clubChips}</div></div>`;
+  }
   return `
     ${(state.cmAdminLoggedIn !== true && state.cmLead && adminClubs().length === 1) ? '' : `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">${clubChips}</div>`}
     <p class="ideas-hint" style="margin:0 0 8px;text-align:left;font-weight:700;">📅 Press a date to check all details</p>
@@ -8915,7 +8967,7 @@ async function admCreateProfile(allowDuplicate){
 
 function admAvailSectionHtml(){
   const mine = adminClubs();
-  if(state.cmAdminLoggedIn !== true && state.cmLead && mine.length === 1 && admAvail.club !== mine[0].id) admAvail.club = mine[0].id;
+  if(state.cmAdminLoggedIn !== true && state.cmLead && mine.length === 1){ if(admAvail.club !== mine[0].id) admAvail.club = mine[0].id; admAvail.picked = true; }
   return `<h3 style="margin-top:6px;">Availability calendar</h3><div id="admAvailBox" style="margin-bottom:22px;">${admAvailCalendarHtml()}</div>`;
 }
 function admAvailRepaint(){
@@ -8927,7 +8979,7 @@ function admAvailRepaint(){
 function admAvailWire(){
   const box = document.getElementById('admAvailBox');
   if(!box) return;
-  box.querySelectorAll('.adm-club').forEach(b => b.addEventListener('click', () => { admAvail.club = b.dataset.club; admAvail.person = null; admAvail.addOpen = false; admAvail.justAdded = ''; admAvailRepaint(); }));
+  box.querySelectorAll('.adm-club').forEach(b => b.addEventListener('click', () => { admAvail.picked = true; admAvail.club = b.dataset.club; admAvail.person = null; admAvail.addOpen = false; admAvail.justAdded = ''; admAvailRepaint(); }));
   box.querySelectorAll('.adm-person').forEach(b => b.addEventListener('click', () => { admAvail.person = admAvail.person === b.dataset.person ? null : b.dataset.person; admAvailRepaint(); }));
   // Remember that a WhatsApp reminder was sent (the link itself still opens WhatsApp); the list then shows "✓ Reminder sent" whenever you come back.
   box.querySelectorAll('.wa-remind').forEach(a => a.addEventListener('click', () => {
@@ -8985,6 +9037,7 @@ function wireClubAdminPanel(){
   wireLeadsAdmin();
   wireLabelsAdmin();
   wirePeriodAdmin();
+  wireWaTemplates();
   wireD1Admin();
   wireFormImport();
   document.querySelectorAll('.adm-tile').forEach(b => b.addEventListener('click', () => { state.admGroup = b.dataset.group; render(); window.scrollTo({ top:0, behavior:'smooth' }); }));

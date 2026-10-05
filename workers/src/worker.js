@@ -1950,6 +1950,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         else if (path === "/api/admin/idea-availability" && M === "GET") ok = true;
         else if (path === "/api/admin/join-requests" && M === "GET") ok = true;
         else if (path === "/api/admin/calendar-event" && M === "POST") ok = true;
+        else if (path === "/api/admin/wa-templates" && M === "GET") ok = true;
         else if (path === "/api/admin/reminders/last" && M === "GET") ok = true;
         else if ((path === "/api/admin/push/send" || path === "/api/admin/remind-availability") && M === "POST") {
           // Reminders go only to people in the clubs they lead; anyone else in the list is silently dropped.
@@ -1989,7 +1990,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup") || path.startsWith("/api/admin/wa-templates");
 
     if (requiresAuth && !leadCtx) {
       const token = getSessionToken(request);
@@ -2390,7 +2391,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       for (const sid of Object.keys(SQUAD_TITLES)) for (const uid of await readSquadMemberIds(env, sid)) (squadsByUser[uid] = squadsByUser[uid] || []).push(sid);
       const out = [];
       for (const u of await listAllUsers(env)) {
-          if (u) out.push({ ...publicUser(u), waRemindedAt: u.waRemindedAt || 0, squads: squadsByUser[u.id] || [], phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, archived: u.archived || null, archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: (await readPushSubs(env, u.id)).length > 0 });
+          if (u) out.push({ ...publicUser(u), waRemindedAt: u.waRemindedAt || 0, formRanked: (u.form && Array.isArray(u.form.ranked)) ? u.form.ranked : [], squads: squadsByUser[u.id] || [], phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, archived: u.archived || null, archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: (await readPushSubs(env, u.id)).length > 0 });
       }
       if (leadCtx) return jsonResponse({ users: out.filter((u) => (u.clubs || []).some((c) => leadCtx.clubs.includes(c))).map((u) => ({ ...u, clubs: u.clubs.filter((c) => leadCtx.clubs.includes(c)), pending: (u.pending || []).filter((c) => leadCtx.clubs.includes(c)) })) }, 200, corsHeaders);
       if (!leadCtx) saveSnapshot(env, "snap:adminUsers", out);
@@ -2620,6 +2621,19 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await env.DB.prepare("INSERT OR REPLACE INTO meta (k, v) VALUES ('migrated', '0')").run();
       _d1Mode = { at: Date.now(), on: false };
       return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+    // Wording of the WhatsApp messages the admin sends (availability reminder, notifications nudge, club accepted / declined). {first} {name} {club} are filled in.
+    const WA_KEYS = ["remind", "notif", "joinAccept", "joinDecline"];
+    if (path === "/api/admin/wa-templates" && request.method === "GET") {
+      let t = {}; try { t = JSON.parse((await env.SITE_DATA.get("watemplates")) || "{}") || {}; } catch {}
+      return jsonResponse({ templates: t }, 200, corsHeaders);
+    }
+    if (path === "/api/admin/wa-templates" && request.method === "PUT") {
+      let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const out = {};
+      for (const k of WA_KEYS) { const v = String((body.templates || {})[k] || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 600); if (v) out[k] = v; }
+      await env.SITE_DATA.put("watemplates", JSON.stringify(out));
+      return jsonResponse({ ok: true, templates: out }, 200, corsHeaders);
     }
     // Admin / club admin: remember that a WhatsApp availability reminder was sent to this person.
     const adminUserRemindedMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/reminded\/?$/);
