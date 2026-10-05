@@ -187,12 +187,41 @@ const readUser = async (env, userId) => {
   return raw ? JSON.parse(raw) : null;
 };
 
+// ---- ID indexes. Cloudflare's free plan allows only 1,000 KV *list* calls a day; once that's used up every list fails and whole pages
+// (the availability grid, the admin profile list) go dark. So hot paths read ONE index doc with a plain GET instead of listing.
+// An index is built from a list exactly once (the first time it's missing) and then kept up to date as people are created/deleted.
+const USER_INDEX_KEY = "idx:users";
+const IA_INDEX_KEY = "idx:ideaavail";
+const readIndex = async (env, key) => { try { const a = JSON.parse((await env.SITE_DATA.get(key)) || "null"); return Array.isArray(a) ? a : null; } catch { return null; } };
+const addToIndex = async (env, key, id) => { const ids = await readIndex(env, key); if (!ids || ids.includes(id)) return; ids.push(id); await env.SITE_DATA.put(key, JSON.stringify(ids)); };
+const removeFromIndex = async (env, key, id) => { const ids = await readIndex(env, key); if (!ids || !ids.includes(id)) return; await env.SITE_DATA.put(key, JSON.stringify(ids.filter((x) => x !== id))); };
+// If a list is impossible right now (quota used up), fall back to everyone who is in a club — read with plain GETs only.
+const idsFromClubMembers = async (env) => { const s = new Set(); for (const c of await clubIdList(env)) for (const id of await readClubMemberIds(env, c)) s.add(id); return [...s]; };
+const allUserIds = async (env) => {
+  let ids = await readIndex(env, USER_INDEX_KEY);
+  if (ids) return ids;
+  try {
+    ids = []; let cursor;
+    do { const page = await env.SITE_DATA.list({ prefix: "user:", cursor }); for (const k of page.keys) ids.push(k.name.slice(5)); cursor = page.list_complete ? undefined : page.cursor; } while (cursor);
+    await env.SITE_DATA.put(USER_INDEX_KEY, JSON.stringify(ids)).catch(() => {});
+    return ids;
+  } catch (e) { return await idsFromClubMembers(env); } // not saved: the real index is built the next time a list works
+};
+const _userIdxSeen = new Set();
+// Last-known-good copies, used only if a live read fails (e.g. a Cloudflare quota is hit) so pages degrade instead of going blank.
+const readSnapshot = async (env, key) => { try { return JSON.parse((await env.SITE_DATA.get(key)) || "null"); } catch { return null; } };
+const _snapAt = {};
+const saveSnapshot = async (env, key, data) => { if (Date.now() - (_snapAt[key] || 0) < 600000) return; _snapAt[key] = Date.now(); try { await env.SITE_DATA.put(key, JSON.stringify({ at: Date.now(), data })); } catch {} };
+
 const writeUser = async (env, user) => {
   await env.SITE_DATA.put(userKey(user.id), JSON.stringify(user), { metadata: { name: user.name, hasPhoto: !!user.photo } });
+  if (!_userIdxSeen.has(user.id)) { _userIdxSeen.add(user.id); try { await addToIndex(env, USER_INDEX_KEY, user.id); } catch {} }
 };
 
 const deleteUser = async (env, userId) => {
   await env.SITE_DATA.delete(userKey(userId));
+  _userIdxSeen.delete(userId);
+  try { await removeFromIndex(env, USER_INDEX_KEY, userId); } catch {}
 };
 
 const visibleWaitlist = (user, clubs) => (Array.isArray(user.waitlist) ? user.waitlist : []).filter((id) => !clubs.includes(id));
@@ -458,15 +487,29 @@ const parseIdeaAvailDoc = (raw) => {
 let _ideaAvailMemo = { at: 0, people: null };
 const readIdeaAvailPeople = async (env) => {
   if (_ideaAvailMemo.people && Date.now() - _ideaAvailMemo.at < 45000) return _ideaAvailMemo.people.map((p) => ({ ...p })); // fewer KV reads: 45s per server instance
-  const people = await readIdeaAvailPeopleFresh(env);
+  let people;
+  try {
+    people = await readIdeaAvailPeopleFresh(env);
+    saveSnapshot(env, "snap:iaPeople", people);
+  } catch (e) {
+    const snap = await readSnapshot(env, "snap:iaPeople"); // a quota/limit problem: show the last good copy instead of nothing
+    if (!snap || !Array.isArray(snap.data)) throw e;
+    people = snap.data;
+  }
   _ideaAvailMemo = { at: Date.now(), people };
   return people.map((p) => ({ ...p }));
 };
 const readIdeaAvailPeopleFresh = async (env) => {
-  const list = await env.SITE_DATA.list({ prefix: `ideaavail:` });
+  let ids = await readIndex(env, IA_INDEX_KEY);
+  if (!ids) { // built from a list once, then maintained on every save
+    try {
+      ids = (await env.SITE_DATA.list({ prefix: `ideaavail:` })).keys.map((k) => k.name.slice(`ideaavail:`.length)).filter((id) => /^(m:|g:|admin$)/.test(id));
+      await env.SITE_DATA.put(IA_INDEX_KEY, JSON.stringify(ids)).catch(() => {});
+    } catch (e) { ids = (await idsFromClubMembers(env)).map((id) => `m:${id}`).concat(["admin"]); } // list not possible right now: everyone in a club, via plain GETs
+  }
   const people = [];
-  for (const k of list.keys) {
-    const personId = k.name.slice(`ideaavail:`.length);
+  for (const personId of ids) {
+    const k = { name: `ideaavail:${personId}` };
     // Skip LEGACY per-club records (`ideaavail:club-xxx:<person>`, from before availability became one global record):
     // nothing writes them any more, but they were still being listed — that's why someone in 4 clubs showed up 4 times.
     if (!/^(m:|g:|admin$)/.test(personId)) continue;
@@ -1392,6 +1435,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       const { days, no } = sanitizeIdeaAvail(body);
       await env.SITE_DATA.put(key, JSON.stringify({ name: who.name, days, no }));
+      await addToIndex(env, IA_INDEX_KEY, who.id).catch(() => {});
       _ideaAvailMemo = { at: 0, people: null }; // the next read in this instance is fresh
       return jsonResponse({ days, no, submitted: true }, 200, corsHeaders);
     }
@@ -1438,9 +1482,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const rateKey = `sugrate:${ip}:${Math.floor(Date.now() / 3600000)}`;
       const used = Number(await env.SITE_DATA.get(rateKey) || 0);
       if (!(await isSignedInAnyone()) && used >= EVENT_SUGGESTION_MAX_PER_IP_PER_HOUR) return jsonResponse({ error: "Too many submissions — please try again later" }, 429, corsHeaders);
-      const pending = await env.SITE_DATA.list({ prefix: "eventsug:" });
-      if (pending.keys.length >= EVENT_SUGGESTION_MAX_PENDING) return jsonResponse({ error: "The submission box is full right now — please try again later" }, 503, corsHeaders);
+      const dayKey = `sugday:event:${new Date().toISOString().slice(0, 10)}`;
+      const dayCount = Number((await env.SITE_DATA.get(dayKey)) || 0);
+      if (dayCount >= EVENT_SUGGESTION_MAX_PENDING) return jsonResponse({ error: "The submission box is full right now — please try again later" }, 503, corsHeaders);
       await env.SITE_DATA.put(rateKey, String(used + 1), { expirationTtl: 3700 });
+      await env.SITE_DATA.put(dayKey, String(dayCount + 1), { expirationTtl: 172800 });
       const comments = String(body.comments || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 600);
       const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, link, name, date, city, virtual, genre, genreOther, comments, at: Date.now() };
       await env.SITE_DATA.put(`eventsug:${sug.id}`, JSON.stringify(sug));
@@ -1476,9 +1522,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const rateKey = `sugrate:${ip}:${Math.floor(Date.now() / 3600000)}`;
       const used = Number(await env.SITE_DATA.get(rateKey) || 0);
       if (!(await isSignedInAnyone()) && used >= EVENT_SUGGESTION_MAX_PER_IP_PER_HOUR) return jsonResponse({ error: "Too many submissions — please try again later" }, 429, corsHeaders);
-      const pending = await env.SITE_DATA.list({ prefix: "ressug:" });
-      if (pending.keys.length >= EVENT_SUGGESTION_MAX_PENDING) return jsonResponse({ error: "The submission box is full right now — please try again later" }, 503, corsHeaders);
+      const dayKey = `sugday:resource:${new Date().toISOString().slice(0, 10)}`;
+      const dayCount = Number((await env.SITE_DATA.get(dayKey)) || 0);
+      if (dayCount >= EVENT_SUGGESTION_MAX_PENDING) return jsonResponse({ error: "The submission box is full right now — please try again later" }, 503, corsHeaders);
       await env.SITE_DATA.put(rateKey, String(used + 1), { expirationTtl: 3700 });
+      await env.SITE_DATA.put(dayKey, String(dayCount + 1), { expirationTtl: 172800 });
       const comments = String(body.comments || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 600);
       const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, title, type, typeOther, link, city, virtual, comments, at: Date.now() };
       await env.SITE_DATA.put(`ressug:${sug.id}`, JSON.stringify(sug));
@@ -1592,12 +1640,9 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const clubs = await allClubIdsContaining(env, id);
         return jsonResponse({ id: user.id, name: user.name, photo: user.photo || null, clubs }, 200, corsHeaders);
       }
-      const clubKeys = await env.SITE_DATA.list({ prefix: "clubmembers:" });
       const clubsByUser = {};
-      for (const key of clubKeys.keys) {
-        const clubId = key.name.slice("clubmembers:".length);
-        const ids = JSON.parse((await env.SITE_DATA.get(key.name)) || "[]");
-        for (const id of ids) (clubsByUser[id] = clubsByUser[id] || []).push(clubId);
+      for (const clubId of await clubIdList(env)) {
+        for (const id of await readClubMemberIds(env, clubId)) (clubsByUser[id] = clubsByUser[id] || []).push(clubId);
       }
       const userKeys = await env.SITE_DATA.list({ prefix: "user:" });
       const members = [];
@@ -1997,10 +2042,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // Admin: manage club members / reset PINs (session-cookie gated above)
     if (path === "/api/admin/club-members" && request.method === "GET") {
-      const list = await env.SITE_DATA.list({ prefix: "clubmembers:" });
       const out = {};
-      for (const key of list.keys) {
-        const clubId = key.name.replace("clubmembers:", "");
+      for (const clubId of await clubIdList(env)) {
         if (leadCtx && !leadCtx.clubs.includes(clubId)) continue;
         out[clubId] = (await resolveClubMembers(env, clubId)).map((u) => ({ ...publicUser(u), phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0 })); // phone + activity: admin-only
       }
@@ -2044,9 +2087,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       // Each person also carries the clubs they're really in, so the admin calendar can filter by club.
       const people = await readIdeaAvailPeople(env);
       const clubsByUser = {};
-      const memberKeys = await env.SITE_DATA.list({ prefix: "clubmembers:" });
-      for (const key of memberKeys.keys) {
-        const clubId = key.name.slice("clubmembers:".length);
+      for (const clubId of await clubIdList(env)) {
         for (const uid of await readClubMemberIds(env, clubId)) (clubsByUser[uid] = clubsByUser[uid] || []).push(clubId);
       }
       const withClubs = people.map((p) => ({ ...p, clubs: p.id.startsWith("m:") ? (clubsByUser[p.id.slice(2)] || []) : [] }));
@@ -2266,29 +2307,29 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     // Admin: change which clubs a member belongs to (add/remove any number at once)
     // Admin: EVERY profile, whether or not they're in a club yet (club-members only lists club members).
     if (path === "/api/admin/users" && request.method === "GET") {
+      try {
       const clubsByUser = {};
-      for (const key of (await env.SITE_DATA.list({ prefix: "clubmembers:" })).keys) {
-        const clubId = key.name.slice("clubmembers:".length);
+      for (const clubId of await clubIdList(env)) {
         for (const uid of await readClubMemberIds(env, clubId)) (clubsByUser[uid] = clubsByUser[uid] || []).push(clubId);
       }
       const pendingByUser = {};
       for (const r of await listJoinRequests(env)) (pendingByUser[r.userId] = pendingByUser[r.userId] || []).push(r.clubId);
-      const pushIds = new Set();
-      for (const k of (await env.SITE_DATA.list({ prefix: "push:" })).keys) pushIds.add(k.name.slice(5));
       const squadsByUser = {};
       for (const sid of Object.keys(SQUAD_TITLES)) for (const uid of await readSquadMemberIds(env, sid)) (squadsByUser[uid] = squadsByUser[uid] || []).push(sid);
       const out = [];
-      let cursor;
-      do {
-        const page = await env.SITE_DATA.list({ prefix: "user:", cursor });
-        for (const k of page.keys) {
-          const u = await readUser(env, k.name.slice(5));
-          if (u) out.push({ ...publicUser(u), squads: squadsByUser[u.id] || [], phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, archived: u.archived || null, archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: pushIds.has(u.id) });
-        }
-        cursor = page.list_complete ? undefined : page.cursor;
-      } while (cursor);
+      for (const uid of await allUserIds(env)) {
+        const u = await readUser(env, uid);
+          if (u) out.push({ ...publicUser(u), squads: squadsByUser[u.id] || [], phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, archived: u.archived || null, archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: (await readPushSubs(env, u.id)).length > 0 });
+      }
       if (leadCtx) return jsonResponse({ users: out.filter((u) => (u.clubs || []).some((c) => leadCtx.clubs.includes(c))).map((u) => ({ ...u, clubs: u.clubs.filter((c) => leadCtx.clubs.includes(c)), pending: (u.pending || []).filter((c) => leadCtx.clubs.includes(c)) })) }, 200, corsHeaders);
+      if (!leadCtx) saveSnapshot(env, "snap:adminUsers", out);
       return jsonResponse({ users: out }, 200, corsHeaders);
+      } catch (e) {
+        // a KV limit/outage: show the last good copy of the profile list instead of an empty page
+        const snap = leadCtx ? null : await readSnapshot(env, "snap:adminUsers");
+        if (snap && Array.isArray(snap.data)) return jsonResponse({ users: snap.data, stale: true, staleAt: snap.at }, 200, corsHeaders);
+        return jsonResponse({ error: "Cloudflare's free daily limit was reached — nothing was deleted. It resets at 8 PM Toronto time." }, 503, corsHeaders);
+      }
     }
     // Admin: send a notification to chosen members (or everyone who turned notifications on).
     if (path === "/api/admin/push/send" && request.method === "POST") {
@@ -2394,9 +2435,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const userId = decodeURIComponent(adminUserDeleteMatch[1]);
       const user = await readUser(env, userId);
       if (!user) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
-      const memberKeys = await env.SITE_DATA.list({ prefix: "clubmembers:" });
-      for (const key of memberKeys.keys) {
-        const clubId = key.name.slice("clubmembers:".length);
+      for (const clubId of await clubIdList(env)) {
         const ids = await readClubMemberIds(env, clubId);
         if (ids.includes(userId)) await writeClubMemberIds(env, clubId, ids.filter((id) => id !== userId));
       }

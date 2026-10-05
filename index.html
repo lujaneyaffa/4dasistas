@@ -7435,14 +7435,22 @@ async function cmAdminLogout(){
 
 async function cmAdminLoadAllMembers(){
   admAvail.people = null; // re-fetch availability whenever the admin panel's data is refreshed
+  state.cmAdminLoadError = '';
+  // Every profile (incl. people not in a club) in ONE request; the per-club lists are built from it, so the server isn't asked twice.
+  let users = null;
   try {
-    const res = await fetch('/api/admin/club-members', { credentials:'include' });
-    state.cmAdminAllMembers = await res.json();
-  } catch { state.cmAdminAllMembers = {}; }
-  try { // every profile — including people who aren't in a club yet
     const ur = await fetch('/api/admin/users', { credentials:'include' });
-    state.cmAdminAllUsers = ur.ok ? ((await ur.json()).users || []) : null;
-  } catch { state.cmAdminAllUsers = null; }
+    if(ur.ok) users = (await ur.json()).users || [];
+    else { const d = await ur.json().catch(() => ({})); state.cmAdminLoadError = d.error || ('The server could not load the profiles (' + ur.status + ').'); }
+  } catch { state.cmAdminLoadError = 'Could not reach the server.'; }
+  state.cmAdminAllUsers = users;
+  if(users){
+    const byClub = {};
+    users.forEach(u => (u.clubs || []).forEach(cid => (byClub[cid] = byClub[cid] || []).push(u)));
+    state.cmAdminAllMembers = byClub;
+  } else {
+    try { const res = await fetch('/api/admin/club-members', { credentials:'include' }); state.cmAdminAllMembers = res.ok ? await res.json() : {}; } catch { state.cmAdminAllMembers = {}; }
+  }
   await cmAdminLoadJoinRequests();
   if(state.cmAdminLoggedIn !== true) return; // club leads only see their own clubs' people + requests
   await cmAdminLoadEventSuggestions();
@@ -8145,7 +8153,10 @@ function renderAdminAllMembersPanels(){
     });
   }
   const everyone = [...byId.values()];
-  if(!everyone.length) return '<p style="font-size:13px;">No members yet across any club.</p>';
+  if(!everyone.length){
+    if(state.cmAdminLoadError || !Array.isArray(state.cmAdminAllUsers)) return `<div style="padding:14px;border-radius:12px;background:#fbe9e7;color:#7a1f1a;font-size:14px;line-height:1.55;">⚠️ <strong>The profiles couldn't be loaded — nothing was deleted.</strong><br>${escapeCm(state.cmAdminLoadError || 'The server did not answer.')} This usually means Cloudflare's free daily limit was reached (it resets at <strong>8:00 PM Toronto time</strong>). Try again then, or press the button.<br><button type="button" class="club-guide-btn" id="admReloadProfiles" style="margin-top:8px;padding:6px 14px;font-size:12px;">↻ Try again</button></div>`;
+    return '<p style="font-size:13px;">No members yet across any club.</p>';
+  }
   // search box: name, username, phone or club
   const q = (state.cmAdminMemberQuery || '').trim().toLowerCase();
   const qDigits = q.replace(/\D/g, '');
@@ -8927,6 +8938,8 @@ function wireClubAdminPanel(){
   wirePeriodAdmin();
   wireFormImport();
   document.querySelectorAll('.adm-tile').forEach(b => b.addEventListener('click', () => { state.admGroup = b.dataset.group; render(); window.scrollTo({ top:0, behavior:'smooth' }); }));
+  const reloadProfiles = document.getElementById('admReloadProfiles');
+  if(reloadProfiles) reloadProfiles.addEventListener('click', async () => { reloadProfiles.disabled = true; reloadProfiles.textContent = 'Loading…'; await cmAdminLoadAllMembers(); render(); });
   const inboxRefresh = document.getElementById('inboxRefresh');
   if(inboxRefresh) inboxRefresh.addEventListener('click', async () => { inboxRefresh.disabled = true; inboxRefresh.textContent = 'Checking…'; await cmAdminLoadAllMembers(); render(); });
   document.querySelectorAll('.adm-sort').forEach(b => b.addEventListener('click', () => { state.cmAdminMemberSort = b.dataset.sort; render(); }));

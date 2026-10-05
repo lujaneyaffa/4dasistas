@@ -1,4 +1,4 @@
-const CACHE_NAME = '4dasistas-v67';
+const CACHE_NAME = '4dasistas-v68';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/app-icon.svg', '/assets/apple-touch-icon.png', '/assets/icon-192.png', '/assets/icon-512.png'];
 
 // Everything the app needs to open and show its content with no connection. Data files are added one by one so a missing
@@ -46,9 +46,11 @@ async function networkFirstApi(event, url) {
   const timeout = new Promise(resolve => setTimeout(() => resolve(null), 6000));
   try {
     const first = await Promise.race([network.catch(() => null), timeout]);
-    if (first) return first;
+    // A good answer wins. If the server errors (5xx / 429 — e.g. a Cloudflare limit) or is slow, show the last saved copy instead.
+    if (first && (first.ok || (first.status < 500 && first.status !== 429))) return first;
     const cached = await fromCache();
     if (cached) return cached;
+    if (first) return first;
     return await network;
   } catch (e) {
     return (await fromCache()) || Response.error();
