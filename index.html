@@ -6329,7 +6329,7 @@ function eavBestWorstHtml(){
   const slots = [];
   iavNext15Dates().forEach(d => iavPartsFor(d).forEach(k => {
     const dt = new Date(d + 'T12:00:00');
-    slots.push({ d, a: get(avail, d, k), p: get(pref, d, k), x: get(no, d, k), label: `${dayLabelsShort[dt.getDay()]} ${monthNames[dt.getMonth()].slice(0,3)} ${dt.getDate()} ${k}` });
+    slots.push({ d, k, a: get(avail, d, k), p: get(pref, d, k), x: get(no, d, k), label: `${dayLabelsShort[dt.getDay()]} ${monthNames[dt.getMonth()].slice(0,3)} ${dt.getDate()} ${k}` });
   }));
   if(!slots.length || !state.ideaAvailAllRespondents) return '';
   // best = most people available, then most who PREFER it; worst = fewest available, then most who can't.
@@ -6343,7 +6343,7 @@ function eavBestWorstHtml(){
   const more = (all) => all.length > CAP ? ` <span style="opacity:.8">(+${all.length - CAP} more tied)</span>` : '';
   const best = bestAll.slice(0, CAP), worst = worstAll.slice(0, CAP);
   // Tied slots share the same numbers, so the dates are listed together and the counts are stated ONCE.
-  const names = list => list.map(x => `<strong>${escapeCm(x.label)}</strong>`).join(' · ');
+  const names = list => list.map(x => `<button type="button" class="eav-slot-link" data-date="${x.d}" data-part="${x.k}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(x.label)}</button>`).join(' · ');
   const fb = (list, all) => `${names(list)}${more(all)} (${list[0].a} available${list[0].p ? `, ${list[0].p} preferred` : ''}${list.length > 1 ? ' each' : ''})`;
   const fw = (list, all) => `${names(list)}${more(all)} (${list[0].a} available${list[0].x ? `, ${list[0].x} can't` : ''}${list.length > 1 ? ' each' : ''})`;
   return `<div style="margin:6px 0 10px;padding:12px 14px;border-radius:12px;background:#f2d8d7;color:#76220b;font-size:14px;line-height:1.55;">
@@ -6426,27 +6426,29 @@ function eavNamesFor(date, part){
   });
   return { preferred, available, unavailable };
 }
+/* popup: who is preferred / also free / can't for one slot */
+function eavShowSlot(date, part){
+  const label = (IAV_PARTS.find(([k]) => k === part) || [null, part])[1];
+  const dt = new Date(date + 'T00:00:00');
+  const { preferred, available, unavailable } = eavNamesFor(date, part);
+  const chips = list => list.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('');
+  const redChips = list => list.map(n => `<span class="av-club-chip active" style="background:#d9534f;border-color:#b3261e;color:#fff;">${escapeCm(n)}</span>`).join('');
+  ideaPopup(`
+    <h3 style="margin:4px 0 8px;">${escapeCm(label)}, ${escapeCm(monthNames[dt.getMonth()])} ${dt.getDate()}</h3>
+    <p class="idea-pop-h">🟢 Preferred (${preferred.length})</p>
+    <div class="idea-pop-names">${preferred.length ? chips(preferred) : '<span class="av-msg">Nobody picked this as preferred.</span>'}</div>
+    <p class="idea-pop-h" style="margin-top:10px;">🟡 Also available — not their preferred time (${available.length})</p>
+    <div class="idea-pop-names">${available.length ? chips(available) : '<span class="av-msg">Nobody else.</span>'}</div>
+    <p class="idea-pop-h" style="margin-top:10px;">🔴 Not available (${unavailable.length})</p>
+    <div class="idea-pop-names">${unavailable.length ? redChips(unavailable) : '<span class="av-msg">Nobody marked this as unavailable.</span>'}</div>
+  `);
+}
 function wireEveryoneAvailGrid(){
+  document.querySelectorAll('.eav-slot-link').forEach(b => b.addEventListener('click', () => { if(state.ideaAvailAllPeople) eavShowSlot(b.dataset.date, b.dataset.part); }));
   document.querySelectorAll('.eav-club-chip').forEach(b => b.addEventListener('click', () => { state.eavClub = b.dataset.club; everyoneAvailLoad(); render(); }));
   if(state.ideaAvailAll === null && !state.ideaAvailAllLoading && !state.ideaAvailAllError) everyoneAvailLoad();
   if(state.ideaAvailAllPeople){
-    document.querySelectorAll('.eav-cell.eav-tappable').forEach(cell => cell.addEventListener('click', () => {
-      const { date, part } = cell.dataset;
-      const label = (IAV_PARTS.find(([k]) => k === part) || [null, part])[1];
-      const dt = new Date(date + 'T00:00:00');
-      const { preferred, available, unavailable } = eavNamesFor(date, part);
-      const chips = list => list.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('');
-      const redChips = list => list.map(n => `<span class="av-club-chip active" style="background:#d9534f;border-color:#b3261e;color:#fff;">${escapeCm(n)}</span>`).join('');
-      ideaPopup(`
-        <h3 style="margin:4px 0 8px;">${escapeCm(label)}, ${escapeCm(monthNames[dt.getMonth()])} ${dt.getDate()}</h3>
-        <p class="idea-pop-h">🟢 Preferred (${preferred.length})</p>
-        <div class="idea-pop-names">${preferred.length ? chips(preferred) : '<span class="av-msg">Nobody picked this as preferred.</span>'}</div>
-        <p class="idea-pop-h" style="margin-top:10px;">🟡 Also available — not their preferred time (${available.length})</p>
-        <div class="idea-pop-names">${available.length ? chips(available) : '<span class="av-msg">Nobody else.</span>'}</div>
-        <p class="idea-pop-h" style="margin-top:10px;">🔴 Not available (${unavailable.length})</p>
-        <div class="idea-pop-names">${unavailable.length ? redChips(unavailable) : '<span class="av-msg">Nobody marked this as unavailable.</span>'}</div>
-      `);
-    }));
+    document.querySelectorAll('.eav-cell.eav-tappable').forEach(cell => cell.addEventListener('click', () => eavShowSlot(cell.dataset.date, cell.dataset.part)));
   }
 }
 
@@ -8507,6 +8509,23 @@ function admAvailShiftMonth(ym, delta){
   const d = new Date(y, m - 1 + delta, 1);
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
+// Who voted what for one time slot (or every slot of a day when part is empty): 🟢 preferred / 🟡 also free / 🔴 can't. Names open the profile.
+function admSlotPopup(day, part){
+  const scope = admAvailVisiblePeople();
+  const dt = new Date(day + 'T12:00:00'), wk = [0, 6].includes(dt.getDay()), inWin = admWinSet().has(day);
+  const parts = ADM_PARTS.filter(([id]) => part ? id === part : (id !== 'morning' || wk));
+  const nameBtn = p => p.id.startsWith('m:') ? `<button type="button" class="adm-pop-profile" data-uid="${escapeCm(p.id.slice(2))}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(p.name)}</button>` : escapeCm(p.name);
+  const group = (icon, title, list, color) => `<p class="idea-pop-h" style="margin-top:10px;">${icon} ${title} (${list.length})</p><div class="idea-pop-names">${list.length ? list.map(p => `<span class="av-club-chip active" style="${color}">${nameBtn(p)}</span>`).join('') : '<span class="av-msg">Nobody.</span>'}</div>`;
+  const body = parts.map(([id, label]) => {
+    const no = p => ((p.no || {})[day] || []).includes(id), pf = p => ((p.days || {})[day] || []).includes(id);
+    return `<div style="${parts.length > 1 ? 'margin-top:12px;padding-top:8px;border-top:1px solid #0001;' : ''}">${parts.length > 1 ? `<strong>${escapeCm(label)}</strong>` : ''}
+      ${group('🟢', 'Preferred', scope.filter(p => !no(p) && pf(p)), '')}
+      ${group('🟡', 'Also free', inWin ? scope.filter(p => !no(p) && !pf(p)) : [], '')}
+      ${group('🔴', 'Can\'t', scope.filter(no), 'background:#d9534f;border-color:#b3261e;color:#fff;')}</div>`;
+  }).join('');
+  const { wrap } = ideaPopup(`<h3 style="margin:4px 0 4px;">${escapeCm(dayLabelsShort[dt.getDay()])} ${escapeCm(monthNames[dt.getMonth()])} ${dt.getDate()}${part ? ' · ' + escapeCm((ADM_PARTS.find(p => p[0] === part) || [0, part])[1]) : ''}</h3>${body}`);
+  wrap.querySelectorAll('.adm-pop-profile').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.uid)));
+}
 function admModeAndBestHtml(scope){
   const mode = admAvail.mode || 'avail';
   const btn = (m, label) => `<button type="button" class="adm-mode" data-mode="${m}" aria-pressed="${mode === m}" style="flex:1;min-height:42px;padding:8px 10px;border-radius:999px;border:2px solid #76220b;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;background:${mode === m ? '#76220b' : '#fef7f4'};color:${mode === m ? '#fff' : '#76220b'};">${label}</button>`;
@@ -8518,7 +8537,7 @@ function admModeAndBestHtml(scope){
   rows.sort((a, b) => mode === 'pref' ? (b.pref - a.pref) || (b.avail - a.avail) || (a.no - b.no) || a.k.localeCompare(b.k) : (b.avail - a.avail) || (b.pref - a.pref) || (a.no - b.no) || a.k.localeCompare(b.k));
   const top = rows.filter(r => score(r) > 0).slice(0, 6);
   const label = id => (ADM_PARTS.find(p => p[0] === id) || [0, id])[1];
-  const list = top.length ? top.map((r, i) => { const dt = new Date(r.k + 'T12:00:00'); return `<button type="button" class="adm-day" data-day="${r.k}" style="display:block;width:100%;text-align:left;padding:9px 12px;margin-top:6px;border-radius:10px;border:1px solid #0000001a;background:#fff;cursor:pointer;font-family:inherit;color:#373d3b;font-size:14px;line-height:1.4;"><strong>${i + 1}. ${escapeCm(dayLabelsShort[dt.getDay()])} ${escapeCm(monthNames[dt.getMonth()].slice(0, 3))} ${dt.getDate()} · ${escapeCm(label(r.id))}</strong><br><span style="font-size:13px;">🟢 ${r.pref} prefer · 🟡 ${Math.max(0, r.avail - r.pref)} also free · 🔴 ${r.no} can't</span></button>`; }).join('') : `<p class="av-msg" style="margin:8px 0 0;">${mode === 'pref' ? 'Nobody has picked a preferred time yet.' : 'No availability yet.'}</p>`;
+  const list = top.length ? top.map((r, i) => { const dt = new Date(r.k + 'T12:00:00'); return `<button type="button" class="adm-slot" data-day="${r.k}" data-part="${r.id}" style="display:block;width:100%;text-align:left;padding:9px 12px;margin-top:6px;border-radius:10px;border:1px solid #0000001a;background:#fff;cursor:pointer;font-family:inherit;color:#373d3b;font-size:14px;line-height:1.4;"><strong>${i + 1}. ${escapeCm(dayLabelsShort[dt.getDay()])} ${escapeCm(monthNames[dt.getMonth()].slice(0, 3))} ${dt.getDate()} · ${escapeCm(label(r.id))}</strong><br><span style="font-size:13px;">🟢 ${r.pref} prefer · 🟡 ${Math.max(0, r.avail - r.pref)} also free · 🔴 ${r.no} can't</span> <span style="font-size:12px;color:#76220b;font-weight:700;">· tap to see who</span></button>`; }).join('') : `<p class="av-msg" style="margin:8px 0 0;">${mode === 'pref' ? 'Nobody has picked a preferred time yet.' : 'No availability yet.'}</p>`;
   return `<div style="margin:0 0 14px;padding:12px;border-radius:14px;background:#fef7f4;border:2px solid #76220b22;">
     <div style="display:flex;gap:8px;">${btn('pref', '🟢 Preferred times only')}${btn('avail', '🟡🟢 Everyone available')}</div>
     <div style="font-weight:800;margin:12px 0 0;color:#76220b;">🏆 Best times — ${mode === 'pref' ? 'most people who prefer it' : 'most people free'}</div>${list}
@@ -8611,7 +8630,7 @@ function admAvailCalendarHtml(){
     const rowsFor = src => Object.keys(src || {}).filter(d => d >= todayKey && (src[d] || []).length).sort().map(d => {
       const dt = new Date(d + 'T12:00:00');
       const parts = ADM_PARTS.filter(([id]) => (src[d] || []).includes(id)).map(([, label]) => label).join(', ');
-      return `<div style="padding:4px 0;"><strong>${escapeCm(dayLabelsShort[dt.getDay()])} ${escapeCm(monthNames[dt.getMonth()].slice(0, 3))} ${dt.getDate()}</strong> — ${escapeCm(parts)}</div>`;
+      return `<button type="button" class="adm-slot" data-day="${d}" data-part="" style="display:block;width:100%;text-align:left;padding:7px 4px;border:none;border-bottom:1px solid #0000000f;background:none;font:inherit;color:inherit;cursor:pointer;"><strong>${escapeCm(dayLabelsShort[dt.getDay()])} ${escapeCm(monthNames[dt.getMonth()].slice(0, 3))} ${dt.getDate()}</strong> — ${escapeCm(parts)} <span style="font-size:12px;font-weight:700;text-decoration:underline;">see who</span></button>`;
     });
     const pr = rowsFor(sel.days), nr = rowsFor(sel.no);
     personDays = `<div style="margin:12px 0;padding:14px;border-radius:14px;background:#eef7ec;color:#2a5a3a;">
@@ -8693,6 +8712,7 @@ function admAvailWire(){
   if(!box) return;
   box.querySelectorAll('.adm-club').forEach(b => b.addEventListener('click', () => { admAvail.club = b.dataset.club; admAvail.person = null; admAvail.addOpen = false; admAvail.justAdded = ''; admAvailRepaint(); }));
   box.querySelectorAll('.adm-person').forEach(b => b.addEventListener('click', () => { admAvail.person = admAvail.person === b.dataset.person ? null : b.dataset.person; admAvailRepaint(); }));
+  box.querySelectorAll('.adm-slot').forEach(b => b.addEventListener('click', () => admSlotPopup(b.dataset.day, b.dataset.part)));
   box.querySelectorAll('.adm-mode').forEach(b => b.addEventListener('click', () => { admAvail.mode = b.dataset.mode; admAvailRepaint(); }));
   box.querySelectorAll('.adm-day').forEach(b => b.addEventListener('click', () => { admAvail.day = admAvail.day === b.dataset.day ? null : b.dataset.day; admAvailRepaint(); }));
   const addBtn = box.querySelector('#admAddProfileBtn');

@@ -823,6 +823,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-04 · Claude · index.html, service-worker.js (v60) · Line-by-line 'who voted what': admin 'Best times' rows and each line of a person's 'specifically prefers' list are buttons (`.adm-slot` → `admSlotPopup(day, part)`: 🟢 preferred / 🟡 also free / 🔴 can't, names open the profile); member view's Best/Worst timing dates are buttons (`.eav-slot-link` → `eavShowSlot`, refactored out of the grid-cell click).
+
 - 2026-10-04 · Claude · index.html, service-worker.js (v59) · Admin availability calendar: new toggle '🟢 Preferred times only' vs '🟡🟢 Everyone available' (state `admAvail.mode`, default avail) that drives the calendar numbers/colours, plus a ranked '🏆 Best times' list (top 6 slots, sorted by most-preferred or most-free; shows prefer / also free / can't) — rows open the day. Helpers: `admSlotCounts`, `admWinSet`, `admModeAndBestHtml`.
 
 - 2026-10-04 · Claude · index.html, service-worker.js (v58) · (1) Admin availability calendar: selecting a person now lists every upcoming day + time they specifically PREFER (🟢) and can't do (🔴); pressing a day lists, per time slot, 🟢 Preferred / 🟡 Also available / 🔴 Not available (weekday mornings hidden). (2) Removed the 'Please only request clubs you're actually in the WhatsApp group chat for…' disclaimer (clubsWhatsappDisclaimerHtml deleted).
