@@ -696,6 +696,37 @@
     },
     {
       "section": "sports",
+      "title": "Run 4 Gaza",
+      "audienceType": [
+        "Family Event"
+      ],
+      "emoji": "",
+      "organizedBy": "Run 4 Collective",
+      "eventDate": "2026-10-10",
+      "endDate": "2026-10-10",
+      "time": "",
+      "endTime": "",
+      "allDay": true,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "Toronto, ON, Canada",
+      "link": "https://www.instagram.com/p/DdPs8pTm_ON/?img_index=2&stkn=Mzk1NjE0aHVtcmwz",
+      "desc": "",
+      "sportKey": "running",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "run-4-gaza"
+    },
+    {
+      "section": "sports",
       "title": "Run Her",
       "audienceType": [
         "All Women"
