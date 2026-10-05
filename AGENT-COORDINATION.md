@@ -823,6 +823,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-04 · Claude · index.html, service-worker.js (v59) · Admin availability calendar: new toggle '🟢 Preferred times only' vs '🟡🟢 Everyone available' (state `admAvail.mode`, default avail) that drives the calendar numbers/colours, plus a ranked '🏆 Best times' list (top 6 slots, sorted by most-preferred or most-free; shows prefer / also free / can't) — rows open the day. Helpers: `admSlotCounts`, `admWinSet`, `admModeAndBestHtml`.
+
 - 2026-10-04 · Claude · index.html, service-worker.js (v58) · (1) Admin availability calendar: selecting a person now lists every upcoming day + time they specifically PREFER (🟢) and can't do (🔴); pressing a day lists, per time slot, 🟢 Preferred / 🟡 Also available / 🔴 Not available (weekday mornings hidden). (2) Removed the 'Please only request clubs you're actually in the WhatsApp group chat for…' disclaimer (clubsWhatsappDisclaimerHtml deleted).
 
 - 2026-10-04 · Claude · index.html, service-worker.js (v57) · Everyone's availability (logged-in): tapping a square now also lists, in red, who marked that slot unavailable (🔴 Not available).
