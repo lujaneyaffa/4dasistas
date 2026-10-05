@@ -178,6 +178,39 @@
     },
     {
       "section": "mosqueprograms",
+      "title": "Fajir Reflection",
+      "audienceType": [
+        "Muslim Youth"
+      ],
+      "emoji": "",
+      "organizedBy": "Isna Youth",
+      "eventDate": "2026-10-16",
+      "endDate": "2026-10-16",
+      "time": "06:00",
+      "endTime": "09:00",
+      "allDay": false,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "2200 S Sheridan Way, Mississauga, ON L5J 2M4, Canada",
+      "link": "https://www.instagram.com/p/DeAan-RhiHD/?stkn=MTA2cm1sbjFpODM4Yg==",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [
+        "functions"
+      ],
+      "id": "fajir-reflection"
+    },
+    {
+      "section": "mosqueprograms",
       "title": "From Conversation To Commitment",
       "audienceType": [
         "Muslim Women"
