@@ -7464,6 +7464,39 @@ async function cmAdminLoadLeads(){
   } catch { state.cmLeads = []; }
 }
 // ---- Availability period (main admin only): the fixed block of dates members fill in; the same dates show everywhere ----
+// ---- Database (D1): status + the one-time move of profiles & availability off KV ----
+async function loadD1Status(){
+  try { const r = await fetch('/api/admin/d1-status', { credentials:'include' }); state.d1 = r.ok ? await r.json() : { error:'Could not read the database status.' }; }
+  catch { state.d1 = { error:'Could not reach the server.' }; }
+  render();
+}
+function d1AdminHtml(){
+  const d = state.d1;
+  if(!d){ if(!state.d1Loading){ state.d1Loading = true; loadD1Status(); } return '<p class="av-msg">Checking the database…</p>'; }
+  if(d.error) return `<p style="color:#c00;font-size:13px;">${escapeCm(d.error)}</p><button type="button" class="club-guide-btn" id="d1Refresh">↻ Check again</button>`;
+  const line = d.migrated ? `<div style="padding:10px 12px;border-radius:12px;background:#d9f0d8;color:#2a7a4a;font-weight:700;">✅ Profiles and availability are stored in D1 (${d.users} profiles, ${d.availability} availability records). The free daily Cloudflare limits that caused the outage no longer apply to them.</div>`
+    : !d.bound ? '<div style="padding:10px 12px;border-radius:12px;background:#fff3cf;color:#6b5210;">The D1 database isn\'t attached to the site yet.</div>'
+    : `<div style="padding:10px 12px;border-radius:12px;background:#fff3cf;color:#6b5210;line-height:1.5;">D1 is attached but not in use yet. Profiles and availability still live in KV (the free plan that ran out). Press the button below <strong>once</strong> to copy everything into D1 and switch. Nothing is deleted from KV — it stays as a backup.</div>
+      <button type="button" class="club-guide-btn" id="d1Migrate" style="margin-top:10px;background:#ce8491;color:#fff;width:100%;">🗄️ Move profiles &amp; availability to D1</button>`;
+  return `<div class="cp-box">${line}<span id="d1Status" style="display:block;font-size:12px;margin-top:8px;"></span>${d.migrated ? '<button type="button" class="club-guide-btn" id="d1Rollback" style="margin-top:8px;padding:6px 14px;font-size:12px;">Switch back to KV (emergency)</button>' : ''}</div>`;
+}
+function wireD1Admin(){
+  const st = () => document.getElementById('d1Status');
+  const mig = document.getElementById('d1Migrate');
+  if(mig) mig.addEventListener('click', async () => {
+    if(!confirm('Copy all profiles and availability into D1 and switch the site to use it? (KV copies are kept as a backup.)')) return;
+    mig.disabled = true; st().style.color = '#373d3b'; st().textContent = 'Copying… this can take a few seconds.';
+    try { const d = await leadApi('POST', '/api/admin/d1-migrate'); st().style.color = '#2a7a4a'; st().textContent = `✓ Moved ${d.users} profiles and ${d.availability} availability records.`; state.d1 = null; state.d1Loading = false; await cmAdminLoadAllMembers(); render(); }
+    catch(err){ st().style.color = '#c00'; st().textContent = err.message; mig.disabled = false; }
+  });
+  const rb = document.getElementById('d1Rollback');
+  if(rb) rb.addEventListener('click', async () => {
+    if(!confirm('Switch back to KV? Changes made since the move will NOT be in KV.')) return;
+    try { await leadApi('POST', '/api/admin/d1-rollback'); state.d1 = null; state.d1Loading = false; render(); } catch(err){ st().style.color = '#c00'; st().textContent = err.message; }
+  });
+  const rf = document.getElementById('d1Refresh');
+  if(rf) rf.addEventListener('click', () => { state.d1 = null; state.d1Loading = false; render(); });
+}
 function periodAdminHtml(){
   const fmt = k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' });
   const inp = 'padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;flex:1;min-width:140px;';
@@ -8338,6 +8371,7 @@ function renderClubAdminPanel(){
     ${lead ? '' : admSec('clubdir', '🏛️ Club directory', clubDirListHtml(), false)}
   `;
   const teamGrid = lead ? '' : `
+    ${admSec('d1', '🗄️ Database (D1) — stops the daily-limit outages', d1AdminHtml(), !(state.d1 && state.d1.migrated))}
     ${lead ? '' : admSec('push', '📲 Push notifications', pushAdminHtml(), false)}
     ${lead ? '' : admSec('leads', '🧑‍💼 Club admins' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
     ${lead ? '' : admSec('squads', '🪁 Squads — requests &amp; invite links', squadAdminHtml(), false)}
@@ -8936,6 +8970,7 @@ function wireClubAdminPanel(){
   wireLeadsAdmin();
   wireLabelsAdmin();
   wirePeriodAdmin();
+  wireD1Admin();
   wireFormImport();
   document.querySelectorAll('.adm-tile').forEach(b => b.addEventListener('click', () => { state.admGroup = b.dataset.group; render(); window.scrollTo({ top:0, behavior:'smooth' }); }));
   const reloadProfiles = document.getElementById('admReloadProfiles');

@@ -182,7 +182,30 @@ const LOGIN_MAX_ATTEMPTS_PER_USERNAME_PER_HOUR = 10;
 // ---- Global member identity: one person, one username, can belong to several clubs ----
 const userKey = (userId) => `user:${userId}`;
 
+// ---- D1 (SQLite): profiles + availability live here once a D1 database is attached (binding `DB`) AND the one-time migration has run
+// (admin page → Team → "Move to D1"). D1's free plan allows 5M reads / 100k writes per day and has no list limit, unlike KV (1k lists/writes).
+// Until then — or if no database is attached — everything keeps working on KV exactly as before.
+let _d1Ready = null, _d1Mode = { at: 0, on: false };
+const d1Ensure = async (env) => {
+  if (!env.DB) return false;
+  if (!_d1Ready) _d1Ready = env.DB.batch([
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, name TEXT, username TEXT, data TEXT NOT NULL)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS ideaavail (person_id TEXT PRIMARY KEY, data TEXT NOT NULL)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT)"),
+  ]).catch((e) => { _d1Ready = null; throw e; });
+  await _d1Ready;
+  return true;
+};
+const d1On = async (env) => {
+  if (!env.DB) return false;
+  if (_d1Mode.on) return true;
+  if (Date.now() - _d1Mode.at < 20000) return false;
+  try { await d1Ensure(env); const r = await env.DB.prepare("SELECT v FROM meta WHERE k = 'migrated'").first(); _d1Mode = { at: Date.now(), on: !!(r && r.v === "1") }; }
+  catch { _d1Mode = { at: Date.now(), on: false }; }
+  return _d1Mode.on;
+};
 const readUser = async (env, userId) => {
+  if (await d1On(env)) { const r = await env.DB.prepare("SELECT data FROM users WHERE id = ?").bind(userId).first(); return r ? JSON.parse(r.data) : null; }
   const raw = await env.SITE_DATA.get(userKey(userId));
   return raw ? JSON.parse(raw) : null;
 };
@@ -207,6 +230,26 @@ const allUserIds = async (env) => {
     return ids;
   } catch (e) { return await idsFromClubMembers(env); } // not saved: the real index is built the next time a list works
 };
+// Every profile (full records). D1: one query. KV: ids from the index, then one GET each.
+const listAllUsers = async (env) => {
+  if (await d1On(env)) return ((await env.DB.prepare("SELECT data FROM users").all()).results || []).map((r) => JSON.parse(r.data));
+  const out = [];
+  for (const id of await allUserIds(env)) { const u = await readUser(env, id); if (u) out.push(u); }
+  return out;
+};
+const readIaDoc = async (env, personId) => {
+  if (await d1On(env)) { const r = await env.DB.prepare("SELECT data FROM ideaavail WHERE person_id = ?").bind(personId).first(); return r ? r.data : null; }
+  return env.SITE_DATA.get(ideaAvailKey(personId));
+};
+const writeIaDoc = async (env, personId, rawJson) => {
+  if (await d1On(env)) { await env.DB.prepare("INSERT OR REPLACE INTO ideaavail (person_id, data) VALUES (?, ?)").bind(personId, rawJson).run(); return; }
+  await env.SITE_DATA.put(ideaAvailKey(personId), rawJson);
+  await addToIndex(env, IA_INDEX_KEY, personId).catch(() => {});
+};
+const deleteIaDoc = async (env, personId) => {
+  if (await d1On(env)) { await env.DB.prepare("DELETE FROM ideaavail WHERE person_id = ?").bind(personId).run(); return; }
+  await env.SITE_DATA.delete(ideaAvailKey(personId));
+};
 const _userIdxSeen = new Set();
 // Last-known-good copies, used only if a live read fails (e.g. a Cloudflare quota is hit) so pages degrade instead of going blank.
 const readSnapshot = async (env, key) => { try { return JSON.parse((await env.SITE_DATA.get(key)) || "null"); } catch { return null; } };
@@ -214,11 +257,13 @@ const _snapAt = {};
 const saveSnapshot = async (env, key, data) => { if (Date.now() - (_snapAt[key] || 0) < 600000) return; _snapAt[key] = Date.now(); try { await env.SITE_DATA.put(key, JSON.stringify({ at: Date.now(), data })); } catch {} };
 
 const writeUser = async (env, user) => {
+  if (await d1On(env)) { await env.DB.prepare("INSERT OR REPLACE INTO users (id, name, username, data) VALUES (?, ?, ?, ?)").bind(user.id, user.name || "", user.username || "", JSON.stringify(user)).run(); return; }
   await env.SITE_DATA.put(userKey(user.id), JSON.stringify(user), { metadata: { name: user.name, hasPhoto: !!user.photo } });
   if (!_userIdxSeen.has(user.id)) { _userIdxSeen.add(user.id); try { await addToIndex(env, USER_INDEX_KEY, user.id); } catch {} }
 };
 
 const deleteUser = async (env, userId) => {
+  if (await d1On(env)) { await env.DB.prepare("DELETE FROM users WHERE id = ?").bind(userId).run(); return; }
   await env.SITE_DATA.delete(userKey(userId));
   _userIdxSeen.delete(userId);
   try { await removeFromIndex(env, USER_INDEX_KEY, userId); } catch {}
@@ -500,6 +545,20 @@ const readIdeaAvailPeople = async (env) => {
   return people.map((p) => ({ ...p }));
 };
 const readIdeaAvailPeopleFresh = async (env) => {
+  if (await d1On(env)) {
+    const rows = ((await env.DB.prepare("SELECT person_id, data FROM ideaavail").all()).results || []);
+    const names = new Map(((await env.DB.prepare("SELECT id, name FROM users").all()).results || []).map((r) => [r.id, r.name]));
+    const people = [];
+    for (const r of rows) {
+      if (!/^(m:|g:|admin$)/.test(r.person_id)) continue;
+      const { name, days, no, submitted } = parseIdeaAvailDoc(r.data);
+      if (!submitted) continue;
+      let resolvedName = name;
+      if (r.person_id.startsWith("m:")) { const n = names.get(r.person_id.slice(2)); if (n === undefined) continue; resolvedName = sanitizePersonName(n) || resolvedName; }
+      people.push({ id: r.person_id, name: resolvedName || "Someone", days, no });
+    }
+    return people;
+  }
   let ids = await readIndex(env, IA_INDEX_KEY);
   if (!ids) { // built from a list once, then maintained on every save
     try {
@@ -1110,14 +1169,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       // ayana.s2, ayana.s3 ... — a pile of duplicate profiles. Refuse an identical name and point her at log in.
       if (username !== usernameBaseFromName(name)) {
         const norm = (n) => String(n || "").toLowerCase().replace(/[^a-z0-9]/g, "");
-        let cursor;
-        do {
-          const page = await env.SITE_DATA.list({ prefix: "user:", cursor });
-          if (page.keys.some((k) => norm(k.metadata && k.metadata.name) === norm(name))) {
+        {
+          if ((await listAllUsers(env)).some((u) => norm(u.name) === norm(name))) {
             return jsonResponse({ error: `There's already a profile for ${name}. Please log in instead — if you forgot your PIN, message an admin on Instagram and they'll reset it.` }, 409, corsHeaders);
           }
-          cursor = page.list_complete ? undefined : page.cursor;
-        } while (cursor);
+        }
       }
       if (!/^\d{4}$/.test(pin)) return jsonResponse({ error: "PIN must be exactly 4 digits" }, 400, corsHeaders);
       const clubIds = new Set((await readClubRoster(env)).map((c) => c.id));
@@ -1425,17 +1481,15 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (ideaAvailMatch && (request.method === "GET" || request.method === "PUT")) {
       const who = await ideaWho();
       if (!who) return jsonResponse({ error: "Enter your name first" }, 401, corsHeaders);
-      const key = ideaAvailKey(who.id);
       if (request.method === "GET") {
-        const { days, no, submitted } = parseIdeaAvailDoc(await env.SITE_DATA.get(key));
+        const { days, no, submitted } = parseIdeaAvailDoc(await readIaDoc(env, who.id));
         return jsonResponse({ days, no, submitted }, 200, corsHeaders);
       }
       if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
       let body;
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       const { days, no } = sanitizeIdeaAvail(body);
-      await env.SITE_DATA.put(key, JSON.stringify({ name: who.name, days, no }));
-      await addToIndex(env, IA_INDEX_KEY, who.id).catch(() => {});
+      await writeIaDoc(env, who.id, JSON.stringify({ name: who.name, days, no }));
       _ideaAvailMemo = { at: 0, people: null }; // the next read in this instance is fresh
       return jsonResponse({ days, no, submitted: true }, 200, corsHeaders);
     }
@@ -1644,22 +1698,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       for (const clubId of await clubIdList(env)) {
         for (const id of await readClubMemberIds(env, clubId)) (clubsByUser[id] = clubsByUser[id] || []).push(clubId);
       }
-      const userKeys = await env.SITE_DATA.list({ prefix: "user:" });
       const members = [];
-      let legacyReads = 0;
-      for (const key of userKeys.keys) {
-        const id = key.name.slice("user:".length);
-        if (!clubsByUser[id]) continue; // profiles with no club aren't listed
-        let name = key.metadata && key.metadata.name;
-        let hasPhoto = key.metadata ? !!key.metadata.hasPhoto : false;
-        if (!name && legacyReads < 30) { // records saved before metadata existed: read once and backfill
-          legacyReads++;
-          const user = await readUser(env, id);
-          if (!user) continue;
-          name = user.name; hasPhoto = !!user.photo;
-          await writeUser(env, user);
-        }
-        if (name) members.push({ id, name, hasPhoto, clubs: clubsByUser[id] });
+      for (const u of await listAllUsers(env)) {
+        if (!clubsByUser[u.id] || !u.name) continue; // profiles with no club aren't listed
+        members.push({ id: u.id, name: u.name, hasPhoto: !!u.photo, clubs: clubsByUser[u.id] });
       }
       members.sort((a, b) => a.name.localeCompare(b.name));
       return jsonResponse({ members }, 200, corsHeaders);
@@ -1917,7 +1959,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-");
 
     if (requiresAuth && !leadCtx) {
       const token = getSessionToken(request);
@@ -2317,8 +2359,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const squadsByUser = {};
       for (const sid of Object.keys(SQUAD_TITLES)) for (const uid of await readSquadMemberIds(env, sid)) (squadsByUser[uid] = squadsByUser[uid] || []).push(sid);
       const out = [];
-      for (const uid of await allUserIds(env)) {
-        const u = await readUser(env, uid);
+      for (const u of await listAllUsers(env)) {
           if (u) out.push({ ...publicUser(u), squads: squadsByUser[u.id] || [], phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, archived: u.archived || null, archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: (await readPushSubs(env, u.id)).length > 0 });
       }
       if (leadCtx) return jsonResponse({ users: out.filter((u) => (u.clubs || []).some((c) => leadCtx.clubs.includes(c))).map((u) => ({ ...u, clubs: u.clubs.filter((c) => leadCtx.clubs.includes(c)), pending: (u.pending || []).filter((c) => leadCtx.clubs.includes(c)) })) }, 200, corsHeaders);
@@ -2441,7 +2482,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       }
       const reqKeys = await env.SITE_DATA.list({ prefix: "joinreq:" });
       for (const k of reqKeys.keys) if (k.name.split(":")[2] === userId) await env.SITE_DATA.delete(k.name);
-      await env.SITE_DATA.delete(ideaAvailKey(`m:${userId}`));
+      await deleteIaDoc(env, `m:${userId}`);
       _ideaAvailMemo = { at: 0, people: null };
       await env.SITE_DATA.delete(pushKey(userId));
       for (const sid of Object.keys(SQUAD_TITLES)) { await writeSquadMemberIds(env, sid, (await readSquadMemberIds(env, sid)).filter((x) => x !== userId)); await env.SITE_DATA.delete(squadReqKey(sid, userId)); }
@@ -2458,7 +2499,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const norm = (n) => String(n || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
       const short = (n) => { const t = norm(n).split(" "); return t.length >= 2 ? `${t[0]} ${t[t.length - 1][0]}` : t[0] || ""; };
       const users = [];
-      for (const key of (await env.SITE_DATA.list({ prefix: "user:" })).keys) { const u = await readUser(env, key.name.slice(5)); if (u) users.push(u); }
+      for (const u of await listAllUsers(env)) users.push(u);
       let updated = 0, alreadyHad = 0;
       const unmatched = [], ambiguous = [];
       for (const row of rows) {
@@ -2502,6 +2543,44 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       } else delete user.archived;
       await writeUser(env, user);
       return jsonResponse({ ok: true, archived: user.archived || null }, 200, corsHeaders);
+    }
+    // ---- Admin: D1 database status + the ONE-TIME move of profiles and availability from KV into D1 (idempotent, KV copies are kept as a backup) ----
+    if (path === "/api/admin/d1-status" && request.method === "GET") {
+      if (!env.DB) return jsonResponse({ bound: false, migrated: false }, 200, corsHeaders);
+      await d1Ensure(env);
+      const m = await env.DB.prepare("SELECT v FROM meta WHERE k = 'migrated'").first();
+      const u = await env.DB.prepare("SELECT COUNT(*) AS n FROM users").first();
+      const a = await env.DB.prepare("SELECT COUNT(*) AS n FROM ideaavail").first();
+      return jsonResponse({ bound: true, migrated: !!(m && m.v === "1"), users: u ? u.n : 0, availability: a ? a.n : 0 }, 200, corsHeaders);
+    }
+    if (path === "/api/admin/d1-migrate" && request.method === "POST") {
+      if (!env.DB) return jsonResponse({ error: "No D1 database is attached to the Worker yet." }, 400, corsHeaders);
+      await d1Ensure(env);
+      _d1Mode = { at: 0, on: false }; // read the source from KV for the copy
+      const kvUser = async (id) => { const raw = await env.SITE_DATA.get(userKey(id)); try { return raw ? JSON.parse(raw) : null; } catch { return null; } };
+      // who exists: the index / list, plus everyone reachable through club membership (plain GETs) so nobody is missed if lists are blocked
+      const ids = new Set(await allUserIds(env));
+      for (const id of await idsFromClubMembers(env)) ids.add(id);
+      const userStmts = []; let users = 0;
+      for (const id of ids) { const u = await kvUser(id); if (!u) continue; users++; userStmts.push(env.DB.prepare("INSERT OR REPLACE INTO users (id, name, username, data) VALUES (?, ?, ?, ?)").bind(u.id, u.name || "", u.username || "", JSON.stringify(u))); }
+      const iaIds = new Set((await readIndex(env, IA_INDEX_KEY)) || []);
+      for (const id of ids) iaIds.add(`m:${id}`);
+      iaIds.add("admin");
+      const iaStmts = []; let avail = 0;
+      for (const pid of iaIds) { const raw = await env.SITE_DATA.get(ideaAvailKey(pid)); if (!raw) continue; avail++; iaStmts.push(env.DB.prepare("INSERT OR REPLACE INTO ideaavail (person_id, data) VALUES (?, ?)").bind(pid, raw)); }
+      for (const stmts of [userStmts, iaStmts]) for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
+      const nU = (await env.DB.prepare("SELECT COUNT(*) AS n FROM users").first()).n, nA = (await env.DB.prepare("SELECT COUNT(*) AS n FROM ideaavail").first()).n;
+      if (nU < users) return jsonResponse({ error: `The copy looks incomplete (${nU} of ${users} profiles) — nothing was switched.` }, 500, corsHeaders);
+      await env.DB.prepare("INSERT OR REPLACE INTO meta (k, v) VALUES ('migrated', '1')").run();
+      _d1Mode = { at: Date.now(), on: true };
+      return jsonResponse({ ok: true, users: nU, availability: nA, found: users }, 200, corsHeaders);
+    }
+    if (path === "/api/admin/d1-rollback" && request.method === "POST") {
+      if (!env.DB) return jsonResponse({ error: "No D1 database attached." }, 400, corsHeaders);
+      await d1Ensure(env);
+      await env.DB.prepare("INSERT OR REPLACE INTO meta (k, v) VALUES ('migrated', '0')").run();
+      _d1Mode = { at: Date.now(), on: false };
+      return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     // Admin: attach what a person wrote on the sign-up form (clubs ranked, comments) to their profile; fills a missing phone number only.
     const adminUserFormMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/signup-form\/?$/);
