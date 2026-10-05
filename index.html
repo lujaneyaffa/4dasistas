@@ -6160,6 +6160,20 @@ function iavLegendHtml(){
   const sw = c => `<i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${c};border:1px solid #0003;vertical-align:-1px;margin-right:4px;"></i>`;
   return `<p class="ideas-hint" style="text-align:left;">${sw('#d9f0d8')}Preferred &nbsp; ${sw('#f9dcdc')}Can't make it &nbsp; ${sw('#fff3cf')}Not filled — counts as available, just not your preferred time</p>`;
 }
+// "Are you sure?" shown before availability is submitted: anything left yellow/empty = free but NOT preferred; red is the only way to say "can't".
+function confirmAvailSubmit(unsetCount, onConfirm){
+  const { wrap, close } = ideaPopup(`
+    <div style="font-size:38px;text-align:center;">🗓️</div>
+    <h3 style="margin:4px 0 8px;text-align:center;">Are you sure you want to submit?</h3>
+    <p class="av-msg" style="margin:0 0 8px;line-height:1.55;">${unsetCount ? `You left <strong>${unsetCount} time${unsetCount === 1 ? '' : 's'}</strong> empty (yellow). ` : ''}Anything left <strong style="color:#a8851f;">empty</strong> counts as <strong>free</strong> — just not your <em>preferred</em> time.</p>
+    <p class="av-msg" style="margin:0 0 14px;line-height:1.55;background:#f9dcdc;color:#7a1f1a;border-radius:12px;padding:10px 12px;">🔴 <strong>If you can't make a time, you have to mark it red.</strong> Otherwise people will count on you.</p>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button type="button" class="club-guide-btn" id="avcGo" style="min-height:48px;background:#ce8491;color:#fff;">✓ Yes, submit</button>
+      <button type="button" class="club-guide-btn" id="avcBack" style="min-height:48px;background:#fff;">← Go back and check</button>
+    </div>`);
+  wrap.querySelector('#avcBack').addEventListener('click', close);
+  wrap.querySelector('#avcGo').addEventListener('click', () => { close(); onConfirm(); });
+}
 function iavUnsetReminderHtml(){
   if(!state.iavUnsetWarned) return '';
   const un = iavUnsetSlots();
@@ -6175,7 +6189,7 @@ function ideaAvailSectionHtml(me){
   else if(!state.ideaAvail && state.ideaAvailLoading) body = `<p class="av-msg">Loading your availability…</p>`;
   else if(state.iavEditing) body = `
     ${iavUnsetReminderHtml()}
-    <button type="button" class="iav-done-btn" id="iavDoneBtn">${state.iavUnsetWarned ? 'Done anyway' : '✓ Done editing'}</button>
+    <button type="button" class="iav-done-btn" id="iavDoneBtn">✓ Submit my availability</button>
     <div class="iav-grid-rows" id="iavGridBox">${iavGridRowsHtml(true)}</div>
     ${iavLegendHtml()}
     <p class="ideas-hint">Tap a slot to cycle <strong style="color:#2a7a4a;">green</strong> (preferred) → <strong style="color:#b3261e;">red</strong> (can't) → <strong style="color:#a8851f;">yellow</strong> (not filled). Swipe across a row to paint it. <strong>Morning</strong> (${IAV_RANGES.morning}), <strong>Afternoon</strong> (${IAV_RANGES.afternoon}) or <strong>Evening</strong> (${IAV_RANGES.evening}). Tap a day's bottom button to set the whole day: green → red → not filled.</p>`;
@@ -6463,13 +6477,14 @@ function wireIdeaAvailGrid(){
   if(editBtn) editBtn.addEventListener('click', () => { state.iavEditing = true; state.iavUnsetWarned = false; render(); });
   const doneBtn = document.getElementById('iavDoneBtn');
   if(doneBtn) doneBtn.addEventListener('click', () => {
-    // Empty slots are allowed, but remind once before submitting.
-    if(!state.iavUnsetWarned && iavUnsetSlots().length){ state.iavUnsetWarned = true; render(); return; }
-    state.iavUnsetWarned = false;
-    state.iavEditing = false;
-    if(!state.ideaAvailSubmitted) state.ideaAvailDirty = true; // submitting an all-empty grid still registers you as available
-    ideaAvailSave();
-    render();
+    // Empty slots are allowed (they count as free, just not preferred) — but always confirm before submitting.
+    confirmAvailSubmit(iavUnsetSlots().length, () => {
+      state.iavUnsetWarned = false;
+      state.iavEditing = false;
+      if(!state.ideaAvailSubmitted) state.ideaAvailDirty = true; // submitting an all-empty grid still registers you as available
+      ideaAvailSave();
+      render();
+    });
   });
   const box = document.getElementById('iavGridBox');
   if(!box) return;
@@ -6902,7 +6917,7 @@ function wireAvailabilityPanel(){
   if(exitBtn) exitBtn.addEventListener('click', exitEditing);
   document.querySelectorAll('[data-avpart]').forEach(btn => btn.addEventListener('click', () => availApplyPart(btn.dataset.avpart)));
   const done = document.querySelector('[data-avdone]');
-  if(done) done.addEventListener('click', exitEditing);
+  if(done) done.addEventListener('click', () => confirmAvailSubmit(0, exitEditing));
   const shift = delta => {
     const bounds = avMonthBounds();
     const next = avMonthIndex(state.availYear, state.availMonth) + delta;

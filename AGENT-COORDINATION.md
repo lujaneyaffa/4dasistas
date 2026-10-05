@@ -823,6 +823,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-04 · Claude · index.html, service-worker.js (v61) · Availability submit now always shows an 'Are you sure you want to submit?' popup (`confirmAvailSubmit`): empty (yellow) times count as free but not preferred; red is required for 'can't'. Used by the idea-availability button (now labelled '✓ Submit my availability'; the old inline 'Done anyway' reminder is no longer triggered) and the club month-view Done button.
+
 - 2026-10-04 · Claude · index.html, service-worker.js (v60) · Line-by-line 'who voted what': admin 'Best times' rows and each line of a person's 'specifically prefers' list are buttons (`.adm-slot` → `admSlotPopup(day, part)`: 🟢 preferred / 🟡 also free / 🔴 can't, names open the profile); member view's Best/Worst timing dates are buttons (`.eav-slot-link` → `eavShowSlot`, refactored out of the grid-cell click).
 
 - 2026-10-04 · Claude · index.html, service-worker.js (v59) · Admin availability calendar: new toggle '🟢 Preferred times only' vs '🟡🟢 Everyone available' (state `admAvail.mode`, default avail) that drives the calendar numbers/colours, plus a ranked '🏆 Best times' list (top 6 slots, sorted by most-preferred or most-free; shows prefer / also free / can't) — rows open the day. Helpers: `admSlotCounts`, `admWinSet`, `admModeAndBestHtml`.
