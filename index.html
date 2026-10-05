@@ -2872,7 +2872,8 @@ function setupFallSignupForm(){
     try {
       account = await cmApiRaw('/api/signup', { method:'POST', body: JSON.stringify({
         name: enteredName, pin: enteredPin, phone: form.whatsapp.value.trim(),
-        clubId: firstClub.id, waitlist: rankedClubs.slice(1).map(c => c.id)
+        clubId: firstClub.id, waitlist: rankedClubs.slice(1).map(c => c.id),
+        form: { ranked: rankedClubs.map(c => c.title), other: ((form.elements['otherClubName'] || {}).value || '').trim(), why: ((form.elements['whyJoin'] || {}).value || '').trim(), lead: ((form.querySelector('input[name=leadInterest]:checked') || {}).value || '') }
       }) });
     } catch(err){
       statusEl.textContent = err.message;
@@ -7740,6 +7741,13 @@ async function openAdminProfile(userId){
       ${row('Joined', u.createdAt ? `${escapeCm(admFmtDate(u.createdAt))}<br><span style="font-size:12px;color:var(--muted);">${escapeCm(admAgo(u.createdAt))}</span>` : '<span style="color:var(--muted);">Before records began</span>')}
       ${row('Last signed in', u.lastLoginAt ? `${escapeCm(admFmtDate(u.lastLoginAt))}<br><span style="font-size:12px;color:var(--muted);">${escapeCm(admAgo(u.lastLoginAt))}</span>` : '<span style="color:var(--muted);">Not recorded yet</span>')}
       ${row('Already in', tags(u.clubs || []))}
+      ${u.form ? `<div style="margin:10px 0 4px;padding:12px 14px;border-radius:14px;background:#fff8e8;border:2px solid #e6cf86;color:#5b4a10;font-size:14px;line-height:1.55;">
+        <div style="font-weight:800;margin-bottom:4px;">📝 What they wrote on the sign-up form${u.form.at ? ` <span style="font-weight:500;font-size:12px;">(${escapeCm(new Date(u.form.at).toLocaleDateString('en-CA', { month:'short', day:'numeric' }))})</span>` : ''}</div>
+        ${(u.form.ranked || []).length ? `<div><strong>Clubs they picked:</strong> ${(u.form.ranked || []).map((c, i) => `${i + 1}. ${escapeCm(c)}`).join(' &nbsp; ')}</div>` : ''}
+        ${u.form.other ? `<div><strong>Other club idea:</strong> ${escapeCm(u.form.other)}</div>` : ''}
+        ${u.form.lead ? `<div><strong>Interested in leading:</strong> ${escapeCm(u.form.lead)}</div>` : ''}
+        <div style="margin-top:4px;"><strong>Comments:</strong> ${u.form.why ? `<span style="white-space:pre-wrap;">${escapeCm(u.form.why)}</span>` : '<span style="opacity:.7;">none left</span>'}</div>
+      </div>` : ''}
       ${(state.cmAdminLoggedIn === true && Array.isArray(u.squads)) ? row('Squads', u.squads.length ? u.squads.map(id => `<span style="display:inline-block;margin:2px 0 2px 4px;padding:3px 10px;border-radius:999px;background:#fbf0ee;color:#76220b;border:1.5px solid #ce8491;font-size:12px;font-weight:700;">${escapeCm((SQUADS.find(q => q.id === id) || {}).title || id)}</span>`).join('') : '<span style="color:var(--muted);">None</span>') : ''}
       ${(u.pending || []).length ? row('Requested', tags(u.pending)) : ''}
       ${(u.waitlist || []).filter(c => !(u.clubs || []).includes(c)).length ? row('Standby for', tags(u.waitlist.filter(c => !(u.clubs || []).includes(c)))) : ''}
@@ -8325,6 +8333,7 @@ function renderClubAdminPanel(){
     ${lead ? '' : admSec('labels', '🏷️ Names of categories &amp; genres', labelsAdminHtml(), false)}
   `;
   const profilesGrid = `
+    ${lead ? '' : admSec('formimport', '📥 Import sign-up forms (from your email)', formImportHtml(), false)}
     ${admSec('newprofile', '➕ Create a profile', `
     <div class="cp-box">
       <h4 style="margin:0 0 6px;">Create a profile</h4>
@@ -8362,6 +8371,75 @@ function admGroupTilesHtml(lead, cur){
     ${lead ? '' : tile('team', '📣', 'Notifications & team', 'Push · club admins · squads', (state.cmLeads || []).length || '')}
     ${tile('profiles', '👥', 'Profiles', 'People · clubs · squads', profiles || '')}
   </div>`;
+}
+// ---- Import sign-up forms: match each form submission (name / phone) to a website profile, fill in what's missing, create profiles that don't exist yet ----
+const formImport = { rows:null, status:'' };
+const fiDigits = p => { const d = String(p || '').replace(/\D/g, ''); return d.length === 11 && d[0] === '1' ? d.slice(1) : d; };
+const fiKey = n => { const t = String(n || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean); return { first: t[0] || '', init: t.length > 1 ? t[t.length - 1][0] : '' }; };
+function fiMatch(sub, users){
+  const sd = fiDigits(sub.phone);
+  const byPhone = sd.length >= 7 ? users.filter(u => fiDigits(u.phone) === sd) : [];
+  if(byPhone.length) return { user: byPhone[0], how: 'phone', many: byPhone.length > 1 };
+  if(sub.username){ const u = users.find(x => String(x.username).toLowerCase() === String(sub.username).toLowerCase()); if(u) return { user: u, how: 'username' }; }
+  const k = fiKey(sub.name);
+  if(!k.first) return null;
+  const byName = users.filter(u => { const x = fiKey(u.name); return x.first === k.first && (k.init ? x.init === k.init : true); });
+  if(byName.length === 1 || (byName.length > 1 && k.init)) return { user: byName[0], how: 'name', many: byName.length > 1, weak: !k.init };
+  return null;
+}
+function formImportHtml(){
+  const rows = formImport.rows;
+  const inp = 'width:100%;min-height:120px;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:13px;font-family:monospace;box-sizing:border-box;';
+  let preview = '';
+  if(rows){
+    const m = rows.filter(r => r.match), c = rows.filter(r => !r.match);
+    const li = r => `<div style="padding:5px 0;border-top:1px solid #0001;font-size:13px;"><strong>${escapeCm(r.sub.name || '(no name)')}</strong> · ${escapeCm(r.sub.phone || 'no phone')}${r.match ? ` → <em>${escapeCm(r.match.user.name)}</em> (@${escapeCm(r.match.user.username)}, by ${r.match.how}${r.match.many ? ', several matches — check' : ''})${r.match.user.phone ? '' : ' · <span style="color:#2a7a4a;font-weight:700;">will fill phone</span>'}${r.skip ? ' · <span style="opacity:.7;">already has this form</span>' : ''}` : ''}</div>`;
+    preview = `<div style="margin-top:12px;padding:12px;border-radius:12px;background:#fef7f4;border:2px solid #76220b22;">
+      <div style="font-weight:800;">✅ ${m.length} match an existing profile · ➕ ${c.length} have no profile yet</div>
+      <details style="margin-top:6px;"><summary style="cursor:pointer;font-weight:700;">See the ${m.length} matches</summary>${m.map(li).join('')}</details>
+      <details style="margin-top:6px;" ${c.length ? 'open' : ''}><summary style="cursor:pointer;font-weight:700;">See the ${c.length} with no profile</summary>${c.map(li).join('') || '<p class="av-msg">None.</p>'}</details>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:14px;"><input type="checkbox" id="fiCreate" ${c.length ? 'checked' : ''} style="width:20px;height:20px;"> Also create the ${c.length} missing profiles (PIN 1234 — they pick their own at first sign-in; not put in any club)</label>
+      <button type="button" class="club-guide-btn" id="fiApply" style="margin-top:10px;background:#ce8491;color:#fff;width:100%;">Apply to ${m.length}${c.length ? ' + create ' + c.length : ''} profiles</button>
+    </div>`;
+  }
+  return `<div class="cp-box">
+    <p style="font-size:13px;line-height:1.5;margin:0 0 8px;">Load the sign-up submissions file I gave you. Each person is matched to a profile by phone number, username or name. It fills in <strong>missing phone numbers only</strong> (never overwrites one), and adds the clubs they picked and their comments to the profile. You see what will happen before anything changes.</p>
+    <input type="file" id="fiFile" accept=".json,application/json" style="margin-bottom:8px;">
+    <textarea id="fiText" placeholder="…or paste the file's contents here" style="${inp}"></textarea>
+    <button type="button" class="club-guide-btn" id="fiPreview" style="margin-top:8px;background:var(--blush);">Preview matches</button>
+    <span id="fiStatus" style="font-size:12px;margin-left:8px;color:${formImport.status.startsWith('✓') ? '#2a7a4a' : '#c00'};">${escapeCm(formImport.status)}</span>
+    ${preview}
+  </div>`;
+}
+function wireFormImport(){
+  const prev = document.getElementById('fiPreview'); if(!prev) return;
+  const file = document.getElementById('fiFile'), txt = document.getElementById('fiText');
+  file.addEventListener('change', async () => { if(file.files[0]) txt.value = await file.files[0].text(); });
+  prev.addEventListener('click', () => {
+    let data; try { data = JSON.parse(txt.value); if(!Array.isArray(data)) throw 0; } catch { formImport.status = 'That isn\'t a valid submissions file.'; render(); return; }
+    const users = (state.cmAdminAllUsers || []);
+    formImport.rows = data.map(sub => ({ sub, match: fiMatch(sub, users) })).map(r => (r.match && r.match.user.form && r.match.user.form.source === 'import' && r.match.user.form.at === Date.parse(r.sub.date + 'T12:00:00') ? Object.assign(r, { skip: true }) : r));
+    formImport.status = '';
+    render();
+  });
+  const apply = document.getElementById('fiApply');
+  if(apply) apply.addEventListener('click', async () => {
+    const create = document.getElementById('fiCreate') && document.getElementById('fiCreate').checked;
+    apply.disabled = true;
+    const st = document.getElementById('fiStatus');
+    let done = 0, filled = 0, created = 0, failed = 0;
+    for(const r of formImport.rows){
+      const payload = { ranked: r.sub.ranked, other: r.sub.other, why: r.sub.why, lead: r.sub.lead, at: Date.parse(r.sub.date + 'T12:00:00') || Date.now(), phone: r.sub.phone, name: r.sub.name };
+      try {
+        if(r.match){ const d = await leadApi('PUT', '/api/admin/users/' + encodeURIComponent(r.match.user.id) + '/signup-form', payload); done++; if(d.phoneFilled) filled++; }
+        else if(create && r.sub.name){ await leadApi('POST', '/api/admin/users', payload); created++; }
+      } catch { failed++; }
+      st.style.color = '#373d3b'; st.textContent = `Working… ${done + created + failed} done`;
+    }
+    formImport.rows = null;
+    formImport.status = `✓ Updated ${done} profiles (${filled} phone numbers filled in), created ${created}${failed ? `, ${failed} failed` : ''}.`;
+    await cmAdminLoadAllMembers(); render();
+  });
 }
 function adminClubChoices(){
   const seen = new Set();
@@ -8847,6 +8925,7 @@ function wireClubAdminPanel(){
   wireLeadsAdmin();
   wireLabelsAdmin();
   wirePeriodAdmin();
+  wireFormImport();
   document.querySelectorAll('.adm-tile').forEach(b => b.addEventListener('click', () => { state.admGroup = b.dataset.group; render(); window.scrollTo({ top:0, behavior:'smooth' }); }));
   const inboxRefresh = document.getElementById('inboxRefresh');
   if(inboxRefresh) inboxRefresh.addEventListener('click', async () => { inboxRefresh.disabled = true; inboxRefresh.textContent = 'Checking…'; await cmAdminLoadAllMembers(); render(); });

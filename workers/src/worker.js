@@ -279,6 +279,14 @@ const sameSig = (a, b) => { a = String(a || ""); b = String(b || ""); if (a.leng
 const reviewUrlFor = async (env, kind, id, action) => `${env.SITE_ORIGIN || "https://4dasistas.ca"}/review/${kind}/${encodeURIComponent(id)}?sig=${await reviewSig(env, kind, id)}${action ? `&a=${action}` : ""}`;
 const emailBtn = (href, label, bg, color = "#fff") => `<a href="${escapeHtml(href)}" style="display:inline-block;margin:4px 6px 4px 0;padding:12px 18px;border-radius:999px;background:${bg};color:${color};font-weight:700;text-decoration:none;font-size:15px">${label}</a>`;
 const emailRow = (label, value) => `<tr><td style="padding:6px 12px 6px 0;color:#776867;vertical-align:top;white-space:nowrap">${label}</td><td style="padding:6px 0;vertical-align:top"><strong>${value}</strong></td></tr>`;
+// What someone put on the sign-up form (clubs they ranked, comments, whether they'd lead). Shown to the admin on their profile.
+const sanitizeSignupForm = (f, source) => {
+  if (!f || typeof f !== "object") return null;
+  const clean = (v, n) => String(v == null ? "" : v).replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, n);
+  const ranked = (Array.isArray(f.ranked) ? f.ranked : []).map((x) => clean(x, 40)).filter(Boolean).slice(0, 6);
+  const form = { ranked, other: clean(f.other, 60), why: clean(f.why, 1500), lead: clean(f.lead, 30), at: Number(f.at) > 0 ? Number(f.at) : Date.now(), source: source || "site" };
+  return (ranked.length || form.why || form.other) ? form : null;
+};
 const sendAdminEmail = (env, ctx, subject, html) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
   ctx.waitUntil(fetch("https://api.resend.com/emails", {
@@ -1087,6 +1095,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const waitlist = clubId ? [...new Set((Array.isArray(body.waitlist) ? body.waitlist : []).map(String))].filter((id) => clubIds.has(id) && id !== clubId).slice(0, 1) : []; // 2 clubs total: the #1 pick (requested) + one on standby
       const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, waitlist, createdAt: Date.now() };
       user.lastLoginAt = user.createdAt; user.lastSeenAt = user.createdAt;
+      { const sf = sanitizeSignupForm(body.form, "site"); if (sf) user.form = sf; }
       const phone = sanitizePhone(body.phone);
       if (phone) user.phone = phone;
       await writeUser(env, user);
@@ -2435,7 +2444,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!user) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
       return jsonResponse({
         id: user.id, name: user.name, username: user.username, photo: user.photo || null,
-        phone: user.phone || "", createdAt: user.createdAt || 0, lastLoginAt: user.lastLoginAt || 0, lastSeenAt: user.lastSeenAt || 0, archived: user.archived || null,
+        phone: user.phone || "", createdAt: user.createdAt || 0, lastLoginAt: user.lastLoginAt || 0, lastSeenAt: user.lastSeenAt || 0, archived: user.archived || null, form: user.form || null,
         squads: (await (async () => { const o = []; for (const sid of Object.keys(SQUAD_TITLES)) if ((await readSquadMemberIds(env, sid)).includes(user.id)) o.push(sid); return o; })()),
         clubs: (await allClubIdsContaining(env, user.id)).filter((c) => !leadCtx || leadCtx.clubs.includes(c)), pending: (await pendingClubIdsFor(env, user.id)).filter((c) => !leadCtx || leadCtx.clubs.includes(c)), waitlist: Array.isArray(user.waitlist) ? user.waitlist : [],
       }, 200, corsHeaders);
@@ -2454,6 +2463,35 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       } else delete user.archived;
       await writeUser(env, user);
       return jsonResponse({ ok: true, archived: user.archived || null }, 200, corsHeaders);
+    }
+    // Admin: attach what a person wrote on the sign-up form (clubs ranked, comments) to their profile; fills a missing phone number only.
+    const adminUserFormMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/signup-form\/?$/);
+    if (adminUserFormMatch && request.method === "PUT") {
+      const userId = decodeURIComponent(adminUserFormMatch[1]);
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const user = await readUser(env, userId);
+      if (!user) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
+      const form = sanitizeSignupForm(body, "import");
+      if (form) user.form = form;
+      let phoneFilled = false;
+      if (!user.phone && body.phone) { const p = sanitizePhone(body.phone); if (p) { user.phone = p; phoneFilled = true; } }
+      await writeUser(env, user);
+      return jsonResponse({ ok: true, formSaved: !!form, phoneFilled }, 200, corsHeaders);
+    }
+    // Admin: create a bare profile (no club yet) from a sign-up form. PIN starts as 1234 and they must choose their own at first sign-in.
+    if (path === "/api/admin/users" && request.method === "POST") {
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const name = sanitizePersonName(body.name);
+      if (!name) return jsonResponse({ error: "A name is required" }, 400, corsHeaders);
+      const username = await generateUniqueUsername(env, name);
+      const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex("1234"), photo: null, createdAt: Date.now(), mustChangePin: true };
+      const phone = sanitizePhone(body.phone); if (phone) user.phone = phone;
+      const form = sanitizeSignupForm(body, "import"); if (form) user.form = form;
+      await writeUser(env, user);
+      await reserveUsername(env, username, user.id);
+      return jsonResponse({ ok: true, id: user.id, username, name }, 201, corsHeaders);
     }
     // Admin: set which squads a person is in (adds/removes; asking and approval are skipped — this is the admin placing them).
     const adminUserSquadsMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/squads\/?$/);
