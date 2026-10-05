@@ -117,6 +117,8 @@
     text-transform:uppercase; letter-spacing:0.06em; transition:border-color 0.12s ease;
   }
   .tab-btn.active{ border-bottom-color:var(--charcoal); font-weight:700; }
+  a.tab-btn{ text-decoration:none; display:inline-block; line-height:inherit; }
+  a.tab-btn:visited{ color:var(--charcoal); }
   .tab-btn:focus-visible{ outline:3px solid var(--brand-rose); outline-offset:2px; }
   .context-back{ display:none; max-width:760px; margin:12px auto 0; padding:0 20px; }
   .context-back.visible{ display:block; }
@@ -1035,11 +1037,11 @@
 </header>
 
 <nav class="tabs" id="tabs">
-  <button class="tab-btn active" data-tab="home">Home</button>
-  <button class="tab-btn" data-tab="events"><span class="the">The </span>Calendar</button>
-  <button class="tab-btn" data-tab="clubs"><span class="the">The </span>Clubs</button>
-  <button class="tab-btn" data-tab="squads"><span class="the">The </span>Squads</button>
-  <button class="tab-btn" data-tab="resources"><span class="the">The </span>Directory</button>
+  <a class="tab-btn active" data-tab="home" href="/">Home</a>
+  <a class="tab-btn" data-tab="events" href="#/calendar"><span class="the">The </span>Calendar</a>
+  <a class="tab-btn" data-tab="clubs" href="#/clubs"><span class="the">The </span>Clubs</a>
+  <a class="tab-btn" data-tab="squads" href="#/squads"><span class="the">The </span>Squads</a>
+  <a class="tab-btn" data-tab="resources" href="#/resources"><span class="the">The </span>Directory</a>
   <div class="top-search-wrap" id="globalSearchShell" style="display:none;">
     <div class="top-search-shell">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M16 16L21 21"></path></svg>
@@ -9389,6 +9391,9 @@ document.querySelector('.wordmark-link').addEventListener('click', e => {
 document.getElementById('tabs').addEventListener('click', e => {
   const btn = e.target.closest('.tab-btn');
   if(!btn) return;
+  // Real links now: right-click / middle-click / Ctrl- or ⌘-click open the page in a new tab; a plain click still switches in place.
+  if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  e.preventDefault();
   goToTab(btn.dataset.tab);
 });
 

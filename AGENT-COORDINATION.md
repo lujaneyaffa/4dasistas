@@ -823,6 +823,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-05 · Claude · index.html, service-worker.js (v71) · Nav tabs are now real links (`<a class="tab-btn" href="#/calendar">` etc.; Home → `/`) so right-click → 'Open link in new tab' and Ctrl/⌘/middle-click work. Plain left-click still calls goToTab() (the tabs click handler skips modified/non-left clicks). Pills stay as pills (Lujane confirmed).
+
 - 2026-10-05 · Claude · workers/src/worker.js · `/api/me` `phoneConfirmed` is now true when the profile already has a phone number (`phoneConfirmedAt || phone`), so numbers added by the admin / imported from sign-up forms don't trigger the phone prompt again. Only people with NO number are asked.
 
 - 2026-10-05 · Claude · index.html, workers/src/worker.js, service-worker.js (v70) · BACKUPS: `buildBackup(env)` (users incl. pinHash, availability docs, club members, squads+links, roster/labels/availperiod) works in KV and D1 mode. Cron (`scheduled`, daily 13:00 UTC) now ALWAYS emails it first via Resend with a JSON attachment (`sendBackupEmail`) to ADMIN_NOTIFY_EMAIL. Admin: `GET /api/admin/backup` (download) and `POST /api/admin/backup-email`; buttons in Admin → Notifications & team → 🗄️ Database. The D1 build (52fc334) is live.
