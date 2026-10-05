@@ -6242,11 +6242,20 @@ function iavOneGridHtml(dates, todayStr, editable){
   }).join('');
   return html;
 }
+// Splits the period's dates into rows of at most 5, as evenly as possible (13 days → 5 + 4 + 4, never a short row that leaves
+// empty grid columns), and each row gets exactly as many columns as it has days.
+function iavRowsOf(dates){
+  const n = dates.length; if(!n) return [];
+  const rows = Math.ceil(n / 5), base = Math.floor(n / rows), extra = n % rows, out = [];
+  let i = 0;
+  for(let r = 0; r < rows; r++){ const size = base + (r < extra ? 1 : 0); out.push(dates.slice(i, i + size)); i += size; }
+  return out;
+}
+const iavColsStyle = n => `grid-template-columns:44px repeat(${n}, minmax(0,1fr));`;
 function iavGridRowsHtml(editable){
   const dates = iavNext15Dates();
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
-  const rows = [dates.slice(0, 5), dates.slice(5, 10), dates.slice(10, 15)];
-  return rows.map(rowDates => `<div class="iav-grid">${iavOneGridHtml(rowDates, todayStr, editable)}</div>`).join('');
+  return iavRowsOf(dates).map(rowDates => `<div class="iav-grid" style="${iavColsStyle(rowDates.length)}">${iavOneGridHtml(rowDates, todayStr, editable)}</div>`).join('');
 }
 // Kept for the pointer-drag code, which only ever runs while state.iavEditing is true (editable grid).
 function iavGridInnerHtml(){ return iavGridRowsHtml(true); }
@@ -6324,9 +6333,8 @@ function eavGridHtml(){
   let max = 0;
   dates.forEach(d => iavPartsFor(d).forEach(k => { const n = (counts[d] && counts[d][k]) || 0; if(n > max) max = n; }));
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
-  const rows = [dates.slice(0, 5), dates.slice(5, 10), dates.slice(10, 15)];
-  return rows.map(rowDates => {
-    let html = '<div class="eav-grid"><div class="iav-corner"></div>';
+  return iavRowsOf(dates).map(rowDates => {
+    let html = `<div class="eav-grid" style="${iavColsStyle(rowDates.length)}"><div class="iav-corner"></div>`;
     html += rowDates.map(d => {
       const dt = new Date(d + 'T00:00:00');
       return `<div class="iav-daylabel${d === todayStr ? ' today' : ''}">${dayLabelsShort[dt.getDay()]}<br>${dt.getDate()}</div>`;
@@ -7527,7 +7535,8 @@ function admInboxCount(){
 function inboxAdminHtml(lead){
   const n = admInboxCount();
   const body = [(state.cmAdminJoinRequests || []).length ? joinRequestsAdminHtml() : '', (!lead && (state.cmAdminEventSugs || []).length) ? eventSuggestionsAdminHtml() : '', (!lead && (state.cmAdminResSugs || []).length) ? resourceSuggestionsAdminHtml() : ''].join('');
-  return admSec('inbox', `🔔 Notifications${n ? `<span class="adm-badge">${n}</span>` : ''}`, n ? body : '<p class="av-msg" style="margin:0;">Nothing waiting — you\'re all caught up. 🎉</p>', n > 0, 'flat');
+  const refresh = `<button type="button" class="club-guide-btn" id="inboxRefresh" style="padding:6px 14px;font-size:12px;margin:0 0 8px;">↻ Check for new</button><span style="font-size:11px;color:#776867;margin-left:8px;">Refreshes when you open this page — you also get an email for each new request.</span>`;
+  return admSec('inbox', `🔔 Notifications${n ? `<span class="adm-badge">${n}</span>` : ''}`, refresh + (n ? body : '<p class="av-msg" style="margin:0;">Nothing waiting — you\'re all caught up. 🎉</p>'), n > 0, 'flat');
 }
 function clubLeadsAdminHtml(){
   const leads = state.cmLeads || [];
@@ -7903,30 +7912,11 @@ async function admNotifPoll(){
     admToast(msg + (newOnes.length > 1 ? `<br><span style="opacity:.85">+ ${newOnes.length - 1} more</span>` : '') + '<br><span style="font-size:13px;opacity:.85">Tap to review</span>', admOpenPanel);
   }
 }
+// No more floating bell / background polling (it burned the free Cloudflare KV quota). New join requests, events, resources and
+// sign-ups reach the admin by EMAIL; to act on them open the Admin page → 🔔 Notifications, which loads when the page opens.
 function admEnsureBell(){
-  const on = state.cmAdminLoggedIn === true;
-  let bell = document.getElementById('admBell');
-  if(!on){
-    if(bell) bell.remove();
-    clearInterval(admNotif.timer); admNotif.timer = null; admNotif.known = null; admNotif.items = [];
-    return;
-  }
-  if(!bell){
-    bell = document.createElement('button'); bell.id = 'admBell'; bell.type = 'button'; bell.setAttribute('aria-label', 'Notifications');
-    bell.style.cssText = 'position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:9500;width:56px;height:56px;border-radius:50%;border:2px solid #76220b;background:#ce8491;color:#fff;font-size:26px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.25);';
-    bell.innerHTML = '🔔<span class="adm-dot" style="display:none;position:absolute;top:-4px;right:-4px;min-width:22px;height:22px;padding:0 5px;border-radius:11px;background:#d93025;color:#fff;font-size:12px;font-weight:800;align-items:center;justify-content:center;border:2px solid #fff;box-sizing:border-box;"></span>';
-    bell.addEventListener('click', admOpenPanel);
-    document.body.appendChild(bell);
-  }
-  if(!admNotif.timer){
-    admNotifPoll();
-    // Each poll costs ~4 KV list calls (free tier: 1,000/day), so it only runs while you're actually using the page: every 15 min,
-    // visible tab, and only if you've touched the page in the last 15 min — a tab left open all day makes NO calls.
-    admNotif.lastActivity = Date.now();
-    ['pointerdown', 'keydown', 'scroll'].forEach(ev => window.addEventListener(ev, () => { admNotif.lastActivity = Date.now(); }, { passive:true }));
-    admNotif.timer = setInterval(() => { if(document.visibilityState === 'visible' && Date.now() - (admNotif.lastActivity || 0) < 900000) admNotifPoll(); }, 900000);
-    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && state.cmAdminLoggedIn === true && Date.now() - (admNotif.lastPoll || 0) > 600000) admNotifPoll(); });
-  }
+  const bell = document.getElementById('admBell'); if(bell) bell.remove();
+  if(admNotif.timer){ clearInterval(admNotif.timer); admNotif.timer = null; }
 }
 function admRenderPanel(){
   const wrap = admNotif.panel; if(!wrap || !document.body.contains(wrap)){ admNotif.panel = null; return; }
@@ -8818,6 +8808,8 @@ function wireClubAdminPanel(){
   wireLeadsAdmin();
   wireLabelsAdmin();
   wirePeriodAdmin();
+  const inboxRefresh = document.getElementById('inboxRefresh');
+  if(inboxRefresh) inboxRefresh.addEventListener('click', async () => { inboxRefresh.disabled = true; inboxRefresh.textContent = 'Checking…'; await cmAdminLoadAllMembers(); render(); });
   document.querySelectorAll('.adm-sort').forEach(b => b.addEventListener('click', () => { state.cmAdminMemberSort = b.dataset.sort; render(); }));
   const memberSearch = document.getElementById('admMemberSearch');
   if(memberSearch && !memberSearch.dataset.wired){

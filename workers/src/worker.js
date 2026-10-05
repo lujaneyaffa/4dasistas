@@ -1097,6 +1097,9 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         await env.SITE_DATA.put(joinReqKey(clubId, user.id), JSON.stringify({ at: Date.now() }));
         const club = (await readClubRoster(env)).find((c) => c.id === clubId);
         if (club) notifyAdminOfJoinRequest(env, ctx, user, club);
+      } else {
+        // signed up without asking for a club: still tell the admin there's a new member (the join-request email covers the other case)
+        sendAdminEmail(env, ctx, `New member: ${user.name}`, `<div style="font-family:Arial,sans-serif;max-width:520px;color:#373d3b"><h2 style="margin:0 0 8px">New member signed up</h2><p><strong>${escapeHtml(user.name)}</strong> (username <code>${escapeHtml(user.username)}</code>) just created an account${user.phone ? ` — phone ${escapeHtml(user.phone)}` : ""}. They haven't asked for a club yet.</p><p><a href="${escapeHtml(env.SITE_ORIGIN || "https://4dasistas.ca")}/#/admin">Open the admin page</a></p></div>`);
       }
       await Promise.all([
         env.SITE_DATA.put(ipKey, String(Number(ipCount || 0) + 1), { expirationTtl: 3700 }),
