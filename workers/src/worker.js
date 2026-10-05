@@ -1646,7 +1646,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const clubs = await allClubIdsContaining(env, me.id);
       let notices = [];
       try { notices = JSON.parse((await env.SITE_DATA.get(`notice:${me.id}`)) || "[]"); } catch {}
-      return jsonResponse({ ...publicUser(me), clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs), notices, push: (await readPushSubs(env, me.id)).length > 0, phone: me.phone || "", phoneConfirmed: !!me.phoneConfirmedAt, ...(await (async () => {
+      return jsonResponse({ ...publicUser(me), clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs), notices, push: (await readPushSubs(env, me.id)).length > 0, phone: me.phone || "", phoneConfirmed: !!(me.phoneConfirmedAt || me.phone), ...(await (async () => {
         // squads: ids the member is IN (with that squad's private invite link) and ids still waiting for approval
         const squads = [];
         for (const id of Object.keys(SQUAD_TITLES)) if ((await readSquadMemberIds(env, id)).includes(me.id)) squads.push({ id, link: (await env.SITE_DATA.get(squadLinkKey(id))) || "" });
