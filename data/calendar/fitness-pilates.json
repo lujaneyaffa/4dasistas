@@ -1,0 +1,32 @@
+{
+  "section": "sports",
+  "title": "Fitness & Pilates",
+  "audienceType": [
+    "Muslim Women"
+  ],
+  "emoji": "",
+  "organizedBy": "Scarborough Muslim Association",
+  "eventDate": "2026-10-10",
+  "endDate": "2026-10-10",
+  "time": "",
+  "endTime": "",
+  "allDay": false,
+  "days": [
+    "sat"
+  ],
+  "recurFrequency": "",
+  "monthlyType": "weekday",
+  "monthlyWeek": "1",
+  "monthlyDay": "sat",
+  "monthlyDate": "",
+  "recurStart": "",
+  "recurEnd": "2026-12-19",
+  "extraDates": [],
+  "virtual": false,
+  "location": "Scarborough, ON, Canada",
+  "link": "https://www.instagram.com/p/DdYdrQ7JljU/?stkn=eXd1ZnFjNHViajVi",
+  "desc": "",
+  "sportKey": "",
+  "alsoSportKeys": [],
+  "alsoShowIn": []
+}
