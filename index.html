@@ -380,6 +380,14 @@
   @keyframes qlFloat{ from{ transform:translate(0,0); } to{ transform:translate(calc(var(--dx,12px) * var(--ds,1)), calc(var(--dy,-14px) * var(--ds,1))); } }
   @media (max-width:600px){ .home-quicklinks{ --ds:.4; } }
   @media (prefers-reduced-motion:reduce){ .home-quicklinks .club-guide-btn{ animation:none !important; } }
+  .adm-tiles{ display:grid; gap:10px; margin:12px 0 6px; }
+  .adm-tile{ position:relative; display:flex; flex-direction:column; align-items:center; gap:2px; padding:14px 8px; border-radius:16px; border:2px solid var(--brand-brown); background:#fff; color:var(--brand-brown); font-family:inherit; cursor:pointer; text-align:center; min-height:96px; box-shadow:3px 3px 0 var(--brand-brown); }
+  .adm-tile.on{ background:var(--brand-brown); color:#fff; box-shadow:none; transform:translate(2px,2px); }
+  .adm-tile-ic{ font-size:26px; line-height:1; }
+  .adm-tile-t{ font-weight:800; font-size:15px; }
+  .adm-tile-h{ font-size:11px; opacity:.8; line-height:1.25; }
+  .adm-tile-b{ position:absolute; top:6px; right:8px; margin:0; }
+  @media (max-width:520px){ .adm-tile{ min-height:84px; padding:10px 4px; } .adm-tile-t{ font-size:13px; } .adm-tile-h{ display:none; } }
   .adm-sec{ border:2px solid var(--brand-brown); border-radius:14px; background:#fff; margin:10px 0; overflow:hidden; }
   .adm-sec > summary{ list-style:none; cursor:pointer; padding:14px 16px; font-weight:800; font-size:16px; color:var(--brand-brown); display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:48px; }
   .adm-sec > summary::-webkit-details-marker{ display:none; }
@@ -7668,6 +7676,8 @@ function admProfileEdit(wrap, u){
     <input id="apePin" type="password" autocomplete="new-password" inputmode="numeric" maxlength="4" placeholder="New 4-digit PIN (leave blank to keep)" style="${inp}">
     <p style="font-size:12px;color:var(--muted);margin:2px 0 4px;">Clubs:</p>
     <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:8px;">${adminClubs().map(c => `<label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:38px;"><input type="checkbox" class="ape-club" value="${escapeCm(c.id)}" ${mine.has(c.id) ? 'checked' : ''} style="width:20px;height:20px;"> ${escapeCm(c.title)}</label>`).join('')}</div>
+    ${(state.cmAdminLoggedIn === true && Array.isArray(u.squads)) ? `<p style="font-size:12px;color:var(--muted);margin:2px 0 4px;">Squads:</p>
+    <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:8px;">${SQUADS.map(q => `<label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:38px;"><input type="checkbox" class="ape-squad" value="${escapeCm(q.id)}" ${u.squads.includes(q.id) ? 'checked' : ''} style="width:20px;height:20px;"> ${escapeCm(q.title)}</label>`).join('')}</div>` : ''}
     <div id="apeStatus" style="font-size:13px;color:#c00;min-height:18px;margin-bottom:6px;" aria-live="polite"></div>
     <div style="display:flex;gap:8px;margin-bottom:8px;">${btn('apeSave', '#d9f0d8', 'var(--charcoal)', 'Save')}${btn('apeCancel', 'transparent', 'var(--charcoal)', 'Cancel')}</div>
     <div style="display:flex;gap:8px;">${btn('apeReset', '#fff3cf', 'var(--charcoal)', '🔑 Reset PIN')}${btn('apeDelete', '#b3261e', '#fff', '🗑 Delete profile')}</div>`;
@@ -7692,6 +7702,7 @@ function admProfileEdit(wrap, u){
       // the club id in this URL is ignored by the server — it edits the person's global identity
       await j('/api/admin/club-members/club-cuisine/' + encodeURIComponent(u.id), jsonOpts('PUT', body));
       await j('/api/admin/users/' + encodeURIComponent(u.id) + '/clubs', jsonOpts('PUT', { clubs: [...card.querySelectorAll('.ape-club:checked')].map(c => c.value) }));
+      if(card.querySelector('.ape-squad')) await j('/api/admin/users/' + encodeURIComponent(u.id) + '/squads', jsonOpts('PUT', { squads: [...card.querySelectorAll('.ape-squad:checked')].map(c => c.value) })); state.squadAdmin = null;
       await refreshLists();
       wrap.remove(); openAdminProfile(u.id);
     } catch(err){ st.style.color = '#c00'; st.textContent = err.message; }
@@ -7729,6 +7740,7 @@ async function openAdminProfile(userId){
       ${row('Joined', u.createdAt ? `${escapeCm(admFmtDate(u.createdAt))}<br><span style="font-size:12px;color:var(--muted);">${escapeCm(admAgo(u.createdAt))}</span>` : '<span style="color:var(--muted);">Before records began</span>')}
       ${row('Last signed in', u.lastLoginAt ? `${escapeCm(admFmtDate(u.lastLoginAt))}<br><span style="font-size:12px;color:var(--muted);">${escapeCm(admAgo(u.lastLoginAt))}</span>` : '<span style="color:var(--muted);">Not recorded yet</span>')}
       ${row('Already in', tags(u.clubs || []))}
+      ${(state.cmAdminLoggedIn === true && Array.isArray(u.squads)) ? row('Squads', u.squads.length ? u.squads.map(id => `<span style="display:inline-block;margin:2px 0 2px 4px;padding:3px 10px;border-radius:999px;background:#fbf0ee;color:#76220b;border:1.5px solid #ce8491;font-size:12px;font-weight:700;">${escapeCm((SQUADS.find(q => q.id === id) || {}).title || id)}</span>`).join('') : '<span style="color:var(--muted);">None</span>') : ''}
       ${(u.pending || []).length ? row('Requested', tags(u.pending)) : ''}
       ${(u.waitlist || []).filter(c => !(u.clubs || []).includes(c)).length ? row('Standby for', tags(u.waitlist.filter(c => !(u.clubs || []).includes(c)))) : ''}
       <p class="ideas-hint" style="margin:10px 0 0;">Sign-in times only start being recorded from now, so older members show "Not recorded yet" until they next sign in.</p>
@@ -8259,34 +8271,10 @@ function renderClubAdminPanel(){
     </div>`;
   }
   const clubId = state.cmAdminClub;
-  return `<div class="rules-content" style="max-width:920px;margin:16px auto;">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <h3 style="margin:0;">${lead ? 'Club admin · ' + escapeCm(lead.name) : 'All Members'}</h3>
-      <button class="club-guide-btn" id="cmAdminLogoutBtn" style="padding:6px 12px;font-size:12px;">Log Out</button>
-    </div>
-    ${lead ? `<p style="font-size:12px;color:#776867;margin:6px 0 0;">You manage: <strong>${adminClubs().map(c => escapeCm(c.title)).join(', ') || 'no clubs yet'}</strong>. Reminders only go to your clubs' members. Use "➕ New event" at the bottom of the page to add an official event.</p>` : ''}
-    ${inboxAdminHtml(lead)}
-    ${lead ? '' : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
-    ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
-    ${lead ? '' : admSec('push', '📲 Push notifications', pushAdminHtml(), false)}
-    ${lead ? '' : admSec('leads', '🧑‍💼 Club admins' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
-    ${lead ? '' : admSec('squads', '🪁 Squads — requests &amp; invite links', squadAdminHtml(), false)}
-    ${lead ? '' : admSec('labels', '🏷️ Names of categories &amp; genres', labelsAdminHtml(), false)}
-    ${lead ? '' : admSec('clubdir', '🏛️ Club directory', clubDirListHtml(), false)}
-    ${admSec('newprofile', '➕ Create a profile', `
-    <div class="cp-box">
-      <h4 style="margin:0 0 6px;">Create a profile</h4>
-      <p style="font-size:11px;color:#776867;margin:0 0 10px;">Makes the member and puts them in every club you tick. Their username (e.g. amina.k) is made automatically from their name.</p>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <input id="cpName" placeholder="Name (first name + last initial, e.g. Amina K.)" style="padding:10px;border-radius:10px;border:2px solid var(--brand-brown);">
-        <p style="font-size:11px;color:#776867;margin:0;">Their PIN starts as <strong>1234</strong> — they'll be asked to pick their own the first time they sign in.</p>
-        <div class="cp-clubs">${adminClubChoices().map(c => `<label class="cp-club"><input type="checkbox" class="cp-club-check" value="${escapeCm(c.id)}"> ${escapeCm(c.title)}</label>`).join('')}</div>
-        <button class="club-guide-btn" id="cpCreateBtn" style="background:var(--blush);">Create profile</button>
-        <span id="cpStatus" style="font-size:12px;color:#c00;"></span>
-      </div>
-    </div>
-    `, false)}
-    <h3 style="margin-top:24px;">Admin Profiles</h3>
+  const grp = ['clubs', 'team', 'profiles'].includes(state.admGroup) ? state.admGroup : 'clubs';
+  const gsel = (lead && grp === 'team') ? 'clubs' : grp;
+  // Club events + quick member (per club) — lives in the Clubs grid
+  const clubToolsHtml = `
     <p style="font-size:11px;color:#776867;margin-top:-6px;">Pick a club to add a profile or manage its events, or search every profile below.</p>
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;">
       ${adminClubs().map(c => `<button type="button" class="club-guide-btn cm-admin-club-pick" data-club-id="${escapeCm(c.id)}" style="padding:8px 14px;font-size:12px;${clubId===c.id?'background:var(--blush);':'background:transparent;'}">${escapeCm(c.title)}</button>`).join('')}
@@ -8322,11 +8310,59 @@ function renderClubAdminPanel(){
         <button class="club-guide-btn" id="cmAdminCreateBtn" style="background:var(--charcoal);color:var(--cream);">Create Event</button>
         <span id="cmAdminCreateStatus" style="font-size:12px;color:#c00;"></span>
       </div>
-    ` : ''}
+    ` : ''}`;
+  const clubsGrid = `
+    ${inboxAdminHtml(lead)}
+    ${lead ? '' : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
+    ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
+    ${admSec('clubtools', '🏛️ Club events & quick member', clubToolsHtml, false)}
+    ${lead ? '' : admSec('clubdir', '🏛️ Club directory', clubDirListHtml(), false)}
+  `;
+  const teamGrid = lead ? '' : `
+    ${lead ? '' : admSec('push', '📲 Push notifications', pushAdminHtml(), false)}
+    ${lead ? '' : admSec('leads', '🧑‍💼 Club admins' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
+    ${lead ? '' : admSec('squads', '🪁 Squads — requests &amp; invite links', squadAdminHtml(), false)}
+    ${lead ? '' : admSec('labels', '🏷️ Names of categories &amp; genres', labelsAdminHtml(), false)}
+  `;
+  const profilesGrid = `
+    ${admSec('newprofile', '➕ Create a profile', `
+    <div class="cp-box">
+      <h4 style="margin:0 0 6px;">Create a profile</h4>
+      <p style="font-size:11px;color:#776867;margin:0 0 10px;">Makes the member and puts them in every club you tick. Their username (e.g. amina.k) is made automatically from their name.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <input id="cpName" placeholder="Name (first name + last initial, e.g. Amina K.)" style="padding:10px;border-radius:10px;border:2px solid var(--brand-brown);">
+        <p style="font-size:11px;color:#776867;margin:0;">Their PIN starts as <strong>1234</strong> — they'll be asked to pick their own the first time they sign in.</p>
+        <div class="cp-clubs">${adminClubChoices().map(c => `<label class="cp-club"><input type="checkbox" class="cp-club-check" value="${escapeCm(c.id)}"> ${escapeCm(c.title)}</label>`).join('')}</div>
+        ${lead ? '' : `<p style="font-size:11px;color:#776867;margin:4px 0 0;">Squads (optional — placed straight in, no request needed):</p><div class="cp-clubs">${SQUADS.map(q => `<label class="cp-club"><input type="checkbox" class="cp-squad-check" value="${escapeCm(q.id)}"> ${escapeCm(q.title)}</label>`).join('')}</div>`}
+        <button class="club-guide-btn" id="cpCreateBtn" style="background:var(--blush);">Create profile</button>
+        <span id="cpStatus" style="font-size:12px;color:#c00;"></span>
+      </div>
+    </div>
+    `, false)}
+    <h3 style="margin-top:24px;">Admin Profiles</h3>
+    <p style="font-size:11px;color:#776867;margin-top:-6px;">Search every profile. Open one to edit it, change its clubs and squads, archive or delete it.</p>
     <div style="margin:14px 0 26px;">${renderAdminAllMembersPanels()}</div>
+  `;
+  return `<div class="rules-content" style="max-width:920px;margin:16px auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <h3 style="margin:0;">${lead ? 'Club admin · ' + escapeCm(lead.name) : 'All Members'}</h3>
+      <button class="club-guide-btn" id="cmAdminLogoutBtn" style="padding:6px 12px;font-size:12px;">Log Out</button>
+    </div>
+    ${lead ? `<p style="font-size:12px;color:#776867;margin:6px 0 0;">You manage: <strong>${adminClubs().map(c => escapeCm(c.title)).join(', ') || 'no clubs yet'}</strong>. Reminders only go to your clubs' members. Use "➕ New event" at the bottom of the page to add an official event.</p>` : ''}
+    ${admGroupTilesHtml(lead, gsel)}
+    ${gsel === 'clubs' ? clubsGrid : gsel === 'team' ? teamGrid : profilesGrid}
   </div>`;
 }
-
+// Three big tiles at the top of the Admin page switch between its grids (Clubs / Notifications & team / Profiles).
+function admGroupTilesHtml(lead, cur){
+  const tile = (id, icon, title, hint, badge) => `<button type="button" class="adm-tile${cur === id ? ' on' : ''}" data-group="${id}" aria-pressed="${cur === id}"><span class="adm-tile-ic">${icon}</span><span class="adm-tile-t">${title}</span><span class="adm-tile-h">${hint}</span>${badge ? `<span class="adm-badge adm-tile-b">${badge}</span>` : ''}</button>`;
+  const profiles = Array.isArray(state.cmAdminAllUsers) ? state.cmAdminAllUsers.length : 0;
+  return `<div class="adm-tiles" style="grid-template-columns:repeat(${lead ? 2 : 3}, minmax(0,1fr));">
+    ${tile('clubs', '🏛️', 'Clubs', 'Availability · requests · events', admInboxCount())}
+    ${lead ? '' : tile('team', '📣', 'Notifications & team', 'Push · club admins · squads', (state.cmLeads || []).length || '')}
+    ${tile('profiles', '👥', 'Profiles', 'People · clubs · squads', profiles || '')}
+  </div>`;
+}
 function adminClubChoices(){
   const seen = new Set();
   return adminClubs().filter(c => !seen.has(c.id) && seen.add(c.id));
@@ -8353,9 +8389,12 @@ async function cmAdminCreateProfile(){
       if(i === 0){ finalPin = data.pin || finalPin; finalUsername = data.username; userId = data.id; }
       done.push(clubIds[i]);
     }
+    const squadIds = [...document.querySelectorAll('.cp-squad-check:checked')].map(c => c.value);
+    if(squadIds.length && userId) await fetch('/api/admin/users/' + encodeURIComponent(userId) + '/squads', { method:'PUT', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ squads: squadIds }) }); state.squadAdmin = null;
     status.textContent = '';
     const clubNames = done.map(id => avClubTitle(id)).join(', ');
-    alert(`Created ${name} (${finalUsername}) with PIN ${finalPin} — they'll be asked to choose their own PIN the first time they sign in. Clubs: ${clubNames}.`);
+    alert(`Created ${name} (${finalUsername}) with PIN ${finalPin} — they'll be asked to choose their own PIN the first time they sign in. Clubs: ${clubNames}.${squadIds.length ? ' Squads: ' + squadIds.map(id => (SQUADS.find(q => q.id === id) || {}).title || id).join(', ') + '.' : ''}`);
+    document.querySelectorAll('.cp-squad-check:checked').forEach(c => { c.checked = false; });
     document.getElementById('cpName').value = '';
     document.querySelectorAll('.cp-club-check:checked').forEach(c => { c.checked = false; });
     await cmAdminLoadAllMembers();
@@ -8808,6 +8847,7 @@ function wireClubAdminPanel(){
   wireLeadsAdmin();
   wireLabelsAdmin();
   wirePeriodAdmin();
+  document.querySelectorAll('.adm-tile').forEach(b => b.addEventListener('click', () => { state.admGroup = b.dataset.group; render(); window.scrollTo({ top:0, behavior:'smooth' }); }));
   const inboxRefresh = document.getElementById('inboxRefresh');
   if(inboxRefresh) inboxRefresh.addEventListener('click', async () => { inboxRefresh.disabled = true; inboxRefresh.textContent = 'Checking…'; await cmAdminLoadAllMembers(); render(); });
   document.querySelectorAll('.adm-sort').forEach(b => b.addEventListener('click', () => { state.cmAdminMemberSort = b.dataset.sort; render(); }));

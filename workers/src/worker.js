@@ -2266,13 +2266,15 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       for (const r of await listJoinRequests(env)) (pendingByUser[r.userId] = pendingByUser[r.userId] || []).push(r.clubId);
       const pushIds = new Set();
       for (const k of (await env.SITE_DATA.list({ prefix: "push:" })).keys) pushIds.add(k.name.slice(5));
+      const squadsByUser = {};
+      for (const sid of Object.keys(SQUAD_TITLES)) for (const uid of await readSquadMemberIds(env, sid)) (squadsByUser[uid] = squadsByUser[uid] || []).push(sid);
       const out = [];
       let cursor;
       do {
         const page = await env.SITE_DATA.list({ prefix: "user:", cursor });
         for (const k of page.keys) {
           const u = await readUser(env, k.name.slice(5));
-          if (u) out.push({ ...publicUser(u), phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, archived: u.archived || null, archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: pushIds.has(u.id) });
+          if (u) out.push({ ...publicUser(u), squads: squadsByUser[u.id] || [], phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, archived: u.archived || null, archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: pushIds.has(u.id) });
         }
         cursor = page.list_complete ? undefined : page.cursor;
       } while (cursor);
@@ -2434,6 +2436,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({
         id: user.id, name: user.name, username: user.username, photo: user.photo || null,
         phone: user.phone || "", createdAt: user.createdAt || 0, lastLoginAt: user.lastLoginAt || 0, lastSeenAt: user.lastSeenAt || 0, archived: user.archived || null,
+        squads: (await (async () => { const o = []; for (const sid of Object.keys(SQUAD_TITLES)) if ((await readSquadMemberIds(env, sid)).includes(user.id)) o.push(sid); return o; })()),
         clubs: (await allClubIdsContaining(env, user.id)).filter((c) => !leadCtx || leadCtx.clubs.includes(c)), pending: (await pendingClubIdsFor(env, user.id)).filter((c) => !leadCtx || leadCtx.clubs.includes(c)), waitlist: Array.isArray(user.waitlist) ? user.waitlist : [],
       }, 200, corsHeaders);
     }
@@ -2451,6 +2454,22 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       } else delete user.archived;
       await writeUser(env, user);
       return jsonResponse({ ok: true, archived: user.archived || null }, 200, corsHeaders);
+    }
+    // Admin: set which squads a person is in (adds/removes; asking and approval are skipped — this is the admin placing them).
+    const adminUserSquadsMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/squads\/?$/);
+    if (adminUserSquadsMatch && request.method === "PUT") {
+      const userId = decodeURIComponent(adminUserSquadsMatch[1]);
+      let body;
+      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      if (!Array.isArray(body.squads)) return jsonResponse({ error: "squads must be an array" }, 400, corsHeaders);
+      if (!(await readUser(env, userId))) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
+      const want = new Set(body.squads.map(String).filter((id) => SQUAD_TITLES[id]));
+      for (const id of Object.keys(SQUAD_TITLES)) {
+        const ids = await readSquadMemberIds(env, id), has = ids.includes(userId);
+        if (want.has(id) && !has) { await writeSquadMemberIds(env, id, [...ids, userId]); await env.SITE_DATA.delete(squadReqKey(id, userId)).catch(() => {}); }
+        else if (!want.has(id) && has) await writeSquadMemberIds(env, id, ids.filter((x) => x !== userId));
+      }
+      return jsonResponse({ ok: true, squads: [...want] }, 200, corsHeaders);
     }
     const adminUserClubsMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/clubs\/?$/);
     if (adminUserClubsMatch && request.method === "PUT") {
