@@ -5958,9 +5958,6 @@ function openChangePinPopup(){
     } catch(err){ status.textContent = err.message; btn.disabled = false; }
   });
 }
-function clubsWhatsappDisclaimerHtml(){
-  return `<p class="ideas-hint" style="max-width:520px;margin:18px auto 0;text-align:center;line-height:1.5;">⚠️ Please only request clubs you're actually in the WhatsApp group chat for. If you filled out the form for a club and you're still not in its group chat, <a href="${IG_DM_URL}" target="_blank" rel="noopener" style="font-weight:700;">contact an admin</a>.</p>`;
-}
 function renderMyClubsSectionHtml(){
   const session = getCmSession();
   const mine = new Set((session && session.clubs) || []);
@@ -5983,13 +5980,13 @@ function renderMyClubsSectionHtml(){
   if(!myClubs.length){
     return `${topRow}${pendingBanner}
       <p class="ideas-hint" style="max-width:520px;margin:0 auto;text-align:center;">You're not in a club yet. Request the club(s) you're part of below — an admin will approve them.</p>
-      ${requestSection}${clubsWhatsappDisclaimerHtml()}`;
+      ${requestSection}`;
   }
   return `${topRow}${pendingBanner}
     <h3 class="clubs-popular-title">CLUBS YOU'RE IN</h3>
     <div class="club-bubbles">${myClubs.map((c, i) => clubBubbleHtml(c, i)).join('')}</div>
     <div class="my-avail-section" style="max-width:640px;margin:18px auto 0;">${ideaAvailSectionHtml(ideaMe())}${everyoneAvailSectionHtml(ideaMe())}</div>
-    ${requestSection}${clubsWhatsappDisclaimerHtml()}`;
+    ${requestSection}`;
 }
 function openPublicIdeaInfo(id){
   const idea = (state.publicIdeasAll || []).find(i => i.id === id);
@@ -8555,10 +8552,31 @@ function admAvailCalendarHtml(){
   let detail = '';
   if(admAvail.day){
     const dayLabel = new Date(admAvail.day + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric' });
-    detail = `<div style="margin-top:14px;padding:14px;border-radius:14px;background:#f2d8d7;color:#76220b;"><strong>${escapeCm(dayLabel)}</strong>${ADM_PARTS.map(([id, label]) => {
-      const names = scope.filter(p => ((p.days || {})[admAvail.day] || []).includes(id)).map(p => p.id.startsWith('m:') ? `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(p.id.slice(2))}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(p.name)}</button>` : escapeCm(p.name));
-      return `<div style="margin-top:8px;"><span style="font-weight:700;">${label}</span> (${names.length}): ${names.length ? names.join(', ') : '<span style="opacity:.6;">nobody</span>'}</div>`;
+    const dayDow = new Date(admAvail.day + 'T12:00:00').getDay();
+    const inWin = iavNext15Dates().includes(admAvail.day);
+    const nameOf = p => p.id.startsWith('m:') ? `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(p.id.slice(2))}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(p.name)}</button>` : escapeCm(p.name);
+    const line = (icon, title, list) => `<div style="margin-top:4px;"><span style="font-size:13px;">${icon} ${title} (${list.length}):</span> ${list.length ? list.map(nameOf).join(', ') : '<span style="opacity:.6;">nobody</span>'}</div>`;
+    detail = `<div style="margin-top:14px;padding:14px;border-radius:14px;background:#f2d8d7;color:#76220b;"><strong>${escapeCm(dayLabel)}</strong>${ADM_PARTS.filter(([id]) => id !== 'morning' || [0, 6].includes(dayDow)).map(([id, label]) => {
+      const no = p => ((p.no || {})[admAvail.day] || []).includes(id), pref = p => ((p.days || {})[admAvail.day] || []).includes(id);
+      const preferred = scope.filter(p => !no(p) && pref(p)), unavailable = scope.filter(no), available = inWin ? scope.filter(p => !no(p) && !pref(p)) : [];
+      return `<div style="margin-top:10px;padding-top:8px;border-top:1px solid #76220b22;"><span style="font-weight:700;">${label}</span>${line('🟢', 'Preferred', preferred)}${line('🟡', 'Also available', available)}${line('🔴', 'Not available', unavailable)}</div>`;
     }).join('')}</div>`;
+  }
+  // One person selected: list every day + time they specifically marked as PREFERRED (and the ones they can't do).
+  let personDays = '';
+  if(sel){
+    const todayKey = ymdToday();
+    const rowsFor = src => Object.keys(src || {}).filter(d => d >= todayKey && (src[d] || []).length).sort().map(d => {
+      const dt = new Date(d + 'T12:00:00');
+      const parts = ADM_PARTS.filter(([id]) => (src[d] || []).includes(id)).map(([, label]) => label).join(', ');
+      return `<div style="padding:4px 0;"><strong>${escapeCm(dayLabelsShort[dt.getDay()])} ${escapeCm(monthNames[dt.getMonth()].slice(0, 3))} ${dt.getDate()}</strong> — ${escapeCm(parts)}</div>`;
+    });
+    const pr = rowsFor(sel.days), nr = rowsFor(sel.no);
+    personDays = `<div style="margin:12px 0;padding:14px;border-radius:14px;background:#eef7ec;color:#2a5a3a;">
+      <div style="font-weight:800;margin-bottom:4px;">🟢 ${escapeCm(sel.name)} specifically prefers (${pr.length} day${pr.length === 1 ? '' : 's'})</div>
+      ${pr.length ? pr.join('') : '<span style="opacity:.7;">No preferred days picked — they count as available anytime they haven\'t marked red.</span>'}
+      ${nr.length ? `<div style="font-weight:800;margin:10px 0 4px;color:#b3261e;">🔴 Can't do (${nr.length} day${nr.length === 1 ? '' : 's'})</div><div style="color:#7a1f1a;">${nr.join('')}</div>` : ''}
+    </div>`;
   }
   const atMin = admAvail.month <= ADM_AVAIL_MIN_MONTH, atMax = admAvail.month >= ADM_AVAIL_MAX_MONTH;
   const navBtn = (id, label, disabled) => `<button type="button" id="${id}" ${disabled ? 'disabled' : ''} aria-label="${label === '‹' ? 'Previous month' : 'Next month'}" style="width:44px;height:44px;border-radius:50%;border:2px solid #76220b;background:#fef7f4;color:#76220b;font-size:22px;cursor:pointer;${disabled ? 'opacity:.3;cursor:default;' : ''}">${label}</button>`;
@@ -8571,6 +8589,7 @@ function admAvailCalendarHtml(){
     <p class="ideas-hint" style="margin:0 0 6px;text-align:left;">${sel ? `Showing only <strong>${escapeCm(sel.name)}</strong> — tap their name again to see everyone.` : `Tap a name to see only their availability. ${people.length} ${people.length === 1 ? 'person' : 'people'} shown.`}</p>
     ${sel && sel.id.startsWith('m:') ? `<button type="button" class="adm-cal-profile" data-uid="${escapeCm(sel.id.slice(2))}" style="margin:0 0 10px;min-height:42px;padding:9px 18px;border-radius:999px;border:2px solid #76220b;background:#fef7f4;color:#76220b;font-weight:700;font-size:14px;cursor:pointer;">👤 View ${escapeCm(sel.name)}'s profile</button>` : ''}
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">${nameChips}</div>
+    ${personDays}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
       ${navBtn('admAvPrev', '‹', atMin)}<strong style="font-size:20px;color:#76220b;">${escapeCm(monthName)}</strong>${navBtn('admAvNext', '›', atMax)}
     </div>
