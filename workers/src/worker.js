@@ -163,9 +163,28 @@ const sanitizeColour = (input) => {
   const c = String(input || "").trim();
   return /^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(c) ? c : "";
 };
+// A club committed to data/clubs.json (by the admin editor, Decap CMS or a developer) shows up in the live roster on its own:
+// every ~10 minutes the Worker reads the published file and adds any club the KV roster doesn't have yet (never removes or edits one).
+let _rosterSyncAt = 0;
+const syncRosterFromFile = async (env, roster) => {
+  if (Date.now() - _rosterSyncAt < 600000) return roster;
+  _rosterSyncAt = Date.now();
+  try {
+    const res = await fetch((env.SITE_ORIGIN || "https://4dasistas.ca") + "/data/clubs.json", { cf: { cacheTtl: 60 } });
+    if (!res.ok) return roster;
+    const items = (await res.json()).items;
+    if (!Array.isArray(items)) return roster;
+    const have = new Set(roster.map((c) => c.id));
+    const missing = items.filter((c) => c && c.id && c.title && !have.has(c.id));
+    if (!missing.length) return roster;
+    const merged = roster.concat(missing);
+    await env.SITE_DATA.put(CLUB_ROSTER_KV_KEY, JSON.stringify(merged));
+    return merged;
+  } catch { return roster; }
+};
 const readClubRoster = async (env) => {
   const raw = await env.SITE_DATA.get(CLUB_ROSTER_KV_KEY);
-  if (raw) { try { const arr = JSON.parse(raw); if (Array.isArray(arr)) return arr; } catch {} }
+  if (raw) { try { const arr = JSON.parse(raw); if (Array.isArray(arr)) return await syncRosterFromFile(env, arr); } catch {} }
   // First run since this feature shipped, or KV got cleared: seed from the committed file.
   const file = await githubGetFile(env, CLUBS_FILE_PATH_CONST).catch(() => null);
   const clubs = file && Array.isArray(file.content?.items) ? file.content.items : [];

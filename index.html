@@ -348,6 +348,8 @@
 /* centre the row of cards on wide screens; auto margins (not justify-content:center) so a row that overflows on a phone still starts at the left edge and scrolls */
 .clubs-grid-row > :first-child{ margin-left:auto; }
 .clubs-grid-row > :last-child{ margin-right:auto; }
+/* With 5+ clubs the row no longer hides cards off-screen on tablets/desktops: it wraps and centres (phones still swipe sideways). */
+@media (min-width:700px){ .clubs-grid-row{ flex-wrap:wrap; justify-content:center; overflow-x:visible; } .clubs-grid-row > :first-child{ margin-left:0; } .clubs-grid-row > :last-child{ margin-right:0; } }
 .club-card .panel-top{ flex-direction:column; align-items:center; text-align:center; gap:8px; }
 .club-card .panel-top h4{ text-align:center; font-size:16px; }
 .club-card .monogram{ width:84px; height:84px; }
@@ -2732,7 +2734,7 @@ function wireClubBubbles(){
 }
 function clubCardHtml(c, hideDesc){
   const col = clubCol(c.id);
-  const monogramHtml = c.logo ? `<div class="monogram" style="background:${col.bg};"><img src="${c.logo}" alt="${c.title} logo" style="background:${col.bg};"></div>` : `<div class="monogram" style="background:${col.bg};color:${col.fg}">${c.title.charAt(0)}</div>`;
+  const monogramHtml = c.logo ? `<div class="monogram" style="background:${col.bg};"><img src="${c.logo}" alt="${c.title} logo" style="background:${col.bg};"></div>` : `<div class="monogram" style="background:${col.bg};color:${col.fg};${c.emoji ? 'font-size:38px;' : ''}">${c.emoji ? c.emoji : c.title.charAt(0)}</div>`;
   return `
   <div class="panel-card club-card" style="background:${col.bg};color:${col.fg};border:2px solid ${col.fg};box-shadow:3px 3px 0 ${col.fg};" data-club-id="${c.id}" tabindex="0" role="button" aria-label="Open the ${c.title} idea board">
     <div class="panel-top">

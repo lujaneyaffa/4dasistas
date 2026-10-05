@@ -43,6 +43,17 @@
       "signup": "https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS",
       "logo": "assets/logos/club-retreats-v2.png",
       "textColour": "#1b5b4d"
+    },
+    {
+      "id": "club-mm",
+      "slug": "mm",
+      "emoji": "🎬",
+      "colour": "#fbdde8",
+      "logo": "",
+      "title": "M&M",
+      "desc": "Movies, musicals, museums, and other fun exhibitions around the GTA — come for the experience, stay for the experience. lol.",
+      "signup": "https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS",
+      "textColour": "#c0527f"
     }
   ]
 }

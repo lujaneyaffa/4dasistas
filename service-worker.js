@@ -1,4 +1,4 @@
-const CACHE_NAME = '4dasistas-v74';
+const CACHE_NAME = '4dasistas-v75';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/app-icon.svg', '/assets/apple-touch-icon.png', '/assets/icon-192.png', '/assets/icon-512.png'];
 
 // Everything the app needs to open and show its content with no connection. Data files are added one by one so a missing
