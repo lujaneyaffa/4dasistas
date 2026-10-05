@@ -7478,7 +7478,8 @@ function d1AdminHtml(){
     : !d.bound ? '<div style="padding:10px 12px;border-radius:12px;background:#fff3cf;color:#6b5210;">The D1 database isn\'t attached to the site yet.</div>'
     : `<div style="padding:10px 12px;border-radius:12px;background:#fff3cf;color:#6b5210;line-height:1.5;">D1 is attached but not in use yet. Profiles and availability still live in KV (the free plan that ran out). Press the button below <strong>once</strong> to copy everything into D1 and switch. Nothing is deleted from KV — it stays as a backup.</div>
       <button type="button" class="club-guide-btn" id="d1Migrate" style="margin-top:10px;background:#ce8491;color:#fff;width:100%;">🗄️ Move profiles &amp; availability to D1</button>`;
-  return `<div class="cp-box">${line}<span id="d1Status" style="display:block;font-size:12px;margin-top:8px;"></span>${d.migrated ? '<button type="button" class="club-guide-btn" id="d1Rollback" style="margin-top:8px;padding:6px 14px;font-size:12px;">Switch back to KV (emergency)</button>' : ''}</div>`;
+  const backups = `<div style="margin-top:12px;padding:10px 12px;border-radius:12px;background:#fef7f4;border:2px solid #76220b22;font-size:13px;line-height:1.5;"><strong>🛟 Backups</strong><br>A full backup (profiles, availability, clubs, squads) is <strong>emailed to you every day</strong> (~9 AM Toronto). You can also get one right now:<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"><a class="club-guide-btn" href="/api/admin/backup" style="padding:8px 14px;font-size:13px;text-decoration:none;">⬇️ Download backup</a><button type="button" class="club-guide-btn" id="backupEmail" style="padding:8px 14px;font-size:13px;">✉️ Email me a backup now</button></div></div>`;
+  return `<div class="cp-box">${line}${backups}<span id="d1Status" style="display:block;font-size:12px;margin-top:8px;"></span>${d.migrated ? '<button type="button" class="club-guide-btn" id="d1Rollback" style="margin-top:8px;padding:6px 14px;font-size:12px;">Switch back to KV (emergency)</button>' : ''}</div>`;
 }
 function wireD1Admin(){
   const st = () => document.getElementById('d1Status');
@@ -7493,6 +7494,11 @@ function wireD1Admin(){
   if(rb) rb.addEventListener('click', async () => {
     if(!confirm('Switch back to KV? Changes made since the move will NOT be in KV.')) return;
     try { await leadApi('POST', '/api/admin/d1-rollback'); state.d1 = null; state.d1Loading = false; render(); } catch(err){ st().style.color = '#c00'; st().textContent = err.message; }
+  });
+  const be = document.getElementById('backupEmail');
+  if(be) be.addEventListener('click', async () => {
+    be.disabled = true; be.textContent = 'Sending…';
+    try { const d = await leadApi('POST', '/api/admin/backup-email'); be.textContent = `✓ Sent (${d.users} profiles) — check your email`; } catch(err){ be.textContent = err.message; be.disabled = false; }
   });
   const rf = document.getElementById('d1Refresh');
   if(rf) rf.addEventListener('click', () => { state.d1 = null; state.d1Loading = false; render(); });

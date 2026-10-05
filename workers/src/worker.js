@@ -361,6 +361,35 @@ const sanitizeSignupForm = (f, source) => {
   const form = { ranked, other: clean(f.other, 60), why: clean(f.why, 1500), lead: clean(f.lead, 30), at: Number(f.at) > 0 ? Number(f.at) : Date.now(), source: source || "site" };
   return (ranked.length || form.why || form.other) ? form : null;
 };
+// ---- BACKUPS: one JSON file with everything that can't be rebuilt (profiles incl. PIN hashes, availability, club + squad membership, settings).
+// Emailed to the admin every day by the cron, and downloadable on demand from the admin page. Contains private data — keep it private.
+const buildBackup = async (env) => {
+  const users = await listAllUsers(env);
+  const availability = {};
+  if (await d1On(env)) { for (const r of ((await env.DB.prepare("SELECT person_id, data FROM ideaavail").all()).results || [])) availability[r.person_id] = r.data; }
+  else { for (const pid of [...users.map((u) => `m:${u.id}`), "admin"]) { const raw = await env.SITE_DATA.get(ideaAvailKey(pid)); if (raw) availability[pid] = raw; } }
+  const clubMembers = {};
+  for (const c of await clubIdList(env)) clubMembers[c] = await readClubMemberIds(env, c);
+  const squads = {};
+  for (const sid of Object.keys(SQUAD_TITLES)) squads[sid] = { members: await readSquadMemberIds(env, sid), link: (await env.SITE_DATA.get(squadLinkKey(sid))) || "" };
+  const meta = {};
+  for (const k of ["clubRoster", "labels", "availperiod"]) meta[k] = await env.SITE_DATA.get(k);
+  return { version: 1, at: new Date().toISOString(), storage: (await d1On(env)) ? "d1" : "kv", counts: { users: users.length, availability: Object.keys(availability).length }, users, availability, clubMembers, squads, meta };
+};
+const sendBackupEmail = async (env, label) => {
+  if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return { ok: false, error: "Email isn't set up" };
+  const b = await buildBackup(env);
+  const json = JSON.stringify(b);
+  const bytes = new TextEncoder().encode(json); let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  const day = b.at.slice(0, 10);
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST", headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [env.ADMIN_NOTIFY_EMAIL], subject: `4DASISTAS backup ${day} (${b.counts.users} profiles)`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:520px;color:#373d3b"><h2 style="margin:0 0 8px">${label || "Daily backup"}</h2><p>Attached: every profile (${b.counts.users}), ${b.counts.availability} availability records, club and squad membership and settings, as of ${escapeHtml(b.at)}.</p><p><strong>Keep this email private</strong> — it contains names, phone numbers and PIN hashes. If anything is ever lost, send this file to Claude and it can be restored.</p></div>`,
+      attachments: [{ filename: `4dasistas-backup-${day}.json`, content: btoa(bin) }] }),
+  });
+  return r.ok ? { ok: true, users: b.counts.users } : { ok: false, error: `Email failed (${r.status})` };
+};
 const sendAdminEmail = (env, ctx, subject, html) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
   ctx.waitUntil(fetch("https://api.resend.com/emails", {
@@ -1959,7 +1988,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup");
 
     if (requiresAuth && !leadCtx) {
       const token = getSessionToken(request);
@@ -2543,6 +2572,15 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       } else delete user.archived;
       await writeUser(env, user);
       return jsonResponse({ ok: true, archived: user.archived || null }, 200, corsHeaders);
+    }
+    // ---- Admin: backups (download now / email now) ----
+    if (path === "/api/admin/backup" && request.method === "GET") {
+      const b = await buildBackup(env);
+      return new Response(JSON.stringify(b, null, 1), { status: 200, headers: { "Content-Type": "application/json", "Content-Disposition": `attachment; filename="4dasistas-backup-${b.at.slice(0, 10)}.json"`, "Cache-Control": "no-store", ...corsHeaders } });
+    }
+    if (path === "/api/admin/backup-email" && request.method === "POST") {
+      const r = await sendBackupEmail(env, "Backup you requested");
+      return jsonResponse(r, r.ok ? 200 : 500, corsHeaders);
     }
     // ---- Admin: D1 database status + the ONE-TIME move of profiles and availability from KV into D1 (idempotent, KV copies are kept as a backup) ----
     if (path === "/api/admin/d1-status" && request.method === "GET") {
@@ -3132,6 +3170,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
   },
 
   async scheduled(controller, env, ctx) {
+    ctx.waitUntil(sendBackupEmail(env, "Daily backup").catch((e) => console.error("Backup email failed", String(e)))); // runs first, independent of the digest below
     if (!env.RESEND_API_KEY) return;
     const subscribers = JSON.parse((await env.SITE_DATA.get(SUBSCRIBER_INDEX_KEY)) || "[]");
     if (!subscribers.length) return;
