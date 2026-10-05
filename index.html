@@ -6421,13 +6421,13 @@ function eavPrefetch(){
 // time). People who marked it red are left out.
 function eavNamesFor(date, part){
   const inWindow = iavNext15Dates().includes(date);
-  const preferred = [], available = [];
+  const preferred = [], available = [], unavailable = [];
   (state.ideaAvailAllPeople || []).forEach(p => {
-    if(((p.no || {})[date] || []).includes(part)) return;
+    if(((p.no || {})[date] || []).includes(part)){ unavailable.push(p.name); return; }
     if(((p.days || {})[date] || []).includes(part)) preferred.push(p.name);
     else if(inWindow) available.push(p.name);
   });
-  return { preferred, available };
+  return { preferred, available, unavailable };
 }
 function wireEveryoneAvailGrid(){
   document.querySelectorAll('.eav-club-chip').forEach(b => b.addEventListener('click', () => { state.eavClub = b.dataset.club; everyoneAvailLoad(); render(); }));
@@ -6437,14 +6437,17 @@ function wireEveryoneAvailGrid(){
       const { date, part } = cell.dataset;
       const label = (IAV_PARTS.find(([k]) => k === part) || [null, part])[1];
       const dt = new Date(date + 'T00:00:00');
-      const { preferred, available } = eavNamesFor(date, part);
+      const { preferred, available, unavailable } = eavNamesFor(date, part);
       const chips = list => list.map(n => `<span class="av-club-chip active">${escapeCm(n)}</span>`).join('');
+      const redChips = list => list.map(n => `<span class="av-club-chip active" style="background:#d9534f;border-color:#b3261e;color:#fff;">${escapeCm(n)}</span>`).join('');
       ideaPopup(`
         <h3 style="margin:4px 0 8px;">${escapeCm(label)}, ${escapeCm(monthNames[dt.getMonth()])} ${dt.getDate()}</h3>
         <p class="idea-pop-h">🟢 Preferred (${preferred.length})</p>
         <div class="idea-pop-names">${preferred.length ? chips(preferred) : '<span class="av-msg">Nobody picked this as preferred.</span>'}</div>
         <p class="idea-pop-h" style="margin-top:10px;">🟡 Also available — not their preferred time (${available.length})</p>
         <div class="idea-pop-names">${available.length ? chips(available) : '<span class="av-msg">Nobody else.</span>'}</div>
+        <p class="idea-pop-h" style="margin-top:10px;">🔴 Not available (${unavailable.length})</p>
+        <div class="idea-pop-names">${unavailable.length ? redChips(unavailable) : '<span class="av-msg">Nobody marked this as unavailable.</span>'}</div>
       `);
     }));
   }
