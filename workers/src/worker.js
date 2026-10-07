@@ -165,22 +165,28 @@ const sanitizeColour = (input) => {
 };
 // A club committed to data/clubs.json (by the admin editor, Decap CMS or a developer) shows up in the live roster on its own:
 // every ~10 minutes the Worker reads the published file and adds any club the KV roster doesn't have yet (never removes or edits one).
-let _rosterSyncAt = 0;
-const syncRosterFromFile = async (env, roster) => {
-  if (Date.now() - _rosterSyncAt < 600000) return roster;
-  _rosterSyncAt = Date.now();
+let _fileClubs = null, _fileClubsAt = 0, _rosterPutAt = 0;
+const loadFileClubs = async (env) => {
+  if (_fileClubs && Date.now() - _fileClubsAt < 600000) return _fileClubs;
+  if (!_fileClubs && Date.now() - _fileClubsAt < 30000) return []; // a failed fetch retries after 30s
+  _fileClubsAt = Date.now();
   try {
-    const res = await fetch((env.SITE_ORIGIN || "https://4dasistas.ca") + "/data/clubs.json", { cf: { cacheTtl: 60 } });
-    if (!res.ok) return roster;
+    const res = await fetch((env.SITE_ORIGIN || "https://4dasistas.ca") + "/data/clubs.json?v=" + Math.floor(Date.now() / 600000), { cf: { cacheTtl: 60 } });
+    if (!res.ok) { console.warn("club file fetch failed", res.status); return _fileClubs || []; }
     const items = (await res.json()).items;
-    if (!Array.isArray(items)) return roster;
-    const have = new Set(roster.map((c) => c.id));
-    const missing = items.filter((c) => c && c.id && c.title && !have.has(c.id));
-    if (!missing.length) return roster;
-    const merged = roster.concat(missing);
-    await env.SITE_DATA.put(CLUB_ROSTER_KV_KEY, JSON.stringify(merged));
-    return merged;
-  } catch { return roster; }
+    if (Array.isArray(items)) _fileClubs = items.filter((c) => c && c.id && c.title);
+  } catch (e) { console.warn("club file fetch error", String(e)); }
+  return _fileClubs || [];
+};
+// The merged result is returned (and cached in memory) even if saving it to KV fails, so a new club always shows up.
+const syncRosterFromFile = async (env, roster) => {
+  const file = await loadFileClubs(env);
+  const have = new Set(roster.map((c) => c.id));
+  const missing = file.filter((c) => !have.has(c.id));
+  if (!missing.length) return roster;
+  const merged = roster.concat(missing);
+  if (Date.now() - _rosterPutAt > 600000) { _rosterPutAt = Date.now(); try { await env.SITE_DATA.put(CLUB_ROSTER_KV_KEY, JSON.stringify(merged)); } catch (e) { console.warn("roster save failed", String(e)); } }
+  return merged;
 };
 const readClubRoster = async (env) => {
   const raw = await env.SITE_DATA.get(CLUB_ROSTER_KV_KEY);
