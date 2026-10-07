@@ -165,17 +165,19 @@ const sanitizeColour = (input) => {
 };
 // A club committed to data/clubs.json (by the admin editor, Decap CMS or a developer) shows up in the live roster on its own:
 // every ~10 minutes the Worker reads the published file and adds any club the KV roster doesn't have yet (never removes or edits one).
-let _fileClubs = null, _fileClubsAt = 0, _rosterPutAt = 0;
+let _fileClubs = null, _fileClubsAt = 0, _rosterPutAt = 0, _fileClubsStatus = "not tried yet";
+const WORKER_BUILD = "2026-10-07-c";
 const loadFileClubs = async (env) => {
   if (_fileClubs && Date.now() - _fileClubsAt < 600000) return _fileClubs;
   if (!_fileClubs && Date.now() - _fileClubsAt < 30000) return []; // a failed fetch retries after 30s
   _fileClubsAt = Date.now();
   try {
     const res = await fetch((env.SITE_ORIGIN || "https://4dasistas.ca") + "/data/clubs.json?v=" + Math.floor(Date.now() / 600000), { cf: { cacheTtl: 60 } });
-    if (!res.ok) { console.warn("club file fetch failed", res.status); return _fileClubs || []; }
+    if (!res.ok) { _fileClubsStatus = `fetch failed: HTTP ${res.status}`; console.warn("club file fetch failed", res.status); return _fileClubs || []; }
     const items = (await res.json()).items;
-    if (Array.isArray(items)) _fileClubs = items.filter((c) => c && c.id && c.title);
-  } catch (e) { console.warn("club file fetch error", String(e)); }
+    if (Array.isArray(items)) { _fileClubs = items.filter((c) => c && c.id && c.title); _fileClubsStatus = `ok (${_fileClubs.length} clubs in the file)`; }
+    else _fileClubsStatus = "file had no items array";
+  } catch (e) { _fileClubsStatus = `fetch error: ${String(e).slice(0, 120)}`; console.warn("club file fetch error", String(e)); }
   return _fileClubs || [];
 };
 // The merged result is returned (and cached in memory) even if saving it to KV fails, so a new club always shows up.
@@ -185,7 +187,7 @@ const syncRosterFromFile = async (env, roster) => {
   const missing = file.filter((c) => !have.has(c.id));
   if (!missing.length) return roster;
   const merged = roster.concat(missing);
-  if (Date.now() - _rosterPutAt > 600000) { _rosterPutAt = Date.now(); try { await env.SITE_DATA.put(CLUB_ROSTER_KV_KEY, JSON.stringify(merged)); } catch (e) { console.warn("roster save failed", String(e)); } }
+  if (Date.now() - _rosterPutAt > 600000) { _rosterPutAt = Date.now(); try { await env.SITE_DATA.put(CLUB_ROSTER_KV_KEY, JSON.stringify(merged)); } catch (e) { _fileClubsStatus += `; saving to KV failed: ${String(e).slice(0, 80)}`; console.warn("roster save failed", String(e)); } }
   return merged;
 };
 const readClubRoster = async (env) => {
@@ -1175,6 +1177,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     // Public, live club roster — the frontend uses this instead of (or as a freshness check against)
     // the static data/clubs.json, so an admin's add/edit/remove shows up immediately, not only after
     // the next full site deploy.
+    // Public, non-sensitive: which Worker build is live, and whether the club-file sync is healthy (used to diagnose deploys).
+    if (path === "/api/health" && request.method === "GET") {
+      const roster = await readClubRoster(env);
+      return jsonResponse({ build: WORKER_BUILD, d1Bound: !!env.DB, clubs: roster.map((c) => c.title), clubFile: _fileClubsStatus }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
     if (path === "/api/clubs" && request.method === "GET") {
       return jsonResponse({ clubs: await readClubRoster(env) }, 200, corsHeaders);
     }
