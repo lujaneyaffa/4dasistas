@@ -1099,6 +1099,38 @@
     },
     {
       "section": "functions",
+      "title": "Winter Soiree",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "Toronto Sisters Gathering",
+      "eventDate": "2026-12-12",
+      "endDate": "2026-12-12",
+      "time": "",
+      "endTime": "",
+      "allDay": true,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "Toronto, ON, Canada",
+      "link": "https://www.instagram.com/p/DeKPKgvgnvp/?stkn=MThremNscWJ3cGR1Yg==",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "winter-soiree",
+      "tag": "Winter Soiree"
+    },
+    {
+      "section": "functions",
       "eventDate": "2026-10-17",
       "alsoShowIn": [
         "mosqueprograms"
