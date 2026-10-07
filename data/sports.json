@@ -997,6 +997,39 @@
     },
     {
       "section": "sports",
+      "title": "Women’s Ice Skating",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "",
+      "eventDate": "2026-10-23",
+      "endDate": "2026-10-23",
+      "time": "21:00",
+      "endTime": "22:00",
+      "allDay": false,
+      "days": [
+        "fri"
+      ],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "2026-10-23",
+      "recurEnd": "2027-02-05",
+      "extraDates": [],
+      "virtual": false,
+      "location": "North York, ON, Canada",
+      "link": "https://www.instagram.com/p/DeKfBQPmYJi/?stkn=azFlMmp6M2l0dHhk",
+      "desc": "",
+      "sportKey": "skating",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "womens-ice-skating"
+    },
+    {
+      "section": "sports",
       "eventDate": "2026-08-30",
       "endTime": "21:00",
       "sportKey": "padel",
