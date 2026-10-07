@@ -32,3 +32,10 @@ FROM_EMAIL = "4DASISTAS <updates@4dasistas.ca>"
 
 [assets]
 directory = "."
+binding = "ASSETS"   # lets the Worker read the site's own files (e.g. data/clubs.json) without calling its own public URL (that times out)
+
+# D1 (SQLite) database for profiles + availability — used once the admin presses "Move to D1" (Admin → Notifications & team → Database).
+[[d1_databases]]
+binding = "DB"
+database_name = "4dasistas-db"
+database_id = "c2c76656-5324-46bf-87f2-0c0313d261bd"

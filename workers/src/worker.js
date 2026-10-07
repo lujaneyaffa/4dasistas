@@ -165,14 +165,20 @@ const sanitizeColour = (input) => {
 };
 // A club committed to data/clubs.json (by the admin editor, Decap CMS or a developer) shows up in the live roster on its own:
 // every ~10 minutes the Worker reads the published file and adds any club the KV roster doesn't have yet (never removes or edits one).
+// Read one of the site's own published files (e.g. /data/clubs.json). The Worker can NOT fetch its own public address (that times out, HTTP 522),
+// so it reads the static-assets binding, and falls back to the public GitHub copy of the same file.
+const fetchSiteFile = async (env, path) => {
+  try { if (env.ASSETS) { const r = await env.ASSETS.fetch(new Request("https://assets.local" + path)); if (r.ok) return r; } } catch {}
+  return fetch(`https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main${path}`, { cf: { cacheTtl: 120 } });
+};
 let _fileClubs = null, _fileClubsAt = 0, _rosterPutAt = 0, _fileClubsStatus = "not tried yet";
-const WORKER_BUILD = "2026-10-07-c";
+const WORKER_BUILD = "2026-10-07-d";
 const loadFileClubs = async (env) => {
   if (_fileClubs && Date.now() - _fileClubsAt < 600000) return _fileClubs;
   if (!_fileClubs && Date.now() - _fileClubsAt < 30000) return []; // a failed fetch retries after 30s
   _fileClubsAt = Date.now();
   try {
-    const res = await fetch((env.SITE_ORIGIN || "https://4dasistas.ca") + "/data/clubs.json?v=" + Math.floor(Date.now() / 600000), { cf: { cacheTtl: 60 } });
+    const res = await fetchSiteFile(env, "/data/clubs.json");
     if (!res.ok) { _fileClubsStatus = `fetch failed: HTTP ${res.status}`; console.warn("club file fetch failed", res.status); return _fileClubs || []; }
     const items = (await res.json()).items;
     if (Array.isArray(items)) { _fileClubs = items.filter((c) => c && c.id && c.title); _fileClubsStatus = `ok (${_fileClubs.length} clubs in the file)`; }
@@ -997,7 +1003,7 @@ const readTodayEvents = async (env) => {
   const dateString = torontoDate();
   const events = [];
   for (const file of EVENT_FILES) {
-    const response = await fetch(`${origin}/data/${file}.json`, { cf: { cacheTtl: 60 } });
+    const response = await fetchSiteFile(env, `/data/${file}.json`);
     if (!response.ok) continue;
     const data = await response.json();
     for (const item of data.items || []) {
