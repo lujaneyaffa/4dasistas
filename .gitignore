@@ -19,3 +19,6 @@ Thumbs.db
 # Wrangler local dev cache
 .wrangler/
 .dev.vars
+
+# Local tool state
+.claude/

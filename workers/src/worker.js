@@ -380,34 +380,75 @@ const sanitizeSignupForm = (f, source) => {
   const form = { ranked, other: clean(f.other, 60), why: clean(f.why, 1500), lead: clean(f.lead, 30), at: Number(f.at) > 0 ? Number(f.at) : Date.now(), source: source || "site" };
   return (ranked.length || form.why || form.other) ? form : null;
 };
-// ---- BACKUPS: one JSON file with everything that can't be rebuilt (profiles incl. PIN hashes, availability, club + squad membership, settings).
-// Emailed to the admin every day by the cron, and downloadable on demand from the admin page. Contains private data — keep it private.
+// ---- BACKUPS: the WHOLE project, in one email.
+//  1) a JSON data file with everything that lives in Cloudflare and can't be rebuilt from GitHub: profiles (incl. PIN hashes), availability, club + squad
+//     membership, join/squad requests, event + resource submissions, club admins, idea boards (votes), club events + responses, push subscriptions,
+//     newsletter subscribers and every setting;
+//  2) the site's code + data files (index.html, the Worker, data/*.json, assets...) as a zip of the public GitHub repo, attached by link.
+// Emailed once a day by the cron (de-duplicated — see claimBackupSlot) and on demand from the admin page. Private data: keep the email private.
 const buildBackup = async (env) => {
+  const warnings = [];
+  const safe = async (label, fn, fallback) => { try { return await fn(); } catch (e) { warnings.push(`${label}: ${String(e && e.message || e).slice(0, 120)}`); return fallback; } };
   const users = await listAllUsers(env);
   const availability = {};
-  if (await d1On(env)) { for (const r of ((await env.DB.prepare("SELECT person_id, data FROM ideaavail").all()).results || [])) availability[r.person_id] = r.data; }
-  else { for (const pid of [...users.map((u) => `m:${u.id}`), "admin"]) { const raw = await env.SITE_DATA.get(ideaAvailKey(pid)); if (raw) availability[pid] = raw; } }
-  const clubMembers = {};
-  for (const c of await clubIdList(env)) clubMembers[c] = await readClubMemberIds(env, c);
+  await safe("availability", async () => {
+    if (await d1On(env)) { for (const r of ((await env.DB.prepare("SELECT person_id, data FROM ideaavail").all()).results || [])) availability[r.person_id] = r.data; }
+    else { for (const pid of [...users.map((u) => `m:${u.id}`), "admin"]) { const raw = await env.SITE_DATA.get(ideaAvailKey(pid)); if (raw) availability[pid] = raw; } }
+  });
+  const clubIds = await clubIdList(env);
+  const clubMembers = {}, ideas = {}, clubEvents = {}, clubEventResponses = {};
+  for (const c of clubIds) {
+    clubMembers[c] = await safe(`members ${c}`, () => readClubMemberIds(env, c), []);
+    ideas[c] = await safe(`ideas ${c}`, () => env.SITE_DATA.get(clubIdeasKey(c)), null);
+    const evRaw = await safe(`events ${c}`, () => env.SITE_DATA.get(clubEventsKey(c)), null);
+    if (evRaw) { clubEvents[c] = evRaw; try { for (const ev of JSON.parse(evRaw)) { const r = await env.SITE_DATA.get(clubEventResponsesKey(c, ev.id)); if (r) clubEventResponses[`${c}:${ev.id}`] = r; } } catch {} }
+  }
   const squads = {};
-  for (const sid of Object.keys(SQUAD_TITLES)) squads[sid] = { members: await readSquadMemberIds(env, sid), link: (await env.SITE_DATA.get(squadLinkKey(sid))) || "" };
-  const meta = {};
-  for (const k of ["clubRoster", "labels", "availperiod"]) meta[k] = await env.SITE_DATA.get(k);
-  return { version: 1, at: new Date().toISOString(), storage: (await d1On(env)) ? "d1" : "kv", counts: { users: users.length, availability: Object.keys(availability).length }, users, availability, clubMembers, squads, meta };
+  for (const sid of Object.keys(SQUAD_TITLES)) squads[sid] = { members: await safe(`squad ${sid}`, () => readSquadMemberIds(env, sid), []), link: (await safe(`squadlink ${sid}`, () => env.SITE_DATA.get(squadLinkKey(sid)), "")) || "" };
+  const dump = async (prefix) => { const out = {}; for (const k of (await env.SITE_DATA.list({ prefix })).keys) { const v = await env.SITE_DATA.get(k.name); if (v) out[k.name] = v; } return out; };
+  const joinRequests = await safe("join requests", () => dump("joinreq:"), {});
+  const squadRequests = await safe("squad requests", () => dump("squadreq:"), {});
+  const eventSubmissions = await safe("event submissions", () => dump("eventsug:"), {});
+  const resourceSubmissions = await safe("resource submissions", () => dump("ressug:"), {});
+  const clubAdmins = await safe("club admins", () => dump("clublead:"), {});
+  const pushSubscriptions = {};
+  for (const u of users) { const raw = await safe(`push ${u.id}`, () => env.SITE_DATA.get(pushKey(u.id)), null); if (raw) pushSubscriptions[u.id] = raw; }
+  const settings = {};
+  for (const k of ["clubRoster", "labels", "availperiod", "watemplates", SUBSCRIBER_INDEX_KEY]) settings[k] = await safe(`setting ${k}`, () => env.SITE_DATA.get(k), null);
+  const counts = { users: users.length, availability: Object.keys(availability).length, clubs: clubIds.length, joinRequests: Object.keys(joinRequests).length, squadRequests: Object.keys(squadRequests).length, eventSubmissions: Object.keys(eventSubmissions).length, resourceSubmissions: Object.keys(resourceSubmissions).length, clubAdmins: Object.keys(clubAdmins).length };
+  return { version: 2, at: new Date().toISOString(), storage: (await d1On(env)) ? "d1" : "kv", counts, warnings, users, availability, clubMembers, ideas, clubEvents, clubEventResponses, squads, joinRequests, squadRequests, eventSubmissions, resourceSubmissions, clubAdmins, pushSubscriptions, settings };
+};
+// The daily cron fired twice a few seconds apart (two near-identical emails). Whoever claims today's slot first sends; the other stops.
+// D1 gives an atomic "first one wins" (INSERT OR IGNORE); without D1 it falls back to a best-effort KV marker.
+const claimBackupSlot = async (env) => {
+  const key = `backup:${new Date().toISOString().slice(0, 10)}`;
+  try {
+    if (env.DB) { await d1Ensure(env); const r = await env.DB.prepare("INSERT OR IGNORE INTO meta (k, v) VALUES (?, ?)").bind(key, String(Date.now())).run(); return !!(r.meta && r.meta.changes > 0); }
+  } catch {}
+  if (await env.SITE_DATA.get(key)) return false;
+  await env.SITE_DATA.put(key, String(Date.now()), { expirationTtl: 172800 }).catch(() => {});
+  return true;
 };
 const sendBackupEmail = async (env, label) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return { ok: false, error: "Email isn't set up" };
   const b = await buildBackup(env);
   const json = JSON.stringify(b);
   const bytes = new TextEncoder().encode(json); let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  const day = b.at.slice(0, 10);
-  const r = await fetch("https://api.resend.com/emails", {
+  const day = b.at.slice(0, 10), c = b.counts;
+  const send = (withCode) => fetch("https://api.resend.com/emails", {
     method: "POST", headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [env.ADMIN_NOTIFY_EMAIL], subject: `4DASISTAS backup ${day} (${b.counts.users} profiles)`,
-      html: `<div style="font-family:Arial,sans-serif;max-width:520px;color:#373d3b"><h2 style="margin:0 0 8px">${label || "Daily backup"}</h2><p>Attached: every profile (${b.counts.users}), ${b.counts.availability} availability records, club and squad membership and settings, as of ${escapeHtml(b.at)}.</p><p><strong>Keep this email private</strong> — it contains names, phone numbers and PIN hashes. If anything is ever lost, send this file to Claude and it can be restored.</p></div>`,
-      attachments: [{ filename: `4dasistas-backup-${day}.json`, content: btoa(bin) }] }),
+    body: JSON.stringify({ from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [env.ADMIN_NOTIFY_EMAIL], subject: `4DASISTAS full backup ${day} (${c.users} profiles)`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:560px;color:#373d3b"><h2 style="margin:0 0 8px">${label || "Daily backup"}</h2>
+        <p><strong>Everything for the project, as of ${escapeHtml(b.at)}:</strong></p>
+        <ul style="line-height:1.6"><li><strong>${escapeHtml(`4dasistas-data-${day}.json`)}</strong> — ${c.users} profiles (with PIN hashes), ${c.availability} availability records, ${c.clubs} clubs and their members, idea boards &amp; votes, club events, squads, ${c.joinRequests} join requests, ${c.squadRequests} squad requests, ${c.eventSubmissions} event + ${c.resourceSubmissions} resource submissions, ${c.clubAdmins} club admins, push subscriptions, newsletter list and all settings.</li>
+        <li>${withCode ? `<strong>4dasistas-site-${day}.zip</strong> — the whole website: pages, the Worker code, calendar / resource / club data files and images (straight from GitHub).` : "The website's code zip couldn't be attached this time — it is always safe on GitHub (github.com/lujaneyaffa/4dasistas)."}</li></ul>
+        ${b.warnings.length ? `<p style="color:#b3261e">Some parts could not be read: ${escapeHtml(b.warnings.join("; "))}</p>` : ""}
+        <p><strong>Keep this email private</strong> — it contains names, phone numbers and PIN hashes. If anything is ever lost, send these files to Claude and everything can be restored.</p></div>`,
+      attachments: [{ filename: `4dasistas-data-${day}.json`, content: btoa(bin) }].concat(withCode ? [{ filename: `4dasistas-site-${day}.zip`, path: `https://codeload.github.com/${GITHUB_OWNER}/${GITHUB_REPO}/zip/refs/heads/main` }] : []) }),
   });
-  return r.ok ? { ok: true, users: b.counts.users } : { ok: false, error: `Email failed (${r.status})` };
+  let r = await send(true);
+  if (!r.ok) r = await send(false); // never lose the data backup just because the code zip couldn't be fetched
+  return r.ok ? { ok: true, users: c.users } : { ok: false, error: `Email failed (${r.status})` };
 };
 const sendAdminEmail = (env, ctx, subject, html) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
@@ -2425,7 +2466,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       for (const sid of Object.keys(SQUAD_TITLES)) for (const uid of await readSquadMemberIds(env, sid)) (squadsByUser[uid] = squadsByUser[uid] || []).push(sid);
       const out = [];
       for (const u of await listAllUsers(env)) {
-          if (u) out.push({ ...publicUser(u), waRemindedAt: u.waRemindedAt || 0, formRanked: (u.form && Array.isArray(u.form.ranked)) ? u.form.ranked : [], squads: squadsByUser[u.id] || [], phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, archived: u.archived || null, archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: (await readPushSubs(env, u.id)).length > 0 });
+          if (u) out.push({ ...publicUser(u), waRemindedAt: u.waRemindedAt || 0, formRanked: (u.form && Array.isArray(u.form.ranked)) ? u.form.ranked : [], squads: squadsByUser[u.id] || [], phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: (await readPushSubs(env, u.id)).length > 0 });
       }
       if (leadCtx) return jsonResponse({ users: out.filter((u) => (u.clubs || []).some((c) => leadCtx.clubs.includes(c))).map((u) => ({ ...u, clubs: u.clubs.filter((c) => leadCtx.clubs.includes(c)), pending: (u.pending || []).filter((c) => leadCtx.clubs.includes(c)) })) }, 200, corsHeaders);
       if (!leadCtx) saveSnapshot(env, "snap:adminUsers", out);
@@ -3228,7 +3269,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
   },
 
   async scheduled(controller, env, ctx) {
-    ctx.waitUntil(sendBackupEmail(env, "Daily backup").catch((e) => console.error("Backup email failed", String(e)))); // runs first, independent of the digest below
+    ctx.waitUntil((async () => { try { const claimed = await claimBackupSlot(env); console.log("daily backup slot", claimed ? "claimed — sending" : "already taken — skipping"); if (claimed) await sendBackupEmail(env, "Daily backup"); } catch (e) { console.error("Backup email failed", String(e)); } })()); // once a day; independent of the digest below
     if (!env.RESEND_API_KEY) return;
     const subscribers = JSON.parse((await env.SITE_DATA.get(SUBSCRIBER_INDEX_KEY)) || "[]");
     if (!subscribers.length) return;

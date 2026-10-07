@@ -2524,15 +2524,10 @@ function pageCtaForTab(){
 }
 
 function renderHomescreenSlot(){
+  // The "Add to Home Screen" link is now the middle round bubble on Home (next to Travel / About), so this slot stays empty.
   const slot = document.getElementById('homescreenSlot');
   if(!slot) return;
-  slot.style.display = 'none'; slot.innerHTML = ''; return; // the Home Screen link is now the third round bubble next to Travel / About
-  if(state.tab !== 'home'){ return; }
-  const title = siteText.homeTileHomescreenTitle || 'Add this to your Home Screen';
-  const desc = siteText.homeTileHomescreenDesc || 'Install 4DASISTAS like an app for quick access.';
-  slot.style.cssText = 'display:block;max-width:760px;margin:12px auto 20px;padding:0 20px;box-sizing:border-box;';
-  slot.innerHTML = `<div class="home-tiles bottom-row"><button type="button" class="home-tile" style="background:var(--brand-blush);color:var(--brand-brown);grid-column:1/-1;justify-self:center;max-width:560px;width:100%" data-hometab="homescreen"><div class="home-tile-title">${title}</div><div class="home-tile-desc">${desc}</div><div class="home-tile-arrow">→</div></button></div>`;
-  slot.querySelector('.home-tile').addEventListener('click', () => goToTab('homescreen'));
+  slot.style.display = 'none'; slot.innerHTML = '';
 }
 
 // Contribution pills above the footer: a pink "Submit an event" and an "Add a resource" on every page EXCEPT
@@ -7599,7 +7594,7 @@ function admInboxCount(){
 function inboxAdminHtml(lead){
   const n = admInboxCount();
   const body = [(state.cmAdminJoinRequests || []).length ? joinRequestsAdminHtml() : '', (!lead && (state.cmAdminEventSugs || []).length) ? eventSuggestionsAdminHtml() : '', (!lead && (state.cmAdminResSugs || []).length) ? resourceSuggestionsAdminHtml() : ''].join('');
-  const refresh = `<button type="button" class="club-guide-btn" id="inboxRefresh" style="padding:6px 14px;font-size:12px;margin:0 0 8px;">↻ Check for new</button><span style="font-size:11px;color:#776867;margin-left:8px;">Refreshes when you open this page — you also get an email for each new request.</span>`;
+  const refresh = `<button type="button" class="club-guide-btn" id="inboxRefresh" style="padding:6px 14px;font-size:12px;margin:0 0 8px;">↻ Check for new</button><span style="display:block;font-size:11px;color:#776867;line-height:1.4;margin:0 0 8px;">Refreshes when you open this page — you also get an email for each new request.</span>`;
   return admSec('inbox', `🔔 Notifications${n ? `<span class="adm-badge">${n}</span>` : ''}`, refresh + (n ? body : '<p class="av-msg" style="margin:0;">Nothing waiting — you\'re all caught up. 🎉</p>'), n > 0, 'flat');
 }
 function clubLeadsAdminHtml(){
