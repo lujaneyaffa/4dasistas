@@ -119,6 +119,38 @@
     },
     {
       "section": "functions",
+      "title": "Board Games Night",
+      "audienceType": [
+        "Muslim Youth"
+      ],
+      "emoji": "",
+      "organizedBy": "ISNA",
+      "eventDate": "2026-10-17",
+      "endDate": "2026-10-17",
+      "time": "20:00",
+      "endTime": "22:00",
+      "allDay": false,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "2200 S Sheridan Way, Mississauga, ON L5J 2M4, Canada",
+      "link": "https://www.instagram.com/p/DeK8_A0ASvi/?stkn=ZmowM2Z6MTc3dnNs",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "board-games-night",
+      "tag": "Board Games Night"
+    },
+    {
+      "section": "functions",
       "title": "Book Fair",
       "audienceType": [
         "Family Event"
