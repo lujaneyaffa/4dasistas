@@ -3004,16 +3004,22 @@ function squadAdminHtml(){
     <h4 style="margin:10px 0 4px;">Requests${d.requests.length ? ` (${d.requests.length})` : ''}</h4>${reqs}
     <h4 style="margin:16px 0 0;">Squads &amp; private invite links</h4>${squads}</div>`;
 }
+// Hide the request's row THIS instant (a full re-render of the admin page with hundreds of profiles can take a moment), then re-render a tick later.
+function admHideRequestRows(attrs){
+  const q = Object.keys(attrs).map(k => `[data-${k}="${String(attrs[k]).replace(/"/g, '\\"')}"]`).join('');
+  document.querySelectorAll('button' + q).forEach(b => { const row = b.closest('div'); if(row) row.style.display = 'none'; });
+}
 async function admAnswerSquad(squadId, userId, action){
   const key = `q:${squadId}:${userId}`;
   const req = (admNotif.items.find(i => i.id === key) || {}).r || ((state.squadAdmin && state.squadAdmin.requests) || []).find(r => r.squadId === squadId && r.userId === userId);
   // INSTANT: the row disappears the moment you tap; the server call happens in the background and the row comes back only if it fails.
+  admHideRequestRows({ 'squad-id': squadId, 'user-id': userId });
   const keepItems = admNotif.items, keepSquadReqs = state.squadAdmin ? state.squadAdmin.requests : null;
   admNotif.dismissed.add(key);
   admNotif.items = admNotif.items.filter(i => i.id !== key);
   if(state.squadAdmin) state.squadAdmin.requests = state.squadAdmin.requests.filter(r => !(r.squadId === squadId && r.userId === userId));
   admUpdateBell(); if(admNotif.panel) admRenderPanel();
-  if(state.tab === 'squads') render();
+  setTimeout(() => { if(state.tab === 'squads' || state.tab === 'admin') render(); }, 30);
   try {
     const res = await fetch('/api/admin/squad-requests/' + encodeURIComponent(squadId) + '/' + encodeURIComponent(userId) + '/' + action, { method:'POST', credentials:'include' });
     const data = await res.json().catch(() => ({}));
@@ -3029,7 +3035,7 @@ async function admAnswerSquad(squadId, userId, action){
 function wireSquadsPage(){
   const sess = getCmSession();
   if(sess && state.meLoadedFor !== sess.token) refreshMe();
-  document.querySelectorAll('.squad-request-btn').forEach(b => b.addEventListener('click', () => { b.disabled = true; squadRequest(b.dataset.squadId); }));
+  document.querySelectorAll('.squad-request-btn').forEach(b => b.addEventListener('click', () => { if(!confirm('Only request this squad if you genuinely want to join it. Send the request?')) return; b.disabled = true; squadRequest(b.dataset.squadId); }));
   document.querySelectorAll('.squad-login-btn').forEach(b => b.addEventListener('click', () => goLogin()));
   const topLogin = document.getElementById('squadsLoginTop'); if(topLogin) topLogin.addEventListener('click', () => goLogin());
   document.querySelectorAll('.squad-act').forEach(b => b.addEventListener('click', () => { b.disabled = true; admAnswerSquad(b.dataset.squadId, b.dataset.userId, b.dataset.act); }));
@@ -3060,7 +3066,8 @@ function renderDirectory(){
     <button type="button" class="club-guide-btn" id="squadsLoginTop" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;font-size:15px;text-align:center;">Log In</button>
     <button class="fall-cta-btn join-club-btn" data-hometab="fallsignup" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;">Sign Up</button>
     </div>`}<h3 class="clubs-popular-title">THE SQUADS</h3>
-      ${getCmSession() ? '<p class="ideas-hint" style="text-align:center;margin:-4px 0 12px;">Request any squad — an admin approves it and you get that squad\'s private invite link right here.</p>' : ''}
+      <div class="av-waitlist" style="max-width:520px;margin:-2px auto 12px;text-align:center;">⚠️ <strong>Please only request a squad if you're genuinely interested in joining.</strong> An admin reviews every request and each squad is a small, active group.</div>
+      ${getCmSession() ? '<p class="ideas-hint" style="text-align:center;margin:0 0 12px;">An admin approves it and you get that squad\'s private invite link right here.</p>' : ''}
       ${state.squadReqError ? `<p style="color:#c00;text-align:center;font-size:13px;">${escapeCm(state.squadReqError)}</p>` : ''}
       <div class="clubs-grid squads-grid">${SQUADS.map(q => squadCardHtml(q)).join('')}</div>
       `;
@@ -5598,7 +5605,7 @@ async function refreshClubCalItems(){
   try {
     const r = await fetch('/api/club-calendar', { cache:'no-store' });
     if(!r.ok) return;
-    const items = ((await r.json()).events || []).map(e => ({ id:'clubcal:' + e.id, title:e.title, tag:'Club', section:'clubevents', calDate:e.date, eventDate:e.date, date:calDateLabel(e.date), time:e.time || '', allDay:!e.time, virtual:false,
+    const items = ((await r.json()).events || []).map(e => ({ id:'clubcal:' + e.id, title:(e.kind === 'idea' && e.emoji ? e.emoji + ' ' : '') + e.title, tag:'Club', section:'clubevents', calDate:e.date, eventDate:e.date, date:calDateLabel(e.date), time:e.time || '', allDay:!e.time, virtual:false,
       location:e.clubTitle ? e.clubTitle + ' club' : 'Club event', desc:'', clubCal:true }));
     EVENT_ITEMS = EVENT_ITEMS.filter(x => !x.clubCal).concat(items);
     if(state.tab === 'events' || state.tab === 'home') render();
@@ -5613,7 +5620,10 @@ async function clubCalLoad(force){
   try {
     if(calIsAdmin()){
       const r = await fetch('/api/admin/club-cal', { credentials:'include', cache:'no-store' });
-      if(r.ok){ state.clubCal = (await r.json()).events || []; state.clubCalIsAdminData = true; }
+      if(r.ok){
+        state.clubCal = (await r.json()).events || []; state.clubCalIsAdminData = true;
+        try { const pr = await fetch('/api/club-calendar', { cache:'no-store' }); if(pr.ok) state.clubCal = state.clubCal.concat(((await pr.json()).events || []).filter(e => e.kind === 'idea')).sort((a, b) => a.date.localeCompare(b.date)); } catch {}
+      }
     }
     if(!state.clubCal || !state.clubCalIsAdminData){
       const r = await fetch('/api/club-calendar', { cache:'no-store' });
@@ -5666,10 +5676,35 @@ function clubCalSectionHtml(compact){
     <div style="display:flex;gap:8px;justify-content:center;margin:0 0 10px;flex-wrap:wrap;">${tog('cal', '📅 Calendar')}${tog('list', '📋 List')}${calIsAdmin() ? `<button type="button" class="club-guide-btn" id="calAddBtn" style="min-height:36px;padding:4px 16px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add event</button>` : ''}</div>
     ${body}`;
 }
+// Tapping a day shows EVERY event that day with its full details right away (no second tap): members get the RSVP button, admins a manage button, visitors a log-in / sign-up prompt.
 function clubCalDayPopup(key){
-  const evs = (state.clubCal || []).filter(e => e.date === key), today = new Date().toISOString().slice(0, 10);
-  const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 8px;">${escapeCm(ideaLongDate(key))}</h3><div class="cal-list">${evs.map(e => clubCalRowHtml(e, today)).join('')}</div>`);
-  wrap.querySelectorAll('.cal-row').forEach(b => b.addEventListener('click', () => { close(); clubCalOpen(b.dataset.calid); }));
+  const evs = (state.clubCal || []).filter(e => e.date === key);
+  if(evs.length === 1 && !String(evs[0].id).startsWith('idea:')){ clubCalOpen(evs[0].id); return; }
+  const member = !!getCmSession(), staff = calIsAdmin() && state.clubCalIsAdminData;
+  const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 8px;">${escapeCm(ideaLongDate(key))}</h3><div id="cdEvs"></div>
+    ${!member && !staff ? `<div style="display:flex;gap:10px;margin-top:10px;"><button type="button" class="club-guide-btn" id="cdLogin" style="flex:1;text-align:center;">Log In</button><button type="button" class="fall-cta-btn join-club-btn" id="cdSignup" style="flex:1;">Sign Up</button></div>` : ''}`);
+  const list = wrap.querySelector('#cdEvs');
+  evs.forEach((e, i) => {
+    const sec = document.createElement('div'); sec.style.cssText = (i ? 'border-top:2px dashed #f2d8d7;margin-top:12px;padding-top:12px;' : '');
+    list.appendChild(sec);
+    if(String(e.id).startsWith('idea:')){
+      sec.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(e.clubTitle)} · idea</p><h3 style="margin:0 0 4px;">${e.emoji ? escapeCm(e.emoji) + ' ' : ''}${escapeCm(e.title)}</h3><p class="ideas-hint" style="text-align:left;margin:0 0 6px;">${e.done ? '✅ We did this one.' : 'An idea the club is planning.'}</p><button type="button" class="club-guide-btn cdBoard" style="width:100%;text-align:center;">Open the board</button>`;
+      sec.querySelector('.cdBoard').addEventListener('click', () => { close(); openClubIdeas(e.clubId); });
+    } else if(staff){
+      const rs = e.rsvps || [], going = rs.filter(r => r.status === 'going').length, pend = rs.length - going;
+      sec.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(e.clubTitle)}</p><h3 style="margin:0 0 4px;">${escapeCm(e.title)}</h3>
+        <p style="margin:2px 0;">${e.time ? '⏰ ' + escapeCm(e.time) : ''}${e.place ? ' · 📍 ' + escapeCm(e.place) : ''}</p>${e.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(e.desc)}</p>` : ''}
+        <p class="ideas-hint" style="margin:4px 0 8px;text-align:left;">👥 ${going} going${pend ? ` · <b style="color:#b3261e;">${pend} waiting</b>` : ''}</p><button type="button" class="club-guide-btn cdManage" style="width:100%;text-align:center;">Manage attendees / edit</button>`;
+      sec.querySelector('.cdManage').addEventListener('click', () => { close(); clubCalManage(e); });
+    } else if(member){
+      sec.innerHTML = '<p class="av-msg">Loading…</p>'; clubCalMemberCard(sec, e.id);
+    } else {
+      sec.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(e.clubTitle)}</p><h3 style="margin:0;">${escapeCm(e.title)}</h3><p class="ideas-hint" style="text-align:left;margin:4px 0 0;">${e.time ? '⏰ ' + escapeCm(e.time) + ' · ' : ''}Log in or sign up to see the details and RSVP.</p>`;
+    }
+  });
+  const lb = wrap.querySelector('#cdLogin'), sb = wrap.querySelector('#cdSignup');
+  if(lb) lb.addEventListener('click', () => { close(); state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; render(); });
+  if(sb) sb.addEventListener('click', () => { close(); goToTab('fallsignup'); });
 }
 function wireClubCal(){
   clubCalLoad();
@@ -5684,35 +5719,49 @@ function wireClubCal(){
   if(add) add.addEventListener('click', () => clubCalForm(null));
 }
 function clubCalOpenAny(id){ if(!state.clubCal || state.clubCalIsAdminData !== calIsAdmin()){ clubCalLoad(true).then(() => clubCalOpen(id)); } else clubCalOpen(id); }
+function clubCalIdeaPopup(e){
+  const { wrap, close } = ideaPopup(`<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(e.clubTitle)}</p>
+    <h3 style="margin:0 0 6px;">${e.emoji ? escapeCm(e.emoji) + ' ' : ''}${escapeCm(e.title)}</h3>
+    <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(e.date))}</p>
+    <p class="ideas-hint" style="text-align:left;margin:6px 0 10px;">${e.done ? '✅ We did this one.' : 'An idea the club is planning — vote and see who is free on its board.'}</p>
+    <button type="button" class="club-guide-btn" id="calIdeaOpen" style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Open the ${escapeCm(e.clubTitle.split(' × ')[0])} board</button>`);
+  wrap.querySelector('#calIdeaOpen').addEventListener('click', () => { close(); openClubIdeas(e.clubId); });
+}
 async function clubCalOpen(id){
+  if(String(id).startsWith('idea:')){ const ie = (state.clubCal || []).find(x => x.id === id); if(ie) clubCalIdeaPopup(ie); return; }
   const ev = (state.clubCal || []).find(e => e.id === id);
   if(calIsAdmin() && state.clubCalIsAdminData && ev) return clubCalManage(ev);
   if(!getCmSession()){ const pe = (state.clubCal || []).find(e => e.id === id); promptJoinToVote(pe ? `${pe.title} · ${calDateLabel(pe.date)} — log in or sign up to see the details and RSVP` : 'Log in or sign up to see the details and RSVP'); return; }
-  const { wrap, close } = ideaPopup(`<p class="av-msg">Loading…</p>`);
+  const { wrap } = ideaPopup(`<p class="av-msg">Loading…</p>`);
+  const box = document.createElement('div'); wrap.querySelector('.idea-pop-card').appendChild(box);
+  wrap.querySelector('.idea-pop-card .av-msg').remove();
+  await clubCalMemberCard(box, id);
+}
+// One event's full details + RSVP button, painted into `box` (used by the single-event popup and by the day popup that lists several).
+async function clubCalMemberCard(box, id){
   try {
     const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id), { headers: ideaHeaders() });
     const paint = () => {
       const label = d.mine === 'going' ? "✅ You're going — tap to cancel" : d.mine === 'pending' ? '⏳ Requested — waiting for approval (tap to cancel)' : d.inClub ? '🎟️ RSVP — I\'m going' : '🎟️ Request to RSVP';
-      wrap.querySelector('.idea-pop-card').innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
-        <p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>
+      box.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>
         <h3 style="margin:0 0 6px;">${escapeCm(d.title)}</h3>
         <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>
         ${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}
         ${d.desc ? `<p style="margin:8px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
         ${d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}
         <p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} going${d.inClub ? '' : ' · you\'re not in this club, so an admin approves your RSVP'}</p>
-        <button type="button" class="club-guide-btn" id="calRsvpBtn" ${d.closed && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>
-        <div id="calRsvpMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>`;
-      wrap.querySelector('#calRsvpBtn').addEventListener('click', async e => {
+        <button type="button" class="club-guide-btn calRsvpBtn" ${d.closed && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>
+        <div class="calRsvpMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>`;
+      box.querySelector('.calRsvpBtn').addEventListener('click', async e => {
         e.target.disabled = true;
         try {
           const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/rsvp', { method: d.mine ? 'DELETE' : 'POST', headers: ideaHeaders() });
           d.mine = r.mine; d.going = r.going; paint();
-        } catch(err){ e.target.disabled = false; wrap.querySelector('#calRsvpMsg').textContent = err.message; }
+        } catch(err){ e.target.disabled = false; box.querySelector('.calRsvpMsg').textContent = err.message; }
       });
     };
     paint();
-  } catch(err){ wrap.querySelector('.idea-pop-card').innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`; }
+  } catch(err){ box.innerHTML = `<p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`; }
 }
 async function clubCalAdminCall(path, method, body){
   const r = await fetch('/api/admin/club-cal' + path, { method, credentials:'include', headers:{ 'Content-Type':'application/json' }, body: body ? JSON.stringify(body) : undefined });
@@ -5720,7 +5769,13 @@ async function clubCalAdminCall(path, method, body){
   if(!r.ok) throw new Error(j.error || 'Something went wrong');
   return j;
 }
+async function calLoadUsers(){
+  if(Array.isArray(state.cmAdminAllUsers)) return state.cmAdminAllUsers;
+  try { const r = await fetch('/api/admin/users', { credentials:'include' }); if(r.ok) return (await r.json()).users || []; } catch {}
+  return [];
+}
 function clubCalManage(ev){
+  let usersCache = Array.isArray(state.cmAdminAllUsers) ? state.cmAdminAllUsers : null;
   const { wrap, close } = ideaPopup('');
   const paint = () => {
     const rs = ev.rsvps || [], going = rs.filter(r => r.status === 'going'), pend = rs.filter(r => r.status === 'pending');
@@ -5741,6 +5796,8 @@ function clubCalManage(ev){
       <p class="idea-pop-h" style="margin-top:12px;">➕ ${past ? 'Add someone who went' : 'Add an attendee'}</p>
       <input id="calAttSearch" type="search" placeholder="Search a member by name…" autocomplete="off" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;">
       <div id="calAttResults" style="max-height:26vh;overflow:auto;"></div>
+      <p class="idea-pop-h" style="margin-top:10px;">✍️ Add by name (no profile needed)</p>
+      <div style="display:flex;gap:6px;"><input id="calGuestName" type="text" maxlength="30" placeholder="Their name" autocomplete="off" style="flex:1;min-width:0;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;"><button type="button" id="calGuestAdd" class="club-guide-btn" style="padding:6px 14px;text-align:center;">+ Add</button></div>
       <div id="calMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>`;
     wrap.querySelector('#calEditBtn').addEventListener('click', () => { close(); clubCalForm(ev); });
     wrap.querySelector('#calDelBtn').addEventListener('click', async () => {
@@ -5748,10 +5805,11 @@ function clubCalManage(ev){
       try { await clubCalAdminCall('/' + encodeURIComponent(ev.id), 'DELETE'); close(); clubCalReload(); } catch(err){ wrap.querySelector('#calMsg').textContent = err.message; }
     });
     const inp = wrap.querySelector('#calAttSearch'), res = wrap.querySelector('#calAttResults');
-    inp.addEventListener('input', () => {
+    inp.addEventListener('input', async () => {
       const q = inp.value.trim().toLowerCase(), have = new Set((ev.rsvps || []).filter(r => r.status === 'going').map(r => r.id));
-      const users = (Array.isArray(state.cmAdminAllUsers) ? state.cmAdminAllUsers : []).filter(u => q.length >= 2 && !have.has(u.id) && (String(u.name).toLowerCase().includes(q) || String(u.username || '').toLowerCase().includes(q))).slice(0, 8);
-      res.innerHTML = q.length < 2 ? '' : users.length ? users.map(u => `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid rgba(0,0,0,.1);"><span style="flex:1;">${escapeCm(u.name)} <small style="color:#776867;">@${escapeCm(u.username || '')}</small></span><button type="button" class="calatt" data-u="${escapeCm(u.id)}" style="border:2px solid #2a7a4a;background:#e6f4ea;border-radius:999px;padding:4px 10px;cursor:pointer;">+ Add</button></div>`).join('') : '<p class="av-msg">No match (open the Profiles tab once so the list is loaded).</p>';
+      if(q.length >= 2 && !usersCache){ res.innerHTML = '<p class="av-msg">Loading members…</p>'; usersCache = await calLoadUsers(); if(inp.value.trim().toLowerCase() !== q) return; }
+      const users = (usersCache || []).filter(u => q.length >= 2 && !have.has(u.id) && (String(u.name).toLowerCase().includes(q) || String(u.username || '').toLowerCase().includes(q))).slice(0, 8);
+      res.innerHTML = q.length < 2 ? '' : users.length ? users.map(u => `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid rgba(0,0,0,.1);"><span style="flex:1;">${escapeCm(u.name)} <small style="color:#776867;">@${escapeCm(u.username || '')}</small></span><button type="button" class="calatt" data-u="${escapeCm(u.id)}" style="border:2px solid #2a7a4a;background:#e6f4ea;border-radius:999px;padding:4px 10px;cursor:pointer;">+ Add</button></div>`).join('') : '<p class="av-msg">No profile with that name — use “Add by name” below for someone without one.</p>';
       res.querySelectorAll('.calatt').forEach(b => b.addEventListener('click', async () => {
         try {
           const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/rsvp/' + encodeURIComponent(b.dataset.u) + '/add', 'POST');
@@ -5759,6 +5817,14 @@ function clubCalManage(ev){
           paint(); if(state.tab === 'clubs' || state.tab === 'admin') render();
         } catch(err){ wrap.querySelector('#calMsg').textContent = err.message; }
       }));
+    });
+    wrap.querySelector('#calGuestAdd').addEventListener('click', async () => {
+      const nm = wrap.querySelector('#calGuestName').value.trim();
+      try {
+        const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/rsvp/guest/add', 'POST', { name: nm });
+        ev.rsvps = j.event.rsvps; const i = state.clubCal.findIndex(e => e.id === ev.id); if(i >= 0) state.clubCal[i] = j.event;
+        paint(); if(state.tab === 'clubs' || state.tab === 'admin') render();
+      } catch(err){ wrap.querySelector('#calMsg').textContent = err.message; }
     });
     wrap.querySelectorAll('.calrs').forEach(b => b.addEventListener('click', async () => {
       try {
@@ -5769,6 +5835,32 @@ function clubCalManage(ev){
     }));
   };
   paint();
+}
+// Place = search box restricted to Canada (same as adding a general event); falls back to a plain text box if Google Maps can't load.
+async function mountClubCalPlace(wrap){
+  const slot = wrap.querySelector('#cfPlaceSlot'), hidden = wrap.querySelector('#cfPlace'), chosen = wrap.querySelector('#cfPlaceChosen');
+  const set = v => { hidden.value = v; chosen.classList.toggle('empty', !v); chosen.innerHTML = v ? `📍 ${escapeCm(v)} <button type="button" class="av-link" id="cfPlaceClear" style="margin-left:6px;">clear</button>` : 'No place chosen yet'; const c = chosen.querySelector('#cfPlaceClear'); if(c) c.addEventListener('click', () => set('')); };
+  set(hidden.value);
+  try {
+    await loadGoogleMaps();
+    const lib = await google.maps.importLibrary('places');
+    if(!slot.isConnected) return;
+    slot.innerHTML = '<div style="font-size:11px;color:var(--muted);margin:3px 0;">Search for a place in Canada:</div>';
+    const el = new lib.PlaceAutocompleteElement({ includedRegionCodes:['ca'] });
+    slot.appendChild(el);
+    el.addEventListener('gmp-select', async evt => {
+      const place = evt.placePrediction && evt.placePrediction.toPlace();
+      if(!place) return;
+      try {
+        await place.fetchFields({ fields:['formattedAddress','displayName'] });
+        const addr = place.formattedAddress || '', nm = place.displayName || '';
+        if(addr) set((nm && !addr.includes(nm) ? nm + ', ' : '') + addr);
+      } catch(err){ console.error('Could not fetch place details', err); }
+    });
+  } catch(err){
+    console.error('Address search unavailable, using plain text:', err);
+    hidden.type = 'text'; hidden.placeholder = 'Type the place or address'; hidden.maxLength = 200; hidden.style.cssText = 'width:100%;padding:10px;margin-bottom:8px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;'; chosen.style.display = 'none';
+  }
 }
 function clubCalForm(ev){
   const clubs = clubsData; // any club can join in on a collab; the server makes sure a club admin keeps at least one of their own
@@ -5784,10 +5876,14 @@ function clubCalForm(ev){
     <input id="cfTime" type="text" maxlength="30" placeholder="Time (optional, e.g. 6:30 PM)" value="${escapeCm(ev ? ev.time : '')}" style="${f}">
     <label style="display:block;font-size:12px;color:#776867;margin:0 0 2px;">Last day to RSVP (optional)</label>
     <input id="cfRsvpBy" type="date" value="${escapeCm(ev ? (ev.rsvpBy || '') : '')}" style="${f}">
-    <input id="cfPlace" type="text" maxlength="120" placeholder="Place (optional)" value="${escapeCm(ev ? ev.place : '')}" style="${f}">
+    <label style="display:block;font-size:12px;color:#776867;margin:0 0 2px;">Place (optional)</label>
+    <input id="cfPlace" type="hidden" value="${escapeCm(ev ? ev.place : '')}">
+    <div id="cfPlaceSlot"></div>
+    <div id="cfPlaceChosen" class="ev-loc-chosen${ev && ev.place ? '' : ' empty'}" style="margin:0 0 8px;">${ev && ev.place ? '📍 ' + escapeCm(ev.place) : 'No place chosen yet'}</div>
     <textarea id="cfDesc" maxlength="600" rows="3" placeholder="Details (optional)" style="${f}">${escapeCm(ev ? ev.desc : '')}</textarea>
     <div id="cfMsg" style="font-size:13px;color:#c00;min-height:18px;margin-bottom:6px;"></div>
     <button type="button" class="club-guide-btn" id="cfSave" style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">${ev ? 'Save changes' : 'Add event'}</button>`);
+  mountClubCalPlace(wrap);
   wrap.querySelector('#cfSave').addEventListener('click', async e => {
     const body = { title: wrap.querySelector('#cfTitle').value, date: wrap.querySelector('#cfDate').value, time: wrap.querySelector('#cfTime').value, place: wrap.querySelector('#cfPlace').value, rsvpBy: wrap.querySelector('#cfRsvpBy').value, desc: wrap.querySelector('#cfDesc').value };
     body.clubIds = [...wrap.querySelectorAll('.cf-club:checked')].map(x => x.value);
@@ -6105,7 +6201,7 @@ async function refreshMe(){
     const cur = getCmSession();
     if(!cur || cur.token !== session.token){ state.meLoading = false; return; }
     state.myPending = me.pending || [];
-    state.pushRegistered = !!me.push;
+    state.pushRegistered = !!me.push; state.notifOff = me.notifOff || [];
     state.phoneConfirmed = !!me.phoneConfirmed; state.myPhone = me.phone || '';
     state.mySquads = me.squads || []; state.squadPending = me.squadPending || [];
     setCmSession(Object.assign({}, cur, { clubs: me.clubs || [], waitlist: me.waitlist || [] }));
@@ -6203,6 +6299,16 @@ function openSettingsPopup(){
     const denied = Notification.permission === 'denied', on = state.pushRegistered && Notification.permission === 'granted';
     box.innerHTML = `<p style="margin:0 0 8px;">${on ? '✅ Notifications are <strong>on</strong> for this account.' : denied ? '🚫 Notifications are blocked in your browser settings — allow them there, then come back.' : '🔕 Notifications are <strong>off</strong>.'}</p>
       ${denied ? '' : `<button type="button" id="stNotifBtn" style="${pill}">${on ? '🔕 Turn notifications off' : '🔔 Turn notifications on'}</button>`}<div id="stNotifMsg" style="font-size:13px;min-height:18px;margin-top:4px;color:#c00;"></div>`;
+    const CATS = [['reminders', '⏰ Availability reminders'], ['announcements', '📣 Announcements (new availability period, news)'], ['clubs', '🏛️ Club updates (requests approved or declined)'], ['squads', '🪁 Squad updates'], ['events', '📅 New club events']];
+    const offSet = new Set(state.notifOff || []);
+    box.insertAdjacentHTML('beforeend', `<p class="ideas-hint" style="text-align:left;margin:12px 0 4px;">Choose what you hear about:</p>${CATS.map(([k, l]) => `<label style="display:flex;align-items:center;gap:10px;padding:7px 0;font-size:14px;"><input type="checkbox" class="stCat" data-cat="${k}" ${offSet.has(k) ? '' : 'checked'} style="width:20px;height:20px;"> ${l}</label>`).join('')}<div id="stCatMsg" style="font-size:12px;min-height:16px;color:#2a7a4a;"></div>`);
+    box.querySelectorAll('.stCat').forEach(c => c.addEventListener('change', async () => {
+      const off = [...box.querySelectorAll('.stCat')].filter(x => !x.checked).map(x => x.dataset.cat);
+      state.notifOff = off;
+      const m = box.querySelector('#stCatMsg'); m.style.color = '#776867'; m.textContent = 'Saving…';
+      try { await cmApiRaw('/api/users/' + encodeURIComponent(session.id), { method:'PUT', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.token }, body: JSON.stringify({ notifOff: off }) }); m.style.color = '#2a7a4a'; m.textContent = 'Saved ✓'; }
+      catch(err){ m.style.color = '#c00'; m.textContent = err.message; }
+    }));
     const b = box.querySelector('#stNotifBtn'); if(!b) return;
     b.addEventListener('click', async () => {
       b.disabled = true;
@@ -6312,7 +6418,7 @@ function renderMyClubsSectionHtml(){
   const bigBtn = (page, emoji, label, sub) => `<button type="button" class="club-guide-btn clubs-big-btn" data-clubspage="${page}"><span class="cbb-emoji">${emoji}</span><span class="cbb-label">${label}</span><span class="cbb-sub">${sub}</span></button>`;
   let annBanner = '';
   { const an = state.availAnnounce; let seen = ''; try { seen = localStorage.getItem('availAnn') || ''; } catch {}
-    if(an && an.id !== seen) annBanner = `<div class="av-waitlist" style="max-width:520px;margin:0 auto 14px;text-align:center;">📣 ${escapeCm(an.text)} <button type="button" class="club-guide-btn" data-clubspage="avail" data-annid="${escapeCm(an.id)}" style="padding:6px 14px;font-size:13px;margin:6px 4px 0;">Add my availability</button><button type="button" class="av-link" id="availAnnDismiss" data-annid="${escapeCm(an.id)}" style="margin-top:6px;">Dismiss</button></div>`; }
+    if(an && an.id !== seen) annBanner = `<div class="av-waitlist" style="max-width:520px;margin:0 auto 14px;text-align:center;">📣 ${escapeCm(an.text)}${state.availDeadline ? ` <strong>Deadline: ${escapeCm(new Date(state.availDeadline + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' }))}</strong>` : ''} <button type="button" class="club-guide-btn" data-clubspage="avail" data-annid="${escapeCm(an.id)}" style="padding:6px 14px;font-size:13px;margin:6px 4px 0;">Add my availability</button><button type="button" class="av-link" id="availAnnDismiss" data-annid="${escapeCm(an.id)}" style="margin-top:6px;">Dismiss</button></div>`; }
   return `${topRow}${pendingBanner}${annBanner}
     <div class="clubs-big-btns">
       ${bigBtn('avail', '📅', 'Availability', 'Add yours &amp; see everyone\'s')}
@@ -6451,7 +6557,7 @@ let AVAIL_PERIOD = { start:'2026-10-08', end:'2026-10-20' }; // same default as 
 async function loadAvailPeriod(){
   try {
     const r = await fetch('/api/avail-period', { cache:'no-store' });
-    if(r.ok){ const p = await r.json(); if(p && p.start && p.end){ AVAIL_PERIOD = { start:p.start, end:p.end }; state.availAnnounce = p.announce || null; } }
+    if(r.ok){ const p = await r.json(); if(p && p.start && p.end){ AVAIL_PERIOD = { start:p.start, end:p.end }; state.availAnnounce = p.announce || null; state.availDeadline = p.deadline || ''; } }
   } catch {}
 }
 function iavNext15Dates(){
@@ -7850,6 +7956,7 @@ function periodAdminHtml(){
       <label style="flex:1;min-width:140px;font-size:12px;color:#776867;">First day<input type="date" id="periodStart" value="${escapeCm(AVAIL_PERIOD.start)}" style="${inp}width:100%;"></label>
       <label style="flex:1;min-width:140px;font-size:12px;color:#776867;">Last day<input type="date" id="periodEnd" value="${escapeCm(AVAIL_PERIOD.end)}" style="${inp}width:100%;"></label>
     </div>
+    <label style="display:block;font-size:12px;color:#776867;margin-bottom:8px;">Fill-in deadline (optional — shown to members and in the messages)<input type="date" id="periodDeadline" value="${escapeCm(state.availDeadline || '')}" style="${inp}width:100%;"></label>
     <button type="button" class="club-guide-btn" id="periodSave" style="background:var(--blush);">Save period</button>
     <span id="periodStatus" style="font-size:12px;margin-left:8px;"></span>
     <p class="ideas-hint" style="text-align:left;margin:8px 0 0;">Changing the period doesn't delete anyone's answers — dates outside it just stop showing. Up to 45 days.</p>
@@ -7875,20 +7982,21 @@ function periodHistoryHtml(fmt){
 }
 function periodAnnouncePopup(){
   const fmt = k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' });
-  const range = `${fmt(AVAIL_PERIOD.start)} → ${fmt(AVAIL_PERIOD.end)}`;
+  const range = `${fmt(AVAIL_PERIOD.start)} → ${fmt(AVAIL_PERIOD.end)}`, dlv = state.availDeadline || '';
+  const dlText = dlv ? ` Please fill it in by ${new Date(dlv + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric' })}.` : '';
   const users = (Array.isArray(state.cmAdminAllUsers) ? state.cmAdminAllUsers : []).filter(u => !u.archived);
   const withPhone = users.filter(u => admWhatsAppLink(u.phone, 'x'));
   const { wrap, close } = ideaPopup(`
     <h3 style="margin:0 0 6px;">📣 New period saved — tell everyone?</h3>
     <p class="ideas-hint" style="text-align:left;margin:0 0 8px;"><strong>${escapeCm(range)}</strong></p>
-    <textarea id="paMsg" rows="2" maxlength="240" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font:inherit;">A new availability period is open (${escapeCm(range)}) — add yours! 🌸</textarea>
+    <textarea id="paMsg" rows="2" maxlength="240" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font:inherit;">A new availability period is open (${escapeCm(range)}) — add yours!${escapeCm(dlText)} 🌸</textarea>
     <div style="display:flex;gap:8px;margin:8px 0;flex-wrap:wrap;">
       <button type="button" class="club-guide-btn" id="paApp" style="flex:1;min-width:160px;text-align:center;background:var(--brand-rose);color:#fff;">📲 Announce in the app + push (${users.length})</button>
     </div>
     <div id="paStatus" style="font-size:13px;min-height:18px;"></div>
     <p class="idea-pop-h">💬 Message people personally on WhatsApp (${withPhone.length} with a number)</p>
     <p class="ideas-hint" style="text-align:left;margin:0 0 6px;">Each button opens WhatsApp with your wording from Settings → WhatsApp messages. Tap Done on someone you've messaged.</p>
-    <div id="paList" style="max-height:38vh;overflow:auto;">${withPhone.map(u => `<div class="pa-row" data-uid="${escapeCm(u.id)}" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(0,0,0,.1);"><span style="flex:1;font-weight:600;">${escapeCm(u.name)}</span><a class="pa-wa" target="_blank" rel="noopener" href="${escapeCm(admWhatsAppLink(u.phone, waMsg('newPeriod', u.name, range)))}" style="text-decoration:none;border:2px solid #25a244;background:#e6f4ea;border-radius:999px;padding:4px 12px;font-weight:700;color:#14532d;">💬 WhatsApp</a></div>`).join('') || '<p class="av-msg">No phone numbers on file yet.</p>'}</div>
+    <div id="paList" style="max-height:38vh;overflow:auto;">${withPhone.map(u => `<div class="pa-row" data-uid="${escapeCm(u.id)}" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(0,0,0,.1);"><span style="flex:1;font-weight:600;">${escapeCm(u.name)}</span><a class="pa-wa" target="_blank" rel="noopener" href="${escapeCm(admWhatsAppLink(u.phone, waMsg('newPeriod', u.name, range, dlv)))}" style="text-decoration:none;border:2px solid #25a244;background:#e6f4ea;border-radius:999px;padding:4px 12px;font-weight:700;color:#14532d;">💬 WhatsApp</a></div>`).join('') || '<p class="av-msg">No phone numbers on file yet.</p>'}</div>
     <button type="button" class="club-guide-btn" id="paDone" style="width:100%;margin-top:10px;text-align:center;">Done</button>`);
   wrap.querySelector('#paDone').addEventListener('click', close);
   wrap.querySelectorAll('.pa-wa').forEach(a => a.addEventListener('click', () => { a.textContent = '✓ Opened'; a.style.opacity = '.6'; }));
@@ -7896,9 +8004,9 @@ function periodAnnouncePopup(){
     const btn = e.target, st = wrap.querySelector('#paStatus'), msg = wrap.querySelector('#paMsg').value.trim();
     btn.disabled = true; st.style.color = '#373d3b'; st.textContent = 'Sending…';
     try {
-      await leadApi('POST', '/api/admin/avail-period/announce', { message: msg });
+      await leadApi('POST', '/api/admin/avail-period/announce', { message: msg, deadline: dlv });
       let sent = 0;
-      if(users.length){ const d = await admSendPush(users.map(u => u.id), '📅 New availability period', msg || 'A new availability period is open — add yours!', '/#/clubs/availability'); sent = d.sent || 0; }
+      if(users.length){ const d = await admSendPush(users.map(u => u.id), '📅 New availability period', msg || 'A new availability period is open — add yours!', '/#/clubs/availability', 'announcements'); sent = d.sent || 0; }
       st.style.color = '#2a7a4a'; st.textContent = `✓ Announced in the app (a banner on everyone's Clubs page) and sent to ${sent} device${sent === 1 ? '' : 's'}.`;
     } catch(err){ btn.disabled = false; st.style.color = '#c00'; st.textContent = err.message; }
   });
@@ -7909,7 +8017,8 @@ function wirePeriodAdmin(){
     const st = document.getElementById('periodStatus'); st.style.color = '#776867'; st.textContent = 'Saving…';
     const start = document.getElementById('periodStart').value, end = document.getElementById('periodEnd').value;
     try {
-      const d = await leadApi('PUT', '/api/admin/avail-period', { start, end });
+      const d = await leadApi('PUT', '/api/admin/avail-period', { start, end, deadline: (document.getElementById('periodDeadline') || {}).value || '' });
+      state.availDeadline = d.deadline || '';
       AVAIL_PERIOD = { start:d.start, end:d.end };
       state.eavCache = {}; state.ideaAvailAllLoadedFor = null; admAvail.people = null;
       admAvail.month = String(d.start).slice(0, 7); admAvail.day = null; admAvail.person = null;
@@ -8219,6 +8328,12 @@ async function openAdminProfile(userId){
       ${(u.waitlist || []).filter(c => !(u.clubs || []).includes(c)).length ? row('Standby for', tags(u.waitlist.filter(c => !(u.clubs || []).includes(c)))) : ''}
       <p class="ideas-hint" style="margin:10px 0 0;">Sign-in times only start being recorded from now, so older members show "Not recorded yet" until they next sign in.</p>
       <div style="margin-top:14px;text-align:center;"><button type="button" id="admProfEditBtn" style="min-height:46px;padding:11px 26px;border-radius:999px;border:2px solid var(--brand-brown);background:var(--brand-blush);color:var(--brand-brown);font-weight:700;font-size:15px;cursor:pointer;">${state.cmAdminLoggedIn === true ? '✏️ Edit profile' : '✏️ Edit my clubs'}</button></div>`;
+    if(admWhatsAppLink(u.phone, 'x')){
+      const wl = (k) => admWhatsAppLink(u.phone, waMsg(k, u.name, k === 'newPeriod' ? `${new Date(AVAIL_PERIOD.start + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' })} → ${new Date(AVAIL_PERIOD.end + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' })}` : '', k === 'newPeriod' ? state.availDeadline : ''));
+      const wb = 'display:inline-block;margin:4px 4px 0 0;padding:8px 14px;border-radius:999px;border:2px solid #25a244;background:#e6f4ea;color:#14532d;font-weight:700;font-size:13px;text-decoration:none;';
+      card.querySelector('#admProfEditBtn').parentElement.insertAdjacentHTML('beforebegin', `<div style="margin-top:14px;text-align:center;"><div style="font-size:12px;color:#776867;font-weight:700;margin-bottom:2px;">💬 Ready-made WhatsApp messages</div>
+        <a target="_blank" rel="noopener" href="${escapeCm(wl('welcome'))}" style="${wb}">👋 Welcome</a><a target="_blank" rel="noopener" href="${escapeCm(wl('remind'))}" style="${wb}">⏰ Add availability</a><a target="_blank" rel="noopener" href="${escapeCm(wl('newPeriod'))}" style="${wb}">🗓️ New period</a><a target="_blank" rel="noopener" href="${escapeCm(wl('notif'))}" style="${wb}">🔔 Turn on notifications</a></div>`);
+    }
     card.querySelector('#admProfEditBtn').addEventListener('click', () => admProfileEdit(wrap, u));
     card.querySelector('#admProfEditBtn').insertAdjacentHTML('afterend', ` <button type="button" id="admProfArchiveBtn" style="min-height:46px;padding:11px 22px;border-radius:999px;border:2px solid var(--brand-brown);background:#fff3cf;color:var(--brand-brown);font-weight:700;font-size:15px;cursor:pointer;margin-left:6px;">${admIsArchived(u) ? '♻️ Restore' : '📦 Archive'}</button>`);
     card.querySelector('#admProfArchiveBtn').addEventListener('click', () => admArchiveDialog(u, wrap));
@@ -8242,8 +8357,8 @@ async function cmAdminDeleteProfile(id, name){
 
 
 // ---- Admin: push notifications (stats + composer) ----
-async function admSendPush(userIds, title, body, url){
-  const res = await fetch('/api/admin/push/send', { method:'POST', headers:{ 'Content-Type':'application/json' }, credentials:'include', body: JSON.stringify({ userIds, title, body, url: url || '/#/clubs' }) });
+async function admSendPush(userIds, title, body, url, category){
+  const res = await fetch('/api/admin/push/send', { method:'POST', headers:{ 'Content-Type':'application/json' }, credentials:'include', body: JSON.stringify({ userIds, title, body, url: url || '/#/clubs', category: category || 'announcements' }) });
   const d = await res.json().catch(() => ({}));
   if(!res.ok) throw new Error(d.error || 'Could not send');
   return d;
@@ -8260,6 +8375,7 @@ function pushAdminHtml(){
       <option value="on">Everyone with notifications on (${on.length})</option>
       <option value="noavail">Haven't added availability yet</option>${clubOpts}
     </select>
+    <select id="pushCat" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;background:#fff;margin-bottom:8px;" title="People can turn each kind off in Settings"><option value="reminders">Kind: ⏰ Reminder</option><option value="announcements" selected>Kind: 📣 Announcement</option><option value="events">Kind: 📅 Event</option><option value="clubs">Kind: 🏛️ Club update</option><option value="squads">Kind: 🪁 Squad update</option></select>
     <input id="pushTitle" maxlength="80" placeholder="Title" value="📅 Add your availability" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;margin-bottom:8px;box-sizing:border-box;">
     <textarea id="pushBody" maxlength="240" rows="2" placeholder="Message" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;margin-bottom:8px;box-sizing:border-box;">Please add your availability so we can pick times that work for everyone.</textarea>
     <div id="pushLastLine" style="margin-bottom:8px;">${admLastRemindLine('push')}</div>
@@ -8289,7 +8405,7 @@ function wirePushAdmin(){
     if(!confirm(`Send "${title}" to ${ids.length} ${ids.length === 1 ? 'person' : 'people'}?` + admLastRemindText('push'))) return;
     send.disabled = true; res.style.color = '#373d3b'; res.textContent = 'Sending…';
     try {
-      const d = await admSendPush(ids, title, body);
+      const d = await admSendPush(ids, title, body, undefined, (document.getElementById('pushCat') || {}).value);
       res.style.color = '#2a7a4a';
       res.textContent = `✓ Sent to ${d.sent} device${d.sent === 1 ? '' : 's'}.` + (d.noPush ? ` ${d.noPush} ${d.noPush === 1 ? 'person has' : 'people have'} notifications off (use Who hasn't? to nudge them).` : '');
     } catch(err){ res.style.color = '#c00'; res.textContent = err.message; }
@@ -8350,13 +8466,15 @@ const WA_DEFAULTS = {
   remind: "Hi {first}! Quick reminder to add your availability on 4DASISTAS so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs",
   notif: "Hi {first}! Please open 4DASISTAS from your Home Screen and tap Allow notifications so we can send you reminders 💛 4dasistas.ca",
   joinAccept: "Hi {first}! You've been accepted into the {club} club on 4DASISTAS 🎉 Open the app to see it.",
-  newPeriod: "Hi {first}! 🌸 A new availability period is open: {club}. Please add yours on 4DASISTAS so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs/availability",
+  newPeriod: "Hi {first}! 🌸 A new availability period is open: {club}. Please add yours on 4DASISTAS{deadline} so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs/availability",
+  welcome: "Hi {first}! 🌸 Welcome to 4DASISTAS — we're so happy you're here! Log in with your username and PIN at 4dasistas.ca, add your availability, and say hi in your club 💛",
   joinDecline: "Hi {first}, thanks for requesting the {club} club on 4DASISTAS. We couldn't approve it this time — message us if you have questions.",
 };
-function waMsg(key, name, club){
+function waMsg(key, name, club, deadline){
   const t = (state.waTemplates && state.waTemplates[key]) || WA_DEFAULTS[key];
   const first = String(name || '').trim().split(/\s+/)[0] || 'there';
-  return t.replace(/\{first\}/g, first).replace(/\{name\}/g, String(name || '')).replace(/\{club\}/g, club || 'the');
+  const dl = deadline ? ' by ' + new Date(deadline + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric' }) : '';
+  return t.replace(/\{first\}/g, first).replace(/\{name\}/g, String(name || '')).replace(/\{club\}/g, club || 'the').replace(/\{deadline\}/g, dl);
 }
 async function loadWaTemplates(){
   try { const r = await fetch('/api/admin/wa-templates', { credentials:'include' }); if(r.ok) state.waTemplates = (await r.json()).templates || {}; } catch {}
@@ -8366,7 +8484,8 @@ function waTemplatesAdminHtml(){
   return `<div class="cp-box"><p style="font-size:12px;color:#776867;margin:0;line-height:1.5;">The text that's pre-filled when you tap a WhatsApp button. Use <code>{first}</code> (first name), <code>{name}</code> (full name) and <code>{club}</code> (club). You can still edit it in WhatsApp before sending.</p>
     ${f('remind', '⏰ Availability reminder', 'The green "WhatsApp reminder" button in the availability calendar.')}
     ${f('notif', '🔔 Turn on notifications', 'Nudge for people who haven\'t turned notifications on.')}
-    ${f('newPeriod', '🗓️ New availability period', 'Offered when you open a new period. {club} is replaced by the dates.')}
+    ${f('welcome', '👋 Welcome a new member', 'The "💬 WhatsApp" buttons on a profile. Use {first} / {name}.')}
+    ${f('newPeriod', '🗓️ New availability period', 'Offered when you open a new period. {club} = the dates, {deadline} = " by <day>" (blank if no deadline).')}
     ${f('joinAccept', '✅ Club request accepted', 'Offered after you accept a join request.')}
     ${f('joinDecline', '❌ Club request declined', 'Offered after you decline a join request.')}
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><button type="button" class="club-guide-btn" id="waTplSave" style="background:var(--blush);">Save wording</button><button type="button" class="club-guide-btn" id="waTplReset" style="padding:6px 14px;font-size:12px;">Reset all to default</button></div>
@@ -8488,12 +8607,13 @@ async function admAnswerJoin(clubId, userId, action){
   const id = `j:${clubId}:${userId}`;
   const req = (admNotif.items.find(i => i.id === id) || {}).r || (state.cmAdminJoinRequests || []).find(r => r.clubId === clubId && r.userId === userId);
   // INSTANT: the row disappears the moment you tap; the server call runs in the background and the row returns only if it fails.
+  admHideRequestRows({ 'club-id': clubId, 'user-id': userId });
   const keepItems = admNotif.items, keepReqs = state.cmAdminJoinRequests;
   admNotif.dismissed.add(id);
   admNotif.items = admNotif.items.filter(i => i.id !== id);
   state.cmAdminJoinRequests = (state.cmAdminJoinRequests || []).filter(r => !(r.clubId === clubId && r.userId === userId));
   admUpdateBell(); if(admNotif.panel) admRenderPanel();
-  if(state.tab === 'clubs' || state.tab === 'admin') render();
+  setTimeout(() => { if(state.tab === 'clubs' || state.tab === 'admin') render(); }, 30);
   try {
     const res = await fetch('/api/admin/join-requests/' + encodeURIComponent(clubId) + '/' + encodeURIComponent(userId) + '/' + action, { method:'POST', credentials:'include' });
     const data = await res.json().catch(() => ({}));
@@ -8833,9 +8953,10 @@ function renderClubAdminPanel(){
   const clubsGrid = `
     ${inboxAdminHtml(lead)}
     ${admSec('clubtools', '🏛️ Club events & quick member', clubToolsHtml, false)}
+    ${lead ? '' : admSec('clubdir', '🏛️ Club directory (add / edit clubs)', clubDirListHtml(), false)}
   `;
   const squadsGrid = lead ? '' : admSec('squads', '🪁 Squads — requests &amp; invite links', squadAdminHtml(), true, 'flat');
-  const directoryGrid = lead ? '' : admSec('clubdir', '🏛️ Club directory', clubDirListHtml(), true, 'flat') + admSec('labels-res', '🏷️ Names of resource categories', labelsAdminHtml('resource'), false);
+  const directoryGrid = lead ? '' : admSec('labels-res', '🏷️ Names of resource categories', labelsAdminHtml('resource'), true, 'flat');
   const missingN = state.cmAdminLoggedIn === true && ALL_ITEMS.length ? buildMissingDetailsQueue().length : 0;
   const calendarGrid = `
     ${state.cmAdminLoggedIn === true ? `<div style="margin:6px 0 12px;">${missingN ? `<button type="button" class="club-guide-btn" id="admMissingBtn" style="min-height:44px;padding:8px 18px;text-align:center;background:#fff3cd;">📋 ${missingN} need${missingN === 1 ? 's' : ''} details</button>` : '<p class="av-msg" style="margin:0;">📋 Every calendar event has its details. 🎉</p>'}</div>` : ''}
@@ -8886,7 +9007,7 @@ function admGroupTilesHtml(lead, cur){
   return `<div class="adm-tiles" style="grid-template-columns:repeat(3, minmax(0,1fr));">
     ${tile('clubs', '🏛️', 'Clubs', 'Requests · events', admInboxCount())}
     ${lead ? '' : tile('squads', '🪁', 'Squads', 'Requests · invite links', sqReqs || '')}
-    ${lead ? '' : tile('directory', '📖', 'Directory', 'Club directory', '')}
+    ${lead ? '' : tile('directory', '📖', 'Directory', 'Resource names', '')}
     ${tile('calendar', '📅', 'The Calendar', 'Events · availability', '')}
     ${tile('profiles', '👥', 'Profiles', 'People · clubs · squads', '')}
     ${lead ? '' : tile('settings', '⚙️', 'Settings', 'Push · club admins · labels', '')}
@@ -9439,7 +9560,7 @@ function admAvailWire(){
     if(!confirm('Send a push notification to ' + ids.length + ' people who haven\'t added their availability?' + admLastRemindText('push'))) return;
     pushMissing.disabled = true; msg.style.color = '#373d3b'; msg.textContent = 'Sending…';
     try {
-      const d = await admSendPush(ids, '📅 Add your availability', 'Please add your availability so we can pick times that work for everyone.', '/#/clubs');
+      const d = await admSendPush(ids, '📅 Add your availability', 'Please add your availability so we can pick times that work for everyone.', '/#/clubs', 'reminders');
       admLoadLastReminders().then(() => admAvailRepaint());
       msg.style.color = '#2a7a4a'; msg.textContent = `✓ Sent to ${d.sent} device${d.sent === 1 ? '' : 's'}.` + (d.noPush ? ` ${d.noPush} ${d.noPush === 1 ? 'person has' : 'people have'} notifications off.` : '');
     } catch(err){ msg.style.color = '#c00'; msg.textContent = err.message; }

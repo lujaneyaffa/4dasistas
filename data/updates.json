@@ -1,18 +1,29 @@
 {
   "updates": [
     {
+      "no": 12,
+      "date": "2026-10-11",
+      "title": "More notification choices",
+      "items": [
+        {
+          "text": "✨ In ⚙️ Settings you can now choose which notifications you get: reminders, announcements, club updates, squad updates and new club events."
+        },
+        {
+          "text": "✨ Ideas that an admin gives a date now show on the club calendar and the main calendar."
+        },
+        {
+          "text": "✨ New availability periods can have a fill-in deadline, shown to members; admins get ready-made WhatsApp messages (welcome, new period with deadline) for each person.",
+          "for": "admin"
+        }
+      ]
+    },
+    {
       "no": 11,
       "date": "2026-10-11",
       "title": "Settings & a cuter club calendar",
       "items": [
         {
           "text": "✨ New ⚙️ Settings (top-right power button): change your profile picture, last name, username and PIN, see your clubs, and turn notifications on or off."
-        },
-        {
-          "text": "✨ The club calendar is now a small month view with a List option — tap a day or an event to see details."
-        },
-        {
-          "text": "✨ Club events can have a last day to RSVP, and after it RSVPs close."
         },
         {
           "text": "✨ Admins can see who went to past events and add people who came along.",
@@ -27,9 +38,6 @@
       "items": [
         {
           "text": "✨ Club calendar events now show on the main calendar too (name + date) — tap one to log in and RSVP."
-        },
-        {
-          "text": "✨ Collab events: an event can belong to more than one club."
         },
         {
           "text": "✨ When a new availability period opens you'll see a banner on your Clubs page with a button to add yours."
@@ -58,29 +66,6 @@
         {
           "text": "✨ Admins and club admins can add, edit and remove events and see who's coming (and who's waiting for approval).",
           "for": "lead"
-        },
-        {
-          "text": "✨ Pick an emoji for your idea bubble — skip it and we choose one for you."
-        },
-        {
-          "text": "✨ Quick price buttons are now $25 and Free."
-        },
-        {
-          "text": "✨ Your club bubbles are back on the home page: tap one to see its ideas and who's free in that club."
-        }
-      ]
-    },
-    {
-      "no": 8,
-      "date": "2026-10-11",
-      "title": "Easier ideas & clubs",
-      "items": [
-        {
-          "text": "✨ Adding an idea no longer needs a Google Maps link — it's optional now."
-        },
-        {
-          "text": "✨ A club that an admin deletes now stays deleted (it used to reappear a few minutes later).",
-          "for": "admin"
         }
       ]
     },
@@ -194,9 +179,6 @@
         },
         {
           "text": "✨ Your clubs, Travel, About and Add to Home Screen now float as round bubbles."
-        },
-        {
-          "text": "✨ The menu is always one tidy row on phones, with a search icon."
         }
       ]
     },
@@ -210,9 +192,6 @@
         },
         {
           "text": "✨ Turn on notifications to hear about approvals, reminders and event updates."
-        },
-        {
-          "text": "✨ Idea bubbles are smoother and their text is never cut off."
         }
       ]
     }

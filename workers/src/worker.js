@@ -552,7 +552,10 @@ const vapidAuthHeader = async (env, endpoint) => {
   return `vapid t=${head}.${claims}.${b64urlBytes(sig)}, k=${VAPID_PUBLIC_KEY}`;
 };
 // Send one notification to every device a member registered. Returns { sent, removed, devices }.
+// Members choose which kinds of notification they get (Settings → Notifications); `message.cat` is the kind.
+const NOTIF_CATS = ["reminders", "announcements", "clubs", "squads", "events"];
 const sendPushToUser = async (env, userId, message) => {
+  if (message.cat) { const u = await readUser(env, userId); if (u && Array.isArray(u.notifOff) && u.notifOff.includes(message.cat)) return { sent: 0, removed: 0, devices: 0, muted: true }; }
   const subs = await readPushSubs(env, userId);
   if (!subs.length || !env.VAPID_PRIVATE_JWK) return { sent: 0, removed: 0, devices: subs.length };
   let sent = 0; const keep = [];
@@ -889,13 +892,14 @@ const writeClubEvents = async (env, clubId, events) => {
 
 // ---- Club calendar: one KV doc holds every club's events ({id, clubId, title, date, time, place, desc, rsvps:[{id,name,status:"going"|"pending",at}]}). ----
 // The public sees only title + date; details and RSVP need a member sign-in. Members of the club are "going" at once; anyone else becomes "pending" until an admin accepts.
+let _calIdeaCache = null;
 const CLUBCAL_KEY = "clubcal";
 const readClubCal = async (env) => { try { const r = await env.SITE_DATA.get(CLUBCAL_KEY); const a = r ? JSON.parse(r) : []; return Array.isArray(a) ? a : []; } catch { return []; } };
 const writeClubCal = (env, a) => env.SITE_DATA.put(CLUBCAL_KEY, JSON.stringify(a));
 const cleanCalText = (v, n) => String(v || "").replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
 // A collab event belongs to several clubs: `clubIds` (clubId = the first, kept for older data).
 const calClubs = (e) => (Array.isArray(e.clubIds) && e.clubIds.length ? e.clubIds : [e.clubId]).filter(Boolean);
-const calFields = (b) => ({ title: cleanCalText(b.title, 80), date: String(b.date || ""), time: cleanCalText(b.time, 30), place: cleanCalText(b.place, 120), rsvpBy: /^\d{4}-\d{2}-\d{2}$/.test(String(b.rsvpBy || "")) ? String(b.rsvpBy) : "", desc: String(b.desc || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 600) });
+const calFields = (b) => ({ title: cleanCalText(b.title, 80), date: String(b.date || ""), time: cleanCalText(b.time, 30), place: cleanCalText(b.place, 200), rsvpBy: /^\d{4}-\d{2}-\d{2}$/.test(String(b.rsvpBy || "")) ? String(b.rsvpBy) : "", desc: String(b.desc || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 600) });
 const isValidDateString = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + "T00:00:00Z"));
 
 const dateRange = (startDate, endDate) => {
@@ -1439,6 +1443,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         await releaseUsername(env, user.username);
         user.username = nu;
       }
+      if (Array.isArray(body.notifOff)) user.notifOff = [...new Set(body.notifOff.map(String))].filter((c) => NOTIF_CATS.includes(c));
       if (body.newPin !== undefined) {
         const newPin = String(body.newPin || "").trim();
         if (!/^\d{4}$/.test(newPin)) return jsonResponse({ error: "PIN must be exactly 4 digits" }, 400, corsHeaders);
@@ -1568,7 +1573,14 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const cutoff = new Date(Date.now() - 36 * 3600 * 1000).toISOString().slice(0, 10);
         const events = (await readClubCal(env)).filter((e) => e.date >= cutoff).sort((a, b) => a.date.localeCompare(b.date) || String(a.time).localeCompare(String(b.time)))
           .map((e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "" }));
-        return jsonResponse({ events }, 200, corsHeaders);
+        // Idea bubbles that the admin gave a DATE also show on the calendars (cached ~2 minutes so this stays cheap).
+        if (!_calIdeaCache || Date.now() - _calIdeaCache.at > 120000) {
+          const items = [];
+          for (const c of roster) for (const i of await readClubIdeas(env, c.id)) if (i && /^\d{4}-\d{2}-\d{2}$/.test(i.date || "")) items.push({ id: `idea:${c.id}:${i.id}`, kind: "idea", clubId: c.id, clubIds: [c.id], clubTitle: c.title || "", title: i.title, emoji: i.emoji || "", date: i.date, time: "", done: !!i.done });
+          _calIdeaCache = { at: Date.now(), items };
+        }
+        const ideaItems = _calIdeaCache.items.filter((i) => i.date >= cutoff);
+        return jsonResponse({ events: events.concat(ideaItems).sort((a, b) => a.date.localeCompare(b.date)) }, 200, corsHeaders);
       }
       if (calMatch[1]) {
         const who = await ideaWho();
@@ -1883,7 +1895,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const clubs = await allClubIdsContaining(env, me.id);
       let notices = [];
       try { notices = JSON.parse((await env.SITE_DATA.get(`notice:${me.id}`)) || "[]"); } catch {}
-      return jsonResponse({ ...publicUser(me), clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs), notices, push: (await readPushSubs(env, me.id)).length > 0, phone: me.phone || "", phoneConfirmed: !!(me.phoneConfirmedAt || me.phone), ...(await (async () => {
+      return jsonResponse({ ...publicUser(me), clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs), notices, push: (await readPushSubs(env, me.id)).length > 0, notifOff: Array.isArray(me.notifOff) ? me.notifOff : [], phone: me.phone || "", phoneConfirmed: !!(me.phoneConfirmedAt || me.phone), ...(await (async () => {
         // squads: ids the member is IN (with that squad's private invite link) and ids still waiting for approval
         const squads = [];
         for (const id of Object.keys(SQUAD_TITLES)) if ((await readSquadMemberIds(env, id)).includes(me.id)) squads.push({ id, link: (await env.SITE_DATA.get(squadLinkKey(id))) || "" });
@@ -2282,7 +2294,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (path === "/api/avail-period" && request.method === "GET") {
       const cur = await readAvailPeriod(), doc = await readAvailDoc();
       const ann = doc.announce && doc.announce.start === cur.start && doc.announce.end === cur.end ? { id: doc.announce.id, text: doc.announce.text } : null;
-      return jsonResponse({ ...cur, ...(ann ? { announce: ann } : {}) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      return jsonResponse({ ...cur, ...(doc.deadline ? { deadline: doc.deadline } : {}), ...(ann ? { announce: ann } : {}) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     // Every period the admin has opened is kept, so an old one can be opened again to look at everyone's availability then.
     if (path === "/api/admin/avail-periods" && request.method === "GET") {
@@ -2296,6 +2308,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const cur = await readAvailPeriod(), doc = await readAvailDoc();
       const text = String(body.message || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f<>]/g, " ").trim().slice(0, 240);
       doc.announce = text ? { id: crypto.randomUUID(), text, start: cur.start, end: cur.end, at: Date.now() } : null;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(String(body.deadline || ""))) doc.deadline = String(body.deadline);
       await env.SITE_DATA.put("availperiod", JSON.stringify({ ...doc, start: cur.start, end: cur.end }));
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
@@ -2306,13 +2319,14 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!isValidDateString(start) || !isValidDateString(end)) return jsonResponse({ error: "Pick a start and an end date" }, 400, corsHeaders);
       if (end < start) return jsonResponse({ error: "The end date can't be before the start date" }, 400, corsHeaders);
       if ((Date.parse(end + "T00:00:00Z") - Date.parse(start + "T00:00:00Z")) / 86400000 > 45) return jsonResponse({ error: "Keep the period to 45 days or less" }, 400, corsHeaders);
+      const deadline = /^\d{4}-\d{2}-\d{2}$/.test(String(body.deadline || "")) ? String(body.deadline) : "";
       const prev = await readAvailPeriod();
       let hist = await readPeriodHistory();
       for (const per of [prev, { start, end }]) if (!hist.some((h) => h.start === per.start && h.end === per.end)) hist.unshift({ start: per.start, end: per.end, at: Date.now() });
       hist.sort((a, b) => b.start.localeCompare(a.start));
       await env.SITE_DATA.put("availperiods", JSON.stringify(hist.slice(0, 40)));
-      await env.SITE_DATA.put("availperiod", JSON.stringify({ start, end, at: Date.now() }));
-      return jsonResponse({ ok: true, start, end, changed: prev.start !== start || prev.end !== end }, 200, corsHeaders);
+      await env.SITE_DATA.put("availperiod", JSON.stringify({ start, end, deadline, at: Date.now() }));
+      return jsonResponse({ ok: true, start, end, deadline, changed: prev.start !== start || prev.end !== end }, 200, corsHeaders);
     }
 
     // Editable display names for resource categories and event genres (keys stay fixed; only the words people see change).
@@ -2456,6 +2470,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (title.length < 3 || title.length > 80) return jsonResponse({ error: "The title needs 3–80 characters" }, 400, corsHeaders);
         idea.title = title;
       }
+      _calIdeaCache = null;
       if (body.mapUrl !== undefined) {
         const mapUrl = String(body.mapUrl || "").trim() === "" ? "" : isGoogleMapsUrl(body.mapUrl);
         if (mapUrl === null) return jsonResponse({ error: "That isn't a Google Maps link" }, 400, corsHeaders);
@@ -2528,7 +2543,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const clubTitle = ((await readClubRoster(env)).find((c) => c.id === clubId) || {}).title || "the club";
         existing.push({ id: crypto.randomUUID(), type: adminJoinActionMatch[3] === "accept" ? "accepted" : "declined", clubId, clubTitle, at: Date.now() });
         await env.SITE_DATA.put(noticeKey, JSON.stringify(existing.slice(-10)));
-        ctx.waitUntil(sendPushToUser(env, userId, adminJoinActionMatch[3] === "accept" ? { title: "You're in! 🎉", body: `Your request to join ${clubTitle} was approved.`, url: "/#/clubs" } : { title: "Update on your request", body: `Your request to join ${clubTitle} wasn't approved this time.`, url: "/#/clubs" }).catch(() => {}));
+        ctx.waitUntil(sendPushToUser(env, userId, adminJoinActionMatch[3] === "accept" ? { title: "You're in! 🎉", body: `Your request to join ${clubTitle} was approved.`, url: "/#/clubs", cat: "clubs" } : { title: "Update on your request", body: `Your request to join ${clubTitle} wasn't approved this time.`, url: "/#/clubs", cat: "clubs" }).catch(() => {}));
       } catch {}
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
@@ -2684,13 +2699,13 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!title || !text) return jsonResponse({ error: "A title and a message are required" }, 400, corsHeaders);
       const link = typeof body.url === "string" && /^\/[#/A-Za-z0-9._~!$&'()*+,;=:@%-]*$/.test(body.url) ? body.url : "/";
       const ids = [...new Set((Array.isArray(body.userIds) ? body.userIds : []).map(String))].slice(0, 500);
-      let sent = 0, noPush = 0, removed = 0;
+      let sent = 0, noPush = 0, removed = 0, muted = 0;
       for (const id of ids) {
-        const r = await sendPushToUser(env, id, { title, body: text, url: link });
-        if (!r.devices) noPush++; else { sent += r.sent; removed += r.removed; }
+        const r = await sendPushToUser(env, id, { title, body: text, url: link, cat: NOTIF_CATS.includes(body.category) ? body.category : "announcements" });
+        if (r.muted) muted++; else if (!r.devices) noPush++; else { sent += r.sent; removed += r.removed; }
       }
       await env.SITE_DATA.put("meta:lastRemind:push", JSON.stringify({ at: Date.now(), sent, noPush, asked: ids.length, title }));
-      return jsonResponse({ sent, noPush, removed, asked: ids.length }, 200, corsHeaders);
+      return jsonResponse({ sent, noPush, removed, muted, asked: ids.length }, 200, corsHeaders);
     }
     // ---- Admin: squads (kept apart from the clubs tools) ----
     if (path === "/api/admin/squad-requests" && request.method === "GET") {
@@ -2718,7 +2733,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const existing = JSON.parse((await env.SITE_DATA.get(noticeKey)) || "[]");
         existing.push({ id: crypto.randomUUID(), type: accept ? "squad-accepted" : "squad-declined", squadId, squadTitle: SQUAD_TITLES[squadId], at: Date.now() });
         await env.SITE_DATA.put(noticeKey, JSON.stringify(existing.slice(-10)));
-        ctx.waitUntil(sendPushToUser(env, userId, accept ? { title: "You're in the squad! 🎉", body: `You were approved for the ${SQUAD_TITLES[squadId]} squad — open the Squads tab for your private link.`, url: "/#/squads" } : { title: "Update on your squad request", body: `Your request for the ${SQUAD_TITLES[squadId]} squad wasn't approved this time.`, url: "/#/squads" }).catch(() => {}));
+        ctx.waitUntil(sendPushToUser(env, userId, accept ? { title: "You're in the squad! 🎉", body: `You were approved for the ${SQUAD_TITLES[squadId]} squad — open the Squads tab for your private link.`, url: "/#/squads", cat: "squads" } : { title: "Update on your squad request", body: `Your request for the ${SQUAD_TITLES[squadId]} squad wasn't approved this time.`, url: "/#/squads", cat: "squads" }).catch(() => {}));
       } catch {}
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
@@ -2917,7 +2932,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     // Wording of the WhatsApp messages the admin sends (availability reminder, notifications nudge, club accepted / declined). {first} {name} {club} are filled in.
-    const WA_KEYS = ["remind", "notif", "joinAccept", "joinDecline", "newPeriod"];
+    const WA_KEYS = ["remind", "notif", "joinAccept", "joinDecline", "newPeriod", "welcome"];
     if (path === "/api/admin/wa-templates" && request.method === "GET") {
       let t = {}; try { t = JSON.parse((await env.SITE_DATA.get("watemplates")) || "{}") || {}; } catch {}
       return jsonResponse({ templates: t }, 200, corsHeaders);
@@ -3056,6 +3071,15 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!adminCalMatch[2] && M === "DELETE") { await writeClubCal(env, all.filter((e) => e.id !== ev.id)); return jsonResponse({ ok: true }, 200, corsHeaders); }
       if (adminCalMatch[2] && M === "POST" && adminCalMatch[3] === "add") {
         // Mark someone as having come along (used for past events, also for people who never RSVPed).
+        if (adminCalMatch[2] === "guest") { // someone WITHOUT a profile: just a name
+          let gb = {}; try { gb = await request.json(); } catch {}
+          const gname = sanitizePersonName(gb.name);
+          if (gname.length < 2) return jsonResponse({ error: "Type their name (2+ letters)" }, 400, corsHeaders);
+          ev.rsvps = ev.rsvps || [];
+          ev.rsvps.push({ id: `g:${crypto.randomUUID().slice(0, 12)}`, name: gname, status: "going", at: Date.now(), added: true, guest: true });
+          await writeClubCal(env, all);
+          return jsonResponse({ ok: true, event: view(ev) }, 200, corsHeaders);
+        }
         const u = await readUser(env, adminCalMatch[2]);
         if (!u) return jsonResponse({ error: "That member no longer exists" }, 404, corsHeaders);
         ev.rsvps = (ev.rsvps || []).filter((x) => x.id !== u.id);
