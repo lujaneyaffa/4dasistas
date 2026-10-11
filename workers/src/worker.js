@@ -3049,6 +3049,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (f.title.length < 3) return jsonResponse({ error: "Give the event a name (3+ letters)" }, 400, corsHeaders);
         if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
         const ev = { id: crypto.randomUUID(), clubId, clubIds, ...f, rsvps: [], at: Date.now() };
+        // Attendees chosen right in the "Add event" form: members (by id) and people without a profile (by name).
+        for (const at of (Array.isArray(body.attendees) ? body.attendees : []).slice(0, 200)) {
+          if (at && at.userId) { const u = await readUser(env, String(at.userId)); if (u && !ev.rsvps.some((r) => r.id === u.id)) ev.rsvps.push({ id: u.id, name: sanitizePersonName(u.name) || "Member", status: "going", at: Date.now(), added: true }); }
+          else if (at && sanitizePersonName(at.name).length >= 2) ev.rsvps.push({ id: `g:${crypto.randomUUID().slice(0, 12)}`, name: sanitizePersonName(at.name), status: "going", at: Date.now(), added: true, guest: true });
+        }
         all.push(ev); await writeClubCal(env, all);
         return jsonResponse({ ok: true, event: view(ev) }, 201, corsHeaders);
       }

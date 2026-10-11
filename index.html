@@ -5881,12 +5881,34 @@ function clubCalForm(ev){
     <div id="cfPlaceSlot"></div>
     <div id="cfPlaceChosen" class="ev-loc-chosen${ev && ev.place ? '' : ' empty'}" style="margin:0 0 8px;">${ev && ev.place ? '📍 ' + escapeCm(ev.place) : 'No place chosen yet'}</div>
     <textarea id="cfDesc" maxlength="600" rows="3" placeholder="Details (optional)" style="${f}">${escapeCm(ev ? ev.desc : '')}</textarea>
+    ${ev ? '' : `<p class="idea-pop-h" style="margin:6px 0 4px;">👥 Who's going? (optional)</p>
+      <div id="cfChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>
+      <input id="cfAttSearch" type="search" placeholder="Search a member by name…" autocomplete="off" style="${f}margin-bottom:4px;">
+      <div id="cfAttResults" style="max-height:22vh;overflow:auto;margin-bottom:6px;"></div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;"><input id="cfGuestName" type="text" maxlength="30" placeholder="Or add a name (no profile needed)" style="flex:1;min-width:0;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;"><button type="button" id="cfGuestAdd" class="club-guide-btn" style="padding:6px 14px;text-align:center;">+ Add</button></div>`}
     <div id="cfMsg" style="font-size:13px;color:#c00;min-height:18px;margin-bottom:6px;"></div>
     <button type="button" class="club-guide-btn" id="cfSave" style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">${ev ? 'Save changes' : 'Add event'}</button>`);
   mountClubCalPlace(wrap);
+  const picked = []; // {userId,name} or {name}
+  if(!ev){
+    const chips = wrap.querySelector('#cfChips'), search = wrap.querySelector('#cfAttSearch'), results = wrap.querySelector('#cfAttResults');
+    let users = Array.isArray(state.cmAdminAllUsers) ? state.cmAdminAllUsers : null;
+    const paintChips = () => { chips.innerHTML = picked.map((a, i) => `<span style="display:inline-flex;align-items:center;gap:4px;background:#f2d8d7;border-radius:999px;padding:3px 4px 3px 10px;font-size:13px;font-weight:600;">${escapeCm(a.name)}${a.userId ? '' : ' <small>(no profile)</small>'}<button type="button" class="cfRm" data-i="${i}" aria-label="Remove" style="border:none;background:none;cursor:pointer;color:#76220b;font-size:16px;">×</button></span>`).join(''); chips.querySelectorAll('.cfRm').forEach(b => b.addEventListener('click', () => { picked.splice(Number(b.dataset.i), 1); paintChips(); })); };
+    search.addEventListener('input', async () => {
+      const q = search.value.trim().toLowerCase();
+      if(q.length < 2){ results.innerHTML = ''; return; }
+      if(!users){ results.innerHTML = '<p class="av-msg">Loading members…</p>'; users = await calLoadUsers(); if(search.value.trim().toLowerCase() !== q) return; }
+      const have = new Set(picked.map(a => a.userId));
+      const hits = users.filter(u => !have.has(u.id) && (String(u.name).toLowerCase().includes(q) || String(u.username || '').toLowerCase().includes(q))).slice(0, 8);
+      results.innerHTML = hits.length ? hits.map(u => `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid rgba(0,0,0,.1);"><span style="flex:1;">${escapeCm(u.name)} <small style="color:#776867;">@${escapeCm(u.username || '')}</small></span><button type="button" class="cfPick" data-u="${escapeCm(u.id)}" style="border:2px solid #2a7a4a;background:#e6f4ea;border-radius:999px;padding:4px 10px;cursor:pointer;">+ Add</button></div>`).join('') : '<p class="av-msg">No profile with that name — add it by name below.</p>';
+      results.querySelectorAll('.cfPick').forEach(b => b.addEventListener('click', () => { const u = users.find(x => x.id === b.dataset.u); if(u){ picked.push({ userId:u.id, name:u.name }); search.value = ''; results.innerHTML = ''; paintChips(); } }));
+    });
+    wrap.querySelector('#cfGuestAdd').addEventListener('click', () => { const inp = wrap.querySelector('#cfGuestName'), nm = inp.value.trim(); if(nm.length < 2) return; picked.push({ name:nm }); inp.value = ''; paintChips(); });
+  }
   wrap.querySelector('#cfSave').addEventListener('click', async e => {
     const body = { title: wrap.querySelector('#cfTitle').value, date: wrap.querySelector('#cfDate').value, time: wrap.querySelector('#cfTime').value, place: wrap.querySelector('#cfPlace').value, rsvpBy: wrap.querySelector('#cfRsvpBy').value, desc: wrap.querySelector('#cfDesc').value };
     body.clubIds = [...wrap.querySelectorAll('.cf-club:checked')].map(x => x.value);
+    if(!ev) body.attendees = picked.map(a => a.userId ? { userId:a.userId } : { name:a.name });
     if(!body.clubIds.length){ wrap.querySelector('#cfMsg').textContent = 'Tick at least one club.'; return; }
     e.target.disabled = true;
     try { await clubCalAdminCall(ev ? '/' + encodeURIComponent(ev.id) : '', ev ? 'PUT' : 'POST', body); close(); clubCalReload(); }
