@@ -374,12 +374,19 @@
   .home-quicklinks .club-guide-btn:hover{ scale:1.1; }
   .home-quicklinks .club-guide-btn[data-hometab="homescreen"]{ font-size:13px; line-height:1.2; }
   /* "Clubs you're in" for signed-in members: same round shape + gentle float as Travel / About, always ONE line, club colours + logos */
-  .mini-cal{ max-width:360px; margin:0 auto; padding:10px 10px 12px; border:2px solid var(--brand-brown); border-radius:18px; background:#fff; box-shadow:3px 3px 0 var(--brand-brown); }
+  .mini-cal{ max-width:420px; margin:0 auto; padding:10px 10px 12px; border:2px solid var(--brand-brown); border-radius:18px; background:#fff; box-shadow:3px 3px 0 var(--brand-brown); }
   .mc-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; font-size:15px; }
   .mc-nav{ width:32px; height:32px; border-radius:50%; border:2px solid var(--brand-brown); background:var(--brand-blush,#f2d8d7); font-size:18px; line-height:1; cursor:pointer; color:var(--brand-brown); }
   .mc-week, .mc-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:3px; text-align:center; }
   .mc-week span{ font-size:11px; font-weight:700; color:var(--muted); padding:2px 0; }
-  .mc-day{ aspect-ratio:1; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; border:0; border-radius:10px; background:transparent; font:inherit; font-size:13px; color:var(--charcoal); padding:0; }
+  .mc-day{ min-height:46px; min-width:0; overflow:hidden; display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:1px; border:0; border-radius:10px; background:transparent; font:inherit; font-size:13px; color:var(--charcoal); padding:0; }
+  .mc-n{ font-size:12px; line-height:1.1; text-align:center; }
+  .mc-day em{ display:block; font-style:normal; font-size:8px; line-height:1.15; font-weight:700; border:1px solid; border-radius:4px; padding:1px 2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mc-day b{ font-size:8px; line-height:1; }
+  .mc-agenda{ margin-top:10px; display:flex; flex-direction:column; gap:6px; border-top:2px dashed #f2d8d7; padding-top:8px; }
+  .mc-ev{ display:flex; align-items:center; gap:8px; text-align:left; border:0; background:transparent; padding:2px 0; font:inherit; color:inherit; cursor:pointer; }
+  .mc-ev-d{ flex:0 0 74px; text-align:center; border-radius:9px; padding:6px 2px; font-weight:800; font-size:12px; line-height:1.15; }
+  .mc-ev-t{ display:flex; flex-direction:column; min-width:0; } .mc-ev-t small{ color:var(--muted); font-size:12px; }
   .mc-day.has{ background:#fdf0f2; font-weight:800; cursor:pointer; }
   .mc-day.today{ outline:2px solid var(--brand-rose); }
   .mc-dots{ display:flex; gap:2px; height:6px; align-items:center; } .mc-dots i{ width:6px; height:6px; border-radius:50%; display:block; } .mc-dots b{ font-size:9px; line-height:6px; }
@@ -5636,12 +5643,13 @@ function clubCalGridHtml(list){
   for(let i = 0; i < first.getDay(); i++) cells += '<div></div>';
   for(let d = 1; d <= dim; d++){
     const key = `${m}-${String(d).padStart(2, '0')}`, evs = byDay[key] || [];
-    const dots = evs.slice(0, 3).map(e => `<i style="background:${clubCol(e.clubId).fg};"></i>`).join('');
-    cells += `<button type="button" class="mc-day${evs.length ? ' has' : ''}${key === todayK ? ' today' : ''}" ${evs.length ? `data-calday="${key}"` : 'tabindex="-1"'}><span>${d}</span><span class="mc-dots">${dots}${evs.length > 3 ? '<b>+</b>' : ''}</span></button>`;
+    const chips = evs.slice(0, 2).map(e => `<em style="background:${clubCol(e.clubId).bg};color:${clubCol(e.clubId).fg};border-color:${clubCol(e.clubId).fg};">${escapeCm(e.title)}</em>`).join('');
+    cells += `<button type="button" class="mc-day${evs.length ? ' has' : ''}${key === todayK ? ' today' : ''}" ${evs.length ? `data-calday="${key}"` : 'tabindex="-1"'}><span class="mc-n">${d}</span>${chips}${evs.length > 2 ? `<b>+${evs.length - 2}</b>` : ''}</button>`;
   }
   const label = first.toLocaleDateString('en-CA', { month:'long', year:'numeric' });
   return `<div class="mini-cal"><div class="mc-head"><button type="button" class="mc-nav" data-calnav="-1" aria-label="Previous month">‹</button><strong>${escapeCm(label)}</strong><button type="button" class="mc-nav" data-calnav="1" aria-label="Next month">›</button></div>
-    <div class="mc-week">${['S','M','T','W','T','F','S'].map(x => `<span>${x}</span>`).join('')}</div><div class="mc-grid">${cells}</div></div>`;
+    <div class="mc-week">${['S','M','T','W','T','F','S'].map(x => `<span>${x}</span>`).join('')}</div><div class="mc-grid">${cells}</div>
+    <div class="mc-agenda">${Object.keys(byDay).sort().map(k => byDay[k].map(e => `<button type="button" class="mc-ev" data-calid="${escapeCm(e.id)}"><span class="mc-ev-d" style="background:${clubCol(e.clubId).bg};color:${clubCol(e.clubId).fg};">${escapeCm(calDateLabel(k))}</span><span class="mc-ev-t"><strong>${escapeCm(e.title)}</strong><small>🏷 ${escapeCm(e.clubTitle || avClubTitle(e.clubId))}${e.time ? ' · ' + escapeCm(e.time) : ''}</small></span></button>`).join('')).join('') || '<p class="av-msg" style="margin:6px 0 0;text-align:center;">Nothing this month.</p>'}</div></div>`;
 }
 function clubCalSectionHtml(compact){
   const list = state.clubCal;
@@ -5665,7 +5673,7 @@ function clubCalDayPopup(key){
 }
 function wireClubCal(){
   clubCalLoad();
-  document.querySelectorAll('.cal-row').forEach(b => b.addEventListener('click', () => clubCalOpen(b.dataset.calid)));
+  document.querySelectorAll('.cal-row, .mc-ev').forEach(b => b.addEventListener('click', () => clubCalOpen(b.dataset.calid)));
   document.querySelectorAll('[data-calview]').forEach(b => b.addEventListener('click', () => { state.clubCalView = b.dataset.calview; render(); }));
   document.querySelectorAll('[data-calday]').forEach(b => b.addEventListener('click', () => clubCalDayPopup(b.dataset.calday)));
   document.querySelectorAll('[data-calnav]').forEach(b => b.addEventListener('click', () => {
