@@ -3,14 +3,8 @@
     {
       "no": 8,
       "date": "2026-10-11",
-      "title": "Clubs home: Vote & Availability pages",
+      "title": "Easier ideas & clubs",
       "items": [
-        {
-          "text": "✨ Your Clubs page now has two big buttons — 📅 Availability and 🗳️ Vote — each opens its own page instead of everything showing at once."
-        },
-        {
-          "text": "✨ In more than one club? The Vote page shows a bubble for each club; tap one to vote. Availability still lets you view everyone's by club."
-        },
         {
           "text": "✨ Adding an idea no longer needs a Google Maps link — it's optional now."
         },

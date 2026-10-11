@@ -372,12 +372,12 @@
   .home-quicklinks .club-guide-btn:hover{ scale:1.1; }
   .home-quicklinks .club-guide-btn[data-hometab="homescreen"]{ font-size:13px; line-height:1.2; }
   /* "Clubs you're in" for signed-in members: same round shape + gentle float as Travel / About, always ONE line, club colours + logos */
-  .clubs-big-btns{ display:flex; flex-direction:column; gap:16px; max-width:480px; margin:18px auto 0; }
-  .clubs-big-btn{ width:100% !important; aspect-ratio:auto !important; height:auto !important; min-height:120px; display:flex !important; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:18px 14px !important; text-align:center; background:var(--brand-rose); color:#fff; border-radius:22px; }
+  .clubs-big-btns{ display:flex; flex-direction:row; gap:12px; max-width:520px; margin:18px auto 0; }
+  .clubs-big-btn{ width:100% !important; aspect-ratio:auto !important; height:auto !important; flex:1 1 0; min-width:0; min-height:150px; display:flex !important; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:18px 14px !important; text-align:center; background:var(--brand-rose); color:#fff; border-radius:22px; }
   .clubs-big-btn:nth-child(2){ background:var(--brand-blush); color:var(--brand-brown); }
   .clubs-big-btn .cbb-emoji{ font-size:36px; line-height:1; }
-  .clubs-big-btn .cbb-label{ font-size:26px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; }
-  .clubs-big-btn .cbb-sub{ font-size:13.5px; font-weight:600; opacity:.9; }
+  .clubs-big-btn .cbb-label{ font-size:clamp(15px,4.6vw,24px); overflow-wrap:anywhere; font-weight:800; letter-spacing:.03em; text-transform:uppercase; }
+  .clubs-big-btn .cbb-sub{ font-size:12.5px; font-weight:600; opacity:.9; }
   .club-bubbles{ --ds:1; display:flex; flex-wrap:nowrap; justify-content:center; align-items:center; gap:clamp(16px, 4vw, 44px); padding:22px 8px; margin:6px auto 4px; max-width:900px; }
   .club-bubble{ flex:0 1 clamp(58px, 19vw, 150px); min-width:0; aspect-ratio:1; border-radius:50%; border:2px solid; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:4px; box-sizing:border-box; cursor:pointer; font-family:'Inter',sans-serif; font-weight:800; text-align:center; animation:clubBubbleFloat var(--dur,9s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:translate .5s cubic-bezier(.2,.8,.2,1), scale .3s cubic-bezier(.2,.8,.2,1); -webkit-tap-highlight-color:transparent; }
   .club-bubble:hover{ scale:1.1; }

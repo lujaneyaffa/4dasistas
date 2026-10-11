@@ -24,7 +24,7 @@ To avoid silent conflicts, every agent follows this protocol.
 
 ## After committing
 
-- **✨ "What's new" rule (Lujane's request):** whenever you ship anything a member, club admin or the admin can SEE or USE (new feature, fix, new club…), add an entry to the TOP of `data/updates.json` — `{ "no": <highest no + 1>, "date": "YYYY-MM-DD", "title": "...", "items": [{ "text": "✨ plain-language line" }, { "text": "✨ …", "for": "admin" | "lead" }] }`. After signing in, everyone gets a ✨ pop-up with the updates they haven't seen yet (numbered; admin-only / club-admin-only lines are filtered by `for`). Skip it for invisible refactors. Keep the file valid JSON.
+- **✨ "What's new" rule (Lujane's request):** whenever you ship anything a member, club admin or the admin can SEE or USE (new feature, fix, new club…), add an entry to the TOP of `data/updates.json` — `{ "no": <highest no + 1>, "date": "YYYY-MM-DD", "title": "...", "items": [{ "text": "✨ plain-language line" }, { "text": "✨ …", "for": "admin" | "lead" }] }`. After signing in, everyone gets a ✨ pop-up with the updates they haven't seen yet (numbered; admin-only / club-admin-only lines are filtered by `for`). Skip it for invisible refactors AND for pure design/layout tweaks (button placement, spacing, colours, wording) — Lujane doesn't want those in the pop-up. Keep the file valid JSON.
 - Update "Current Status" back to `IDLE`.
 - Add one entry to the top of the "Recent Activity Log": date, agent,
   files, one-line summary. Keep the last ~15 entries; trim older ones.
@@ -823,6 +823,8 @@ npx wrangler deploy
 ---
 
 ## Recent Activity Log
+
+- 2026-10-11 · Claude · index.html, data/updates.json, service-worker.js (v83) · Clubs home: Availability and Vote big buttons now sit SIDE BY SIDE (`.clubs-big-btns` flex row, wraps on very narrow screens). Removed the layout lines from What's-new #8 and added a rule above: layout/design-only changes don't go in the pop-up.
 
 - 2026-10-11 · Claude · index.html, workers/src/worker.js, data/updates.json (#8), service-worker.js (v82) · (1) Idea Google Maps link now OPTIONAL (client + POST /api/clubs/:id/ideas; a non-empty link must still be valid). (2) Member Clubs page = two big buttons (`state.clubsPage` '' / 'vote' / 'avail', hashes #/clubs/vote and #/clubs/availability, `setClubsPage`); one club → Vote goes straight to its idea board; several → bubble per club. (3) DELETED CLUBS STAY DELETED: KV `deletedClubs` tombstones (`readDeletedClubs`/`setClubDeleted`); `syncRosterFromFile` never re-adds or keeps tombstoned clubs and DELETE works even if the club isn't in clubs.json; `DELETED_CLUB_SEED=["club-mm"]` cleans the already-deleted M&M. Creating a club with a tombstoned id clears it (except seed ids). Cause was a cached copy of clubs.json re-adding the club right after deletion.
 
