@@ -1,6 +1,25 @@
 {
   "updates": [
     {
+      "no": 6,
+      "date": "2026-10-11",
+      "title": "Club admins see full profiles",
+      "items": [
+        {
+          "text": "✨ Club admins now see the same profile details as the main admin — phone, join date, last sign-in, their sign-up picks (in order) and comments — for people in their clubs and anyone who has asked to join.",
+          "for": "lead"
+        },
+        {
+          "text": "✨ Join requests now show who is asking: phone number, their top picks, what they wrote, and whether they'd like to lead.",
+          "for": "lead"
+        },
+        {
+          "text": "✨ Club admins can add or remove people from their own clubs (and accept or decline requests), but only the main admin can edit profile details, reset PINs or delete profiles.",
+          "for": "lead"
+        }
+      ]
+    },
+    {
       "no": 5,
       "date": "2026-10-11",
       "title": "What's new pop-ups",

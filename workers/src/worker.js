@@ -2059,10 +2059,17 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         else if (seg[0] === "club-events" && own.has(seg[1]) && ((seg.length === 2 && (M === "GET" || M === "POST")) || (seg.length === 3 && M === "DELETE"))) ok = true;
         else if (seg[0] === "club-members" && own.has(seg[1])) {
           if (seg.length === 2 && M === "POST") ok = true;
-          else if (seg.length === 3 && (M === "PUT" || M === "DELETE")) ok = await memberOf(seg[1], seg[2]);
-          else if (seg.length === 4 && seg[3] === "reset-pin" && M === "POST") ok = await memberOf(seg[1], seg[2]);
+          // A club admin can ADD people to their club and take someone OUT of their club — but never edit a profile (name, phone, PIN…) or reset a PIN.
+          else if (seg.length === 3 && M === "DELETE") ok = await memberOf(seg[1], seg[2]);
         }
-        else if (seg[0] === "users" && seg.length === 3 && seg[2] === "profile" && M === "GET") ok = await inAnyOwn(seg[1]);
+        // They can open the full profile of anyone in their clubs AND of anyone who has asked to join / is on standby for one of their clubs.
+        else if (seg[0] === "users" && seg.length === 3 && seg[2] === "profile" && M === "GET") {
+          ok = await inAnyOwn(seg[1]);
+          if (!ok) {
+            for (const c of lead.clubs) if (await env.SITE_DATA.get(joinReqKey(c, seg[1]))) { ok = true; break; }
+            if (!ok) { const tu = await readUser(env, seg[1]); ok = !!(tu && Array.isArray(tu.waitlist) && tu.waitlist.some((c) => own.has(c))); }
+          }
+        }
         else if (seg[0] === "users" && seg.length === 3 && seg[2] === "archive" && M === "PUT") ok = await inAnyOwn(seg[1]);
         else if (seg[0] === "users" && seg.length === 3 && seg[2] === "reminded" && M === "POST") ok = await inAnyOwn(seg[1]);
         else if (seg[0] === "users" && seg.length === 3 && seg[2] === "clubs" && M === "PUT") {
@@ -2329,7 +2336,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (leadCtx && !leadCtx.clubs.includes(r.clubId)) continue;
         const user = await readUser(env, r.userId);
         if (!user) continue;
-        out.push({ clubId: r.clubId, clubTitle: (roster.find((c) => c.id === r.clubId) || {}).title || r.clubId, userId: r.userId, name: user.name, username: user.username, phone: user.phone || "", at: r.at });
+        out.push({ clubId: r.clubId, clubTitle: (roster.find((c) => c.id === r.clubId) || {}).title || r.clubId, userId: r.userId, name: user.name, username: user.username, phone: user.phone || "", at: r.at, ranked: (user.form && Array.isArray(user.form.ranked)) ? user.form.ranked : [], why: (user.form && user.form.why) ? String(user.form.why).slice(0, 300) : "", lead: (user.form && user.form.lead) || "", standby: Array.isArray(user.waitlist) ? user.waitlist : [] });
       }
       return jsonResponse({ requests: out }, 200, corsHeaders);
     }
@@ -2460,6 +2467,9 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const clubId = decodeURIComponent(adminDeleteMatch[1]);
       const userId = decodeURIComponent(adminDeleteMatch[2]);
       const memberIds = await readClubMemberIds(env, clubId);
+      if (leadCtx && !(await allClubIdsContaining(env, userId)).some((c) => c !== clubId)) {
+        return jsonResponse({ error: "They're only in this club — removing them would delete their profile, so ask the main admin." }, 409, corsHeaders);
+      }
       await writeClubMemberIds(env, clubId, memberIds.filter(id => id !== userId));
       // Only delete the global identity once they're not in any club anymore.
       const remainingClubs = await allClubIdsContaining(env, userId);
@@ -2651,7 +2661,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         id: user.id, name: user.name, username: user.username, photo: user.photo || null,
         phone: user.phone || "", createdAt: user.createdAt || 0, lastLoginAt: user.lastLoginAt || 0, lastSeenAt: user.lastSeenAt || 0, archived: user.archived || null, form: user.form || null,
         squads: (await (async () => { const o = []; for (const sid of Object.keys(SQUAD_TITLES)) if ((await readSquadMemberIds(env, sid)).includes(user.id)) o.push(sid); return o; })()),
-        clubs: (await allClubIdsContaining(env, user.id)).filter((c) => !leadCtx || leadCtx.clubs.includes(c)), pending: (await pendingClubIdsFor(env, user.id)).filter((c) => !leadCtx || leadCtx.clubs.includes(c)), waitlist: Array.isArray(user.waitlist) ? user.waitlist : [],
+        clubs: await allClubIdsContaining(env, user.id), pending: await pendingClubIdsFor(env, user.id), waitlist: Array.isArray(user.waitlist) ? user.waitlist : [],
       }, 200, corsHeaders);
     }
     const adminUserArchiveMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/archive\/?$/);

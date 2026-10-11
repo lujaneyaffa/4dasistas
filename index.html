@@ -7716,6 +7716,28 @@ function admAgo(ms){
 // for people who aren't in any club yet, who don't appear in the player-card list at all).
 function admProfileEdit(wrap, u){
   const card = wrap.querySelector('.idea-pop-card');
+  if(state.cmAdminLoggedIn !== true){ // club admin: they can see everything about a person, but only change which of THEIR clubs she is in
+    const mineSet = new Set(u.clubs || []);
+    card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
+      <h3 style="margin:0 0 6px;">${escapeCm(u.name)} — your clubs</h3>
+      <p class="av-msg" style="margin:0 0 8px;">Tick the clubs you run that ${escapeCm(String(u.name).split(' ')[0])} should be in. Their profile details and other clubs stay as they are.</p>
+      <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:8px;">${adminClubs().map(c => `<label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:38px;"><input type="checkbox" class="ape-club" value="${escapeCm(c.id)}" ${mineSet.has(c.id) ? 'checked' : ''} style="width:20px;height:20px;"> ${escapeCm(c.title)}</label>`).join('')}</div>
+      <div id="apeStatus" style="font-size:13px;color:#c00;min-height:18px;margin-bottom:6px;" aria-live="polite"></div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;"><button type="button" id="apeSave" style="flex:1;min-height:46px;border-radius:999px;border:2px solid var(--brand-brown);background:#d9f0d8;font-weight:700;font-size:15px;cursor:pointer;">Save</button><button type="button" id="apeCancel" style="flex:1;min-height:46px;border-radius:999px;border:2px solid var(--brand-brown);background:transparent;font-weight:700;font-size:15px;cursor:pointer;">Cancel</button></div>
+      <button type="button" id="apeArchive" style="width:100%;min-height:46px;border-radius:999px;border:2px solid var(--brand-brown);background:#fff3cf;font-weight:700;font-size:15px;cursor:pointer;">${admIsArchived(u) ? '♻️ Restore from archive' : '📦 Archive'}</button>`;
+    const st = card.querySelector('#apeStatus');
+    card.querySelector('#apeCancel').addEventListener('click', () => { wrap.remove(); openAdminProfile(u.id); });
+    card.querySelector('#apeArchive').addEventListener('click', () => admArchiveDialog(u, wrap));
+    card.querySelector('#apeSave').addEventListener('click', async () => {
+      st.style.color = '#373d3b'; st.textContent = 'Saving…';
+      try {
+        const r = await fetch('/api/admin/users/' + encodeURIComponent(u.id) + '/clubs', { method:'PUT', credentials:'include', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ clubs: [...card.querySelectorAll('.ape-club:checked')].map(c => c.value) }) });
+        const d = await r.json().catch(() => ({})); if(!r.ok) throw new Error(d.error || 'Could not save');
+        admAvail.people = null; await cmAdminLoadAllMembers(); render(); wrap.remove(); openAdminProfile(u.id);
+      } catch(err){ st.style.color = '#c00'; st.textContent = err.message; }
+    });
+    return;
+  }
   const inp = 'width:100%;padding:11px;margin-bottom:8px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;';
   const mine = new Set(u.clubs || []);
   const btn = (id, bg, color, label) => `<button type="button" id="${id}" style="flex:1;min-height:46px;padding:10px;border-radius:999px;border:2px solid var(--brand-brown);background:${bg};color:${color};font-weight:700;font-size:15px;cursor:pointer;">${label}</button>`;
@@ -7800,11 +7822,11 @@ async function openAdminProfile(userId){
         ${u.form.lead ? `<div><strong>Interested in leading:</strong> ${escapeCm(u.form.lead)}</div>` : ''}
         <div style="margin-top:4px;"><strong>Comments:</strong> ${u.form.why ? `<span style="white-space:pre-wrap;">${escapeCm(u.form.why)}</span>` : '<span style="opacity:.7;">none left</span>'}</div>
       </div>` : ''}
-      ${(state.cmAdminLoggedIn === true && Array.isArray(u.squads)) ? row('Squads', u.squads.length ? u.squads.map(id => `<span style="display:inline-block;margin:2px 0 2px 4px;padding:3px 10px;border-radius:999px;background:#fbf0ee;color:#76220b;border:1.5px solid #ce8491;font-size:12px;font-weight:700;">${escapeCm((SQUADS.find(q => q.id === id) || {}).title || id)}</span>`).join('') : '<span style="color:var(--muted);">None</span>') : ''}
+      ${Array.isArray(u.squads) ? row('Squads', u.squads.length ? u.squads.map(id => `<span style="display:inline-block;margin:2px 0 2px 4px;padding:3px 10px;border-radius:999px;background:#fbf0ee;color:#76220b;border:1.5px solid #ce8491;font-size:12px;font-weight:700;">${escapeCm((SQUADS.find(q => q.id === id) || {}).title || id)}</span>`).join('') : '<span style="color:var(--muted);">None</span>') : ''}
       ${(u.pending || []).length ? row('Requested', tags(u.pending)) : ''}
       ${(u.waitlist || []).filter(c => !(u.clubs || []).includes(c)).length ? row('Standby for', tags(u.waitlist.filter(c => !(u.clubs || []).includes(c)))) : ''}
       <p class="ideas-hint" style="margin:10px 0 0;">Sign-in times only start being recorded from now, so older members show "Not recorded yet" until they next sign in.</p>
-      <div style="margin-top:14px;text-align:center;"><button type="button" id="admProfEditBtn" style="min-height:46px;padding:11px 26px;border-radius:999px;border:2px solid var(--brand-brown);background:var(--brand-blush);color:var(--brand-brown);font-weight:700;font-size:15px;cursor:pointer;">✏️ Edit profile</button></div>`;
+      <div style="margin-top:14px;text-align:center;"><button type="button" id="admProfEditBtn" style="min-height:46px;padding:11px 26px;border-radius:999px;border:2px solid var(--brand-brown);background:var(--brand-blush);color:var(--brand-brown);font-weight:700;font-size:15px;cursor:pointer;">${state.cmAdminLoggedIn === true ? '✏️ Edit profile' : '✏️ Edit my clubs'}</button></div>`;
     card.querySelector('#admProfEditBtn').addEventListener('click', () => admProfileEdit(wrap, u));
     card.querySelector('#admProfEditBtn').insertAdjacentHTML('afterend', ` <button type="button" id="admProfArchiveBtn" style="min-height:46px;padding:11px 22px;border-radius:999px;border:2px solid var(--brand-brown);background:#fff3cf;color:var(--brand-brown);font-weight:700;font-size:15px;cursor:pointer;margin-left:6px;">${admIsArchived(u) ? '♻️ Restore' : '📦 Archive'}</button>`);
     card.querySelector('#admProfArchiveBtn').addEventListener('click', () => admArchiveDialog(u, wrap));
@@ -7917,7 +7939,10 @@ function joinRequestsAdminHtml(){
   if(!reqs) return '';
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Join requests${reqs.length ? ` (${reqs.length})` : ''}</h4>
     ${reqs.length ? reqs.map(r => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
-      <span><button type="button" class="adm-profile-link" data-user-id="${escapeCm(r.userId)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(r.name)}</button> <span style="color:#776867;font-size:12px;">${escapeCm(r.username)}</span><br>wants to join <strong>${escapeCm(r.clubTitle)}</strong></span>
+      <span><button type="button" class="adm-profile-link" data-user-id="${escapeCm(r.userId)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(r.name)}</button> <span style="color:#776867;font-size:12px;">${escapeCm(r.username)}</span><br>wants to join <strong>${escapeCm(r.clubTitle)}</strong>${r.phone ? ` · <a href="tel:${escapeCm(String(r.phone).replace(/[^\d+]/g, ''))}" style="color:inherit;">${escapeCm(r.phone)}</a>` : ''}
+        ${(r.ranked || []).length ? `<br><span style="font-size:12px;"><strong>Their picks:</strong> ${(r.ranked || []).slice(0, 4).map((c, i) => `${i + 1}. ${escapeCm(c)}`).join(' &nbsp; ')}</span>` : ''}
+        ${r.why ? `<br><span style="font-size:12px;color:#776867;white-space:pre-wrap;">“${escapeCm(r.why.length > 160 ? r.why.slice(0, 160) + '…' : r.why)}”</span>` : ''}
+        ${r.lead && /yes/i.test(r.lead) ? `<br><span style="font-size:12px;">🌟 Interested in leading</span>` : ''}</span>
       <span style="display:flex;gap:6px;"><button type="button" class="club-guide-btn join-req-accept" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:var(--brand-blush);text-align:center;">Accept</button><button type="button" class="club-guide-btn join-req-decline" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:transparent;text-align:center;">Decline</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No pending requests.</p>'}
     <p id="joinReqAdminStatus" style="color:#c00;font-size:12px;margin:6px 0 0;"></p></div>`;
 }
