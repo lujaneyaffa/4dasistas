@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-11 · Claude · index.html, service-worker.js (v85) · Vote button subtitle still said 'Pick a club, then vote on ideas' for multi-club members (misleading after the all-bubbles change) → now 'All your clubs' ideas in one place'. Layout/wording only, not in What's-new.
+
 - 2026-10-11 · Claude · index.html, service-worker.js (v84) · Member Vote page (#/clubs/vote) for people in 2+ clubs now shows ALL their clubs' idea bubbles together (each tagged with its club, via `renderPublicIdeasFeedHtml` + `publicIdeasLoadAll(my clubs)`) instead of a club picker; small club buttons underneath open a club's board to add ideas. One-club members still go straight to their board. Not added to What's-new (layout/flow tweak of #8).
 
 - 2026-10-11 · Claude · index.html, data/updates.json, service-worker.js (v83) · Clubs home: Availability and Vote big buttons now sit SIDE BY SIDE (`.clubs-big-btns` flex row, wraps on very narrow screens). Removed the layout lines from What's-new #8 and added a rule above: layout/design-only changes don't go in the pop-up.

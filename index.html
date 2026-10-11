@@ -6019,7 +6019,7 @@ function renderMyClubsSectionHtml(){
     <h3 class="clubs-popular-title">${myClubs.length > 1 ? 'YOUR CLUBS' : 'YOUR CLUB'}: ${myClubs.map(c => escapeCm(c.title)).join(' · ')}</h3>
     <div class="clubs-big-btns">
       ${bigBtn('avail', '📅', 'Availability', 'Add yours &amp; see everyone\'s')}
-      ${bigBtn('vote', '🗳️', 'Vote', myClubs.length > 1 ? 'Pick a club, then vote on ideas' : 'Vote on ideas for ' + escapeCm(myClubs[0].title))}
+      ${bigBtn('vote', '🗳️', 'Vote', myClubs.length > 1 ? 'All your clubs\' ideas in one place' : 'Vote on ideas for ' + escapeCm(myClubs[0].title))}
     </div>
     ${requestSection}`;
 }
