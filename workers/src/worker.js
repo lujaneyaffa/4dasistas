@@ -25,7 +25,7 @@
  *   GET    /api/clubs/:clubId/events/:eventId/responses     - Every member's availability for one event + aggregate counts
  *   PUT    /api/clubs/:clubId/events/:eventId/responses/:userId - Save own availability for one event (Bearer session token required)
  *   GET    /api/clubs/:clubId/ideas                         - Event-idea board: [{id,title,mapUrl,date,votes,voters:[names],by,voted,mine}] (public; identity headers optional)
- *   POST   /api/clubs/:clubId/ideas                         - Add an option ({title, mapUrl = Google Maps link, both required; club-cuisine also requires cuisine}). Acting identity = signed-in member (Bearer) OR a
+ *   POST   /api/clubs/:clubId/ideas                         - Add an option ({title required, mapUrl = Google Maps link optional; club-cuisine also requires cuisine}). Acting identity = signed-in member (Bearer) OR a
  *                                                                guest with just a name (X-Guest-Id + X-Guest-Name headers, no password). Creator auto-votes; max 3 per person, 40 per club
  *   POST   /api/clubs/:clubId/ideas/:ideaId/vote            - Toggle your vote (member or guest)
  *   DELETE /api/clubs/:clubId/ideas/:ideaId                 - Remove an option you added
@@ -186,14 +186,36 @@ const loadFileClubs = async (env) => {
   } catch (e) { _fileClubsStatus = `fetch error: ${String(e).slice(0, 120)}`; console.warn("club file fetch error", String(e)); }
   return _fileClubs || [];
 };
+// Deleted clubs are remembered ("tombstones") so the file sync can NEVER bring one back — before this, deleting a club re-created it a few
+// minutes later because a cached copy of clubs.json still listed it (bit Lujane with M&M). DELETED_CLUB_SEED covers clubs deleted before tombstones existed.
+const DELETED_CLUBS_KV_KEY = "deletedClubs";
+const DELETED_CLUB_SEED = ["club-mm"];
+const readDeletedClubs = async (env) => {
+  let arr = [];
+  try { const raw = await env.SITE_DATA.get(DELETED_CLUBS_KV_KEY); if (raw) { const a = JSON.parse(raw); if (Array.isArray(a)) arr = a; } } catch {}
+  return new Set(DELETED_CLUB_SEED.concat(arr).filter((x) => typeof x === "string"));
+};
+const setClubDeleted = async (env, id, deleted) => {
+  let arr = [];
+  try { const raw = await env.SITE_DATA.get(DELETED_CLUBS_KV_KEY); if (raw) { const a = JSON.parse(raw); if (Array.isArray(a)) arr = a; } } catch {}
+  arr = arr.filter((x) => x !== id);
+  if (deleted) arr.push(id);
+  await env.SITE_DATA.put(DELETED_CLUBS_KV_KEY, JSON.stringify(arr));
+  _fileClubs = null; _fileClubsAt = 0; // forget the cached copy of clubs.json
+};
 // The merged result is returned (and cached in memory) even if saving it to KV fails, so a new club always shows up.
 const syncRosterFromFile = async (env, roster) => {
   const file = await loadFileClubs(env);
   const have = new Set(roster.map((c) => c.id));
-  const missing = file.filter((c) => !have.has(c.id));
-  if (!missing.length) return roster;
-  const merged = roster.concat(missing);
-  if (Date.now() - _rosterPutAt > 600000) { _rosterPutAt = Date.now(); try { await env.SITE_DATA.put(CLUB_ROSTER_KV_KEY, JSON.stringify(merged)); } catch (e) { _fileClubsStatus += `; saving to KV failed: ${String(e).slice(0, 80)}`; console.warn("roster save failed", String(e)); } }
+  let missing = file.filter((c) => !have.has(c.id));
+  const hasDeleted = roster.some((c) => DELETED_CLUB_SEED.includes(c.id));
+  if (!missing.length && !hasDeleted) return roster;
+  const gone = await readDeletedClubs(env);
+  missing = missing.filter((c) => !gone.has(c.id));
+  const kept = roster.filter((c) => !gone.has(c.id));
+  if (!missing.length && kept.length === roster.length) return roster;
+  const merged = kept.concat(missing);
+  if (kept.length !== roster.length || Date.now() - _rosterPutAt > 600000) { _rosterPutAt = Date.now(); try { await env.SITE_DATA.put(CLUB_ROSTER_KV_KEY, JSON.stringify(merged)); } catch (e) { _fileClubsStatus += `; saving to KV failed: ${String(e).slice(0, 80)}`; console.warn("roster save failed", String(e)); } }
   return merged;
 };
 const readClubRoster = async (env) => {
@@ -1518,8 +1540,9 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       const title = String(body.title || "").replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim();
       if (title.length < 3 || title.length > 80) return jsonResponse({ error: "The title needs 3–80 characters" }, 400, corsHeaders);
-      const mapUrl = isGoogleMapsUrl(body.mapUrl);
-      if (!mapUrl) return jsonResponse({ error: "That doesn't look like a Google Maps link. In Google Maps tap Share → Copy link, then paste it here." }, 400, corsHeaders);
+      // The map link is optional; if one is given it must be a real Google Maps link.
+      const mapUrl = String(body.mapUrl || "").trim() === "" ? "" : isGoogleMapsUrl(body.mapUrl);
+      if (mapUrl === null || mapUrl === undefined || (mapUrl === "" && String(body.mapUrl || "").trim() !== "")) return jsonResponse({ error: "That doesn't look like a Google Maps link. In Google Maps tap Share → Copy link, then paste it here." }, 400, corsHeaders);
       const cuisine = sanitizeCuisine(body.cuisine);
       if (clubId === CUISINE_CLUB_ID && cuisine.length < 2) return jsonResponse({ error: "Please add the cuisine type (e.g. Lebanese, Korean, Dessert)" }, 400, corsHeaders);
       const price = sanitizePrice(body.price);
@@ -3134,6 +3157,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
       }
       await writeClubRoster(env, updated);
+      await setClubDeleted(env, finalId, false).catch(() => {});
       return jsonResponse({ ok: true, id: finalId, club: newClub }, 201, corsHeaders);
     }
 
@@ -3146,19 +3170,23 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       // The file on disk is { items: [...] }, not a bare array.
       const clubs = Array.isArray(file.content?.items) ? file.content.items : (Array.isArray(file.content) ? file.content : []);
       const idx = clubs.findIndex((c) => c.id === id);
-      if (idx === -1) return jsonResponse({ error: "Club not found" }, 404, corsHeaders);
-
       if (request.method === "DELETE") {
-        const removed = clubs[idx];
-        const updated = clubs.filter((c) => c.id !== id);
-        const res = await githubPutFile(env, CLUBS_FILE_PATH, { items: updated }, file.sha, `Remove club "${removed.title || id}" via site admin editor`);
-        if (!res.ok) {
-          const detail = await res.text().catch(() => "");
-          return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
+        // Remember the deletion FIRST so the file sync can't bring the club back, even while the old clubs.json is still deployed.
+        await setClubDeleted(env, id, true);
+        if (idx !== -1) {
+          const removed = clubs[idx];
+          const updated = clubs.filter((c) => c.id !== id);
+          const res = await githubPutFile(env, CLUBS_FILE_PATH, { items: updated }, file.sha, `Remove club "${removed.title || id}" via site admin editor`);
+          if (!res.ok) {
+            const detail = await res.text().catch(() => "");
+            return jsonResponse({ error: "GitHub commit failed", detail }, 502, corsHeaders);
+          }
         }
-        await writeClubRoster(env, updated);
+        const rosterNow = await env.SITE_DATA.get(CLUB_ROSTER_KV_KEY).then((r) => { try { const a = JSON.parse(r); return Array.isArray(a) ? a : []; } catch { return []; } });
+        await writeClubRoster(env, rosterNow.filter((c) => c.id !== id));
         return jsonResponse({ ok: true, deleted: id }, 200, corsHeaders);
       }
+      if (idx === -1) return jsonResponse({ error: "Club not found" }, 404, corsHeaders);
 
       let body;
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }

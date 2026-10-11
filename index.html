@@ -372,6 +372,12 @@
   .home-quicklinks .club-guide-btn:hover{ scale:1.1; }
   .home-quicklinks .club-guide-btn[data-hometab="homescreen"]{ font-size:13px; line-height:1.2; }
   /* "Clubs you're in" for signed-in members: same round shape + gentle float as Travel / About, always ONE line, club colours + logos */
+  .clubs-big-btns{ display:flex; flex-direction:column; gap:16px; max-width:480px; margin:18px auto 0; }
+  .clubs-big-btn{ width:100% !important; aspect-ratio:auto !important; height:auto !important; min-height:120px; display:flex !important; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:18px 14px !important; text-align:center; background:var(--brand-rose); color:#fff; border-radius:22px; }
+  .clubs-big-btn:nth-child(2){ background:var(--brand-blush); color:var(--brand-brown); }
+  .clubs-big-btn .cbb-emoji{ font-size:36px; line-height:1; }
+  .clubs-big-btn .cbb-label{ font-size:26px; font-weight:800; letter-spacing:.03em; text-transform:uppercase; }
+  .clubs-big-btn .cbb-sub{ font-size:13.5px; font-weight:600; opacity:.9; }
   .club-bubbles{ --ds:1; display:flex; flex-wrap:nowrap; justify-content:center; align-items:center; gap:clamp(16px, 4vw, 44px); padding:22px 8px; margin:6px auto 4px; max-width:900px; }
   .club-bubble{ flex:0 1 clamp(58px, 19vw, 150px); min-width:0; aspect-ratio:1; border-radius:50%; border:2px solid; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:4px; box-sizing:border-box; cursor:pointer; font-family:'Inter',sans-serif; font-weight:800; text-align:center; animation:clubBubbleFloat var(--dur,9s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:translate .5s cubic-bezier(.2,.8,.2,1), scale .3s cubic-bezier(.2,.8,.2,1); -webkit-tap-highlight-color:transparent; }
   .club-bubble:hover{ scale:1.1; }
@@ -5494,7 +5500,7 @@ function ideaMapEmbedUrl(idea){
 }
 function ideaLocationHtml(idea){
   const map = safeMapUrl(idea.mapUrl);
-  if(!map) return '<p class="av-msg">No location yet.</p>';
+  if(!map) return '';
   return `<button type="button" class="club-guide-btn idea-pop-map idea-loc-btn" style="width:100%;">📍 Location</button>
     <div class="idea-loc-box" hidden style="margin:0 0 10px;">
       <iframe title="Map of ${escapeCm(idea.title)}" src="about:blank" data-src="${escapeCm(ideaMapEmbedUrl(idea))}" referrerpolicy="no-referrer-when-downgrade" style="width:100%;height:240px;border:2px solid var(--brand-brown);border-radius:12px;display:block;"></iframe>
@@ -5549,6 +5555,15 @@ function ideaHeaders(){
   return h;
 }
 
+// The signed-in member's Clubs page has two sub-pages: '' (home with two big buttons), 'vote' and 'avail'.
+function setClubsPage(page){
+  const mine = (getCmSession() && getCmSession().clubs) || [];
+  if(page === 'vote' && mine.length === 1){ state.clubsPage = 'vote'; openClubIdeas(mine[0]); return; } // one club: straight to its idea board
+  state.clubsPage = page || '';
+  state.tab = 'clubs';
+  render();
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
 function openClubIdeas(clubId){
   state.tab = 'clubideas';
   state.ideasClubId = clubId;
@@ -5990,10 +6005,21 @@ function renderMyClubsSectionHtml(){
       <p class="ideas-hint" style="max-width:520px;margin:0 auto;text-align:center;">You're not in a club yet. Request the club(s) you're part of below — an admin will approve them.</p>
       ${requestSection}`;
   }
+  // Two separate pages so everything isn't dumped on one screen: Vote (the club bubbles → idea boards) and Availability.
+  if(state.clubsPage === 'vote') return `<button type="button" class="back-btn" data-clubspage="">← Back</button>
+    <h3 class="clubs-popular-title">🗳️ VOTE</h3>
+    <p class="ideas-hint" style="text-align:center;margin:0 0 4px;">${myClubs.length > 1 ? 'Pick a club to see its ideas and vote.' : 'Tap your club to see its ideas and vote.'}</p>
+    <div class="club-bubbles">${myClubs.map((c, i) => clubBubbleHtml(c, i)).join('')}</div>`;
+  if(state.clubsPage === 'avail') return `<button type="button" class="back-btn" data-clubspage="">← Back</button>
+    <h3 class="clubs-popular-title">📅 AVAILABILITY</h3>
+    <div class="my-avail-section" style="max-width:640px;margin:8px auto 0;">${ideaAvailSectionHtml(ideaMe())}${everyoneAvailSectionHtml(ideaMe())}</div>`;
+  const bigBtn = (page, emoji, label, sub) => `<button type="button" class="club-guide-btn clubs-big-btn" data-clubspage="${page}"><span class="cbb-emoji">${emoji}</span><span class="cbb-label">${label}</span><span class="cbb-sub">${sub}</span></button>`;
   return `${topRow}${pendingBanner}
-    <h3 class="clubs-popular-title">CLUBS YOU'RE IN</h3>
-    <div class="club-bubbles">${myClubs.map((c, i) => clubBubbleHtml(c, i)).join('')}</div>
-    <div class="my-avail-section" style="max-width:640px;margin:18px auto 0;">${ideaAvailSectionHtml(ideaMe())}${everyoneAvailSectionHtml(ideaMe())}</div>
+    <h3 class="clubs-popular-title">${myClubs.length > 1 ? 'YOUR CLUBS' : 'YOUR CLUB'}: ${myClubs.map(c => escapeCm(c.title)).join(' · ')}</h3>
+    <div class="clubs-big-btns">
+      ${bigBtn('avail', '📅', 'Availability', 'Add yours &amp; see everyone\'s')}
+      ${bigBtn('vote', '🗳️', 'Vote', myClubs.length > 1 ? 'Pick a club, then vote on ideas' : 'Vote on ideas for ' + escapeCm(myClubs[0].title))}
+    </div>
     ${requestSection}`;
 }
 function openPublicIdeaInfo(id){
@@ -6075,21 +6101,21 @@ function renderClubIdeas(el){
     <form class="ideas-form" id="ideaForm" novalidate>
       <input id="ideaCuisineInput" type="text" maxlength="30" placeholder="Cuisine type (e.g. Lebanese, Korean, Dessert)" autocomplete="off">
       <input id="ideaInput" type="text" maxlength="80" placeholder="Name of the place" autocomplete="off">
-      <input id="ideaMapInput" type="text" placeholder="Google Maps link of the place" autocomplete="off" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
+      <input id="ideaMapInput" type="text" placeholder="Google Maps link (optional)" autocomplete="off" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
       ${priceFieldHtml}
       <button type="submit" class="club-guide-btn" id="ideaAddBtn">Add restaurant</button>
-      <p class="ideas-hint">The first three are required. Find the place in Google Maps → Share → Copy link, then paste it here. Everyone can tap 📍 on the bubble to open it in Maps.</p>
+      <p class="ideas-hint">The first three are required; the map link is optional. To add one, find the place in Google Maps → Share → Copy link, then paste it here.</p>
     </form>` : `
     <form class="ideas-form" id="ideaForm" novalidate>
       <input id="ideaInput" type="text" maxlength="80" placeholder="Event idea (e.g. Pottery night)" autocomplete="off">
-      <input id="ideaMapInput" type="text" placeholder="Google Maps link of the place" autocomplete="off" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
+      <input id="ideaMapInput" type="text" placeholder="Google Maps link (optional)" autocomplete="off" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
       ${priceFieldHtml}
       <button type="submit" class="club-guide-btn" id="ideaAddBtn">Add option</button>
-      <p class="ideas-hint">Title and map link are required. Find the place in Google Maps → Share → Copy link, then paste it here.</p>
+      <p class="ideas-hint">Only the title is required. The map link is optional — to add one, find the place in Google Maps → Share → Copy link.</p>
     </form>`) : '';
 
   el.innerHTML = `
-    <button class="back-btn" data-hometab="clubs">← Back to clubs</button>
+    <button class="back-btn" ${getCmSession() ? `data-clubspage="${state.clubsPage === 'vote' && ((getCmSession().clubs || []).length > 1) ? 'vote' : ''}"` : 'data-hometab="clubs"'}>← Back${getCmSession() ? '' : ' to clubs'}</button>
     <div class="ideas-wrap">
       <h2 class="ideas-title">THE ${escapeCm(title).toUpperCase()}</h2>
       <div class="ideas-link"><span>🔗 ${escapeCm(clubLink(clubId).replace(/^https?:\/\//, ''))}</span><button type="button" class="av-link" id="ideaCopyBtn">Copy link</button></div>
@@ -6676,7 +6702,7 @@ function wireClubIdeas(){
     const price = document.getElementById('ideaPriceInput').value.trim();
     if(cuisineInput && cuisine.length < 2) return ideasSetStatus('Please add the cuisine type (e.g. Lebanese, Korean, Dessert).', true);
     if(text.length < 3) return ideasSetStatus(cuisineInput ? 'Please add the name of the place (at least 3 characters).' : 'Type a title (at least 3 characters).', true);
-    if(!map) return ideasSetStatus('Please paste the Google Maps link of the place.', true);
+    if(map && !/^https:\/\//i.test(map)) return ideasSetStatus('That doesn\'t look like a Google Maps link — paste it, or leave it blank.', true);
     const btn = document.getElementById('ideaAddBtn'); btn.disabled = true;
     try {
       const data = await cmApiRaw('/api/clubs/' + encodeURIComponent(state.ideasClubId) + '/ideas', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ title: text, mapUrl: map, cuisine, price }) });
@@ -9265,6 +9291,7 @@ function safeDecode(v){ try { return decodeURIComponent(v); } catch { return v; 
 function currentSlugParts(){
   const t = state.tab;
   if(t === 'clubideas' && state.ideasClubId) return ['clubs', clubSlug(state.ideasClubId)];
+  if(t === 'clubs' && state.clubsPage) return ['clubs', state.clubsPage === 'avail' ? 'availability' : 'vote'];
   if(t === 'clubmembers' && state.clubMembersId) return ['clubs', clubSlug(state.clubMembersId), 'members'];
   if(t === 'fallsignup' && state.fallQuickLogin) return ['clubs', 'quicklogin'];
   if(CLUB_SUBPAGE_SLUGS[t]) return ['clubs', CLUB_SUBPAGE_SLUGS[t]];
@@ -9290,9 +9317,11 @@ function currentSlugParts(){
 function applySlugParts(parts){
   const [slug, ...rest] = parts;
   let tab = SLUG_TO_TAB[slug] || slug;
+  if(tab === 'clubs') state.clubsPage = (rest[0] === 'vote' || rest[0] === 'availability') ? (rest[0] === 'vote' ? 'vote' : 'avail') : '';
   if(tab === 'clubs' && rest[0]){
     const sub = rest[0];
-    if(sub === 'quicklogin'){ tab = 'fallsignup'; state.fallQuickLogin = true; }
+    if(rest[0] === 'vote' || rest[0] === 'availability'){}
+    else if(sub === 'quicklogin'){ tab = 'fallsignup'; state.fallQuickLogin = true; }
     else if(CLUB_SUBPAGES[sub]){ tab = CLUB_SUBPAGES[sub]; if(tab === 'fallsignup') state.fallQuickLogin = false; }
     else {
       const cid = clubIdFromSlug(sub);
@@ -9450,6 +9479,7 @@ function goToTab(tabName){
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
   if(state.tab !== tabName && !goToTab._noPush){ (state.tabHistory = state.tabHistory || []).push(state.tab); if(state.tabHistory.length > 20) state.tabHistory.shift(); } // so 'Back' knows where you came from
   state.tab = tabName;
+  if(tabName === 'clubs') state.clubsPage = '';
   if(tabName !== 'resources') state.returnTab = '';
   if(tabName === 'events'){
     state.categoryFilter = 'all';
@@ -9586,6 +9616,8 @@ document.body.addEventListener('click', e => {
     openClubMembers(membersBtn.dataset.clubMembers, membersBtn.dataset.clubTitle || '');
     return;
   }
+  const clubsPageBtn = e.target.closest('[data-clubspage]');
+  if(clubsPageBtn){ setClubsPage(clubsPageBtn.dataset.clubspage); return; }
   const clubCard = e.target.closest('[data-club-id]');
   if(clubCard && !e.target.closest('a')){
     if(clubCard.classList.contains('club-card')) openClubIdeas(clubCard.dataset.clubId);
