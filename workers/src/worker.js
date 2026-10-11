@@ -384,8 +384,31 @@ const hmacHex = async (secret, message) => {
 const reviewSig = (env, kind, id) => hmacHex(`review-link:${env.ADMIN_PASSWORD || ""}`, `${kind}:${id}`);
 const sameSig = (a, b) => { a = String(a || ""); b = String(b || ""); if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0; };
 const reviewUrlFor = async (env, kind, id, action) => `${env.SITE_ORIGIN || "https://4dasistas.ca"}/review/${kind}/${encodeURIComponent(id)}?sig=${await reviewSig(env, kind, id)}${action ? `&a=${action}` : ""}`;
-const emailBtn = (href, label, bg, color = "#fff") => `<a href="${escapeHtml(href)}" style="display:inline-block;margin:4px 6px 4px 0;padding:12px 18px;border-radius:999px;background:${bg};color:${color};font-weight:700;text-decoration:none;font-size:15px">${label}</a>`;
-const emailRow = (label, value) => `<tr><td style="padding:6px 12px 6px 0;color:#776867;vertical-align:top;white-space:nowrap">${label}</td><td style="padding:6px 0;vertical-align:top"><strong>${value}</strong></td></tr>`;
+// Every email goes through here. With env.__capture (the admin's email preview) nothing is sent — the message is just collected.
+const postResend = (env, payload) => env.__capture
+  ? (env.__capture.push(payload), Promise.resolve(new Response("{}", { status: 200 })))
+  : fetch("https://api.resend.com/emails", { method: "POST", headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+// ---- Email theme: the same look as the website (cream page, rose header, brown outlines, rounded pills).
+const emailBtn = (href, label, bg = "#ce8491", color = "#fff") => `<a href="${escapeHtml(href)}" style="display:inline-block;margin:4px 6px 4px 0;padding:12px 20px;border-radius:999px;background:${bg};color:${color};border:2px solid #76220b;font-weight:700;text-decoration:none;font-size:15px;font-family:Arial,Helvetica,sans-serif">${label}</a>`;
+const emailRow = (label, value) => `<tr><td style="padding:7px 14px 7px 0;color:#776867;font-size:12px;text-transform:uppercase;letter-spacing:.6px;vertical-align:top;white-space:nowrap">${label}</td><td style="padding:7px 0;vertical-align:top;color:#373d3b"><strong>${value}</strong></td></tr>`;
+const emailChip = (text) => `<span style="display:inline-block;padding:3px 12px;border-radius:999px;background:#f2d8d7;color:#76220b;border:1.5px solid #ce8491;font-size:13px;font-weight:700">${text}</span>`;
+const emailNote = (html) => `<div style="margin:12px 0;padding:12px 14px;border-radius:14px;background:#fef7f4;border:2px solid #f2d8d7;color:#76220b;font-size:14px">${html}</div>`;
+const emailShell = (env, { title, emoji = "✨", preheader = "", body = "", footer = "" }) => {
+  const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
+  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#fef7f4">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(preheader)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fef7f4"><tr><td align="center" style="padding:24px 12px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
+<tr><td style="background:#ce8491;border:2px solid #76220b;border-radius:20px 20px 0 0;padding:20px 22px;text-align:center"><a href="${origin}" style="text-decoration:none"><span style="font-family:Georgia,'Times New Roman',serif;font-size:30px;letter-spacing:4px;font-weight:700;color:#ffffff">4DASISTAS</span></a><div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#fde9ea;letter-spacing:1.6px;margin-top:3px">CLUBS · EVENTS · SQUADS · GTA</div></td></tr>
+<tr><td style="background:#ffffff;border:2px solid #76220b;border-top:0;border-radius:0 0 20px 20px;padding:24px 22px;font-family:Arial,Helvetica,sans-serif;color:#373d3b;font-size:15px;line-height:1.55">
+<div style="font-size:28px;line-height:1">${emoji}</div>
+<h2 style="margin:6px 0 12px;font-size:22px;line-height:1.25;color:#76220b">${title}</h2>
+${body}
+${footer ? `<div style="margin-top:18px;padding-top:14px;border-top:2px dashed #f2d8d7;font-size:12px;color:#776867">${footer}</div>` : ""}
+</td></tr>
+<tr><td align="center" style="padding:14px 8px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#9a8c8a">Sent with 💗 from <a href="${origin}" style="color:#9a8c8a">4dasistas.ca</a></td></tr>
+</table></td></tr></table></body></html>`;
+};
 // What someone put on the sign-up form (clubs they ranked, comments, whether they'd lead). Shown to the admin on their profile.
 const sanitizeSignupForm = (f, source) => {
   if (!f || typeof f !== "object") return null;
@@ -449,28 +472,29 @@ const sendBackupEmail = async (env, label) => {
   const json = JSON.stringify(b);
   const bytes = new TextEncoder().encode(json); let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
   const day = b.at.slice(0, 10), c = b.counts;
-  const send = (withCode) => fetch("https://api.resend.com/emails", {
-    method: "POST", headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [env.ADMIN_NOTIFY_EMAIL], subject: `4DASISTAS full backup ${day} (${c.users} profiles)`,
-      html: `<div style="font-family:Arial,sans-serif;max-width:560px;color:#373d3b"><h2 style="margin:0 0 8px">${label || "Daily backup"}</h2>
-        <p><strong>Everything for the project, as of ${escapeHtml(b.at)}:</strong></p>
-        <ul style="line-height:1.6"><li><strong>${escapeHtml(`4dasistas-data-${day}.json`)}</strong> — ${c.users} profiles (with PIN hashes), ${c.availability} availability records, ${c.clubs} clubs and their members, idea boards &amp; votes, club events, squads, ${c.joinRequests} join requests, ${c.squadRequests} squad requests, ${c.eventSubmissions} event + ${c.resourceSubmissions} resource submissions, ${c.clubAdmins} club admins, push subscriptions, newsletter list and all settings.</li>
-        <li>${withCode ? `<strong>4dasistas-site-${day}.zip</strong> — the whole website: pages, the Worker code, calendar / resource / club data files and images (straight from GitHub).` : "The website's code zip couldn't be attached this time — it is always safe on GitHub (github.com/lujaneyaffa/4dasistas)."}</li></ul>
-        ${b.warnings.length ? `<p style="color:#b3261e">Some parts could not be read: ${escapeHtml(b.warnings.join("; "))}</p>` : ""}
-        <p><strong>Keep this email private</strong> — it contains names, phone numbers and PIN hashes. If anything is ever lost, send these files to Claude and everything can be restored.</p></div>`,
-      attachments: [{ filename: `4dasistas-data-${day}.json`, content: btoa(bin) }].concat(withCode ? [{ filename: `4dasistas-site-${day}.zip`, path: `https://codeload.github.com/${GITHUB_OWNER}/${GITHUB_REPO}/zip/refs/heads/main` }] : []) }),
+  const send = (withCode) => postResend(env, {
+    from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [env.ADMIN_NOTIFY_EMAIL], subject: `4DASISTAS full backup ${day} (${c.users} profiles)`,
+      html: emailShell(env, { emoji: "🛟", title: label || "Daily backup", preheader: `${c.users} profiles · ${c.clubs} clubs · everything saved`,
+        body: `<p style="margin:0 0 10px"><strong>Everything for the project, as of ${escapeHtml(b.at.slice(0, 16).replace("T", " "))} UTC.</strong></p>
+          <div style="margin:0 0 10px;padding:12px 14px;border-radius:14px;background:#fef7f4;border:2px solid #f2d8d7"><div style="font-weight:700;color:#76220b">📄 ${escapeHtml(`4dasistas-data-${day}.json`)}</div><div style="font-size:13px;color:#555;margin-top:2px">${c.users} profiles (with PIN hashes), ${c.availability} availability records, ${c.clubs} clubs and members, idea boards &amp; votes, club events, squads, ${c.joinRequests} join + ${c.squadRequests} squad requests, ${c.eventSubmissions} event + ${c.resourceSubmissions} resource submissions, ${c.clubAdmins} club admins, push subscriptions, newsletter list and all settings.</div></div>
+          <div style="margin:0 0 10px;padding:12px 14px;border-radius:14px;background:#fef7f4;border:2px solid #f2d8d7"><div style="font-weight:700;color:#76220b">🗜️ ${withCode ? escapeHtml(`4dasistas-site-${day}.zip`) : "Website zip not attached"}</div><div style="font-size:13px;color:#555;margin-top:2px">${withCode ? "The whole website — pages, the Worker code, calendar / resource / club data and images, straight from GitHub." : "It couldn't be attached this time — the code is always safe on GitHub (github.com/lujaneyaffa/4dasistas)."}</div></div>
+          ${b.warnings.length ? `<p style="color:#b3261e;font-size:13px">Some parts could not be read: ${escapeHtml(b.warnings.join("; "))}</p>` : ""}`,
+        footer: "🔒 <strong>Keep this email private</strong> — it contains names, phone numbers and PIN hashes. If anything is ever lost, send these files to Claude and everything can be restored." }),
+      attachments: [{ filename: `4dasistas-data-${day}.json`, content: btoa(bin) }].concat(withCode ? [{ filename: `4dasistas-site-${day}.zip`, path: `https://codeload.github.com/${GITHUB_OWNER}/${GITHUB_REPO}/zip/refs/heads/main` }] : []),
   });
   let r = await send(true);
   if (!r.ok) r = await send(false); // never lose the data backup just because the code zip couldn't be fetched
   return r.ok ? { ok: true, users: c.users } : { ok: false, error: `Email failed (${r.status})` };
 };
+const digestEmailHtml = (env, dateString, events, unsubscribeUrl) => {
+  const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
+  const list = events.map((item) => `<div style="margin:0 0 10px;padding:12px 14px;border-radius:14px;background:#fef7f4;border:2px solid #f2d8d7"><div style="font-weight:700;color:#76220b;font-size:16px">${escapeHtml(item.title)}</div><div style="font-size:13px;color:#555;margin-top:2px">🕒 ${escapeHtml(item.date || "Today")} &nbsp;·&nbsp; 📍 ${escapeHtml(item.location || "Location TBA")}</div></div>`).join("");
+  return emailShell(env, { emoji: "☀️", title: "What's on today", preheader: `${events.length} thing${events.length === 1 ? "" : "s"} happening today`, body: `<p style="margin:0 0 14px;color:#776867">${escapeHtml(dateString)}</p>${list}<p style="margin:16px 0 4px">${emailBtn(origin + "/", "See the full calendar →")}</p>`, footer: `You're receiving this because you subscribed to the 4DASISTAS daily list. <a href="${unsubscribeUrl}" style="color:#776867">Unsubscribe</a>` });
+};
 const sendAdminEmail = (env, ctx, subject, html) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
-  ctx.waitUntil(fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [env.ADMIN_NOTIFY_EMAIL], subject, html }),
-  }).then(async (r) => { if (!r.ok) console.error("Resend rejected admin notification", r.status, (await r.text()).slice(0, 300)); }).catch((e) => console.error("Resend request failed", String(e))));
+  ctx.waitUntil(postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [env.ADMIN_NOTIFY_EMAIL], subject, html })
+    .then(async (r) => { if (!r.ok) console.error("Resend rejected admin notification", r.status, (await r.text()).slice(0, 300)); }).catch((e) => console.error("Resend request failed", String(e))));
 };
 const notifyAdminOfSuggestion = async (env, ctx, kind, sug) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
@@ -478,8 +502,11 @@ const notifyAdminOfSuggestion = async (env, ctx, kind, sug) => {
   const rows = isEvent
     ? emailRow("Event", escapeHtml(sug.name)) + emailRow("Date", escapeHtml(sug.date)) + emailRow("Genre", escapeHtml(sug.genre === "other" ? `Other: ${sug.genreOther || ""}` : (sug.genre || "—"))) + emailRow("City", escapeHtml(sug.city)) + emailRow("Link", `<a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a>`)
     : emailRow("Name", escapeHtml(sug.title)) + emailRow("Type", escapeHtml(sug.type === "other" ? `Other: ${sug.typeOther || ""}` : sug.type)) + emailRow("City", escapeHtml(sug.city)) + emailRow("Link", `<a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a>`);
-  const comments = sug.comments ? `<div style="margin:10px 0;padding:12px 14px;border-radius:12px;background:#f2d8d7;color:#76220b"><div style="font-size:12px;opacity:.8">Comments from the submitter</div>${escapeHtml(sug.comments).replace(/\n/g, "<br>")}</div>` : "";
-  const html = `<div style="font-family:Arial,sans-serif;max-width:560px;color:#373d3b"><h2 style="margin:0 0 8px">New ${isEvent ? "event" : "resource"} submitted</h2><table style="border-collapse:collapse;font-size:15px">${rows}</table>${comments}<p style="margin:14px 0 4px">${emailBtn(await reviewUrlFor(env, kind, sug.id, "accept"), "✅ Accept", "#2a7a4a")}${emailBtn(await reviewUrlFor(env, kind, sug.id, "edit"), "✏️ Edit", "#ce8491")}${emailBtn(await reviewUrlFor(env, kind, sug.id, "deny"), "❌ Deny", "#b3261e")}</p><p style="font-size:12px;color:#776867">Each button opens a review page (nothing happens until you confirm there). You can also find it under <em>Submitted ${isEvent ? "events" : "resources"}</em> on the Clubs page when logged in as admin.</p></div>`;
+  const comments = sug.comments ? emailNote(`<div style="font-size:12px;opacity:.8;margin-bottom:2px">💬 Comments from the submitter</div>${escapeHtml(sug.comments).replace(/\n/g, "<br>")}`) : "";
+  const html = emailShell(env, {
+    emoji: isEvent ? "🗓️" : "🛍️", title: `New ${isEvent ? "event" : "resource"} submitted`, preheader: isEvent ? `${sug.name} · ${sug.city} · ${sug.date}` : `${sug.title} · ${sug.city}`,
+    body: `<table style="border-collapse:collapse;font-size:15px">${rows}</table>${comments}<p style="margin:16px 0 4px">${emailBtn(await reviewUrlFor(env, kind, sug.id, "accept"), "✅ Accept", "#2a7a4a")}${emailBtn(await reviewUrlFor(env, kind, sug.id, "edit"), "✏️ Edit", "#ce8491")}${emailBtn(await reviewUrlFor(env, kind, sug.id, "deny"), "❌ Deny", "#b3261e")}</p>`,
+    footer: `Each button opens a review page — nothing happens until you confirm there. You can also find it on your admin page under <strong>Notifications</strong>.` });
   sendAdminEmail(env, ctx, isEvent ? `Event submitted: ${sug.name} (${sug.city}, ${sug.date})` : `Resource submitted: ${sug.title} (${sug.city})`, html);
 };
 const notifyAdminOfEventSuggestion = (env, ctx, sug) => notifyAdminOfSuggestion(env, ctx, "event", sug);
@@ -539,18 +566,20 @@ const listSquadRequests = async (env) => {
 const notifyAdminOfSquadRequest = (env, ctx, user, squadId) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
   const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
-  const html = `<div style="font-family:Arial,sans-serif;max-width:520px;color:#373d3b"><h2 style="margin:0 0 8px">New squad request</h2><p><strong>${escapeHtml(user.name)}</strong> (<code>${escapeHtml(user.username)}</code>) asked to join the <strong>${escapeHtml(SQUAD_TITLES[squadId])}</strong> squad.</p><p>Accept or decline: open <a href="${origin}/#/squads">${origin}/#/squads</a> while logged in as admin (🔒 Admin Login in the footer).</p></div>`;
+  const html = emailShell(env, { emoji: "🪁", title: "New squad request", preheader: `${user.name} → ${SQUAD_TITLES[squadId]}`,
+    body: `<p style="margin:0 0 6px"><strong>${escapeHtml(user.name)}</strong> <span style="color:#776867">@${escapeHtml(user.username)}</span> asked to join the</p><p style="margin:0 0 14px">${emailChip(escapeHtml(SQUAD_TITLES[squadId]))} squad.</p>${user.phone ? `<p style="margin:0 0 14px;color:#776867">📞 ${escapeHtml(user.phone)}</p>` : ""}<p style="margin:16px 0 4px">${emailBtn(origin + "/#/admin", "Open the admin page →")}</p>`,
+    footer: "Accept or decline under 📣 Notifications &amp; team → Squads." });
   sendAdminEmail(env, ctx, `Squad request: ${user.name} → ${SQUAD_TITLES[squadId]}`, html);
 };
 const notifyAdminOfJoinRequest = (env, ctx, user, club) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
   const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
-  const html = `<div style="font-family:Arial,sans-serif;max-width:520px;color:#373d3b"><h2 style="margin:0 0 8px">New club join request</h2><p><strong>${escapeHtml(user.name)}</strong> (username <code>${escapeHtml(user.username)}</code>) asked to join <strong>${escapeHtml(club.title)}</strong>.</p><p>To accept or decline: open <a href="${origin}/#/clubs">${origin}</a>, log in as admin (🔒 Admin Login in the footer), and look for <em>Join requests</em> on the Clubs page.</p></div>`;
-  ctx.waitUntil(fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [env.ADMIN_NOTIFY_EMAIL], subject: `Join request: ${user.name} → ${club.title}`, html }),
-  }).then(async (r) => { if (!r.ok) console.error("Resend rejected admin notification", r.status, (await r.text()).slice(0, 300)); }).catch((e) => console.error("Resend request failed", String(e))));
+  const f = user.form || {};
+  const picks = Array.isArray(f.ranked) && f.ranked.length ? `<p style="margin:0 0 6px"><strong>Their picks:</strong> ${f.ranked.slice(0, 4).map((c, i) => `${i + 1}. ${escapeHtml(c)}`).join(" &nbsp; ")}</p>` : "";
+  const html = emailShell(env, { emoji: "🙋‍♀️", title: "New club join request", preheader: `${user.name} → ${club.title}`,
+    body: `<p style="margin:0 0 6px"><strong>${escapeHtml(user.name)}</strong> <span style="color:#776867">@${escapeHtml(user.username)}</span> asked to join</p><p style="margin:0 0 14px">${emailChip(escapeHtml(club.title))}</p>${user.phone ? `<p style="margin:0 0 6px">📞 ${escapeHtml(user.phone)}</p>` : ""}${picks}${f.why ? emailNote(`<div style="font-size:12px;opacity:.8;margin-bottom:2px">💬 What they wrote</div>${escapeHtml(String(f.why).slice(0, 400)).replace(/\n/g, "<br>")}`) : ""}<p style="margin:16px 0 4px">${emailBtn(origin + "/#/admin", "Review the request →")}</p>`,
+    footer: "Accept or decline under 🏛️ Clubs → Notifications on your admin page." });
+  sendAdminEmail(env, ctx, `Join request: ${user.name} → ${club.title}`, html);
 };
 
 // ---- Global username uniqueness index (username -> userId) ----
@@ -1036,7 +1065,7 @@ export default {
     if (reviewPageMatch && request.method === "GET") {
       const kind = reviewPageMatch[1], id = decodeURIComponent(reviewPageMatch[2]);
       const sig = url.searchParams.get("sig") || "";
-      const page = (body, status = 200) => new Response(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Review · 4DASISTAS</title><style>*{box-sizing:border-box}body{margin:0;background:#fef7f4;color:#373d3b;font-family:-apple-system,Segoe UI,Arial,sans-serif;line-height:1.5}main{max-width:560px;margin:0 auto;padding:22px 16px 60px}h1{font-size:22px;margin:0 0 4px}label{display:block;font-size:13px;color:#776867;margin:14px 0 4px}input,select{width:100%;padding:12px;border-radius:12px;border:2px solid #373d3b;font-size:16px;background:#fff;font-family:inherit}input[type=checkbox]{width:22px;height:22px;margin-right:8px;vertical-align:middle}.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}button{flex:1;min-height:50px;border:0;border-radius:999px;font-size:16px;font-weight:700;color:#fff;cursor:pointer}.ok{background:#2a7a4a}.no{background:#b3261e}.note{padding:12px 14px;border-radius:12px;background:#f2d8d7;color:#76220b;margin:14px 0;white-space:pre-wrap}.msg{margin-top:16px;font-weight:700}</style></head><body><main>${body}</main></body></html>`, { status, headers: { "Content-Type": "text/html; charset=UTF-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
+      const page = (body, status = 200) => new Response(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>Review · 4DASISTAS</title><style>*{box-sizing:border-box}body{margin:0;background:#fef7f4;color:#373d3b;font-family:-apple-system,Segoe UI,Arial,sans-serif;line-height:1.55}header{background:#ce8491;border-bottom:2px solid #76220b;padding:18px 16px;text-align:center}header a{font-family:Georgia,'Times New Roman',serif;font-size:28px;letter-spacing:4px;font-weight:700;color:#fff;text-decoration:none}header div{font-size:11px;letter-spacing:1.6px;color:#fde9ea;margin-top:2px}main{max-width:560px;margin:18px auto 60px;padding:22px 20px;background:#fff;border:2px solid #76220b;border-radius:20px;box-shadow:4px 4px 0 #76220b;width:calc(100% - 24px)}h1{font-size:22px;margin:0 0 6px;color:#76220b}label{display:block;font-size:13px;color:#776867;margin:14px 0 4px}input,select{width:100%;padding:12px;border-radius:12px;border:2px solid #76220b;font-size:16px;background:#fff;font-family:inherit}input[type=checkbox]{width:22px;height:22px;margin-right:8px;vertical-align:middle}.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}button{flex:1;min-height:50px;border:2px solid #76220b;border-radius:999px;font-size:16px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit}.ok{background:#2a7a4a}.no{background:#b3261e}.note{padding:12px 14px;border-radius:14px;background:#f2d8d7;color:#76220b;margin:14px 0;white-space:pre-wrap}.msg{margin-top:16px;font-weight:700}a{color:#76220b}</style></head><body><header><a href="/">4DASISTAS</a><div>CLUBS · EVENTS · SQUADS · GTA</div></header><main>${body}</main></body></html>`, { status, headers: { "Content-Type": "text/html; charset=UTF-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex" } });
       if (!sameSig(sig, await reviewSig(env, kind, id))) return page("<h1>Link not valid</h1><p>This review link isn't valid. Open the site, log in as admin and use the Submitted events / resources card instead.</p>", 403);
       const raw = await env.SITE_DATA.get(`${kind === "event" ? "eventsug" : "ressug"}:${id}`);
       if (!raw) return page("<h1>Already handled</h1><p>This submission has already been accepted, denied or dismissed.</p>");
@@ -1315,7 +1344,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (club) notifyAdminOfJoinRequest(env, ctx, user, club);
       } else {
         // signed up without asking for a club: still tell the admin there's a new member (the join-request email covers the other case)
-        sendAdminEmail(env, ctx, `New member: ${user.name}`, `<div style="font-family:Arial,sans-serif;max-width:520px;color:#373d3b"><h2 style="margin:0 0 8px">New member signed up</h2><p><strong>${escapeHtml(user.name)}</strong> (username <code>${escapeHtml(user.username)}</code>) just created an account${user.phone ? ` — phone ${escapeHtml(user.phone)}` : ""}. They haven't asked for a club yet.</p><p><a href="${escapeHtml(env.SITE_ORIGIN || "https://4dasistas.ca")}/#/admin">Open the admin page</a></p></div>`);
+        sendAdminEmail(env, ctx, `New member: ${user.name}`, emailShell(env, { emoji: "🎉", title: "New member signed up", preheader: `${user.name} just created an account`,
+          body: `<p style="margin:0 0 6px"><strong>${escapeHtml(user.name)}</strong> <span style="color:#776867">@${escapeHtml(user.username)}</span> just created an account.</p>${user.phone ? `<p style="margin:0 0 6px">📞 ${escapeHtml(user.phone)}</p>` : ""}<p style="margin:0 0 6px;color:#776867">They haven't asked for a club yet.</p><p style="margin:16px 0 4px">${emailBtn((env.SITE_ORIGIN || "https://4dasistas.ca") + "/#/admin", "Open the admin page →")}</p>` }));
       }
       await Promise.all([
         env.SITE_DATA.put(ipKey, String(Number(ipCount || 0) + 1), { expirationTtl: 3700 }),
@@ -2091,7 +2121,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup") || path.startsWith("/api/admin/wa-templates");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup") || path.startsWith("/api/admin/wa-templates") || path.startsWith("/api/admin/email-preview");
 
     if (requiresAuth && !leadCtx) {
       const token = getSessionToken(request);
@@ -2678,6 +2708,28 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       } else delete user.archived;
       await writeUser(env, user);
       return jsonResponse({ ok: true, archived: user.archived || null }, 200, corsHeaders);
+    }
+    // ---- Admin: see exactly what each email looks like (nothing is sent) ----
+    if (path === "/api/admin/email-preview" && request.method === "GET") {
+      const kind = url.searchParams.get("kind") || "index";
+      const cap = [], penv = { ...env, __capture: cap, RESEND_API_KEY: "preview", ADMIN_NOTIFY_EMAIL: "preview@example.com" };
+      const pctx = { waitUntil: (p) => p };
+      const user = { name: "Aaliyah K.", username: "aaliyah.k", phone: "416-555-0123", form: { ranked: ["Cuisine", "Arts & Crafts", "Field"], why: "I love trying new restaurants and would love to host a dinner night!", lead: "Yes, leading" } };
+      const club = { id: "club-cuisine", title: "CUISINE" };
+      const sampleEvent = { id: "sample-1", name: "Sunset Picnic at Trillium Park", date: "2026-10-18", city: "Toronto", genre: "functions", link: "https://instagram.com/p/sample", comments: "Bring a blanket — women-only, free entry!", at: Date.now() };
+      const sampleRes = { id: "sample-2", title: "Sweet Saffron Bakery", type: "cafes", city: "Mississauga", link: "https://instagram.com/sweetsaffron", comments: "Halal, woman-owned, does custom cakes.", at: Date.now() };
+      let msg = null;
+      if (kind === "join") { notifyAdminOfJoinRequest(penv, pctx, user, club); msg = cap[0]; }
+      else if (kind === "squad") { notifyAdminOfSquadRequest(penv, pctx, user, "quran"); msg = cap[0]; }
+      else if (kind === "event") { await notifyAdminOfSuggestion(penv, pctx, "event", sampleEvent); msg = cap[0]; }
+      else if (kind === "resource") { await notifyAdminOfSuggestion(penv, pctx, "resource", sampleRes); msg = cap[0]; }
+      else if (kind === "backup") { await sendBackupEmail(penv, "Daily backup"); msg = cap[0]; }
+      else if (kind === "digest") msg = { subject: "What's on today", html: digestEmailHtml(env, "Sunday, October 18", [{ title: "Pilates at the Lake", date: "Today · 10:00 AM", location: "Toronto" }, { title: "Sisters Quran circle", date: "Today · 7:30 PM", location: "Mississauga" }], "#") };
+      if (kind === "index" || !msg) {
+        const links = [["join", "🙋‍♀️ Join request"], ["squad", "🪁 Squad request"], ["event", "🗓️ Event submitted"], ["resource", "🛍️ Resource submitted"], ["backup", "🛟 Daily backup"], ["digest", "☀️ Daily digest (subscribers)"]];
+        return new Response(`<!DOCTYPE html><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:Arial;background:#fef7f4;padding:24px"><h2 style="color:#76220b">Email previews</h2><p>Nothing is sent — these are examples with made-up people.</p>${links.map(([k, l]) => `<p><a href="?kind=${k}" style="color:#76220b;font-size:18px">${l}</a></p>`).join("")}</body>`, { headers: { "Content-Type": "text/html; charset=UTF-8", "Cache-Control": "no-store" } });
+      }
+      return new Response(msg.html, { headers: { "Content-Type": "text/html; charset=UTF-8", "Cache-Control": "no-store" } });
     }
     // ---- Admin: backups (download now / email now) ----
     if (path === "/api/admin/backup" && request.method === "GET") {
@@ -3305,20 +3357,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     const { dateString, events } = await readTodayEvents(env);
     if (!events.length) return;
     const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
-    const list = events.map(item => `<li><strong>${escapeHtml(item.title)}</strong><br>${escapeHtml(item.date || "Today")} · ${escapeHtml(item.location || "Location TBA")}</li>`).join("");
     const subject = `What's on today at 4DASISTAS — ${dateString}`;
     for (const subscriber of subscribers) {
       const unsubscribeUrl = `${origin}/api/unsubscribe?token=${encodeURIComponent(subscriber.token)}`;
-      ctx.waitUntil(fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>",
-          to: [subscriber.email],
-          subject,
-          html: `<div style="font-family:Arial,sans-serif;max-width:560px;color:#373d3b"><h1 style="color:#caaacd">WHAT'S ON TODAY</h1><p>${escapeHtml(dateString)}</p><ul>${list}</ul><p style="color:#776867;font-size:12px">You are receiving this because you subscribed to the 4DASISTAS daily list. <a href="${unsubscribeUrl}">Unsubscribe</a></p></div>`,
-        }),
-      }));
+      ctx.waitUntil(postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [subscriber.email], subject, html: digestEmailHtml(env, dateString, events, unsubscribeUrl) }));
     }
   },
 };

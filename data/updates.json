@@ -1,6 +1,21 @@
 {
   "updates": [
     {
+      "no": 7,
+      "date": "2026-10-11",
+      "title": "Emails match the site",
+      "items": [
+        {
+          "text": "✨ All emails (join requests, new events, squad requests, suggestions, new members, backups and the daily digest) now use the 4DASISTAS look — rose header, cream background, brown-outlined cards and pill buttons.",
+          "for": "admin"
+        },
+        {
+          "text": "✨ The Accept / Edit / Deny review pages opened from emails got the same look.",
+          "for": "admin"
+        }
+      ]
+    },
+    {
       "no": 6,
       "date": "2026-10-11",
       "title": "Club admins see full profiles",
