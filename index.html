@@ -379,9 +379,9 @@
   .mc-nav{ width:32px; height:32px; border-radius:50%; border:2px solid var(--brand-brown); background:var(--brand-blush,#f2d8d7); font-size:18px; line-height:1; cursor:pointer; color:var(--brand-brown); }
   .mc-week, .mc-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:3px; text-align:center; }
   .mc-week span{ font-size:11px; font-weight:700; color:var(--muted); padding:2px 0; }
-  .mc-day{ min-height:46px; min-width:0; overflow:hidden; display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:1px; border:0; border-radius:10px; background:transparent; font:inherit; font-size:13px; color:var(--charcoal); padding:0; }
+  .mc-day{ min-height:46px; min-width:0; height:auto; display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:1px; border:0; border-radius:10px; background:transparent; font:inherit; font-size:13px; color:var(--charcoal); padding:0; }
   .mc-n{ font-size:12px; line-height:1.1; text-align:center; }
-  .mc-day em{ display:block; font-style:normal; font-size:8px; line-height:1.15; font-weight:700; border:1px solid; border-radius:4px; padding:1px 2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mc-day em{ display:block; font-style:normal; font-size:8.5px; line-height:1.15; font-weight:700; border:1px solid; border-radius:4px; padding:1px 2px; white-space:normal; overflow-wrap:break-word; word-break:normal; text-align:left; }
   .mc-day b{ font-size:8px; line-height:1; }
   .mc-agenda{ margin-top:10px; display:flex; flex-direction:column; gap:6px; border-top:2px dashed #f2d8d7; padding-top:8px; }
   .mc-ev{ display:flex; align-items:center; gap:8px; text-align:left; border:0; background:transparent; padding:2px 0; font:inherit; color:inherit; cursor:pointer; }
@@ -1431,8 +1431,7 @@ applySiteText();
   ALL_ITEMS = [...sportsData, ...gatheringsData, ...dayActivitiesData, ...tripsData, ...clubsData, ...resourcesData, ...supportProgramsData, ...mosqueGatheringsData];
   // The main calendar shows sports, activities, functions and Knowledge (mosque programs).
   // Trips and clubs have their own dedicated calendars.
-  EVENT_ITEMS = mixEvents(sportsData, gatheringsData, dayActivitiesData, [], mosqueGatheringsData).concat(EVENT_ITEMS.filter(x => x.clubCal));
-  setTimeout(() => refreshClubCalItems(), 0);
+  EVENT_ITEMS = mixEvents(sportsData, gatheringsData, dayActivitiesData, [], mosqueGatheringsData); // club events are NOT shown here — people open a club to see its events
 }
 
 function mixEvents(sports, gatherings, dayActs, trips, mosqueGatherings){
@@ -2368,6 +2367,10 @@ function renderCalendar(){
     const selected = new Date(`${dateStr}T00:00:00`);
     const heading = `${dayLabelsFull[selected.getDay()]}, ${monthNames[selected.getMonth()]} ${selected.getDate()}`;
     detail.innerHTML = `<button class="calendar-day-detail-close" type="button" aria-label="Close day schedule">×</button><h3>${heading}</h3><div class="calendar-day-events">${dayItems.map(item => `<div class="calendar-day-event" style="--event-color:${eventColor(item)}" data-id="${item.id}"><div class="calendar-day-event-time">${eventTimeLabel(item)}</div><div><div class="calendar-day-event-title">${emojiTitle(item)}</div>${cityLabel(item) ? `<div class="calendar-day-event-type">${cityLabel(item)}</div>` : ''}</div></div>`).join('') || '<p class="calendar-scope-note">Nothing scheduled for this day.</p>'}</div>`;
+    if(state.cmAdminLoggedIn === true){
+      detail.insertAdjacentHTML('beforeend', `<button type="button" class="club-guide-btn" id="calDayAdd" style="width:100%;margin-top:12px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add an event on this date</button>`);
+      detail.querySelector('#calDayAdd').addEventListener('click', () => { detail.classList.remove('open'); openEventCreate(dateStr); });
+    }
     detail.classList.add('open');
     detail.querySelector('.calendar-day-detail-close').addEventListener('click', () => detail.classList.remove('open'));
   });
@@ -4076,14 +4079,14 @@ async function openEventEdit(id){
   renderEventEditView();
 }
 
-function openEventCreate(){
+function openEventCreate(presetDate){
   state.eventJustCreated = false;
   state.eventEditOpen = true;
   state.eventCreateMode = true;
   state.eventEditId = null;
   state.eventEditError = '';
   state.eventEditSaved = false;
-  state.eventEditData = { ...EVENT_CREATE_DEFAULTS };
+  state.eventEditData = { ...EVENT_CREATE_DEFAULTS, ...(typeof presetDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(presetDate) ? { eventDate: presetDate } : {}) };
   document.getElementById('detail-view').classList.add('open');
   document.body.style.overflow = 'hidden';
   renderEventEditView();
@@ -5601,16 +5604,8 @@ function ideaHeaders(){
    (for their own clubs) add / edit / remove events and see who's coming.
    ============================================================ */
 // Club events also show on the MAIN calendar (name + date; tapping one asks visitors to log in, members get the details + RSVP).
-async function refreshClubCalItems(){
-  try {
-    const r = await fetch('/api/club-calendar', { cache:'no-store' });
-    if(!r.ok) return;
-    const items = ((await r.json()).events || []).map(e => ({ id:'clubcal:' + e.id, title:(e.kind === 'idea' && e.emoji ? e.emoji + ' ' : '') + e.title, tag:'Club', section:'clubevents', calDate:e.date, eventDate:e.date, date:calDateLabel(e.date), time:e.time || '', allDay:!e.time, virtual:false,
-      location:e.clubTitle ? e.clubTitle + ' club' : 'Club event', desc:'', clubCal:true }));
-    EVENT_ITEMS = EVENT_ITEMS.filter(x => !x.clubCal).concat(items);
-    if(state.tab === 'events' || state.tab === 'home') render();
-  } catch {}
-}
+// Club events are deliberately kept OFF the main calendar (people open the Clubs page to see them).
+async function refreshClubCalItems(){ EVENT_ITEMS = EVENT_ITEMS.filter(x => !x.clubCal); }
 function calIsAdmin(){ return state.cmAdminLoggedIn === true || !!state.cmLead; }
 function calDateLabel(d){ return d ? new Date(d + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' }) : ''; }
 async function clubCalLoad(force){
@@ -5653,8 +5648,8 @@ function clubCalGridHtml(list){
   for(let i = 0; i < first.getDay(); i++) cells += '<div></div>';
   for(let d = 1; d <= dim; d++){
     const key = `${m}-${String(d).padStart(2, '0')}`, evs = byDay[key] || [];
-    const chips = evs.slice(0, 2).map(e => `<em style="background:${clubCol(e.clubId).bg};color:${clubCol(e.clubId).fg};border-color:${clubCol(e.clubId).fg};">${escapeCm(e.title)}</em>`).join('');
-    cells += `<button type="button" class="mc-day${evs.length ? ' has' : ''}${key === todayK ? ' today' : ''}" ${evs.length ? `data-calday="${key}"` : 'tabindex="-1"'}><span class="mc-n">${d}</span>${chips}${evs.length > 2 ? `<b>+${evs.length - 2}</b>` : ''}</button>`;
+    const chips = evs.slice(0, 4).map(e => `<em style="background:${clubCol(e.clubId).bg};color:${clubCol(e.clubId).fg};border-color:${clubCol(e.clubId).fg};">${escapeCm(e.title)}</em>`).join('');
+    cells += `<button type="button" class="mc-day${evs.length ? ' has' : ''}${key === todayK ? ' today' : ''}" ${evs.length || calIsAdmin() ? `data-calday="${key}"` : 'tabindex="-1"'}><span class="mc-n">${d}</span>${chips}${evs.length > 4 ? `<b>+${evs.length - 4}</b>` : ''}</button>`;
   }
   const label = first.toLocaleDateString('en-CA', { month:'long', year:'numeric' });
   return `<div class="mini-cal"><div class="mc-head"><button type="button" class="mc-nav" data-calnav="-1" aria-label="Previous month">‹</button><strong>${escapeCm(label)}</strong><button type="button" class="mc-nav" data-calnav="1" aria-label="Next month">›</button></div>
@@ -5668,7 +5663,7 @@ function clubCalSectionHtml(compact){
   let body;
   if(state.clubCalError && !list) body = `<p class="av-msg" style="color:#c00;text-align:center;">${escapeCm(state.clubCalError)}</p>`;
   else if(!list) body = `<p class="av-msg" style="text-align:center;">Loading events…</p>`;
-  else if(!list.length) body = `<p class="av-msg" style="text-align:center;">No club events yet — check back soon!</p>`;
+  else if(!list.length && !calIsAdmin()) body = `<p class="av-msg" style="text-align:center;">No club events yet — check back soon!</p>`;
   else body = view === 'cal' ? clubCalGridHtml(list) : `<div class="cal-list">${list.map(e => clubCalRowHtml(e, today)).join('')}</div>`;
   const tog = (v, l) => `<button type="button" class="filter-chip${view === v ? ' active' : ''}" data-calview="${v}">${l}</button>`;
   return `<h3 class="clubs-popular-title">📅 CLUB CALENDAR</h3>
@@ -5679,9 +5674,11 @@ function clubCalSectionHtml(compact){
 // Tapping a day shows EVERY event that day with its full details right away (no second tap): members get the RSVP button, admins a manage button, visitors a log-in / sign-up prompt.
 function clubCalDayPopup(key){
   const evs = (state.clubCal || []).filter(e => e.date === key);
-  if(evs.length === 1 && !String(evs[0].id).startsWith('idea:')){ clubCalOpen(evs[0].id); return; }
   const member = !!getCmSession(), staff = calIsAdmin() && state.clubCalIsAdminData;
+  if(staff && !evs.length){ clubCalForm(null, key); return; } // an empty day: straight to 'add event' with that date filled in
+  if(!staff && evs.length === 1 && !String(evs[0].id).startsWith('idea:')){ clubCalOpen(evs[0].id); return; }
   const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 8px;">${escapeCm(ideaLongDate(key))}</h3><div id="cdEvs"></div>
+    ${staff ? `<button type="button" class="club-guide-btn" id="cdAdd" style="width:100%;margin-top:12px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add an event on this date</button>` : ''}
     ${!member && !staff ? `<div style="display:flex;gap:10px;margin-top:10px;"><button type="button" class="club-guide-btn" id="cdLogin" style="flex:1;text-align:center;">Log In</button><button type="button" class="fall-cta-btn join-club-btn" id="cdSignup" style="flex:1;">Sign Up</button></div>` : ''}`);
   const list = wrap.querySelector('#cdEvs');
   evs.forEach((e, i) => {
@@ -5702,6 +5699,7 @@ function clubCalDayPopup(key){
       sec.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(e.clubTitle)}</p><h3 style="margin:0;">${escapeCm(e.title)}</h3><p class="ideas-hint" style="text-align:left;margin:4px 0 0;">${e.time ? '⏰ ' + escapeCm(e.time) + ' · ' : ''}Log in or sign up to see the details and RSVP.</p>`;
     }
   });
+  const addB = wrap.querySelector('#cdAdd'); if(addB) addB.addEventListener('click', () => { close(); clubCalForm(null, key); });
   const lb = wrap.querySelector('#cdLogin'), sb = wrap.querySelector('#cdSignup');
   if(lb) lb.addEventListener('click', () => { close(); state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; render(); });
   if(sb) sb.addEventListener('click', () => { close(); goToTab('fallsignup'); });
@@ -5862,7 +5860,7 @@ async function mountClubCalPlace(wrap){
     hidden.type = 'text'; hidden.placeholder = 'Type the place or address'; hidden.maxLength = 200; hidden.style.cssText = 'width:100%;padding:10px;margin-bottom:8px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;'; chosen.style.display = 'none';
   }
 }
-function clubCalForm(ev){
+function clubCalForm(ev, presetDate){
   const clubs = clubsData; // any club can join in on a collab; the server makes sure a club admin keeps at least one of their own
   const sel = new Set(ev ? (ev.clubIds || [ev.clubId]) : []);
   if(!ev && !sel.size){ const own = (typeof adminClubs === 'function' ? adminClubs() : []).map(c => c.id); if(state.cmLead && own.length === 1) sel.add(own[0]); }
@@ -5872,7 +5870,7 @@ function clubCalForm(ev){
     <p class="ideas-hint" style="text-align:left;margin:0 0 4px;">Which club(s)? Tick more than one for a collab.</p>
     <div class="cp-clubs" style="margin-bottom:8px;">${clubs.map(c => `<label class="cp-club"><input type="checkbox" class="cf-club" value="${escapeCm(c.id)}" ${sel.has(c.id) ? 'checked' : ''}> ${escapeCm(c.title)}</label>`).join('')}</div>
     <input id="cfTitle" type="text" maxlength="80" placeholder="Event name" value="${escapeCm(ev ? ev.title : '')}" style="${f}">
-    <input id="cfDate" type="date" value="${escapeCm(ev ? ev.date : '')}" style="${f}">
+    <input id="cfDate" type="date" value="${escapeCm(ev ? ev.date : (presetDate || ''))}" style="${f}">
     <input id="cfTime" type="text" maxlength="30" placeholder="Time (optional, e.g. 6:30 PM)" value="${escapeCm(ev ? ev.time : '')}" style="${f}">
     <label style="display:block;font-size:12px;color:#776867;margin:0 0 2px;">Last day to RSVP (optional)</label>
     <input id="cfRsvpBy" type="date" value="${escapeCm(ev ? (ev.rsvpBy || '') : '')}" style="${f}">
@@ -8509,7 +8507,7 @@ async function loadWaTemplates(){
   try { const r = await fetch('/api/admin/wa-templates', { credentials:'include' }); if(r.ok) state.waTemplates = (await r.json()).templates || {}; } catch {}
 }
 function waTemplatesAdminHtml(){
-  const f = (key, label, hint) => `<label style="display:block;margin-top:10px;font-weight:700;font-size:13px;">${label}<span style="display:block;font-weight:400;font-size:11px;color:#776867;">${hint}</span><textarea class="wa-tpl" data-key="${key}" rows="3" maxlength="600" style="width:100%;margin-top:4px;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:14px;font-family:inherit;box-sizing:border-box;">${escapeCm((state.waTemplates && state.waTemplates[key]) || WA_DEFAULTS[key])}</textarea></label>`;
+  const f = (key, label, hint) => `<label style="display:block;margin-top:10px;font-weight:700;font-size:13px;">${label}<span style="display:block;font-weight:400;font-size:11px;color:#776867;">${hint}</span><textarea class="wa-tpl" data-key="${key}" rows="3" maxlength="600" style="width:100%;margin-top:4px;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:14px;font-family:inherit;box-sizing:border-box;">${escapeCm((state.waTemplates && state.waTemplates[key]) || WA_DEFAULTS[key])}</textarea><a class="wa-open" data-key="${key}" href="#" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;padding:8px 16px;border-radius:999px;background:#25a244;color:#fff;font-weight:800;font-size:13px;text-decoration:none;">💬 Open in WhatsApp</a></label>`;
   return `<div class="cp-box"><p style="font-size:12px;color:#776867;margin:0;line-height:1.5;">The text that's pre-filled when you tap a WhatsApp button. Use <code>{first}</code> (first name), <code>{name}</code> (full name) and <code>{club}</code> (club). You can still edit it in WhatsApp before sending.</p>
     ${f('remind', '⏰ Availability reminder', 'The green "WhatsApp reminder" button in the availability calendar.')}
     ${f('notif', '🔔 Turn on notifications', 'Nudge for people who haven\'t turned notifications on.')}
@@ -8521,6 +8519,12 @@ function waTemplatesAdminHtml(){
     <span id="waTplStatus" style="font-size:12px;display:block;margin-top:6px;"></span></div>`;
 }
 function wireWaTemplates(){
+  // 'Open in WhatsApp' under each wording: opens WhatsApp with that text ready to send (pick the chat there).
+  document.querySelectorAll('.wa-open').forEach(a => a.addEventListener('click', () => {
+    const ta = document.querySelector(`.wa-tpl[data-key="${a.dataset.key}"]`);
+    const txt = String((ta && ta.value) || '').replace(/\{first\}/g, 'there').replace(/\{name\}/g, '').replace(/\{club\}/g, 'your club').replace(/\{deadline\}/g, '');
+    a.href = 'https://wa.me/?text=' + encodeURIComponent(txt);
+  }));
   const save = document.getElementById('waTplSave'); if(!save) return;
   const st = document.getElementById('waTplStatus');
   const collect = () => { const t = {}; document.querySelectorAll('.wa-tpl').forEach(a => { const v = a.value.trim(); if(v && v !== WA_DEFAULTS[a.dataset.key]) t[a.dataset.key] = v; }); return t; };
@@ -8650,7 +8654,7 @@ async function admAnswerJoin(clubId, userId, action){
     if(action === 'accept'){ admAvail.people = null; cmAdminLoadAllMembers().then(() => { const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName); if((state.tab === 'clubs' || state.tab === 'admin') && !typing) render(); }); }
     const first = req ? String(req.name || '').split(' ')[0] : 'her';
     const wa = req ? admWhatsAppLink(req.phone, waMsg(action === 'accept' ? 'joinAccept' : 'joinDecline', req.name, req.clubTitle)) : '';
-    admToast(`${action === 'accept' ? '✅ Accepted' : '❌ Declined'}${req ? ' · ' + escapeCm(req.name) : ''} — they'll see a notice next time they open the app.${wa ? `<br><a href="${escapeCm(wa)}" target="_blank" rel="noopener" style="color:#ffd9d9;font-weight:700;">💬 Also tell ${escapeCm(first)} on WhatsApp</a>` : ''}`);
+    admToast(`${action === 'accept' ? '✅ Accepted' : '❌ Declined'}${req ? ' · ' + escapeCm(req.name) : ''} — they'll see a notice next time they open the app.${wa ? `<br><a href="${escapeCm(wa)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;padding:10px 18px;border-radius:999px;background:#25a244;color:#fff;font-weight:800;text-decoration:none;">💬 Message ${escapeCm(first)} on WhatsApp</a>` : ''}`);
   } catch(err){
     admNotif.dismissed.delete(id); admNotif.items = keepItems; state.cmAdminJoinRequests = keepReqs;
     admUpdateBell();
