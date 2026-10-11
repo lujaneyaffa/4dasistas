@@ -5593,7 +5593,7 @@ async function clubCalLoad(force){
     state.clubCalError = '';
   } catch { state.clubCalError = "Couldn't load the calendar — check your connection."; if(!state.clubCal) state.clubCal = []; }
   state.clubCalLoading = false;
-  if(state.tab === 'clubs') render();
+  if(state.tab === 'clubs' || state.tab === 'admin') render();
 }
 function clubCalReload(){ state.clubCal = null; state.clubCalIsAdminData = false; clubCalLoad(); render(); }
 function clubCalSectionHtml(compact){
@@ -8593,8 +8593,9 @@ function renderClubAdminPanel(){
     </div>`;
   }
   const clubId = state.cmAdminClub;
-  const grp = ['clubs', 'team', 'profiles'].includes(state.admGroup) ? state.admGroup : 'clubs';
-  const gsel = (lead && grp === 'team') ? 'clubs' : grp;
+  const grp = state.admGroup === 'team' ? 'settings' : state.admGroup;
+  const allowedGroups = lead ? ['clubs', 'calendar', 'profiles'] : ['clubs', 'squads', 'directory', 'calendar', 'profiles', 'settings'];
+  const gsel = allowedGroups.includes(grp) ? grp : 'clubs';
   // Club events + quick member (per club) — lives in the Clubs grid
   const clubToolsHtml = `
     <p style="font-size:11px;color:#776867;margin-top:-6px;">Pick a club to add a profile or manage its events, or search every profile below.</p>
@@ -8635,16 +8636,21 @@ function renderClubAdminPanel(){
     ` : ''}`;
   const clubsGrid = `
     ${inboxAdminHtml(lead)}
+    ${admSec('clubtools', '🏛️ Club events & quick member', clubToolsHtml, false)}
+  `;
+  const squadsGrid = lead ? '' : admSec('squads', '🪁 Squads — requests &amp; invite links', squadAdminHtml(), true, 'flat');
+  const directoryGrid = lead ? '' : admSec('clubdir', '🏛️ Club directory', clubDirListHtml(), true, 'flat');
+  const missingN = state.cmAdminLoggedIn === true && ALL_ITEMS.length ? buildMissingDetailsQueue().length : 0;
+  const calendarGrid = `
+    ${state.cmAdminLoggedIn === true ? `<div style="margin:6px 0 12px;">${missingN ? `<button type="button" class="club-guide-btn" id="admMissingBtn" style="min-height:44px;padding:8px 18px;text-align:center;background:#fff3cd;">📋 ${missingN} need${missingN === 1 ? 's' : ''} details</button>` : '<p class="av-msg" style="margin:0;">📋 Every calendar event has its details. 🎉</p>'}</div>` : ''}
+    ${admSec('clubcal', '🗓️ Club calendar — events &amp; RSVPs', clubCalSectionHtml(true), true)}
     ${lead ? '' : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
     ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
-    ${admSec('clubtools', '🏛️ Club events & quick member', clubToolsHtml, false)}
-    ${lead ? '' : admSec('clubdir', '🏛️ Club directory', clubDirListHtml(), false)}
   `;
-  const teamGrid = lead ? '' : `
+  const settingsGrid = lead ? '' : `
     ${admSec('watpl', '💬 WhatsApp messages — your wording', waTemplatesAdminHtml(), false)}
     ${lead ? '' : admSec('push', '📲 Push notifications', pushAdminHtml(), false)}
     ${lead ? '' : admSec('leads', '🧑‍💼 Club admins' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
-    ${lead ? '' : admSec('squads', '🪁 Squads — requests &amp; invite links', squadAdminHtml(), false)}
     ${lead ? '' : admSec('labels', '🏷️ Names of categories &amp; genres', labelsAdminHtml(), false)}
   `;
   const profilesGrid = `
@@ -8674,17 +8680,21 @@ function renderClubAdminPanel(){
     </div>
     ${lead ? `<p style="font-size:12px;color:#776867;margin:6px 0 0;">You manage: <strong>${adminClubs().map(c => escapeCm(c.title)).join(', ') || 'no clubs yet'}</strong>. Reminders only go to your clubs' members. Use "➕ New event" at the bottom of the page to add an official event.</p>` : ''}
     ${admGroupTilesHtml(lead, gsel)}
-    ${gsel === 'clubs' ? clubsGrid : gsel === 'team' ? teamGrid : profilesGrid}
+    ${gsel === 'clubs' ? clubsGrid : gsel === 'squads' ? squadsGrid : gsel === 'directory' ? directoryGrid : gsel === 'calendar' ? calendarGrid : gsel === 'settings' ? settingsGrid : profilesGrid}
   </div>`;
 }
 // Three big tiles at the top of the Admin page switch between its grids (Clubs / Notifications & team / Profiles).
 function admGroupTilesHtml(lead, cur){
   const tile = (id, icon, title, hint, badge) => `<button type="button" class="adm-tile${cur === id ? ' on' : ''}" data-group="${id}" aria-pressed="${cur === id}"><span class="adm-tile-ic">${icon}</span><span class="adm-tile-t">${title}</span><span class="adm-tile-h">${hint}</span>${badge ? `<span class="adm-badge adm-tile-b">${badge}</span>` : ''}</button>`;
   const profiles = Array.isArray(state.cmAdminAllUsers) ? state.cmAdminAllUsers.length : 0;
-  return `<div class="adm-tiles" style="grid-template-columns:repeat(${lead ? 2 : 3}, minmax(0,1fr));">
-    ${tile('clubs', '🏛️', 'Clubs', 'Availability · requests · events', admInboxCount())}
-    ${lead ? '' : tile('team', '📣', 'Notifications & team', 'Push · club admins · squads', (state.cmLeads || []).length || '')}
+  const sqReqs = (state.squadAdmin && state.squadAdmin.requests) ? state.squadAdmin.requests.length : 0;
+  return `<div class="adm-tiles" style="grid-template-columns:repeat(3, minmax(0,1fr));">
+    ${tile('clubs', '🏛️', 'Clubs', 'Requests · events', admInboxCount())}
+    ${lead ? '' : tile('squads', '🪁', 'Squads', 'Requests · invite links', sqReqs || '')}
+    ${lead ? '' : tile('directory', '📖', 'Directory', 'Club directory', '')}
+    ${tile('calendar', '📅', 'The Calendar', 'Events · availability', '')}
     ${tile('profiles', '👥', 'Profiles', 'People · clubs · squads', profiles || '')}
+    ${lead ? '' : tile('settings', '⚙️', 'Settings', 'Push · club admins · labels', '')}
   </div>`;
 }
 // ---- Import sign-up forms: match each form submission (name / phone) to a website profile, fill in what's missing, create profiles that don't exist yet ----
@@ -9267,6 +9277,7 @@ function wireClubAdminPanel(){
   wireWaTemplates();
   wireD1Admin();
   wireFormImport();
+  { const mb = document.getElementById('admMissingBtn'); if(mb) mb.addEventListener('click', startMissingDetailsReview); if(document.getElementById('calAddBtn') || document.querySelector('.cal-list')) wireClubCal(); }
   document.querySelectorAll('.adm-tile').forEach(b => b.addEventListener('click', () => { state.admGroup = b.dataset.group; render(); window.scrollTo({ top:0, behavior:'smooth' }); }));
   const reloadProfiles = document.getElementById('admReloadProfiles');
   if(reloadProfiles) reloadProfiles.addEventListener('click', async () => { reloadProfiles.disabled = true; reloadProfiles.textContent = 'Loading…'; await cmAdminLoadAllMembers(); render(); });
@@ -9353,10 +9364,7 @@ function renderFooterAdmin(){
   const apb = document.getElementById('footerAdminPageBtn'); if(apb) apb.style.display = adminUiOn() ? '' : 'none';
   const missingBtn = document.getElementById('footerMissingDetailsBtn');
   if(!missingBtn) return;
-  if(!state.cmAdminLoggedIn || !ALL_ITEMS.length){ missingBtn.style.display = 'none'; return; }
-  const count = buildMissingDetailsQueue().length;
-  missingBtn.style.display = count ? '' : 'none';
-  missingBtn.textContent = `📋 ${count} need${count === 1 ? 's' : ''} details`;
+  missingBtn.style.display = 'none'; // the "need details" button now lives in Admin → The Calendar
 }
 
 async function checkAdminSession(){
