@@ -1903,7 +1903,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!mine.some((r) => r.squadId === squadId)) {
         if (mine.length >= SQUAD_MAX_PENDING_PER_PERSON) return jsonResponse({ error: "You already have several squad requests waiting" }, 429, corsHeaders);
         await env.SITE_DATA.put(squadReqKey(squadId, me.id), JSON.stringify({ at: Date.now() }));
-        notifyAdminOfSquadRequest(env, ctx, me, squadId);
+        // No email for squad requests (Lujane: in-app only) — they show in the admin notifications bell and the Squads tab.
       }
       return jsonResponse({ ok: true, pending: [...new Set([...mine.map((r) => r.squadId), squadId])] }, 200, corsHeaders);
     }
