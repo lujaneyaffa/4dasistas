@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-11 · Claude · index.html, service-worker.js (v97) · Admin tabs: Club calendar, Availability period and Availability calendar moved from The Calendar tab to the CLUBS tab (Clubs = notifications, club calendar, period, availability calendar, club events/quick member, club directory). The Calendar tab now = 'need details' button + event-genre names (main calendar only). Club admins see Clubs + Profiles only. Layout → not in What's-new.
+
 - 2026-10-11 · Claude · index.html, workers/src/worker.js, service-worker.js (v96) · 'All periods' list was missing the period replaced BEFORE history existed: `GET /api/admin/avail-periods` now always includes the built-in first period (Oct 8–20, `DEFAULT_AVAIL_PERIOD`), and `POST /api/admin/avail-periods {start,end}` + an 'Add an older period' box lets the admin add any other past period (answers are still stored by date).
 
 - 2026-10-11 · Claude · index.html, workers/src/worker.js, service-worker.js (v95) · 'Add event' form now has a 'Who's going?' picker (search members + add by name) so attendees are chosen up front: `POST /api/admin/club-cal` accepts `attendees:[{userId}|{name}]`. Not in What's-new (admin convenience).

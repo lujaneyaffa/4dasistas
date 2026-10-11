@@ -8939,7 +8939,7 @@ function renderClubAdminPanel(){
   }
   const clubId = state.cmAdminClub;
   const grp = state.admGroup === 'team' ? 'settings' : state.admGroup;
-  const allowedGroups = lead ? ['clubs', 'calendar', 'profiles'] : ['clubs', 'squads', 'directory', 'calendar', 'profiles', 'settings'];
+  const allowedGroups = lead ? ['clubs', 'profiles'] : ['clubs', 'squads', 'directory', 'calendar', 'profiles', 'settings'];
   const gsel = allowedGroups.includes(grp) ? grp : 'clubs';
   // Club events + quick member (per club) — lives in the Clubs grid
   const clubToolsHtml = `
@@ -8981,6 +8981,9 @@ function renderClubAdminPanel(){
     ` : ''}`;
   const clubsGrid = `
     ${inboxAdminHtml(lead)}
+    ${admSec('clubcal', '🗓️ Club calendar — events &amp; RSVPs', clubCalSectionHtml(true), true)}
+    ${lead ? '' : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
+    ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
     ${admSec('clubtools', '🏛️ Club events & quick member', clubToolsHtml, false)}
     ${lead ? '' : admSec('clubdir', '🏛️ Club directory (add / edit clubs)', clubDirListHtml(), false)}
   `;
@@ -8989,9 +8992,6 @@ function renderClubAdminPanel(){
   const missingN = state.cmAdminLoggedIn === true && ALL_ITEMS.length ? buildMissingDetailsQueue().length : 0;
   const calendarGrid = `
     ${state.cmAdminLoggedIn === true ? `<div style="margin:6px 0 12px;">${missingN ? `<button type="button" class="club-guide-btn" id="admMissingBtn" style="min-height:44px;padding:8px 18px;text-align:center;background:#fff3cd;">📋 ${missingN} need${missingN === 1 ? 's' : ''} details</button>` : '<p class="av-msg" style="margin:0;">📋 Every calendar event has its details. 🎉</p>'}</div>` : ''}
-    ${admSec('clubcal', '🗓️ Club calendar — events &amp; RSVPs', clubCalSectionHtml(true), true)}
-    ${lead ? '' : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
-    ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
     ${lead ? '' : admSec('labels-ev', '🏷️ Names of event genres', labelsAdminHtml('event'), false)}
   `;
   const settingsGrid = lead ? '' : `
@@ -9034,10 +9034,10 @@ function admGroupTilesHtml(lead, cur){
   const tile = (id, icon, title, hint, badge) => `<button type="button" class="adm-tile${cur === id ? ' on' : ''}" data-group="${id}" aria-pressed="${cur === id}"><span class="adm-tile-ic">${icon}</span><span class="adm-tile-t">${title}</span><span class="adm-tile-h">${hint}</span>${badge ? `<span class="adm-badge adm-tile-b">${badge}</span>` : ''}</button>`;
   const sqReqs = (state.squadAdmin && state.squadAdmin.requests) ? state.squadAdmin.requests.length : 0;
   return `<div class="adm-tiles" style="grid-template-columns:repeat(3, minmax(0,1fr));">
-    ${tile('clubs', '🏛️', 'Clubs', 'Requests · events', admInboxCount())}
+    ${tile('clubs', '🏛️', 'Clubs', 'Requests · events · availability', admInboxCount())}
     ${lead ? '' : tile('squads', '🪁', 'Squads', 'Requests · invite links', sqReqs || '')}
     ${lead ? '' : tile('directory', '📖', 'Directory', 'Resource names', '')}
-    ${tile('calendar', '📅', 'The Calendar', 'Events · availability', '')}
+    ${lead ? '' : tile('calendar', '📅', 'The Calendar', 'Main calendar', '')}
     ${tile('profiles', '👥', 'Profiles', 'People · clubs · squads', '')}
     ${lead ? '' : tile('settings', '⚙️', 'Settings', 'Push · club admins · labels', '')}
   </div>`;
