@@ -1413,7 +1413,8 @@ applySiteText();
   ALL_ITEMS = [...sportsData, ...gatheringsData, ...dayActivitiesData, ...tripsData, ...clubsData, ...resourcesData, ...supportProgramsData, ...mosqueGatheringsData];
   // The main calendar shows sports, activities, functions and Knowledge (mosque programs).
   // Trips and clubs have their own dedicated calendars.
-  EVENT_ITEMS = mixEvents(sportsData, gatheringsData, dayActivitiesData, [], mosqueGatheringsData);
+  EVENT_ITEMS = mixEvents(sportsData, gatheringsData, dayActivitiesData, [], mosqueGatheringsData).concat(EVENT_ITEMS.filter(x => x.clubCal));
+  setTimeout(() => refreshClubCalItems(), 0);
 }
 
 function mixEvents(sports, gatherings, dayActs, trips, mosqueGatherings){
@@ -1514,7 +1515,7 @@ function dedupeEvents(items){
   });
 }
 
-const SECTION_TO_TAG_CLASS = {sports:'cat-sports', activities:'cat-dayactivity', functions:'cat-function', trips:'cat-trip', mosqueprograms:'cat-mosque'};
+const SECTION_TO_TAG_CLASS = {clubevents:'cat-club', sports:'cat-sports', activities:'cat-dayactivity', functions:'cat-function', trips:'cat-trip', mosqueprograms:'cat-mosque'};
 function tagClass(item){
   if(!item) return 'cat-resource';
   if(resourcesData.includes(item)) return 'cat-resource';
@@ -3056,7 +3057,7 @@ function renderDirectory(){
       return;
     }
     if(!state.cmAdminOpen) openClubAdmin();
-    el.innerHTML = `<h3 class="clubs-popular-title">ADMIN</h3>${renderClubAdminPanel()}`;
+    el.innerHTML = renderClubAdminPanel();
     wireClubAdminPanel();
     wireSquadsPage();
     return;
@@ -5575,6 +5576,17 @@ function ideaHeaders(){
    (club members are "going" right away, people from other clubs send a request an admin accepts). The main admin and club admins
    (for their own clubs) add / edit / remove events and see who's coming.
    ============================================================ */
+// Club events also show on the MAIN calendar (name + date; tapping one asks visitors to log in, members get the details + RSVP).
+async function refreshClubCalItems(){
+  try {
+    const r = await fetch('/api/club-calendar', { cache:'no-store' });
+    if(!r.ok) return;
+    const items = ((await r.json()).events || []).map(e => ({ id:'clubcal:' + e.id, title:e.title, tag:'Club', section:'clubevents', calDate:e.date, eventDate:e.date, date:calDateLabel(e.date), time:e.time || '', allDay:!e.time, virtual:false,
+      location:e.clubTitle ? e.clubTitle + ' club' : 'Club event', desc:'', clubCal:true }));
+    EVENT_ITEMS = EVENT_ITEMS.filter(x => !x.clubCal).concat(items);
+    if(state.tab === 'events' || state.tab === 'home') render();
+  } catch {}
+}
 function calIsAdmin(){ return state.cmAdminLoggedIn === true || !!state.cmLead; }
 function calDateLabel(d){ return d ? new Date(d + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' }) : ''; }
 async function clubCalLoad(force){
@@ -5595,7 +5607,7 @@ async function clubCalLoad(force){
   state.clubCalLoading = false;
   if(state.tab === 'clubs' || state.tab === 'admin') render();
 }
-function clubCalReload(){ state.clubCal = null; state.clubCalIsAdminData = false; clubCalLoad(); render(); }
+function clubCalReload(){ state.clubCal = null; state.clubCalIsAdminData = false; clubCalLoad(); refreshClubCalItems(); render(); }
 function clubCalSectionHtml(compact){
   const list = state.clubCal;
   const today = new Date().toISOString().slice(0, 10);
@@ -5621,6 +5633,7 @@ function wireClubCal(){
   const add = document.getElementById('calAddBtn');
   if(add) add.addEventListener('click', () => clubCalForm(null));
 }
+function clubCalOpenAny(id){ if(!state.clubCal || state.clubCalIsAdminData !== calIsAdmin()){ clubCalLoad(true).then(() => clubCalOpen(id)); } else clubCalOpen(id); }
 async function clubCalOpen(id){
   const ev = (state.clubCal || []).find(e => e.id === id);
   if(calIsAdmin() && state.clubCalIsAdminData && ev) return clubCalManage(ev);
@@ -5689,11 +5702,14 @@ function clubCalManage(ev){
   paint();
 }
 function clubCalForm(ev){
-  const clubs = (typeof adminClubs === 'function' ? adminClubs() : clubsData) || clubsData;
+  const clubs = clubsData; // any club can join in on a collab; the server makes sure a club admin keeps at least one of their own
+  const sel = new Set(ev ? (ev.clubIds || [ev.clubId]) : []);
+  if(!ev && !sel.size){ const own = (typeof adminClubs === 'function' ? adminClubs() : []).map(c => c.id); if(state.cmLead && own.length === 1) sel.add(own[0]); }
   const f = 'width:100%;padding:10px;margin-bottom:8px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;';
   const { wrap, close } = ideaPopup(`
     <h3 style="margin:0 0 10px;">${ev ? 'Edit event' : 'Add a club event'}</h3>
-    ${ev ? '' : `<select id="cfClub" style="${f}">${clubs.map(c => `<option value="${escapeCm(c.id)}">${escapeCm(c.title)}</option>`).join('')}</select>`}
+    <p class="ideas-hint" style="text-align:left;margin:0 0 4px;">Which club(s)? Tick more than one for a collab.</p>
+    <div class="cp-clubs" style="margin-bottom:8px;">${clubs.map(c => `<label class="cp-club"><input type="checkbox" class="cf-club" value="${escapeCm(c.id)}" ${sel.has(c.id) ? 'checked' : ''}> ${escapeCm(c.title)}</label>`).join('')}</div>
     <input id="cfTitle" type="text" maxlength="80" placeholder="Event name" value="${escapeCm(ev ? ev.title : '')}" style="${f}">
     <input id="cfDate" type="date" value="${escapeCm(ev ? ev.date : '')}" style="${f}">
     <input id="cfTime" type="text" maxlength="30" placeholder="Time (optional, e.g. 6:30 PM)" value="${escapeCm(ev ? ev.time : '')}" style="${f}">
@@ -5703,7 +5719,8 @@ function clubCalForm(ev){
     <button type="button" class="club-guide-btn" id="cfSave" style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">${ev ? 'Save changes' : 'Add event'}</button>`);
   wrap.querySelector('#cfSave').addEventListener('click', async e => {
     const body = { title: wrap.querySelector('#cfTitle').value, date: wrap.querySelector('#cfDate').value, time: wrap.querySelector('#cfTime').value, place: wrap.querySelector('#cfPlace').value, desc: wrap.querySelector('#cfDesc').value };
-    if(!ev) body.clubId = wrap.querySelector('#cfClub').value;
+    body.clubIds = [...wrap.querySelectorAll('.cf-club:checked')].map(x => x.value);
+    if(!body.clubIds.length){ wrap.querySelector('#cfMsg').textContent = 'Tick at least one club.'; return; }
     e.target.disabled = true;
     try { await clubCalAdminCall(ev ? '/' + encodeURIComponent(ev.id) : '', ev ? 'PUT' : 'POST', body); close(); clubCalReload(); }
     catch(err){ e.target.disabled = false; wrap.querySelector('#cfMsg').textContent = err.message; }
@@ -6175,7 +6192,10 @@ function renderMyClubsSectionHtml(){
     <h3 class="clubs-popular-title">📅 AVAILABILITY</h3>
     <div class="my-avail-section" style="max-width:640px;margin:8px auto 0;">${ideaAvailSectionHtml(ideaMe())}${everyoneAvailSectionHtml(ideaMe())}</div>`;
   const bigBtn = (page, emoji, label, sub) => `<button type="button" class="club-guide-btn clubs-big-btn" data-clubspage="${page}"><span class="cbb-emoji">${emoji}</span><span class="cbb-label">${label}</span><span class="cbb-sub">${sub}</span></button>`;
-  return `${topRow}${pendingBanner}
+  let annBanner = '';
+  { const an = state.availAnnounce; let seen = ''; try { seen = localStorage.getItem('availAnn') || ''; } catch {}
+    if(an && an.id !== seen) annBanner = `<div class="av-waitlist" style="max-width:520px;margin:0 auto 14px;text-align:center;">📣 ${escapeCm(an.text)} <button type="button" class="club-guide-btn" data-clubspage="avail" data-annid="${escapeCm(an.id)}" style="padding:6px 14px;font-size:13px;margin:6px 4px 0;">Add my availability</button><button type="button" class="av-link" id="availAnnDismiss" data-annid="${escapeCm(an.id)}" style="margin-top:6px;">Dismiss</button></div>`; }
+  return `${topRow}${pendingBanner}${annBanner}
     <h3 class="clubs-popular-title">${myClubs.length > 1 ? 'YOUR CLUBS' : 'YOUR CLUB'}: ${myClubs.map(c => escapeCm(c.title)).join(' · ')}</h3>
     <div class="clubs-big-btns">
       ${bigBtn('avail', '📅', 'Availability', 'Add yours &amp; see everyone\'s')}
@@ -6314,7 +6334,7 @@ let AVAIL_PERIOD = { start:'2026-10-08', end:'2026-10-20' }; // same default as 
 async function loadAvailPeriod(){
   try {
     const r = await fetch('/api/avail-period', { cache:'no-store' });
-    if(r.ok){ const p = await r.json(); if(p && p.start && p.end) AVAIL_PERIOD = { start:p.start, end:p.end }; }
+    if(r.ok){ const p = await r.json(); if(p && p.start && p.end){ AVAIL_PERIOD = { start:p.start, end:p.end }; state.availAnnounce = p.announce || null; } }
   } catch {}
 }
 function iavNext15Dates(){
@@ -7716,7 +7736,55 @@ function periodAdminHtml(){
     <button type="button" class="club-guide-btn" id="periodSave" style="background:var(--blush);">Save period</button>
     <span id="periodStatus" style="font-size:12px;margin-left:8px;"></span>
     <p class="ideas-hint" style="text-align:left;margin:8px 0 0;">Changing the period doesn't delete anyone's answers — dates outside it just stop showing. Up to 45 days.</p>
+    ${periodHistoryHtml(fmt)}
   </div>`;
+}
+// Every period you've opened is saved: tap one to look at everyone's availability from back then in the Availability calendar below.
+async function loadAvailPeriods(){
+  if(state.availPeriodsLoading) return;
+  state.availPeriodsLoading = true;
+  try { const r = await fetch('/api/admin/avail-periods', { credentials:'include' }); if(r.ok) state.availPeriods = (await r.json()).periods || []; } catch {}
+  state.availPeriodsLoading = false;
+  if(state.tab === 'admin') render();
+}
+function periodHistoryHtml(fmt){
+  if(!state.availPeriods){ if(!state.availPeriodsLoading) loadAvailPeriods(); return ''; }
+  const cur = AVAIL_PERIOD, vp = admAvail.viewPeriod;
+  const rows = state.availPeriods.map(h => {
+    const isCur = h.start === cur.start && h.end === cur.end, on = vp ? (vp.start === h.start && vp.end === h.end) : isCur;
+    return `<button type="button" class="period-view" data-start="${escapeCm(h.start)}" data-end="${escapeCm(h.end)}" style="display:flex;justify-content:space-between;gap:8px;width:100%;margin:0 0 6px;padding:9px 12px;border-radius:12px;border:2px solid #76220b;background:${on ? '#f2d8d7' : '#fff'};font:inherit;font-weight:700;cursor:pointer;text-align:left;"><span>${escapeCm(fmt(h.start))} → ${escapeCm(fmt(h.end))}</span><span style="font-weight:600;color:#776867;">${isCur ? 'current' : (on ? 'viewing ✓' : 'view')}</span></button>`;
+  }).join('');
+  return `<div style="margin-top:14px;"><strong style="font-size:13px;">🗂️ All periods (saved)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 8px;">Tap one to see everyone's availability for it in the calendar below.</p>${rows}</div>`;
+}
+function periodAnnouncePopup(){
+  const fmt = k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' });
+  const range = `${fmt(AVAIL_PERIOD.start)} → ${fmt(AVAIL_PERIOD.end)}`;
+  const users = (Array.isArray(state.cmAdminAllUsers) ? state.cmAdminAllUsers : []).filter(u => !u.archived);
+  const withPhone = users.filter(u => admWhatsAppLink(u.phone, 'x'));
+  const { wrap, close } = ideaPopup(`
+    <h3 style="margin:0 0 6px;">📣 New period saved — tell everyone?</h3>
+    <p class="ideas-hint" style="text-align:left;margin:0 0 8px;"><strong>${escapeCm(range)}</strong></p>
+    <textarea id="paMsg" rows="2" maxlength="240" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font:inherit;">A new availability period is open (${escapeCm(range)}) — add yours! 🌸</textarea>
+    <div style="display:flex;gap:8px;margin:8px 0;flex-wrap:wrap;">
+      <button type="button" class="club-guide-btn" id="paApp" style="flex:1;min-width:160px;text-align:center;background:var(--brand-rose);color:#fff;">📲 Announce in the app + push (${users.length})</button>
+    </div>
+    <div id="paStatus" style="font-size:13px;min-height:18px;"></div>
+    <p class="idea-pop-h">💬 Message people personally on WhatsApp (${withPhone.length} with a number)</p>
+    <p class="ideas-hint" style="text-align:left;margin:0 0 6px;">Each button opens WhatsApp with your wording from Settings → WhatsApp messages. Tap Done on someone you've messaged.</p>
+    <div id="paList" style="max-height:38vh;overflow:auto;">${withPhone.map(u => `<div class="pa-row" data-uid="${escapeCm(u.id)}" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(0,0,0,.1);"><span style="flex:1;font-weight:600;">${escapeCm(u.name)}</span><a class="pa-wa" target="_blank" rel="noopener" href="${escapeCm(admWhatsAppLink(u.phone, waMsg('newPeriod', u.name, range)))}" style="text-decoration:none;border:2px solid #25a244;background:#e6f4ea;border-radius:999px;padding:4px 12px;font-weight:700;color:#14532d;">💬 WhatsApp</a></div>`).join('') || '<p class="av-msg">No phone numbers on file yet.</p>'}</div>
+    <button type="button" class="club-guide-btn" id="paDone" style="width:100%;margin-top:10px;text-align:center;">Done</button>`);
+  wrap.querySelector('#paDone').addEventListener('click', close);
+  wrap.querySelectorAll('.pa-wa').forEach(a => a.addEventListener('click', () => { a.textContent = '✓ Opened'; a.style.opacity = '.6'; }));
+  wrap.querySelector('#paApp').addEventListener('click', async e => {
+    const btn = e.target, st = wrap.querySelector('#paStatus'), msg = wrap.querySelector('#paMsg').value.trim();
+    btn.disabled = true; st.style.color = '#373d3b'; st.textContent = 'Sending…';
+    try {
+      await leadApi('POST', '/api/admin/avail-period/announce', { message: msg });
+      let sent = 0;
+      if(users.length){ const d = await admSendPush(users.map(u => u.id), '📅 New availability period', msg || 'A new availability period is open — add yours!', '/#/clubs/availability'); sent = d.sent || 0; }
+      st.style.color = '#2a7a4a'; st.textContent = `✓ Announced in the app (a banner on everyone's Clubs page) and sent to ${sent} device${sent === 1 ? '' : 's'}.`;
+    } catch(err){ btn.disabled = false; st.style.color = '#c00'; st.textContent = err.message; }
+  });
 }
 function wirePeriodAdmin(){
   const btn = document.getElementById('periodSave'); if(!btn) return;
@@ -7728,9 +7796,18 @@ function wirePeriodAdmin(){
       AVAIL_PERIOD = { start:d.start, end:d.end };
       state.eavCache = {}; state.ideaAvailAllLoadedFor = null; admAvail.people = null;
       admAvail.month = String(d.start).slice(0, 7); admAvail.day = null; admAvail.person = null;
-      st.style.color = '#2a7a4a'; st.textContent = 'Saved ✓'; render();
+      st.style.color = '#2a7a4a'; st.textContent = 'Saved ✓';
+      state.availPeriods = null; admAvail.viewPeriod = null; state.availAnnounce = null; render();
+      if(d.changed) periodAnnouncePopup();
     } catch(err){ st.style.color = '#c00'; st.textContent = err.message; }
   });
+  document.querySelectorAll('.period-view').forEach(b => b.addEventListener('click', () => {
+    const same = b.dataset.start === AVAIL_PERIOD.start && b.dataset.end === AVAIL_PERIOD.end;
+    admAvail.viewPeriod = same ? null : { start:b.dataset.start, end:b.dataset.end };
+    admAvail.month = String(b.dataset.start).slice(0, 7); admAvail.day = null; admAvail.person = null;
+    render();
+    const box = document.getElementById('admAvailBox'); if(box) box.scrollIntoView({ block:'start', behavior:'smooth' });
+  }));
 }
 
 // ---- Editable names for resource categories and event genres ----
@@ -7754,15 +7831,14 @@ async function loadLabels(){
   } catch {}
   applyLabels();
 }
-function labelsAdminHtml(){
+function labelsAdminHtml(which){
   applyLabels();
   const inp = 'padding:9px;border-radius:10px;border:2px solid var(--brand-brown);width:100%;box-sizing:border-box;font-size:15px;';
   const row = (grp, key, def) => `<label style="display:block;font-size:11px;color:#776867;margin-top:6px;">${escapeCm(def)}<input class="lbl-in" data-grp="${grp}" data-key="${escapeCm(key)}" value="${escapeCm(LABELS[grp][key] || '')}" placeholder="${escapeCm(def)}" maxlength="40" style="${inp}"></label>`;
   return `<div class="cp-box">
-    <h4 style="margin:0 0 4px;">Names of resource categories &amp; event genres</h4>
+    <h4 style="margin:0 0 4px;">${which === 'resource' ? 'Names of resource categories' : 'Names of event genres'}</h4>
     <p style="font-size:11px;color:#776867;margin:0 0 8px;">Type a new name to rename it everywhere on the site (tabs, filters, submit forms, editors). Leave blank to keep the original.</p>
-    <strong style="font-size:13px;">Resource categories</strong>${Object.keys(LABEL_DEFAULTS.resource).map(k => row('resource', k, LABEL_DEFAULTS.resource[k])).join('')}
-    <div style="margin-top:12px;"><strong style="font-size:13px;">Event genres</strong></div>${Object.keys(LABEL_DEFAULTS.event).map(k => row('event', k, LABEL_DEFAULTS.event[k])).join('')}
+    ${which === 'resource' ? Object.keys(LABEL_DEFAULTS.resource).map(k => row('resource', k, LABEL_DEFAULTS.resource[k])).join('') : Object.keys(LABEL_DEFAULTS.event).map(k => row('event', k, LABEL_DEFAULTS.event[k])).join('')}
     <button type="button" class="club-guide-btn" id="lblSave" style="margin-top:12px;background:var(--blush);">Save names</button>
     <span id="lblStatus" style="font-size:12px;margin-left:8px;"></span>
   </div>`;
@@ -7770,8 +7846,9 @@ function labelsAdminHtml(){
 function wireLabelsAdmin(){
   const btn = document.getElementById('lblSave'); if(!btn) return;
   btn.addEventListener('click', async () => {
-    const body = { resource:{}, event:{} };
-    document.querySelectorAll('.lbl-in').forEach(i => { if(i.value.trim()) body[i.dataset.grp][i.dataset.key] = i.value.trim(); });
+    // Only the group on screen is edited; the other group is sent back unchanged so saving here never wipes it.
+    const body = { resource:Object.assign({}, LABELS.resource), event:Object.assign({}, LABELS.event) };
+    document.querySelectorAll('.lbl-in').forEach(i => { if(i.value.trim()) body[i.dataset.grp][i.dataset.key] = i.value.trim(); else delete body[i.dataset.grp][i.dataset.key]; });
     const st = document.getElementById('lblStatus'); st.style.color = '#776867'; st.textContent = 'Saving…';
     try { await leadApi('PUT', '/api/admin/labels', body); await loadLabels(); st.style.color = '#2a7a4a'; st.textContent = 'Saved ✓'; render(); }
     catch(err){ st.style.color = '#c00'; st.textContent = err.message; }
@@ -8156,6 +8233,7 @@ const WA_DEFAULTS = {
   remind: "Hi {first}! Quick reminder to add your availability on 4DASISTAS so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs",
   notif: "Hi {first}! Please open 4DASISTAS from your Home Screen and tap Allow notifications so we can send you reminders 💛 4dasistas.ca",
   joinAccept: "Hi {first}! You've been accepted into the {club} club on 4DASISTAS 🎉 Open the app to see it.",
+  newPeriod: "Hi {first}! 🌸 A new availability period is open: {club}. Please add yours on 4DASISTAS so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs/availability",
   joinDecline: "Hi {first}, thanks for requesting the {club} club on 4DASISTAS. We couldn't approve it this time — message us if you have questions.",
 };
 function waMsg(key, name, club){
@@ -8171,6 +8249,7 @@ function waTemplatesAdminHtml(){
   return `<div class="cp-box"><p style="font-size:12px;color:#776867;margin:0;line-height:1.5;">The text that's pre-filled when you tap a WhatsApp button. Use <code>{first}</code> (first name), <code>{name}</code> (full name) and <code>{club}</code> (club). You can still edit it in WhatsApp before sending.</p>
     ${f('remind', '⏰ Availability reminder', 'The green "WhatsApp reminder" button in the availability calendar.')}
     ${f('notif', '🔔 Turn on notifications', 'Nudge for people who haven\'t turned notifications on.')}
+    ${f('newPeriod', '🗓️ New availability period', 'Offered when you open a new period. {club} is replaced by the dates.')}
     ${f('joinAccept', '✅ Club request accepted', 'Offered after you accept a join request.')}
     ${f('joinDecline', '❌ Club request declined', 'Offered after you decline a join request.')}
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><button type="button" class="club-guide-btn" id="waTplSave" style="background:var(--blush);">Save wording</button><button type="button" class="club-guide-btn" id="waTplReset" style="padding:6px 14px;font-size:12px;">Reset all to default</button></div>
@@ -8639,19 +8718,19 @@ function renderClubAdminPanel(){
     ${admSec('clubtools', '🏛️ Club events & quick member', clubToolsHtml, false)}
   `;
   const squadsGrid = lead ? '' : admSec('squads', '🪁 Squads — requests &amp; invite links', squadAdminHtml(), true, 'flat');
-  const directoryGrid = lead ? '' : admSec('clubdir', '🏛️ Club directory', clubDirListHtml(), true, 'flat');
+  const directoryGrid = lead ? '' : admSec('clubdir', '🏛️ Club directory', clubDirListHtml(), true, 'flat') + admSec('labels-res', '🏷️ Names of resource categories', labelsAdminHtml('resource'), false);
   const missingN = state.cmAdminLoggedIn === true && ALL_ITEMS.length ? buildMissingDetailsQueue().length : 0;
   const calendarGrid = `
     ${state.cmAdminLoggedIn === true ? `<div style="margin:6px 0 12px;">${missingN ? `<button type="button" class="club-guide-btn" id="admMissingBtn" style="min-height:44px;padding:8px 18px;text-align:center;background:#fff3cd;">📋 ${missingN} need${missingN === 1 ? 's' : ''} details</button>` : '<p class="av-msg" style="margin:0;">📋 Every calendar event has its details. 🎉</p>'}</div>` : ''}
     ${admSec('clubcal', '🗓️ Club calendar — events &amp; RSVPs', clubCalSectionHtml(true), true)}
     ${lead ? '' : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
     ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
+    ${lead ? '' : admSec('labels-ev', '🏷️ Names of event genres', labelsAdminHtml('event'), false)}
   `;
   const settingsGrid = lead ? '' : `
     ${admSec('watpl', '💬 WhatsApp messages — your wording', waTemplatesAdminHtml(), false)}
     ${lead ? '' : admSec('push', '📲 Push notifications', pushAdminHtml(), false)}
     ${lead ? '' : admSec('leads', '🧑‍💼 Club admins' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
-    ${lead ? '' : admSec('labels', '🏷️ Names of categories &amp; genres', labelsAdminHtml(), false)}
   `;
   const profilesGrid = `
     ${(lead || !/[?&]importforms/.test(location.search)) ? '' : admSec('formimport', '📥 Import sign-up forms (from your email)', formImportHtml(), false)}
@@ -8686,14 +8765,13 @@ function renderClubAdminPanel(){
 // Three big tiles at the top of the Admin page switch between its grids (Clubs / Notifications & team / Profiles).
 function admGroupTilesHtml(lead, cur){
   const tile = (id, icon, title, hint, badge) => `<button type="button" class="adm-tile${cur === id ? ' on' : ''}" data-group="${id}" aria-pressed="${cur === id}"><span class="adm-tile-ic">${icon}</span><span class="adm-tile-t">${title}</span><span class="adm-tile-h">${hint}</span>${badge ? `<span class="adm-badge adm-tile-b">${badge}</span>` : ''}</button>`;
-  const profiles = Array.isArray(state.cmAdminAllUsers) ? state.cmAdminAllUsers.length : 0;
   const sqReqs = (state.squadAdmin && state.squadAdmin.requests) ? state.squadAdmin.requests.length : 0;
   return `<div class="adm-tiles" style="grid-template-columns:repeat(3, minmax(0,1fr));">
     ${tile('clubs', '🏛️', 'Clubs', 'Requests · events', admInboxCount())}
     ${lead ? '' : tile('squads', '🪁', 'Squads', 'Requests · invite links', sqReqs || '')}
     ${lead ? '' : tile('directory', '📖', 'Directory', 'Club directory', '')}
     ${tile('calendar', '📅', 'The Calendar', 'Events · availability', '')}
-    ${tile('profiles', '👥', 'Profiles', 'People · clubs · squads', profiles || '')}
+    ${tile('profiles', '👥', 'Profiles', 'People · clubs · squads', '')}
     ${lead ? '' : tile('settings', '⚙️', 'Settings', 'Push · club admins · labels', '')}
   </div>`;
 }
@@ -8946,11 +9024,14 @@ async function clubDirDelete(){
    Filter by club, tap a name to see ONLY that person's availability, tap a day to see who's free.
    Months scroll forward/back but never before Oct 2026.
    ============================================================ */
+// The admin availability calendar can show an OLDER period (everyone's answers are kept): admAvail.viewPeriod = {start,end} or null for the current one.
+function admPeriod(){ return admAvail.viewPeriod || AVAIL_PERIOD; }
+function admFloor(){ return admAvail.viewPeriod ? '0000-00-00' : ymdToday(); }
 const ADM_AVAIL_MIN_MONTH = '2026-10';
 const ADM_AVAIL_MAX_MONTH = '2027-12';
 const ADM_PARTS = [['morning','Morning','M'],['afternoon','Afternoon','A'],['evening','Evening','E']];
 let _admWin = null, _admWinDay = '';
-function admWinSet(){ const t = ymdToday(); if(_admWinDay !== t){ _admWin = new Set(iavNext15Dates()); _admWinDay = t; } return _admWin; }
+function admWinSet(){ if(admAvail.viewPeriod){ const out = new Set(), d = new Date(admAvail.viewPeriod.start + 'T12:00:00'), e = new Date(admAvail.viewPeriod.end + 'T12:00:00'); for(let i = 0; i < 60 && d <= e; i++){ out.add(d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())); d.setDate(d.getDate() + 1); } return out; } const t = ymdToday(); if(_admWinDay !== t){ _admWin = new Set(iavNext15Dates()); _admWinDay = t; } return _admWin; }
 // Per time slot of one day: how many PREFER it (picked it green), how many are free then (preferred, or simply not marked red inside the 15-day window), and how many can't.
 function admSlotCounts(scope, key){
   const wk = [0, 6].includes(new Date(key + 'T12:00:00').getDay()), inWin = admWinSet().has(key), out = {};
@@ -9028,7 +9109,7 @@ function admModeAndBestHtml(scope){
   const todayKey = ymdToday(), keys = new Set();
   admWinSet().forEach(k => keys.add(k)); scope.forEach(p => Object.keys(p.days || {}).forEach(k => keys.add(k)));
   const rows = [];
-  [...keys].filter(k => k >= todayKey && k >= AVAIL_PERIOD.start && k <= AVAIL_PERIOD.end).forEach(k => { const c = admSlotCounts(scope, k); Object.keys(c).forEach(id => rows.push(Object.assign({ k, id }, c[id]))); });
+  [...keys].filter(k => k >= admFloor() && k >= admPeriod().start && k <= admPeriod().end).forEach(k => { const c = admSlotCounts(scope, k); Object.keys(c).forEach(id => rows.push(Object.assign({ k, id }, c[id]))); });
   const score = r => mode === 'pref' ? r.pref : r.avail;
   rows.sort((a, b) => mode === 'pref' ? (b.pref - a.pref) || (b.avail - a.avail) || (a.no - b.no) || a.k.localeCompare(b.k) : (b.avail - a.avail) || (b.pref - a.pref) || (a.no - b.no) || a.k.localeCompare(b.k));
   const top = rows.filter(r => score(r) > 0).slice(0, 6);
@@ -9085,7 +9166,7 @@ function admAvailCalendarHtml(){
   const maxN = Math.max(1, scope.length);
   for(let d = 1; d <= daysInMonth; d++){
     const key = `${y}-${pad(m)}-${pad(d)}`;
-    if(key < AVAIL_PERIOD.start || key > AVAIL_PERIOD.end){ // outside the open availability period: blocked, nobody is assumed free
+    if(key < admPeriod().start || key > admPeriod().end){ // outside the open availability period: blocked, nobody is assumed free
       cells += `<div aria-hidden="true" style="min-height:74px;border-radius:10px;background:#efecea;opacity:.55;padding:5px 4px;font-size:12px;font-weight:700;color:#8a8583;">${d}</div>`;
       continue;
     }
@@ -9127,7 +9208,7 @@ function admAvailCalendarHtml(){
   let personDays = '';
   if(sel){
     const todayKey = ymdToday();
-    const rowsFor = src => Object.keys(src || {}).filter(d => d >= todayKey && d >= AVAIL_PERIOD.start && d <= AVAIL_PERIOD.end && (src[d] || []).length).sort().map(d => {
+    const rowsFor = src => Object.keys(src || {}).filter(d => d >= admFloor() && d >= admPeriod().start && d <= admPeriod().end && (src[d] || []).length).sort().map(d => {
       const dt = new Date(d + 'T12:00:00');
       const parts = ADM_PARTS.filter(([id]) => (src[d] || []).includes(id)).map(([, label]) => label).join(', ');
       return `<button type="button" class="adm-slot" data-day="${d}" data-part="" style="display:block;width:100%;text-align:left;padding:7px 4px;border:none;border-bottom:1px solid #0000000f;background:none;font:inherit;color:inherit;cursor:pointer;"><strong>${escapeCm(dayLabelsShort[dt.getDay()])} ${escapeCm(monthNames[dt.getMonth()].slice(0, 3))} ${dt.getDate()}</strong> — ${escapeCm(parts)} <span style="font-size:12px;font-weight:700;text-decoration:underline;">see who</span></button>`;
@@ -9205,7 +9286,8 @@ async function admCreateProfile(allowDuplicate){
 function admAvailSectionHtml(){
   const mine = adminClubs();
   if(state.cmAdminLoggedIn !== true && state.cmLead && mine.length === 1){ if(admAvail.club !== mine[0].id) admAvail.club = mine[0].id; admAvail.picked = true; }
-  return `<h3 style="margin-top:6px;">Availability calendar</h3><div id="admAvailBox" style="margin-bottom:22px;">${admAvailCalendarHtml()}</div>`;
+  const vp = admAvail.viewPeriod, fm = k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' });
+  return `<h3 style="margin-top:6px;">Availability calendar</h3>${vp ? `<div class="av-waitlist" style="margin:0 0 10px;">🗂️ Viewing an older period: <strong>${escapeCm(fm(vp.start))} → ${escapeCm(fm(vp.end))}</strong> <button type="button" class="club-guide-btn" id="admBackCurrent" style="padding:4px 12px;font-size:12px;margin-left:6px;">Back to current</button></div>` : ''}<div id="admAvailBox" style="margin-bottom:22px;">${admAvailCalendarHtml()}</div>`;
 }
 function admAvailRepaint(){
   const box = document.getElementById('admAvailBox');
@@ -9274,6 +9356,7 @@ function wireClubAdminPanel(){
   wireLeadsAdmin();
   wireLabelsAdmin();
   wirePeriodAdmin();
+  { const bc = document.getElementById('admBackCurrent'); if(bc) bc.addEventListener('click', () => { admAvail.viewPeriod = null; admAvail.month = String(AVAIL_PERIOD.start).slice(0, 7); render(); }); }
   wireWaTemplates();
   wireD1Admin();
   wireFormImport();
@@ -9800,6 +9883,8 @@ document.body.addEventListener('click', e => {
     openClubMembers(membersBtn.dataset.clubMembers, membersBtn.dataset.clubTitle || '');
     return;
   }
+  const annDismiss = e.target.closest('#availAnnDismiss');
+  if(annDismiss){ try { localStorage.setItem('availAnn', annDismiss.dataset.annid); } catch {} render(); return; }
   const clubsPageBtn = e.target.closest('[data-clubspage]');
   if(clubsPageBtn){ setClubsPage(clubsPageBtn.dataset.clubspage); return; }
   const clubCard = e.target.closest('[data-club-id]');
@@ -9813,6 +9898,7 @@ document.body.addEventListener('click', e => {
     const suggestions = document.getElementById('searchSuggestions');
     if(suggestions) suggestions.style.display = 'none';
   }
+  if(String(trigger.dataset.id).startsWith('clubcal:')){ clubCalOpenAny(String(trigger.dataset.id).slice(8)); return; }
   location.hash = '#/event/' + trigger.dataset.id;
 });
 // Swallow the click that fires right after a week-strip mouse drag, so it doesn't

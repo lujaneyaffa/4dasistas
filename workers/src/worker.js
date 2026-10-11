@@ -473,7 +473,7 @@ const buildBackup = async (env) => {
   const pushSubscriptions = {};
   for (const u of users) { const raw = await safe(`push ${u.id}`, () => env.SITE_DATA.get(pushKey(u.id)), null); if (raw) pushSubscriptions[u.id] = raw; }
   const settings = {};
-  for (const k of ["clubRoster", "clubcal", "labels", "availperiod", "watemplates", SUBSCRIBER_INDEX_KEY]) settings[k] = await safe(`setting ${k}`, () => env.SITE_DATA.get(k), null);
+  for (const k of ["clubRoster", "clubcal", "labels", "availperiod", "availperiods", "watemplates", SUBSCRIBER_INDEX_KEY]) settings[k] = await safe(`setting ${k}`, () => env.SITE_DATA.get(k), null);
   const counts = { users: users.length, availability: Object.keys(availability).length, clubs: clubIds.length, joinRequests: Object.keys(joinRequests).length, squadRequests: Object.keys(squadRequests).length, eventSubmissions: Object.keys(eventSubmissions).length, resourceSubmissions: Object.keys(resourceSubmissions).length, clubAdmins: Object.keys(clubAdmins).length };
   return { version: 2, at: new Date().toISOString(), storage: (await d1On(env)) ? "d1" : "kv", counts, warnings, users, availability, clubMembers, ideas, clubEvents, clubEventResponses, squads, joinRequests, squadRequests, eventSubmissions, resourceSubmissions, clubAdmins, pushSubscriptions, settings };
 };
@@ -893,6 +893,8 @@ const CLUBCAL_KEY = "clubcal";
 const readClubCal = async (env) => { try { const r = await env.SITE_DATA.get(CLUBCAL_KEY); const a = r ? JSON.parse(r) : []; return Array.isArray(a) ? a : []; } catch { return []; } };
 const writeClubCal = (env, a) => env.SITE_DATA.put(CLUBCAL_KEY, JSON.stringify(a));
 const cleanCalText = (v, n) => String(v || "").replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
+// A collab event belongs to several clubs: `clubIds` (clubId = the first, kept for older data).
+const calClubs = (e) => (Array.isArray(e.clubIds) && e.clubIds.length ? e.clubIds : [e.clubId]).filter(Boolean);
 const calFields = (b) => ({ title: cleanCalText(b.title, 80), date: String(b.date || ""), time: cleanCalText(b.time, 30), place: cleanCalText(b.place, 120), desc: String(b.desc || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 600) });
 const isValidDateString = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + "T00:00:00Z"));
 
@@ -1542,7 +1544,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!calMatch[1] && M === "GET") {
         const cutoff = new Date(Date.now() - 36 * 3600 * 1000).toISOString().slice(0, 10);
         const events = (await readClubCal(env)).filter((e) => e.date >= cutoff).sort((a, b) => a.date.localeCompare(b.date) || String(a.time).localeCompare(String(b.time)))
-          .map((e) => ({ id: e.id, clubId: e.clubId, clubTitle: clubTitle(e.clubId), title: e.title, date: e.date }));
+          .map((e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "" }));
         return jsonResponse({ events }, 200, corsHeaders);
       }
       if (calMatch[1]) {
@@ -1552,10 +1554,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const ev = all.find((e) => e.id === calMatch[1]);
         if (!ev) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
         const uid = who.id.startsWith("m:") ? who.id.slice(2) : "";
-        const inClub = uid ? (await readClubMemberIds(env, ev.clubId)).includes(uid) : false;
+        let inClub = false;
+        if (uid) for (const cid of calClubs(ev)) if ((await readClubMemberIds(env, cid)).includes(uid)) { inClub = true; break; }
         const mine = (ev.rsvps || []).find((r) => r.id === uid);
         if (!calMatch[2] && M === "GET") {
-          return jsonResponse({ id: ev.id, clubId: ev.clubId, clubTitle: clubTitle(ev.clubId), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", desc: ev.desc || "",
+          return jsonResponse({ id: ev.id, clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", desc: ev.desc || "",
             going: (ev.rsvps || []).filter((r) => r.status === "going").length, mine: mine ? mine.status : null, inClub }, 200, corsHeaders);
         }
         if (calMatch[2] && (M === "POST" || M === "DELETE")) {
@@ -1571,7 +1574,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           if (status === "pending" && !mine) {
             const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
             const html = emailShell(env, { emoji: "🎟️", title: "RSVP request", preheader: `${who.name} → ${ev.title}`,
-              body: `<p style="margin:0 0 6px"><strong>${escapeHtml(who.name)}</strong> (not in ${escapeHtml(clubTitle(ev.clubId))}) asked to RSVP to</p><p style="margin:0 0 14px"><strong>${escapeHtml(ev.title)}</strong> · ${escapeHtml(ev.date)}</p>${emailBtn(`${origin}/#/clubs/calendar`, "Review the request →")}`,
+              body: `<p style="margin:0 0 6px"><strong>${escapeHtml(who.name)}</strong> (not in ${escapeHtml(calClubs(ev).map(clubTitle).join(" × "))}) asked to RSVP to</p><p style="margin:0 0 14px"><strong>${escapeHtml(ev.title)}</strong> · ${escapeHtml(ev.date)}</p>${emailBtn(`${origin}/#/clubs/calendar`, "Review the request →")}`,
               footer: "Accept or decline from the event's attendee list on the Club calendar." });
             sendAdminEmail(env, ctx, `RSVP request: ${who.name} → ${ev.title}`, html);
           }
@@ -2243,8 +2246,27 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     // The availability PERIOD: the fixed block of dates people fill in (and everyone sees, in member + admin views). Nothing outside it is offered
     // or assumed available. The MAIN admin opens the next one manually. Until one is saved, it defaults to Oct 8 – Oct 20, 2026.
     const readAvailPeriod = () => readAvailPeriodKV(env);
+    const readAvailDoc = async () => { try { return JSON.parse((await env.SITE_DATA.get("availperiod")) || "null") || {}; } catch { return {}; } };
+    const readPeriodHistory = async () => { try { const a = JSON.parse((await env.SITE_DATA.get("availperiods")) || "[]"); return Array.isArray(a) ? a : []; } catch { return []; } };
     if (path === "/api/avail-period" && request.method === "GET") {
-      return jsonResponse(await readAvailPeriod(), 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      const cur = await readAvailPeriod(), doc = await readAvailDoc();
+      const ann = doc.announce && doc.announce.start === cur.start && doc.announce.end === cur.end ? { id: doc.announce.id, text: doc.announce.text } : null;
+      return jsonResponse({ ...cur, ...(ann ? { announce: ann } : {}) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    // Every period the admin has opened is kept, so an old one can be opened again to look at everyone's availability then.
+    if (path === "/api/admin/avail-periods" && request.method === "GET") {
+      const cur = await readAvailPeriod();
+      const hist = await readPeriodHistory();
+      if (!hist.some((h) => h.start === cur.start && h.end === cur.end)) hist.unshift({ start: cur.start, end: cur.end, at: 0 });
+      return jsonResponse({ current: cur, periods: hist }, 200, corsHeaders);
+    }
+    if (path === "/api/admin/avail-period/announce" && request.method === "POST") {
+      let body; try { body = await request.json(); } catch { body = {}; }
+      const cur = await readAvailPeriod(), doc = await readAvailDoc();
+      const text = String(body.message || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f<>]/g, " ").trim().slice(0, 240);
+      doc.announce = text ? { id: crypto.randomUUID(), text, start: cur.start, end: cur.end, at: Date.now() } : null;
+      await env.SITE_DATA.put("availperiod", JSON.stringify({ ...doc, start: cur.start, end: cur.end }));
+      return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     if (path === "/api/admin/avail-period" && request.method === "PUT") {
       let body;
@@ -2253,8 +2275,13 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!isValidDateString(start) || !isValidDateString(end)) return jsonResponse({ error: "Pick a start and an end date" }, 400, corsHeaders);
       if (end < start) return jsonResponse({ error: "The end date can't be before the start date" }, 400, corsHeaders);
       if ((Date.parse(end + "T00:00:00Z") - Date.parse(start + "T00:00:00Z")) / 86400000 > 45) return jsonResponse({ error: "Keep the period to 45 days or less" }, 400, corsHeaders);
+      const prev = await readAvailPeriod();
+      let hist = await readPeriodHistory();
+      for (const per of [prev, { start, end }]) if (!hist.some((h) => h.start === per.start && h.end === per.end)) hist.unshift({ start: per.start, end: per.end, at: Date.now() });
+      hist.sort((a, b) => b.start.localeCompare(a.start));
+      await env.SITE_DATA.put("availperiods", JSON.stringify(hist.slice(0, 40)));
       await env.SITE_DATA.put("availperiod", JSON.stringify({ start, end, at: Date.now() }));
-      return jsonResponse({ ok: true, start, end }, 200, corsHeaders);
+      return jsonResponse({ ok: true, start, end, changed: prev.start !== start || prev.end !== end }, 200, corsHeaders);
     }
 
     // Editable display names for resource categories and event genres (keys stay fixed; only the words people see change).
@@ -2859,7 +2886,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     // Wording of the WhatsApp messages the admin sends (availability reminder, notifications nudge, club accepted / declined). {first} {name} {club} are filled in.
-    const WA_KEYS = ["remind", "notif", "joinAccept", "joinDecline"];
+    const WA_KEYS = ["remind", "notif", "joinAccept", "joinDecline", "newPeriod"];
     if (path === "/api/admin/wa-templates" && request.method === "GET") {
       let t = {}; try { t = JSON.parse((await env.SITE_DATA.get("watemplates")) || "{}") || {}; } catch {}
       return jsonResponse({ templates: t }, 200, corsHeaders);
@@ -2959,27 +2986,35 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (adminCalMatch) {
       const M = request.method;
       const canClub = (cid) => !leadCtx || leadCtx.clubs.includes(cid);
+      const canEv = (e) => calClubs(e).some(canClub); // a club admin manages any event their club is part of (collabs included)
       const roster = await readClubRoster(env);
       const clubTitle = (id) => (roster.find((c) => c.id === id) || {}).title || "";
-      const view = (e) => ({ id: e.id, clubId: e.clubId, clubTitle: clubTitle(e.clubId), title: e.title, date: e.date, time: e.time || "", place: e.place || "", desc: e.desc || "", rsvps: e.rsvps || [] });
+      const view = (e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", desc: e.desc || "", rsvps: e.rsvps || [] });
       const all = await readClubCal(env);
-      if (!adminCalMatch[1] && M === "GET") return jsonResponse({ events: all.filter((e) => canClub(e.clubId)).sort((a, b) => a.date.localeCompare(b.date)).map(view) }, 200, corsHeaders);
+      if (!adminCalMatch[1] && M === "GET") return jsonResponse({ events: all.filter(canEv).sort((a, b) => a.date.localeCompare(b.date)).map(view) }, 200, corsHeaders);
       let body = {};
       if ((M === "POST" || M === "PUT") && !adminCalMatch[2]) { try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); } }
       if (!adminCalMatch[1] && M === "POST") {
-        const clubId = String(body.clubId || "");
-        if (!roster.some((c) => c.id === clubId)) return jsonResponse({ error: "Pick a club" }, 400, corsHeaders);
-        if (!canClub(clubId)) return jsonResponse({ error: "You can only add events to your own clubs" }, 403, corsHeaders);
+        const clubIds = [...new Set((Array.isArray(body.clubIds) ? body.clubIds : [body.clubId]).map(String))].filter((id) => roster.some((c) => c.id === id)).slice(0, 8);
+        if (!clubIds.length) return jsonResponse({ error: "Pick at least one club" }, 400, corsHeaders);
+        if (!clubIds.some(canClub)) return jsonResponse({ error: "You can only add events for your own clubs" }, 403, corsHeaders);
+        const clubId = clubIds[0];
         const f = calFields(body);
         if (f.title.length < 3) return jsonResponse({ error: "Give the event a name (3+ letters)" }, 400, corsHeaders);
         if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
-        const ev = { id: crypto.randomUUID(), clubId, ...f, rsvps: [], at: Date.now() };
+        const ev = { id: crypto.randomUUID(), clubId, clubIds, ...f, rsvps: [], at: Date.now() };
         all.push(ev); await writeClubCal(env, all);
         return jsonResponse({ ok: true, event: view(ev) }, 201, corsHeaders);
       }
       const ev = all.find((e) => e.id === adminCalMatch[1]);
-      if (!ev || !canClub(ev.clubId)) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
+      if (!ev || !canEv(ev)) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
       if (!adminCalMatch[2] && M === "PUT") {
+        if (Array.isArray(body.clubIds)) {
+          const ids = [...new Set(body.clubIds.map(String))].filter((id) => roster.some((c) => c.id === id)).slice(0, 8);
+          if (!ids.length) return jsonResponse({ error: "Pick at least one club" }, 400, corsHeaders);
+          if (!ids.some(canClub)) return jsonResponse({ error: "Keep at least one of your own clubs on the event" }, 403, corsHeaders);
+          ev.clubIds = ids; ev.clubId = ids[0];
+        }
         const f = calFields({ ...ev, ...body });
         if (f.title.length < 3) return jsonResponse({ error: "Give the event a name (3+ letters)" }, 400, corsHeaders);
         if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);

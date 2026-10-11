@@ -1,6 +1,30 @@
 {
   "updates": [
     {
+      "no": 10,
+      "date": "2026-10-11",
+      "title": "Club events everywhere + availability periods",
+      "items": [
+        {
+          "text": "✨ Club calendar events now show on the main calendar too (name + date) — tap one to log in and RSVP."
+        },
+        {
+          "text": "✨ Collab events: an event can belong to more than one club."
+        },
+        {
+          "text": "✨ When a new availability period opens you'll see a banner on your Clubs page with a button to add yours."
+        },
+        {
+          "text": "✨ Every availability period is now saved — you can look back at everyone's availability from an older period.",
+          "for": "admin"
+        },
+        {
+          "text": "✨ After saving a new period you're asked whether to announce it (banner + push) and can WhatsApp people personally.",
+          "for": "admin"
+        }
+      ]
+    },
+    {
       "no": 9,
       "date": "2026-10-11",
       "title": "Club calendar, bubble emojis & prices",
