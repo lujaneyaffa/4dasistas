@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-11 · Claude · index.html, service-worker.js (v99) · Squads page: the 'only request if genuinely interested' warning now shows only when logged in (`getCmSession()`).
+
 - 2026-10-11 · Claude · index.html, service-worker.js (v98) · (1) Mini club calendar: event titles wrap in full inside the day cells (up to 4 per day). (2) WhatsApp: each wording in Settings → WhatsApp messages has an 'Open in WhatsApp' button (wa.me/?text=…), and the post-accept/decline toast shows a big green 'Message <name> on WhatsApp' button. (3) Admins can add events by tapping a DATE: mini club calendar (any day → 'Add event' with that date; an empty day opens the form directly; the grid shows even with no events) and the main calendar day popup ('➕ Add an event on this date' → `openEventCreate(date)`). (4) Club events (and dated ideas) are NO LONGER on the main calendar (`refreshClubCalItems` is now a no-op that strips them) — they only show in the club calendar. Not in What's-new.
 
 - 2026-10-11 · Claude · index.html, service-worker.js (v97) · Admin tabs: Club calendar, Availability period and Availability calendar moved from The Calendar tab to the CLUBS tab (Clubs = notifications, club calendar, period, availability calendar, club events/quick member, club directory). The Calendar tab now = 'need details' button + event-genre names (main calendar only). Club admins see Clubs + Profiles only. Layout → not in What's-new.

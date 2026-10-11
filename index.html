@@ -3069,7 +3069,7 @@ function renderDirectory(){
     <button type="button" class="club-guide-btn" id="squadsLoginTop" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;font-size:15px;text-align:center;">Log In</button>
     <button class="fall-cta-btn join-club-btn" data-hometab="fallsignup" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;">Sign Up</button>
     </div>`}<h3 class="clubs-popular-title">THE SQUADS</h3>
-      <div class="av-waitlist" style="max-width:520px;margin:-2px auto 12px;text-align:center;">⚠️ <strong>Please only request a squad if you're genuinely interested in joining.</strong> An admin reviews every request and each squad is a small, active group.</div>
+      ${getCmSession() ? `<div class="av-waitlist" style="max-width:520px;margin:-2px auto 12px;text-align:center;">⚠️ <strong>Please only request a squad if you're genuinely interested in joining.</strong> An admin reviews every request and each squad is a small, active group.</div>` : ''}
       ${getCmSession() ? '<p class="ideas-hint" style="text-align:center;margin:0 0 12px;">An admin approves it and you get that squad\'s private invite link right here.</p>' : ''}
       ${state.squadReqError ? `<p style="color:#c00;text-align:center;font-size:13px;">${escapeCm(state.squadReqError)}</p>` : ''}
       <div class="clubs-grid squads-grid">${SQUADS.map(q => squadCardHtml(q)).join('')}</div>
