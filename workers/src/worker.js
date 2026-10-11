@@ -895,7 +895,7 @@ const writeClubCal = (env, a) => env.SITE_DATA.put(CLUBCAL_KEY, JSON.stringify(a
 const cleanCalText = (v, n) => String(v || "").replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
 // A collab event belongs to several clubs: `clubIds` (clubId = the first, kept for older data).
 const calClubs = (e) => (Array.isArray(e.clubIds) && e.clubIds.length ? e.clubIds : [e.clubId]).filter(Boolean);
-const calFields = (b) => ({ title: cleanCalText(b.title, 80), date: String(b.date || ""), time: cleanCalText(b.time, 30), place: cleanCalText(b.place, 120), desc: String(b.desc || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 600) });
+const calFields = (b) => ({ title: cleanCalText(b.title, 80), date: String(b.date || ""), time: cleanCalText(b.time, 30), place: cleanCalText(b.place, 120), rsvpBy: /^\d{4}-\d{2}-\d{2}$/.test(String(b.rsvpBy || "")) ? String(b.rsvpBy) : "", desc: String(b.desc || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 600) });
 const isValidDateString = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + "T00:00:00Z"));
 
 const dateRange = (startDate, endDate) => {
@@ -1416,6 +1416,29 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const user = await readUser(env, userId);
       if (!user) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
       if (body.photo !== undefined) user.photo = sanitizePhoto(body.photo);
+      // Members can change their own last name and username (first name stays; the username is the login, so it needs the current PIN).
+      if (body.lastName !== undefined) {
+        const last = String(body.lastName || "").replace(/[^\p{L}'’.\- ]/gu, "").replace(/\s+/g, " ").trim().slice(0, 30);
+        if (last.length < 1) return jsonResponse({ error: "Please enter your last name (or just your initial)" }, 400, corsHeaders);
+        const first = String(user.name || "").trim().split(/\s+/)[0] || "";
+        user.name = `${first} ${last}`.trim();
+      }
+      if (body.username !== undefined && sanitizeUsername(body.username) !== user.username) {
+        const nu = sanitizeUsername(body.username);
+        if (!nu) return jsonResponse({ error: "Usernames are 2–40 letters, numbers, dots, dashes or underscores" }, 400, corsHeaders);
+        if (!user.mustChangePin) {
+          const k = `loginrate:user:${user.username}:${Math.floor(Date.now() / 3600000)}`;
+          const n = Number(await env.SITE_DATA.get(k) || 0);
+          if (n >= LOGIN_MAX_ATTEMPTS_PER_USERNAME_PER_HOUR) return jsonResponse({ error: "Too many attempts — please try again in an hour" }, 429, corsHeaders);
+          await env.SITE_DATA.put(k, String(n + 1), { expirationTtl: 3700 });
+          if (user.pinHash !== await sha256Hex(String(body.currentPin || "").trim())) return jsonResponse({ error: "Enter your current PIN to change your username" }, 401, corsHeaders);
+        }
+        const owner = await findUserIdByUsername(env, nu);
+        if (owner && owner !== user.id) return jsonResponse({ error: "That username is already taken" }, 409, corsHeaders);
+        await reserveUsername(env, nu, user.id);
+        await releaseUsername(env, user.username);
+        user.username = nu;
+      }
       if (body.newPin !== undefined) {
         const newPin = String(body.newPin || "").trim();
         if (!/^\d{4}$/.test(newPin)) return jsonResponse({ error: "PIN must be exactly 4 digits" }, 400, corsHeaders);
@@ -1558,12 +1581,13 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (uid) for (const cid of calClubs(ev)) if ((await readClubMemberIds(env, cid)).includes(uid)) { inClub = true; break; }
         const mine = (ev.rsvps || []).find((r) => r.id === uid);
         if (!calMatch[2] && M === "GET") {
-          return jsonResponse({ id: ev.id, clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", desc: ev.desc || "",
+          return jsonResponse({ id: ev.id, clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", desc: ev.desc || "", rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy),
             going: (ev.rsvps || []).filter((r) => r.status === "going").length, mine: mine ? mine.status : null, inClub }, 200, corsHeaders);
         }
         if (calMatch[2] && (M === "POST" || M === "DELETE")) {
           if (!uid) return jsonResponse({ error: "Sign in as a member to RSVP" }, 403, corsHeaders);
           if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
+          if (M === "POST" && ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) return jsonResponse({ error: "RSVPs for this event are closed" }, 400, corsHeaders);
           ev.rsvps = (ev.rsvps || []).filter((r) => r.id !== uid);
           let status = null;
           if (M === "POST") {
@@ -1834,6 +1858,13 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       subs.push({ endpoint: sub.endpoint, at: Date.now() });
       await env.SITE_DATA.put(pushKey(meId), JSON.stringify(subs.slice(-5)));
       return jsonResponse({ ok: true, devices: Math.min(subs.length, 5) }, 200, corsHeaders);
+    }
+    // Turn notifications off for this member (all their devices); they can turn them back on from Settings.
+    if (path === "/api/push/unsubscribe" && request.method === "POST") {
+      const meId = await memberIdFromRequest();
+      if (!meId) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      await env.SITE_DATA.delete(pushKey(meId));
+      return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     // The service worker fetches the text of the notification it was just woken for (keyed by a hash of its own endpoint).
     if (path === "/api/push/message" && request.method === "GET") {
@@ -2982,14 +3013,14 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // Admin: create/list/delete per-club events
     // ---- Club calendar admin: main admin = every club; a club admin = only their own clubs ----
-    const adminCalMatch = path.match(/^\/api\/admin\/club-cal(?:\/([^/]+)(?:\/rsvp\/([^/]+)\/(accept|decline|remove))?)?\/?$/);
+    const adminCalMatch = path.match(/^\/api\/admin\/club-cal(?:\/([^/]+)(?:\/rsvp\/([^/]+)\/(accept|decline|remove|add))?)?\/?$/);
     if (adminCalMatch) {
       const M = request.method;
       const canClub = (cid) => !leadCtx || leadCtx.clubs.includes(cid);
       const canEv = (e) => calClubs(e).some(canClub); // a club admin manages any event their club is part of (collabs included)
       const roster = await readClubRoster(env);
       const clubTitle = (id) => (roster.find((c) => c.id === id) || {}).title || "";
-      const view = (e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", desc: e.desc || "", rsvps: e.rsvps || [] });
+      const view = (e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", rsvps: e.rsvps || [] });
       const all = await readClubCal(env);
       if (!adminCalMatch[1] && M === "GET") return jsonResponse({ events: all.filter(canEv).sort((a, b) => a.date.localeCompare(b.date)).map(view) }, 200, corsHeaders);
       let body = {};
@@ -3023,6 +3054,15 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         return jsonResponse({ ok: true, event: view(ev) }, 200, corsHeaders);
       }
       if (!adminCalMatch[2] && M === "DELETE") { await writeClubCal(env, all.filter((e) => e.id !== ev.id)); return jsonResponse({ ok: true }, 200, corsHeaders); }
+      if (adminCalMatch[2] && M === "POST" && adminCalMatch[3] === "add") {
+        // Mark someone as having come along (used for past events, also for people who never RSVPed).
+        const u = await readUser(env, adminCalMatch[2]);
+        if (!u) return jsonResponse({ error: "That member no longer exists" }, 404, corsHeaders);
+        ev.rsvps = (ev.rsvps || []).filter((x) => x.id !== u.id);
+        ev.rsvps.push({ id: u.id, name: sanitizePersonName(u.name) || "Member", status: "going", at: Date.now(), added: true });
+        await writeClubCal(env, all);
+        return jsonResponse({ ok: true, event: view(ev) }, 200, corsHeaders);
+      }
       if (adminCalMatch[2] && M === "POST") {
         const r = (ev.rsvps || []).find((x) => x.id === adminCalMatch[2]);
         if (!r) return jsonResponse({ error: "Not on the list" }, 404, corsHeaders);

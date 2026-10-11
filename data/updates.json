@@ -1,6 +1,26 @@
 {
   "updates": [
     {
+      "no": 11,
+      "date": "2026-10-11",
+      "title": "Settings & a cuter club calendar",
+      "items": [
+        {
+          "text": "✨ New ⚙️ Settings (top-right power button): change your profile picture, last name, username and PIN, see your clubs, and turn notifications on or off."
+        },
+        {
+          "text": "✨ The club calendar is now a small month view with a List option — tap a day or an event to see details."
+        },
+        {
+          "text": "✨ Club events can have a last day to RSVP, and after it RSVPs close."
+        },
+        {
+          "text": "✨ Admins can see who went to past events and add people who came along.",
+          "for": "admin"
+        }
+      ]
+    },
+    {
       "no": 10,
       "date": "2026-10-11",
       "title": "Club events everywhere + availability periods",
