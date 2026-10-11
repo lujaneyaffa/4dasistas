@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-11 · Claude · index.html, service-worker.js (v89) · FONTS now match ladies-badminton.lujane.workers.dev: **Outfit** (400–800) for all UI text (every `font-family:'Inter'` → `'Outfit','Inter'`, Inter kept as fallback) and **Amiri 700** for section titles (`.clubs-popular-title`, `.ideas-title`). Google Fonts import updated. Emails unchanged (they use email-safe fonts). Design only → not in What's-new.
+
 - 2026-10-11 · Claude · index.html, service-worker.js (v88) · ADMIN PAGE TABS reorganised (main admin): Clubs (notifications + club events/quick member), Squads, Directory (club directory), The Calendar (📋 N need details button — moved from the footer, which is now always hidden — + Club calendar events/RSVPs + availability period + availability calendar), Profiles, Settings (WhatsApp wording, push, club admins, labels). Club admins see Clubs / The Calendar / Profiles. `state.admGroup` 'team' maps to 'settings'. Not in What's-new (layout).
 
 - 2026-10-11 · Claude · index.html, service-worker.js (v87) · INSTANT ACCEPT/DECLINE: `admAnswerJoin` and `admAnswerSquad` now remove the row from the UI immediately (optimistic), run the server call in the background, and restore the row + toast only if it fails (was: waited for the server round trip, so the list stayed put and got mis-clicked). Not in What's-new (speed/feel).
