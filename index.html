@@ -8000,7 +8000,8 @@ function periodHistoryHtml(fmt){
     const isCur = h.start === cur.start && h.end === cur.end, on = vp ? (vp.start === h.start && vp.end === h.end) : isCur;
     return `<button type="button" class="period-view" data-start="${escapeCm(h.start)}" data-end="${escapeCm(h.end)}" style="display:flex;justify-content:space-between;gap:8px;width:100%;margin:0 0 6px;padding:9px 12px;border-radius:12px;border:2px solid #76220b;background:${on ? '#f2d8d7' : '#fff'};font:inherit;font-weight:700;cursor:pointer;text-align:left;"><span>${escapeCm(fmt(h.start))} → ${escapeCm(fmt(h.end))}</span><span style="font-weight:600;color:#776867;">${isCur ? 'current' : (on ? 'viewing ✓' : 'view')}</span></button>`;
   }).join('');
-  return `<div style="margin-top:14px;"><strong style="font-size:13px;">🗂️ All periods (saved)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 8px;">Tap one to see everyone's availability for it in the calendar below.</p>${rows}</div>`;
+  return `<div style="margin-top:14px;"><strong style="font-size:13px;">🗂️ All periods (saved)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 8px;">Tap one to see everyone's availability for it in the calendar below.</p>${rows}
+    <details style="margin-top:8px;"><summary style="cursor:pointer;font-size:13px;font-weight:700;">➕ Add an older period to this list</summary><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"><input type="date" id="oldPeriodStart" style="flex:1;min-width:130px;padding:9px;border-radius:10px;border:2px solid var(--brand-brown);"><input type="date" id="oldPeriodEnd" style="flex:1;min-width:130px;padding:9px;border-radius:10px;border:2px solid var(--brand-brown);"><button type="button" class="club-guide-btn" id="oldPeriodAdd" style="padding:6px 16px;text-align:center;">Add</button></div><div id="oldPeriodMsg" style="font-size:12px;color:#c00;min-height:16px;"></div><p class="ideas-hint" style="text-align:left;margin:0;">Everyone's answers from then are still stored — add the dates to look at them again.</p></details></div>`;
 }
 function periodAnnouncePopup(){
   const fmt = k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' });
@@ -8048,6 +8049,12 @@ function wirePeriodAdmin(){
       state.availPeriods = null; admAvail.viewPeriod = null; state.availAnnounce = null; render();
       if(d.changed) periodAnnouncePopup();
     } catch(err){ st.style.color = '#c00'; st.textContent = err.message; }
+  });
+  const oldAdd = document.getElementById('oldPeriodAdd');
+  if(oldAdd) oldAdd.addEventListener('click', async () => {
+    const msg = document.getElementById('oldPeriodMsg');
+    try { await leadApi('POST', '/api/admin/avail-periods', { start: document.getElementById('oldPeriodStart').value, end: document.getElementById('oldPeriodEnd').value }); state.availPeriods = null; render(); }
+    catch(err){ msg.textContent = err.message; }
   });
   document.querySelectorAll('.period-view').forEach(b => b.addEventListener('click', () => {
     const same = b.dataset.start === AVAIL_PERIOD.start && b.dataset.end === AVAIL_PERIOD.end;

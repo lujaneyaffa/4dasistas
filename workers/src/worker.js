@@ -2300,8 +2300,21 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (path === "/api/admin/avail-periods" && request.method === "GET") {
       const cur = await readAvailPeriod();
       const hist = await readPeriodHistory();
-      if (!hist.some((h) => h.start === cur.start && h.end === cur.end)) hist.unshift({ start: cur.start, end: cur.end, at: 0 });
+      // Periods from before history was kept: the very first period (the built-in default) is always listed, and older ones can be added by hand below.
+      for (const per of [cur, DEFAULT_AVAIL_PERIOD]) if (!hist.some((h) => h.start === per.start && h.end === per.end)) hist.push({ start: per.start, end: per.end, at: 0 });
+      hist.sort((a, b) => b.start.localeCompare(a.start));
       return jsonResponse({ current: cur, periods: hist }, 200, corsHeaders);
+    }
+    // Add an OLDER period to the saved list (it does not change the current one) so its availability can be viewed again.
+    if (path === "/api/admin/avail-periods" && request.method === "POST") {
+      let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const start = String(body.start || ""), end = String(body.end || "");
+      if (!isValidDateString(start) || !isValidDateString(end) || end < start) return jsonResponse({ error: "Pick a start date and an end date after it" }, 400, corsHeaders);
+      const hist = await readPeriodHistory();
+      if (!hist.some((h) => h.start === start && h.end === end)) hist.push({ start, end, at: Date.now() });
+      hist.sort((a, b) => b.start.localeCompare(a.start));
+      await env.SITE_DATA.put("availperiods", JSON.stringify(hist.slice(0, 40)));
+      return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     if (path === "/api/admin/avail-period/announce" && request.method === "POST") {
       let body; try { body = await request.json(); } catch { body = {}; }
