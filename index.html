@@ -1431,7 +1431,8 @@ applySiteText();
   ALL_ITEMS = [...sportsData, ...gatheringsData, ...dayActivitiesData, ...tripsData, ...clubsData, ...resourcesData, ...supportProgramsData, ...mosqueGatheringsData];
   // The main calendar shows sports, activities, functions and Knowledge (mosque programs).
   // Trips and clubs have their own dedicated calendars.
-  EVENT_ITEMS = mixEvents(sportsData, gatheringsData, dayActivitiesData, [], mosqueGatheringsData); // club events are NOT shown here — people open a club to see its events
+  EVENT_ITEMS = mixEvents(sportsData, gatheringsData, dayActivitiesData, [], mosqueGatheringsData); // club events are NOT in 'All Events' — they're under the Clubs category
+  setTimeout(() => refreshClubCalItems(), 0);
 }
 
 function mixEvents(sports, gatherings, dayActs, trips, mosqueGatherings){
@@ -1835,6 +1836,7 @@ function itemsForCategoryBase(cat){
     return out;
   }
   if(cat === 'all') return EVENT_ITEMS;
+  if(cat === 'clubs') return CLUB_CAL_ITEMS.filter(i => (state.clubEvFilter || 'all') === 'all' || (i.clubIds || []).includes(state.clubEvFilter));
   if(cat === 'sports'){
     const matchesSportFilter = e => normalizeSportKey(e.sportKey) === state.sportFilter
       || (e.alsoSportKeys || []).some(k => normalizeSportKey(k) === state.sportFilter);
@@ -2415,6 +2417,7 @@ const categoryList = [
   {key:'functions', label:'Functions', bg:'#fdf0f2', fg:'#373d3b'},
   {key:'trips', label:'Trips', bg:'#eedcb1', fg:'#373d3b'},
   {key:'mosqueprograms', label:'Knowledge', bg:'#fad8c1', fg:'#373d3b'},
+  {key:'clubs', label:'Clubs', bg:'#f6d4de', fg:'#373d3b'},
 ];
 
 // Categories that have no physical storefront to plot, so the Directory hides the
@@ -2494,6 +2497,9 @@ el.innerHTML = sportFilterOptions().map(f => `<button class="filter-chip ${state
   } else if(state.categoryFilter === 'activities'){
     el.innerHTML = `<select class="filter-select" id="citySelect">${cityFilterList.map(c=>`<option value="${c.key}" ${state.dayCity===c.key?'selected':''}>${c.label}</option>`).join('')}</select>`
       + `<div class="sub-note">Location filter applies to activities.</div>`;
+  } else if(state.categoryFilter === 'clubs'){
+    el.innerHTML = [{ id:'all', title:'All clubs' }].concat(clubsData).map(c => `<button class="filter-chip ${(state.clubEvFilter || 'all') === c.id ? 'active' : ''}" data-clubevfilter="${escapeCm(c.id)}">${escapeCm(c.title)}</button>`).join('')
+      + `<div class="sub-note">Club events and dated ideas. Tap one to see details and RSVP.</div>`;
   } else if(state.categoryFilter === 'trips'){
     const types = [{key:'all',label:'All'},{key:'domestic',label:'Domestic'},{key:'international',label:'International'}];
     const views = state.tripType === 'domestic' ? [{key:'list',label:'List'}] : [{key:'list',label:'List'},{key:'earth',label:'Earth'}];
@@ -5604,8 +5610,17 @@ function ideaHeaders(){
    (for their own clubs) add / edit / remove events and see who's coming.
    ============================================================ */
 // Club events also show on the MAIN calendar (name + date; tapping one asks visitors to log in, members get the details + RSVP).
-// Club events are deliberately kept OFF the main calendar (people open the Clubs page to see them).
-async function refreshClubCalItems(){ EVENT_ITEMS = EVENT_ITEMS.filter(x => !x.clubCal); }
+// Club events live on the BIG calendar under the 'Clubs' category (not in 'All Events'): people click Clubs (then a club) to see them.
+let CLUB_CAL_ITEMS = [];
+async function refreshClubCalItems(){
+  try {
+    const r = await fetch('/api/club-calendar', { cache:'no-store' });
+    if(!r.ok) return;
+    CLUB_CAL_ITEMS = ((await r.json()).events || []).map(e => ({ id:'clubcal:' + e.id, title:(e.kind === 'idea' && e.emoji ? e.emoji + ' ' : '') + e.title, tag:'Club', section:'clubevents', calDate:e.date, eventDate:e.date, date:calDateLabel(e.date), time:e.time || '', allDay:!e.time, virtual:false,
+      location:e.clubTitle ? e.clubTitle + ' club' : 'Club event', desc:'', clubCal:true, clubIds:e.clubIds || [e.clubId] }));
+    if(state.tab === 'events' && state.categoryFilter === 'clubs') render();
+  } catch {}
+}
 function calIsAdmin(){ return state.cmAdminLoggedIn === true || !!state.cmLead; }
 function calDateLabel(d){ return d ? new Date(d + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' }) : ''; }
 async function clubCalLoad(force){
@@ -8069,11 +8084,11 @@ const LABEL_DEFAULTS = { resource:null, event:null };
 function applyLabels(){
   if(!LABEL_DEFAULTS.resource){
     LABEL_DEFAULTS.resource = {}; resourceFilterList.forEach(c => { if(c.key !== 'all') LABEL_DEFAULTS.resource[c.key] = c.label; });
-    LABEL_DEFAULTS.event = {}; categoryList.forEach(c => { if(c.key !== 'all') LABEL_DEFAULTS.event[c.key] = c.label; });
+    LABEL_DEFAULTS.event = {}; categoryList.forEach(c => { if(c.key !== 'all' && c.key !== 'clubs') LABEL_DEFAULTS.event[c.key] = c.label; });
   }
   resourceFilterList.forEach(c => { if(c.key !== 'all') c.label = LABELS.resource[c.key] || LABEL_DEFAULTS.resource[c.key]; });
   RESOURCE_CATEGORIES.forEach(c => { c[1] = LABELS.resource[c[0]] || LABEL_DEFAULTS.resource[c[0]] || c[1]; });
-  categoryList.forEach(c => { if(c.key !== 'all') c.label = LABELS.event[c.key] || LABEL_DEFAULTS.event[c.key]; });
+  categoryList.forEach(c => { if(c.key !== 'all' && c.key !== 'clubs') c.label = LABELS.event[c.key] || LABEL_DEFAULTS.event[c.key]; });
   EVENT_EDIT_SECTIONS.forEach(c => { c[1] = LABELS.event[c[0]] || LABEL_DEFAULTS.event[c[0]] || c[1]; });
   Object.keys(TYPE_MULTI_NAMES).forEach(k => { if(!LABEL_DEFAULTS['tm_' + k]) LABEL_DEFAULTS['tm_' + k] = TYPE_MULTI_NAMES[k]; TYPE_MULTI_NAMES[k] = LABELS.event[k] || LABEL_DEFAULTS['tm_' + k]; });
 }
@@ -10106,7 +10121,7 @@ document.getElementById('categoryRow').addEventListener('click', e => {
     goToTab('travel');
     return;
   }
-  if(btn.dataset.catfilter === 'activities') state.view = 'calendar';
+  if(btn.dataset.catfilter === 'activities' || btn.dataset.catfilter === 'clubs') state.view = 'calendar';
   state.categoryFilter = btn.dataset.catfilter;
   state.page = 1;
   render();
@@ -10123,6 +10138,8 @@ document.getElementById('subFilterRow').addEventListener('click', e => {
   const resourceBtn = e.target.closest('[data-resourcefilter]');
   const dirBtn = e.target.closest('#gatherDirBtn');
   const travelFilter = e.target.closest('[data-travel-filter]');
+  const clubEvBtn = e.target.closest('[data-clubevfilter]');
+  if(clubEvBtn){ state.clubEvFilter = clubEvBtn.dataset.clubevfilter; state.page = 1; render(); return; }
   if(sportBtn){ state.sportFilter = sportBtn.dataset.sportfilter; state.page = 1; render(); }
   if(gatherBtn){ state.gatherSort = gatherBtn.dataset.gathersort; render(); }
   if(tripBtn){

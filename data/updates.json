@@ -1,6 +1,16 @@
 {
   "updates": [
     {
+      "no": 13,
+      "date": "2026-10-11",
+      "title": "Clubs on the main calendar",
+      "items": [
+        {
+          "text": "✨ The main Calendar now has a Clubs button: tap it (then a club) to see that club's events and dated ideas. Tap one to see details and RSVP."
+        }
+      ]
+    },
+    {
       "no": 12,
       "date": "2026-10-11",
       "title": "More notification choices",

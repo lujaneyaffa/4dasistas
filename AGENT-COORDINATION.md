@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-11 · Claude · index.html, data/updates.json (#13), service-worker.js (v101) · CLARIFIED: Lujane wants clubs ON THE BIG (main events) CALENDAR, but only when people click 'Clubs'. New category chip 'Clubs' (`categoryList` key `clubs`, excluded from the editable event-genre labels) on #/calendar with per-club sub-filter chips (`state.clubEvFilter`, `data-clubevfilter`); items come from `CLUB_CAL_ITEMS` (`refreshClubCalItems`: club events + dated ideas from GET /api/club-calendar, collabs appear under each of their clubs). They are NOT in 'All Events'. Tapping one → login prompt / RSVP popup (`clubcal:` id intercept). The mini calendar on the Clubs page stays as is.
+
 - 2026-10-11 · Claude · index.html, service-worker.js (v100) · Removed the month agenda list under the mini club calendar (`.mc-agenda`); titles are shown in the day cells only.
 
 - 2026-10-11 · Claude · index.html, service-worker.js (v99) · Squads page: the 'only request if genuinely interested' warning now shows only when logged in (`getCmSession()`).
