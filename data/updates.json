@@ -1,6 +1,20 @@
 {
   "updates": [
     {
+      "no": 14,
+      "date": "2026-10-11",
+      "title": "Forms for club events",
+      "items": [
+        {
+          "text": "✨ Some club events now have a sign-up form — open the event to fill it in and update your answers any time."
+        },
+        {
+          "text": "✨ Admins can build a form for any club event (“Create a form” when adding or editing an event): add, reorder and edit questions, preview it, and see everyone's answers (with a CSV download).",
+          "for": "admin"
+        }
+      ]
+    },
+    {
       "no": 13,
       "date": "2026-10-11",
       "title": "Clubs on the main calendar",
