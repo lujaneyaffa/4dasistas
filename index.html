@@ -2988,18 +2988,24 @@ function squadAdminHtml(){
 async function admAnswerSquad(squadId, userId, action){
   const key = `q:${squadId}:${userId}`;
   const req = (admNotif.items.find(i => i.id === key) || {}).r || ((state.squadAdmin && state.squadAdmin.requests) || []).find(r => r.squadId === squadId && r.userId === userId);
+  // INSTANT: the row disappears the moment you tap; the server call happens in the background and the row comes back only if it fails.
+  const keepItems = admNotif.items, keepSquadReqs = state.squadAdmin ? state.squadAdmin.requests : null;
+  admNotif.dismissed.add(key);
+  admNotif.items = admNotif.items.filter(i => i.id !== key);
+  if(state.squadAdmin) state.squadAdmin.requests = state.squadAdmin.requests.filter(r => !(r.squadId === squadId && r.userId === userId));
+  admUpdateBell(); if(admNotif.panel) admRenderPanel();
+  if(state.tab === 'squads') render();
   try {
     const res = await fetch('/api/admin/squad-requests/' + encodeURIComponent(squadId) + '/' + encodeURIComponent(userId) + '/' + action, { method:'POST', credentials:'include' });
     const data = await res.json().catch(() => ({}));
     if(!res.ok && res.status !== 404) throw new Error(data.error || 'Could not update that request');
-    admNotif.dismissed.add(key);
-    admNotif.items = admNotif.items.filter(i => i.id !== key);
-    if(state.squadAdmin) state.squadAdmin.requests = state.squadAdmin.requests.filter(r => !(r.squadId === squadId && r.userId === userId));
-    admUpdateBell(); if(admNotif.panel) admRenderPanel();
-    if(action === 'accept'){ state.squadAdmin = null; } // member list changed: reload
-    if(state.tab === 'squads') render();
+    if(action === 'accept'){ state.squadAdmin = null; if(state.tab === 'squads') render(); } // member list changed: reload
     admToast(`${action === 'accept' ? '✅ Accepted' : '❌ Declined'}${req ? ' · ' + escapeCm(req.name) + ' · ' + escapeCm(req.squadTitle) : ''} — they'll see it next time they open the app.`);
-  } catch(err){ admToast('⚠️ ' + escapeCm(err.message)); }
+  } catch(err){
+    admNotif.dismissed.delete(key); admNotif.items = keepItems; if(state.squadAdmin && keepSquadReqs) state.squadAdmin.requests = keepSquadReqs;
+    admUpdateBell(); if(admNotif.panel) admRenderPanel(); if(state.tab === 'squads') render();
+    admToast('⚠️ ' + escapeCm(err.message) + ' — the request is back in the list.');
+  }
 }
 function wireSquadsPage(){
   const sess = getCmSession();
@@ -8285,23 +8291,28 @@ function admOpenPanel(){
 async function admAnswerJoin(clubId, userId, action){
   const id = `j:${clubId}:${userId}`;
   const req = (admNotif.items.find(i => i.id === id) || {}).r || (state.cmAdminJoinRequests || []).find(r => r.clubId === clubId && r.userId === userId);
+  // INSTANT: the row disappears the moment you tap; the server call runs in the background and the row returns only if it fails.
+  const keepItems = admNotif.items, keepReqs = state.cmAdminJoinRequests;
+  admNotif.dismissed.add(id);
+  admNotif.items = admNotif.items.filter(i => i.id !== id);
+  state.cmAdminJoinRequests = (state.cmAdminJoinRequests || []).filter(r => !(r.clubId === clubId && r.userId === userId));
+  admUpdateBell(); if(admNotif.panel) admRenderPanel();
+  if(state.tab === 'clubs' || state.tab === 'admin') render();
   try {
     const res = await fetch('/api/admin/join-requests/' + encodeURIComponent(clubId) + '/' + encodeURIComponent(userId) + '/' + action, { method:'POST', credentials:'include' });
     const data = await res.json().catch(() => ({}));
     if(!res.ok && res.status !== 404) throw new Error(data.error || 'Could not update that request');
-    admNotif.dismissed.add(id);
-    admNotif.items = admNotif.items.filter(i => i.id !== id);
-    state.cmAdminJoinRequests = (state.cmAdminJoinRequests || []).filter(r => !(r.clubId === clubId && r.userId === userId));
-    admUpdateBell(); if(admNotif.panel) admRenderPanel();
-    if(state.tab === 'clubs' || state.tab === 'admin') render();
     if(action === 'accept'){ admAvail.people = null; cmAdminLoadAllMembers().then(() => { const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName); if((state.tab === 'clubs' || state.tab === 'admin') && !typing) render(); }); }
     const first = req ? String(req.name || '').split(' ')[0] : 'her';
     const wa = req ? admWhatsAppLink(req.phone, waMsg(action === 'accept' ? 'joinAccept' : 'joinDecline', req.name, req.clubTitle)) : '';
     admToast(`${action === 'accept' ? '✅ Accepted' : '❌ Declined'}${req ? ' · ' + escapeCm(req.name) : ''} — they'll see a notice next time they open the app.${wa ? `<br><a href="${escapeCm(wa)}" target="_blank" rel="noopener" style="color:#ffd9d9;font-weight:700;">💬 Also tell ${escapeCm(first)} on WhatsApp</a>` : ''}`);
   } catch(err){
+    admNotif.dismissed.delete(id); admNotif.items = keepItems; state.cmAdminJoinRequests = keepReqs;
+    admUpdateBell();
     const st = document.getElementById('joinReqAdminStatus'); if(st) st.textContent = err.message;
-    admToast('⚠️ ' + escapeCm(err.message));
+    admToast('⚠️ ' + escapeCm(err.message) + ' — the request is back in the list.');
     if(admNotif.panel) admRenderPanel();
+    if(state.tab === 'clubs' || state.tab === 'admin') render();
   }
 }
 async function cmAdminAnswerJoinRequest(clubId, userId, action){ return admAnswerJoin(clubId, userId, action); }
