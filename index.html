@@ -5560,6 +5560,7 @@ function setClubsPage(page){
   const mine = (getCmSession() && getCmSession().clubs) || [];
   if(page === 'vote' && mine.length === 1){ state.clubsPage = 'vote'; openClubIdeas(mine[0]); return; } // one club: straight to its idea board
   state.clubsPage = page || '';
+  if(page === 'vote'){ state.publicIdeasAll = null; state.publicIdeasAllError = ''; } // reload fresh, for this member's clubs only
   state.tab = 'clubs';
   render();
   window.scrollTo({ top:0, behavior:'smooth' });
@@ -6007,9 +6008,9 @@ function renderMyClubsSectionHtml(){
   }
   // Two separate pages so everything isn't dumped on one screen: Vote (the club bubbles → idea boards) and Availability.
   if(state.clubsPage === 'vote') return `<button type="button" class="back-btn" data-clubspage="">← Back</button>
-    <h3 class="clubs-popular-title">🗳️ VOTE</h3>
-    <p class="ideas-hint" style="text-align:center;margin:0 0 4px;">${myClubs.length > 1 ? 'Pick a club to see its ideas and vote.' : 'Tap your club to see its ideas and vote.'}</p>
-    <div class="club-bubbles">${myClubs.map((c, i) => clubBubbleHtml(c, i)).join('')}</div>`;
+    ${renderPublicIdeasFeedHtml('🗳️ VOTE', 'Every idea from your clubs is here — tap a bubble to vote. Each bubble shows which club it\'s from.', 'No ideas yet — add the first one below!')}
+    <p class="ideas-hint" style="text-align:center;margin:14px 0 6px;">Want to add an idea or see a club's board?</p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">${myClubs.map(c => `<button type="button" class="club-guide-btn club-card" data-club-id="${escapeCm(c.id)}" style="width:auto;aspect-ratio:auto;height:auto;min-height:44px;padding:8px 16px;text-align:center;">${c.emoji ? escapeCm(c.emoji) + ' ' : ''}${escapeCm(c.title)}</button>`).join('')}</div>`;
   if(state.clubsPage === 'avail') return `<button type="button" class="back-btn" data-clubspage="">← Back</button>
     <h3 class="clubs-popular-title">📅 AVAILABILITY</h3>
     <div class="my-avail-section" style="max-width:640px;margin:8px auto 0;">${ideaAvailSectionHtml(ideaMe())}${everyoneAvailSectionHtml(ideaMe())}</div>`;

@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-11 · Claude · index.html, service-worker.js (v84) · Member Vote page (#/clubs/vote) for people in 2+ clubs now shows ALL their clubs' idea bubbles together (each tagged with its club, via `renderPublicIdeasFeedHtml` + `publicIdeasLoadAll(my clubs)`) instead of a club picker; small club buttons underneath open a club's board to add ideas. One-club members still go straight to their board. Not added to What's-new (layout/flow tweak of #8).
+
 - 2026-10-11 · Claude · index.html, data/updates.json, service-worker.js (v83) · Clubs home: Availability and Vote big buttons now sit SIDE BY SIDE (`.clubs-big-btns` flex row, wraps on very narrow screens). Removed the layout lines from What's-new #8 and added a rule above: layout/design-only changes don't go in the pop-up.
 
 - 2026-10-11 · Claude · index.html, workers/src/worker.js, data/updates.json (#8), service-worker.js (v82) · (1) Idea Google Maps link now OPTIONAL (client + POST /api/clubs/:id/ideas; a non-empty link must still be valid). (2) Member Clubs page = two big buttons (`state.clubsPage` '' / 'vote' / 'avail', hashes #/clubs/vote and #/clubs/availability, `setClubsPage`); one club → Vote goes straight to its idea board; several → bubble per club. (3) DELETED CLUBS STAY DELETED: KV `deletedClubs` tombstones (`readDeletedClubs`/`setClubDeleted`); `syncRosterFromFile` never re-adds or keeps tombstoned clubs and DELETE works even if the club isn't in clubs.json; `DELETED_CLUB_SEED=["club-mm"]` cleans the already-deleted M&M. Creating a club with a tombstoned id clears it (except seed ids). Cause was a cached copy of clubs.json re-adding the club right after deletion.
