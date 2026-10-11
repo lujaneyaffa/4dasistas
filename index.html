@@ -5654,7 +5654,7 @@ function clubCalGridHtml(list){
   const label = first.toLocaleDateString('en-CA', { month:'long', year:'numeric' });
   return `<div class="mini-cal"><div class="mc-head"><button type="button" class="mc-nav" data-calnav="-1" aria-label="Previous month">‹</button><strong>${escapeCm(label)}</strong><button type="button" class="mc-nav" data-calnav="1" aria-label="Next month">›</button></div>
     <div class="mc-week">${['S','M','T','W','T','F','S'].map(x => `<span>${x}</span>`).join('')}</div><div class="mc-grid">${cells}</div>
-    <div class="mc-agenda">${Object.keys(byDay).sort().map(k => byDay[k].map(e => `<button type="button" class="mc-ev" data-calid="${escapeCm(e.id)}"><span class="mc-ev-d" style="background:${clubCol(e.clubId).bg};color:${clubCol(e.clubId).fg};">${escapeCm(calDateLabel(k))}</span><span class="mc-ev-t"><strong>${escapeCm(e.title)}</strong><small>🏷 ${escapeCm(e.clubTitle || avClubTitle(e.clubId))}${e.time ? ' · ' + escapeCm(e.time) : ''}</small></span></button>`).join('')).join('') || '<p class="av-msg" style="margin:6px 0 0;text-align:center;">Nothing this month.</p>'}</div></div>`;
+  </div>`;
 }
 function clubCalSectionHtml(compact){
   const list = state.clubCal;
