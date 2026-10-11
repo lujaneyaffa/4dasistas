@@ -1,9 +1,9 @@
-const CACHE_NAME = '4dasistas-v78';
+const CACHE_NAME = '4dasistas-v79';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/app-icon.svg', '/assets/apple-touch-icon.png', '/assets/icon-192.png', '/assets/icon-512.png'];
 
 // Everything the app needs to open and show its content with no connection. Data files are added one by one so a missing
 // file can never fail the whole install.
-const DATA_FILES = ['/data/sports.json', '/data/gatherings.json', '/data/dayactivities.json', '/data/mosquegatherings.json', '/data/trips.json', '/data/clubs.json', '/data/resources.json', '/data/supportprograms.json', '/data/sitetext.json'];
+const DATA_FILES = ['/data/sports.json', '/data/gatherings.json', '/data/dayactivities.json', '/data/mosquegatherings.json', '/data/trips.json', '/data/clubs.json', '/data/resources.json', '/data/supportprograms.json', '/data/sitetext.json', '/data/updates.json'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(async cache => {

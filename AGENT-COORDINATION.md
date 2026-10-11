@@ -24,6 +24,7 @@ To avoid silent conflicts, every agent follows this protocol.
 
 ## After committing
 
+- **✨ "What's new" rule (Lujane's request):** whenever you ship anything a member, club admin or the admin can SEE or USE (new feature, fix, new club…), add an entry to the TOP of `data/updates.json` — `{ "no": <highest no + 1>, "date": "YYYY-MM-DD", "title": "...", "items": [{ "text": "✨ plain-language line" }, { "text": "✨ …", "for": "admin" | "lead" }] }`. After signing in, everyone gets a ✨ pop-up with the updates they haven't seen yet (numbered; admin-only / club-admin-only lines are filtered by `for`). Skip it for invisible refactors. Keep the file valid JSON.
 - Update "Current Status" back to `IDLE`.
 - Add one entry to the top of the "Recent Activity Log": date, agent,
   files, one-line summary. Keep the last ~15 entries; trim older ones.
@@ -822,6 +823,8 @@ npx wrangler deploy
 ---
 
 ## Recent Activity Log
+
+- 2026-10-11 · Claude · data/updates.json (new), index.html, service-worker.js (v79), AGENT-COORDINATION.md · ✨ WHAT'S NEW POP-UP: after sign-in (member / club admin / admin) a pop-up shows the update number and what was added/fixed, from `data/updates.json` (`whatsNewMaybe`, `showWhatsNew`, `wnLoad`; seen-state in localStorage `wnSeen:<identity>`; waits for the notification / phone / password gates; first-ever visit shows only the newest update, otherwise everything new, max 4). Power menu has '✨ What's new' for the full history. Role filter via item `for`. New rule added to 'After committing' above.
 
 - 2026-10-07 · Claude · wrangler.toml (ROOT), workers/src/worker.js, service-worker.js (v78) · IMPORTANT DEPLOY FACT: the config that actually deploys is the ROOT `wrangler.toml` (static site `[assets]` + Worker `main = workers/src/worker.js`); `workers/wrangler.toml` is a legacy copy used only for local `wrangler dev`. Bindings must be added to the ROOT file. Found via new public `GET /api/health` (build, d1Bound, club-sync status): production had `d1Bound:false` (D1 binding only existed in workers/wrangler.toml) and club sync failed with HTTP 522 because a Worker can't fetch its own public URL. Fixes: added `[[d1_databases]] DB` and `binding = "ASSETS"` to the root file; new `fetchSiteFile(env, path)` reads site files through `env.ASSETS` (fallback: raw.githubusercontent.com) and is used by the club-roster sync AND the daily 'What's on today' digest (`readTodayEvents` had the same self-fetch bug, so that digest could never find events). With D1 now truly bound, the daily-backup de-duplication (`claimBackupSlot`) becomes atomic.
 

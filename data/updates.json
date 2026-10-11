@@ -1,0 +1,102 @@
+{
+  "updates": [
+    {
+      "no": 5,
+      "date": "2026-10-11",
+      "title": "What's new pop-ups",
+      "items": [
+        {
+          "text": "✨ After you sign in you'll now see a pop-up like this whenever something new ships — with the update number and what was added or fixed."
+        },
+        {
+          "text": "✨ Missed one? Open the power button menu (top right) and tap “✨ What's new” any time."
+        }
+      ]
+    },
+    {
+      "no": 4,
+      "date": "2026-10-07",
+      "title": "M&M club, links and stability",
+      "items": [
+        {
+          "text": "✨ New club: M&M — movies, musicals, museums and other fun exhibitions around the GTA."
+        },
+        {
+          "text": "✨ The menu tabs (Calendar, Clubs, Squads, Directory) are real links now — right-click one to open it in a new tab."
+        },
+        {
+          "text": "✨ Fixed: the site could hit a daily Cloudflare limit and go blank. Profiles and availability now run on a faster, limit-free database.",
+          "for": "admin"
+        },
+        {
+          "text": "✨ Daily backup email now covers the whole project and arrives once a day.",
+          "for": "admin"
+        }
+      ]
+    },
+    {
+      "no": 3,
+      "date": "2026-10-05",
+      "title": "One availability period + new admin page",
+      "items": [
+        {
+          "text": "✨ Availability now covers one fixed period (Oct 8–20 for now) — the same days everywhere. Days after it are blocked until the next period opens."
+        },
+        {
+          "text": "✨ Tap a time in “Everyone's availability” to see who prefers it, who's free, who can't — and who hasn't voted yet."
+        },
+        {
+          "text": "✨ Submitting your availability now asks “Are you sure?” first: empty times count as free (not preferred), red means you can't."
+        },
+        {
+          "text": "✨ Club admins: your own login for your clubs — official events, profiles, availability and reminders to your members.",
+          "for": "lead"
+        },
+        {
+          "text": "✨ The admin page is organised into three grids (Clubs, Notifications & team, Profiles) with collapsible sections.",
+          "for": "admin"
+        },
+        {
+          "text": "✨ Admin: assign squads to any profile, archive past or travelling members, reword the WhatsApp messages, and see “Reminder sent” on reminders.",
+          "for": "admin"
+        },
+        {
+          "text": "✨ Admin: pick a club first on the availability calendar, see the best times ranked, and tap a time to see who voted what.",
+          "for": "admin"
+        }
+      ]
+    },
+    {
+      "no": 2,
+      "date": "2026-10-04",
+      "title": "Works offline + bubbles",
+      "items": [
+        {
+          "text": "✨ Votes and availability now save on your phone when you're offline and sync automatically when you're back."
+        },
+        {
+          "text": "✨ Your clubs, Travel, About and Add to Home Screen now float as round bubbles."
+        },
+        {
+          "text": "✨ The menu is always one tidy row on phones, with a search icon."
+        }
+      ]
+    },
+    {
+      "no": 1,
+      "date": "2026-10-03",
+      "title": "Squads and notifications",
+      "items": [
+        {
+          "text": "✨ Squads: request any squad and get its private invite link once an admin approves you."
+        },
+        {
+          "text": "✨ Turn on notifications to hear about approvals, reminders and event updates."
+        },
+        {
+          "text": "✨ Idea bubbles are smoother and their text is never cut off."
+        }
+      ]
+    }
+  ]
+}

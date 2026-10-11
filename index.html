@@ -9673,17 +9673,82 @@ function renderLeadPasswordGate(note){
     } catch(err){ n.textContent = err.message; }
   });
 }
+// ---- ✨ What's new: after sign-in everyone (members, club admins, admin) sees the updates they haven't seen yet. Add a new entry to
+// data/updates.json (highest "no" first) whenever something users can see changes; items may be limited with "for": "admin" | "lead".
+const WN = { list:null, loading:false, shownFor:null, tries:0 };
+function wnRole(){ return state.cmAdminLoggedIn === true ? 'admin' : state.cmLead ? 'lead' : 'member'; }
+function wnKey(){
+  if(state.cmAdminLoggedIn === true) return 'admin';
+  if(state.cmLead) return 'lead:' + state.cmLead.username;
+  const s = getCmSession(); return s ? 'm:' + (s.id || s.username) : '';
+}
+function wnItems(entry){ const r = wnRole(); return (entry.items || []).filter(i => !i.for || i.for === r || r === 'admin'); }
+async function wnLoad(){
+  if(WN.list) return WN.list;
+  if(WN.loading) return null;
+  WN.loading = true;
+  try { const r = await fetch('data/updates.json', { cache:'no-cache' }); WN.list = r.ok ? ((await r.json()).updates || []).slice().sort((a, b) => b.no - a.no) : []; } catch { WN.list = []; }
+  WN.loading = false;
+  return WN.list;
+}
+function wnSeen(key){ try { return Number(localStorage.getItem('wnSeen:' + key) || 0); } catch { return 0; } }
+function wnMarkSeen(key, no){ try { localStorage.setItem('wnSeen:' + key, String(no)); } catch {} }
+function wnEntryHtml(e, first){
+  const items = wnItems(e); if(!items.length) return '';
+  const d = new Date(e.date + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' });
+  return `<div style="margin:${first ? '0' : '16px'} 0 0;${first ? '' : 'padding-top:14px;border-top:1px dashed #76220b44;'}">
+    <div style="font-weight:800;font-size:16px;color:#76220b;">✨ Update #${e.no} <span style="font-weight:600;font-size:12px;opacity:.7;">· ${escapeCm(d)}</span></div>
+    <div style="font-weight:700;font-size:14px;margin:2px 0 6px;">${escapeCm(e.title || '')}</div>
+    <ul style="margin:0;padding:0;list-style:none;font-size:14px;line-height:1.5;">${items.map(i => `<li style="margin:5px 0;">${escapeCm(i.text)}</li>`).join('')}</ul></div>`;
+}
+async function showWhatsNew(all){
+  const list = await wnLoad(); if(!list || !list.length) return;
+  const key = wnKey(), seen = key ? wnSeen(key) : 0;
+  // first visit ever: just the newest update (not the whole history); otherwise everything new since last time (max 4)
+  const fresh = list.filter(e => e.no > seen && wnItems(e).length);
+  const shown = all ? list.filter(e => wnItems(e).length) : (seen ? fresh.slice(0, 4) : fresh.slice(0, 1));
+  if(!shown.length) return;
+  const latest = list[0].no;
+  const { wrap, close } = ideaPopup(`
+    <div style="text-align:center;font-size:30px;margin-bottom:2px;">✨🎉✨</div>
+    <h3 style="margin:0 0 4px;text-align:center;">${all ? "What's new" : "Something's new!"}</h3>
+    <p class="av-msg" style="text-align:center;margin:0 0 12px;">${all ? 'Every update so far, newest first.' : `You're on update <strong>#${latest}</strong>. Here's what changed:`}</p>
+    <div style="max-height:52vh;overflow-y:auto;padding-right:4px;">${shown.map((e, i) => wnEntryHtml(e, i === 0)).join('')}</div>
+    <button type="button" id="wnOk" class="club-guide-btn" style="width:100%;margin-top:14px;min-height:48px;background:#ce8491;color:#fff;">Got it ✨</button>`);
+  const done = () => { if(key && !all) wnMarkSeen(key, latest); close(); };
+  wrap.querySelector('#wnOk').addEventListener('click', done);
+  const x = wrap.querySelector('.mem-pop-close'); if(x) x.addEventListener('click', () => { if(key && !all) wnMarkSeen(key, latest); });
+  if(!all && key) wnMarkSeen(key, latest); // shown = seen, even if they just tap outside
+}
+// Called on every render: once per page load per person, and only after the sign-in gates (notifications / phone / password) are out of the way.
+async function whatsNewMaybe(){
+  const key = wnKey(); if(!key || WN.shownFor === key) return;
+  const list = await wnLoad(); if(!list) return;
+  WN.shownFor = key;
+  const seen = wnSeen(key);
+  if(!list.some(e => e.no > seen && wnItems(e).length)) return;
+  const attempt = () => {
+    if(document.getElementById('pushGate') || document.getElementById('leadPwGate') || document.getElementById('phoneGate') || document.querySelector('.mem-pop')){
+      if(++WN.tries < 40) setTimeout(attempt, 1500);
+      return;
+    }
+    showWhatsNew(false);
+  };
+  setTimeout(attempt, 1200);
+}
 function renderNavAuth(){
   renderDualBanner();
+  try { whatsNewMaybe(); } catch {}
   const menu = document.getElementById('pwrMenu');
   if(!menu) return;
   const sess = getCmSession();
   const staff = state.cmAdminLoggedIn === true ? 'an admin' : (state.cmLead ? 'a club admin' : '');
+  const newsBtn = '<button type="button" data-pwr="whatsnew">✨ What\'s new</button>';
   const staffPage = staff ? '<button type="button" data-pwr="adminpage">🛠 Admin page</button>' : '';
   const staffOut = staff ? `<button type="button" data-pwr="${state.cmAdminLoggedIn === true ? 'adminout' : 'leadout'}">Log out of ${state.cmAdminLoggedIn === true ? 'admin' : 'club admin'}</button>` : '';
   const warn = staff ? `<div class="pwr-hi" style="background:#fff3cf;color:#6b5210;border-radius:10px;padding:8px;line-height:1.4;">⚠️ You're currently logged in as ${staff}</div>` : '';
-  if(sess) menu.innerHTML = `<div class="pwr-hi">Hi, ${escapeCm(sess.name || sess.username || 'friend')}</div><button type="button" data-pwr="out">Log out</button>${warn}${staffPage}${staffOut}`;
-  else menu.innerHTML = `${warn}${staffPage}<button type="button" class="primary" data-pwr="login">Log in</button><button type="button" data-pwr="signup">Sign up</button>${staffOut}`;
+  if(sess) menu.innerHTML = `<div class="pwr-hi">Hi, ${escapeCm(sess.name || sess.username || 'friend')}</div>${newsBtn}<button type="button" data-pwr="out">Log out</button>${warn}${staffPage}${staffOut}`;
+  else menu.innerHTML = `${warn}${staffPage}<button type="button" class="primary" data-pwr="login">Log in</button><button type="button" data-pwr="signup">Sign up</button>${newsBtn}${staffOut}`;
   const pb = document.getElementById('pwrBtn'); if(pb) pb.classList.toggle('staff', !!staff);
   leadMaybeOnboard();
 }
@@ -9696,7 +9761,8 @@ function renderNavAuth(){
     const b = e.target.closest('button[data-pwr]'); if(!b) return;
     close();
     const k = b.dataset.pwr;
-    if(k === 'adminpage') goToTab('admin');
+    if(k === 'whatsnew') showWhatsNew(true);
+    else if(k === 'adminpage') goToTab('admin');
     else if(k === 'login') goLogin();
     else if(k === 'signup') goSignup();
     else if(k === 'out'){ await cmMemberSignOut(); }
