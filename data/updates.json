@@ -1,6 +1,32 @@
 {
   "updates": [
     {
+      "no": 9,
+      "date": "2026-10-11",
+      "title": "Club calendar, bubble emojis & prices",
+      "items": [
+        {
+          "text": "✨ New Club calendar: anyone can see event names and dates; log in to see details and RSVP. It's the third button next to Availability and Vote."
+        },
+        {
+          "text": "✨ People in the club are marked going right away; people from other clubs send a request that an admin accepts."
+        },
+        {
+          "text": "✨ Admins and club admins can add, edit and remove events and see who's coming (and who's waiting for approval).",
+          "for": "lead"
+        },
+        {
+          "text": "✨ Pick an emoji for your idea bubble — skip it and we choose one for you."
+        },
+        {
+          "text": "✨ Quick price buttons are now $25 and Free."
+        },
+        {
+          "text": "✨ Your club bubbles are back on the home page: tap one to see its ideas and who's free in that club."
+        }
+      ]
+    },
+    {
       "no": 8,
       "date": "2026-10-11",
       "title": "Easier ideas & clubs",

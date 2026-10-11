@@ -473,7 +473,7 @@ const buildBackup = async (env) => {
   const pushSubscriptions = {};
   for (const u of users) { const raw = await safe(`push ${u.id}`, () => env.SITE_DATA.get(pushKey(u.id)), null); if (raw) pushSubscriptions[u.id] = raw; }
   const settings = {};
-  for (const k of ["clubRoster", "labels", "availperiod", "watemplates", SUBSCRIBER_INDEX_KEY]) settings[k] = await safe(`setting ${k}`, () => env.SITE_DATA.get(k), null);
+  for (const k of ["clubRoster", "clubcal", "labels", "availperiod", "watemplates", SUBSCRIBER_INDEX_KEY]) settings[k] = await safe(`setting ${k}`, () => env.SITE_DATA.get(k), null);
   const counts = { users: users.length, availability: Object.keys(availability).length, clubs: clubIds.length, joinRequests: Object.keys(joinRequests).length, squadRequests: Object.keys(squadRequests).length, eventSubmissions: Object.keys(eventSubmissions).length, resourceSubmissions: Object.keys(resourceSubmissions).length, clubAdmins: Object.keys(clubAdmins).length };
   return { version: 2, at: new Date().toISOString(), storage: (await d1On(env)) ? "d1" : "kv", counts, warnings, users, availability, clubMembers, ideas, clubEvents, clubEventResponses, squads, joinRequests, squadRequests, eventSubmissions, resourceSubmissions, clubAdmins, pushSubscriptions, settings };
 };
@@ -652,6 +652,8 @@ const IDEAS_MAX_PER_PERSON = 3;
 // and a Google Maps link.
 const CUISINE_CLUB_ID = "club-cuisine";
 const sanitizeCuisine = (input) => String(input || "").replace(/[\x00-\x1f\x7f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, 30);
+// An emoji the person picked for their bubble (anything non-plain-text, up to 8 characters); empty = the automatic one is used.
+const sanitizeIdeaEmoji = (input) => { const t = String(input || "").replace(/[\x00-\x1f\x7f<>]/g, "").trim(); return t && t.length <= 8 && /[^\x00-\x7f]/.test(t) ? t : ""; };
 const sanitizePrice = (input) => String(input || "").replace(/[\x00-\x1f\x7f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, 20);
 
 // ---- "Add your availability" on each club's idea-board page: a light, 10-day version of the month-view
@@ -885,6 +887,13 @@ const writeClubEvents = async (env, clubId, events) => {
   await env.SITE_DATA.put(clubEventsKey(clubId), JSON.stringify(events));
 };
 
+// ---- Club calendar: one KV doc holds every club's events ({id, clubId, title, date, time, place, desc, rsvps:[{id,name,status:"going"|"pending",at}]}). ----
+// The public sees only title + date; details and RSVP need a member sign-in. Members of the club are "going" at once; anyone else becomes "pending" until an admin accepts.
+const CLUBCAL_KEY = "clubcal";
+const readClubCal = async (env) => { try { const r = await env.SITE_DATA.get(CLUBCAL_KEY); const a = r ? JSON.parse(r) : []; return Array.isArray(a) ? a : []; } catch { return []; } };
+const writeClubCal = (env, a) => env.SITE_DATA.put(CLUBCAL_KEY, JSON.stringify(a));
+const cleanCalText = (v, n) => String(v || "").replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
+const calFields = (b) => ({ title: cleanCalText(b.title, 80), date: String(b.date || ""), time: cleanCalText(b.time, 30), place: cleanCalText(b.place, 120), desc: String(b.desc || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 600) });
 const isValidDateString = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + "T00:00:00Z"));
 
 const dateRange = (startDate, endDate) => {
@@ -1524,6 +1533,53 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     };
     const NOT_IN_CLUB = "Only members of this club can vote or add ideas";
 
+    // ---- Club calendar (public list; member details + RSVP) ----
+    const calMatch = path.match(/^\/api\/club-calendar(?:\/([^/]+)(\/rsvp)?)?\/?$/);
+    if (calMatch) {
+      const M = request.method;
+      const roster = await readClubRoster(env);
+      const clubTitle = (id) => (roster.find((c) => c.id === id) || {}).title || "";
+      if (!calMatch[1] && M === "GET") {
+        const cutoff = new Date(Date.now() - 36 * 3600 * 1000).toISOString().slice(0, 10);
+        const events = (await readClubCal(env)).filter((e) => e.date >= cutoff).sort((a, b) => a.date.localeCompare(b.date) || String(a.time).localeCompare(String(b.time)))
+          .map((e) => ({ id: e.id, clubId: e.clubId, clubTitle: clubTitle(e.clubId), title: e.title, date: e.date }));
+        return jsonResponse({ events }, 200, corsHeaders);
+      }
+      if (calMatch[1]) {
+        const who = await ideaWho();
+        if (!who || !(who.id.startsWith("m:") || who.id === "admin")) return jsonResponse({ error: "Log in or sign up to see event details and RSVP" }, 401, corsHeaders);
+        const all = await readClubCal(env);
+        const ev = all.find((e) => e.id === calMatch[1]);
+        if (!ev) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
+        const uid = who.id.startsWith("m:") ? who.id.slice(2) : "";
+        const inClub = uid ? (await readClubMemberIds(env, ev.clubId)).includes(uid) : false;
+        const mine = (ev.rsvps || []).find((r) => r.id === uid);
+        if (!calMatch[2] && M === "GET") {
+          return jsonResponse({ id: ev.id, clubId: ev.clubId, clubTitle: clubTitle(ev.clubId), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", desc: ev.desc || "",
+            going: (ev.rsvps || []).filter((r) => r.status === "going").length, mine: mine ? mine.status : null, inClub }, 200, corsHeaders);
+        }
+        if (calMatch[2] && (M === "POST" || M === "DELETE")) {
+          if (!uid) return jsonResponse({ error: "Sign in as a member to RSVP" }, 403, corsHeaders);
+          if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
+          ev.rsvps = (ev.rsvps || []).filter((r) => r.id !== uid);
+          let status = null;
+          if (M === "POST") {
+            status = inClub ? "going" : "pending";
+            ev.rsvps.push({ id: uid, name: who.name, status, at: Date.now() });
+          }
+          await writeClubCal(env, all);
+          if (status === "pending" && !mine) {
+            const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
+            const html = emailShell(env, { emoji: "🎟️", title: "RSVP request", preheader: `${who.name} → ${ev.title}`,
+              body: `<p style="margin:0 0 6px"><strong>${escapeHtml(who.name)}</strong> (not in ${escapeHtml(clubTitle(ev.clubId))}) asked to RSVP to</p><p style="margin:0 0 14px"><strong>${escapeHtml(ev.title)}</strong> · ${escapeHtml(ev.date)}</p>${emailBtn(`${origin}/#/clubs/calendar`, "Review the request →")}`,
+              footer: "Accept or decline from the event's attendee list on the Club calendar." });
+            sendAdminEmail(env, ctx, `RSVP request: ${who.name} → ${ev.title}`, html);
+          }
+          return jsonResponse({ ok: true, mine: status, going: ev.rsvps.filter((r) => r.status === "going").length }, 200, corsHeaders);
+        }
+      }
+    }
+
     if (ideasListMatch && request.method === "GET") {
       const clubId = await ideaClub(ideasListMatch);
       if (!clubId) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
@@ -1552,7 +1608,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (ideas.some((i) => i.title.toLowerCase() === title.toLowerCase())) return jsonResponse({ error: "Someone already suggested that — go vote for it!" }, 409, corsHeaders);
       refreshName(ideas, who);
       const clubEmoji = ((await readClubRoster(env)).find((c) => c.id === clubId) || {}).emoji || "";
-      ideas.push({ id: crypto.randomUUID(), title, mapUrl, date: "", emoji: pickIdeaEmoji(title, cuisine, clubEmoji), ...(cuisine ? { cuisine } : {}), ...(price ? { price } : {}), by: who, at: Date.now(), votes: [who], adjust: 0 });
+      ideas.push({ id: crypto.randomUUID(), title, mapUrl, date: "", emoji: sanitizeIdeaEmoji(body.emoji) || pickIdeaEmoji(title, cuisine, clubEmoji), ...(cuisine ? { cuisine } : {}), ...(price ? { price } : {}), by: who, at: Date.now(), votes: [who], adjust: 0 });
       await writeClubIdeas(env, clubId, ideas);
       return jsonResponse({ ideas: sortedPublicIdeas(ideas, who) }, 201, corsHeaders);
     }
@@ -2109,6 +2165,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           request = new Request(request.url, { method: "POST", headers: request.headers, body: JSON.stringify({ ...b, userIds: mine }) });
         }
         else if (seg[0] === "join-requests" && seg.length === 4 && M === "POST") ok = own.has(seg[1]);
+        else if (seg[0] === "club-cal") ok = true; // ownership of the club is checked inside the handlers
         else if (seg[0] === "club-events" && own.has(seg[1]) && ((seg.length === 2 && (M === "GET" || M === "POST")) || (seg.length === 3 && M === "DELETE"))) ok = true;
         else if (seg[0] === "club-members" && own.has(seg[1])) {
           if (seg.length === 2 && M === "POST") ok = true;
@@ -2144,7 +2201,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup") || path.startsWith("/api/admin/wa-templates") || path.startsWith("/api/admin/email-preview");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/club-cal") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup") || path.startsWith("/api/admin/wa-templates") || path.startsWith("/api/admin/email-preview");
 
     if (requiresAuth && !leadCtx) {
       const token = getSessionToken(request);
@@ -2897,6 +2954,50 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     }
 
     // Admin: create/list/delete per-club events
+    // ---- Club calendar admin: main admin = every club; a club admin = only their own clubs ----
+    const adminCalMatch = path.match(/^\/api\/admin\/club-cal(?:\/([^/]+)(?:\/rsvp\/([^/]+)\/(accept|decline|remove))?)?\/?$/);
+    if (adminCalMatch) {
+      const M = request.method;
+      const canClub = (cid) => !leadCtx || leadCtx.clubs.includes(cid);
+      const roster = await readClubRoster(env);
+      const clubTitle = (id) => (roster.find((c) => c.id === id) || {}).title || "";
+      const view = (e) => ({ id: e.id, clubId: e.clubId, clubTitle: clubTitle(e.clubId), title: e.title, date: e.date, time: e.time || "", place: e.place || "", desc: e.desc || "", rsvps: e.rsvps || [] });
+      const all = await readClubCal(env);
+      if (!adminCalMatch[1] && M === "GET") return jsonResponse({ events: all.filter((e) => canClub(e.clubId)).sort((a, b) => a.date.localeCompare(b.date)).map(view) }, 200, corsHeaders);
+      let body = {};
+      if ((M === "POST" || M === "PUT") && !adminCalMatch[2]) { try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); } }
+      if (!adminCalMatch[1] && M === "POST") {
+        const clubId = String(body.clubId || "");
+        if (!roster.some((c) => c.id === clubId)) return jsonResponse({ error: "Pick a club" }, 400, corsHeaders);
+        if (!canClub(clubId)) return jsonResponse({ error: "You can only add events to your own clubs" }, 403, corsHeaders);
+        const f = calFields(body);
+        if (f.title.length < 3) return jsonResponse({ error: "Give the event a name (3+ letters)" }, 400, corsHeaders);
+        if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
+        const ev = { id: crypto.randomUUID(), clubId, ...f, rsvps: [], at: Date.now() };
+        all.push(ev); await writeClubCal(env, all);
+        return jsonResponse({ ok: true, event: view(ev) }, 201, corsHeaders);
+      }
+      const ev = all.find((e) => e.id === adminCalMatch[1]);
+      if (!ev || !canClub(ev.clubId)) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
+      if (!adminCalMatch[2] && M === "PUT") {
+        const f = calFields({ ...ev, ...body });
+        if (f.title.length < 3) return jsonResponse({ error: "Give the event a name (3+ letters)" }, 400, corsHeaders);
+        if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
+        Object.assign(ev, f);
+        await writeClubCal(env, all);
+        return jsonResponse({ ok: true, event: view(ev) }, 200, corsHeaders);
+      }
+      if (!adminCalMatch[2] && M === "DELETE") { await writeClubCal(env, all.filter((e) => e.id !== ev.id)); return jsonResponse({ ok: true }, 200, corsHeaders); }
+      if (adminCalMatch[2] && M === "POST") {
+        const r = (ev.rsvps || []).find((x) => x.id === adminCalMatch[2]);
+        if (!r) return jsonResponse({ error: "Not on the list" }, 404, corsHeaders);
+        if (adminCalMatch[3] === "accept") r.status = "going"; else ev.rsvps = ev.rsvps.filter((x) => x.id !== r.id);
+        await writeClubCal(env, all);
+        return jsonResponse({ ok: true, event: view(ev) }, 200, corsHeaders);
+      }
+      return jsonResponse({ error: "Not found" }, 404, corsHeaders);
+    }
+
     const adminEventsMatch = path.match(/^\/api\/admin\/club-events\/([^/]+)\/?$/);
     if (adminEventsMatch && request.method === "GET") {
       const clubId = decodeURIComponent(adminEventsMatch[1]);
