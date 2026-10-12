@@ -3755,6 +3755,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       <div class="rules-content" style="max-width:560px;margin:0 auto;">
         <p class="rules-lead">Know an event we should add?</p>
         ${calLinkRowHtml('', location.origin + '/#/submit-event', '🔗 Share this form:')}
+        <p style="margin:0 0 12px;font-size:14px;">Know a business or resource instead? <a href="#/add-resource" data-hometab="submitresource" style="font-weight:700;color:var(--brand-brown);">Suggest a resource →</a></p>
         <p style="margin-bottom:12px;">Send it to us — everything below is required, and an admin reviews every submission.</p>
         <div id="esIntro"></div>
         <form id="eventSubForm" novalidate style="display:flex;flex-direction:column;gap:10px;">
@@ -3783,6 +3784,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       <div class="rules-content" style="max-width:560px;margin:0 auto;">
         <p class="rules-lead">Know a business or resource we should add?</p>
         ${calLinkRowHtml('', location.origin + '/#/add-resource', '🔗 Share this form:')}
+        <p style="margin:0 0 12px;font-size:14px;">Have an event to share instead? <a href="#/submit-event" data-hometab="submitevent" style="font-weight:700;color:var(--brand-brown);">Submit an event →</a></p>
         <p style="margin-bottom:12px;">Send it to us — everything below is required, and an admin reviews every submission.</p>
         <form id="resSubForm" novalidate style="display:flex;flex-direction:column;gap:10px;">
           <input id="rsTitle" type="text" maxlength="120" placeholder="Name of the business / resource" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
@@ -8546,7 +8548,7 @@ function admEvSubsHtml(){
 function admEvFormHtml(){
   if(!state.evFormCfg){ if(!state.evFormLoading){ state.evFormLoading = true; fetch('/api/event-form-config', { cache:'no-store' }).then(r => r.ok ? r.json() : { intro:'', form:null }).catch(() => ({ intro:'', form:null })).then(c => { state.evFormCfg = c; state.evFormLoading = false; if(state.tab === 'admin') render(); }); } return '<p class="av-msg">Loading…</p>'; }
   const c = state.evFormCfg, qs = (c.form && c.form.fields) || [];
-  return `<div class="cp-box">${calLinkRowHtml('', location.origin + '/#/submit-event', '🔗 Public link:')}<p class="ideas-hint" style="text-align:left;margin:0 0 8px;">The “Submit an event” page always asks for the link, name, date, genre and city. Here you can add a short message at the top and extra questions of your own.</p>
+  return `<div class="cp-box">${calLinkRowHtml('', location.origin + '/#/submit-event', '🔗 Events link:')}${calLinkRowHtml('', location.origin + '/#/add-resource', '🔗 Resources link:')}<p class="ideas-hint" style="text-align:left;margin:0 0 8px;">The “Submit an event” page always asks for the link, name, date, genre and city. Here you can add a short message at the top and extra questions of your own.</p>
     <label style="display:block;font-size:12px;font-weight:700;color:#776867;">Message at the top (optional)</label>
     <textarea id="evFormIntro" rows="2" maxlength="500" style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:15px;margin-bottom:8px;">${escapeCm(c.intro || '')}</textarea>
     <strong style="font-size:13px;">Extra questions (${qs.length})</strong>
@@ -9584,7 +9586,7 @@ function renderClubAdminPanel(){
     ${lead ? '' : admSec('clubdir', '🏛️ Club directory (add / edit clubs)', clubDirListHtml(), false)}
   `;
   const squadsGrid = lead ? '' : admSec('squads', '🪁 Squads — requests &amp; invite links', squadAdminHtml(), true, 'flat');
-  const directoryGrid = lead ? '' : admSec('reslink', '🔗 Public “Add a resource” link', `<div class="cp-box">${calLinkRowHtml('', location.origin + '/#/add-resource', '🔗 Public link:')}<p class="ideas-hint" style="text-align:left;margin:0;">Share this with anyone who wants to suggest a business or resource — they don't need an account.</p></div>`, true, 'flat') + admSec('labels-res', '🏷️ Names of resource categories', labelsAdminHtml('resource'), true, 'flat');
+  const directoryGrid = lead ? '' : admSec('reslink', '🔗 Public “Add a resource” link', `<div class="cp-box">${calLinkRowHtml('', location.origin + '/#/add-resource', '🔗 Resources link:')}${calLinkRowHtml('', location.origin + '/#/submit-event', '🔗 Events link:')}<p class="ideas-hint" style="text-align:left;margin:0;">Share these with anyone who wants to suggest a business, resource or event — they don't need an account.</p></div>`, true, 'flat') + admSec('labels-res', '🏷️ Names of resource categories', labelsAdminHtml('resource'), true, 'flat');
   const calendarGrid = `
     <div style="text-align:center;margin:6px 0 12px;"><button type="button" class="club-guide-btn" id="admEvAdd" style="min-height:46px;padding:10px 26px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add event</button></div>
     ${admSec('evsearch', '🔎 Find & edit an event', admEvSearchHtml(), true)}
