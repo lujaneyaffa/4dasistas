@@ -3217,7 +3217,13 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         if(!state.clubsPage || state.clubsPage === 'cal') wireClubCal();
         if(state.clubsPage === 'vote'){
           wireIdeaAddForm('vote');
-          document.querySelectorAll('[data-voteclub]').forEach(b => b.addEventListener('click', () => { state.voteClub = b.dataset.voteclub; state.ideasStatus = ''; render(); }));
+          const vcs = document.getElementById('voteClubSel');
+          if(vcs) vcs.addEventListener('change', () => {
+            // switching club can change the fields (Cuisine has an extra one): keep what's been typed
+            const keep = ['ideaInput', 'ideaMapInput', 'ideaPriceInput', 'ideaEmojiInput'].map(id => [id, (document.getElementById(id) || {}).value || '']);
+            state.voteClub = vcs.value; state.ideasStatus = ''; render();
+            keep.forEach(([id, v]) => { const el = document.getElementById(id); if(el && v){ el.value = v; if(id === 'ideaPriceInput') el.style.display = 'block'; } });
+          });
         }
         wireIdeaAvailGrid();
         wireEveryoneAvailGrid();
@@ -6626,8 +6632,8 @@ function renderMyClubsSectionHtml(){
     if(!myClubs.some(c => c.id === state.voteClub)) state.voteClub = myClubs[0].id;
     state.ideasClubId = state.voteClub;
     return `<button type="button" class="back-btn" data-clubspage="">← Back</button>
-    ${myClubs.length > 1 ? `<p class="ideas-hint" style="text-align:center;margin:0 0 6px;">Add an idea to:</p><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 0 8px;">${myClubs.map(c => `<button type="button" class="filter-chip${c.id === state.voteClub ? ' active' : ''}" data-voteclub="${escapeCm(c.id)}">${c.emoji ? escapeCm(c.emoji) + ' ' : ''}${escapeCm(c.title)}</button>`).join('')}</div>` : `<p class="ideas-hint" style="text-align:center;margin:0 0 6px;">Add an idea to <strong>${escapeCm(myClubs[0].title)}</strong>:</p>`}
-    <div style="max-width:520px;margin:0 auto;">${ideaAddFormHtml(state.voteClub)}</div>
+    <p class="ideas-hint" style="text-align:center;margin:0 0 6px;">Add an idea${myClubs.length === 1 ? ' to <strong>' + escapeCm(myClubs[0].title) + '</strong>' : ''}:</p>
+    <div style="max-width:520px;margin:0 auto;">${ideaAddFormHtml(state.voteClub, myClubs)}</div>
     <div class="ideas-status" id="ideasStatus" aria-live="polite" style="text-align:center;">${escapeCm(state.ideasStatus || '')}</div>
     ${renderPublicIdeasFeedHtml('🗳️ VOTE', 'Every idea from your clubs is here — tap a bubble to vote. Each bubble shows which club it\'s from.', 'No ideas yet — add the first one above!')}
     <p style="text-align:center;margin:12px 0 0;"><button type="button" class="av-link club-card" data-club-id="${escapeCm(state.voteClub)}">Open the ${escapeCm(avClubTitle(state.voteClub))} board →</button></p>`;
@@ -6700,8 +6706,12 @@ function wirePublicIdeasFeed(){
   box.querySelectorAll('[data-ideaedit]').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); openIdeaEdit(x.dataset.ideaedit); }));
 }
 
-function ideaAddFormHtml(clubId){
+function ideaAddFormHtml(clubId, clubChoices){
   const isCuisine = clubId === 'club-cuisine';
+  // On the Vote page (member in several clubs) the club is the FIRST FIELD of the form.
+  const clubField = clubChoices && clubChoices.length > 1 ? `
+      <label class="idea-form-lbl" style="font-size:12px;font-weight:700;color:var(--muted);margin:0 0 -4px;">Club</label>
+      <select id="voteClubSel" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;background:#fff;font-family:inherit;">${clubChoices.map(c => `<option value="${escapeCm(c.id)}" ${c.id === clubId ? 'selected' : ''}>${c.emoji ? escapeCm(c.emoji) + ' ' : ''}${escapeCm(c.title)}</option>`).join('')}</select>` : '';
   const priceFieldHtml = `
       <input id="ideaPriceInput" type="text" maxlength="20" placeholder="Type the price (e.g. $35, $10–15, Free)" autocomplete="off" inputmode="text" style="display:none;">
       <div class="idea-price-quick">
@@ -6711,7 +6721,7 @@ function ideaAddFormHtml(clubId){
       </div>
       <input id="ideaEmojiInput" type="text" maxlength="8" placeholder="Bubble emoji (optional — we pick one if you skip)" autocomplete="off" style="text-align:center;">`;
   return isCuisine ? `
-    <form class="ideas-form" id="ideaForm" novalidate>
+    <form class="ideas-form" id="ideaForm" novalidate>${clubField}
       <input id="ideaCuisineInput" type="text" maxlength="30" placeholder="Cuisine type (e.g. Lebanese, Korean, Dessert)" autocomplete="off">
       <input id="ideaInput" type="text" maxlength="80" placeholder="Name of the place" autocomplete="off">
       <input id="ideaMapInput" type="text" placeholder="Google Maps link (optional)" autocomplete="off" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
@@ -6719,7 +6729,7 @@ function ideaAddFormHtml(clubId){
       <button type="submit" class="club-guide-btn" id="ideaAddBtn">Add restaurant</button>
       <p class="ideas-hint">The first three are required; the map link is optional. To add one, find the place in Google Maps → Share → Copy link, then paste it here.</p>
     </form>` : `
-    <form class="ideas-form" id="ideaForm" novalidate>
+    <form class="ideas-form" id="ideaForm" novalidate>${clubField}
       <input id="ideaInput" type="text" maxlength="80" placeholder="Event idea (e.g. Pottery night)" autocomplete="off">
       <input id="ideaMapInput" type="text" placeholder="Google Maps link (optional)" autocomplete="off" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
       ${priceFieldHtml}
