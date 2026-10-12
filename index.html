@@ -10671,7 +10671,7 @@ function renderLeadPasswordGate(note){
 }
 // ---- ✨ What's new: after sign-in everyone (members, club admins, admin) sees the updates they haven't seen yet. Add a new entry to
 // data/updates.json (highest "no" first) whenever something users can see changes; items may be limited with "for": "admin" | "lead".
-const WN = { list:null, loading:false, shownFor:null, tries:0 };
+const WN = { list:null, earlier:[], loading:false, shownFor:null, tries:0 };
 function wnRole(){ return state.cmAdminLoggedIn === true ? 'admin' : state.cmLead ? 'lead' : 'member'; }
 function wnKey(){
   if(state.cmAdminLoggedIn === true) return 'admin';
@@ -10683,7 +10683,7 @@ async function wnLoad(){
   if(WN.list) return WN.list;
   if(WN.loading) return null;
   WN.loading = true;
-  try { const r = await fetch('data/updates.json', { cache:'no-cache' }); WN.list = r.ok ? ((await r.json()).updates || []).slice().sort((a, b) => b.no - a.no) : []; } catch { WN.list = []; }
+  try { const r = await fetch('data/updates.json', { cache:'no-cache' }); const j = r.ok ? await r.json() : {}; WN.list = (j.updates || []).slice().sort((a, b) => b.no - a.no); WN.earlier = j.earlier || []; } catch { WN.list = []; }
   WN.loading = false;
   return WN.list;
 }
@@ -10697,19 +10697,26 @@ function wnEntryHtml(e, first){
     <div style="font-weight:700;font-size:14px;margin:2px 0 6px;">${escapeCm(e.title || '')}</div>
     <ul style="margin:0;padding:0;list-style:none;font-size:14px;line-height:1.5;">${items.map(i => `<li style="margin:5px 0;">${escapeCm(i.text)}</li>`).join('')}</ul></div>`;
 }
+// The history from before updates were numbered (only ever shown in the full “What's new” list, never as a pop-up).
+function wnEarlierHtml(){
+  const rows = (WN.earlier || []).filter(e => wnItems(e).length);
+  if(!rows.length) return '';
+  return `<div style="margin:20px 0 0;padding-top:14px;border-top:2px solid #76220b55;"><div style="font-weight:800;font-size:16px;color:#76220b;">🌱 How we got here</div><p class="av-msg" style="margin:2px 0 4px;">The big milestones since the site started.</p>
+    ${rows.map(e => { const d = new Date(e.date + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' }); return `<div style="margin:14px 0 0;"><div style="font-weight:700;font-size:14px;">${escapeCm(e.title || '')} <span style="font-weight:600;font-size:12px;opacity:.7;">· ${escapeCm(d)}</span></div><ul style="margin:3px 0 0;padding:0;list-style:none;font-size:14px;line-height:1.5;">${wnItems(e).map(i => `<li style="margin:4px 0;">${escapeCm(i.text)}</li>`).join('')}</ul></div>`; }).join('')}</div>`;
+}
 async function showWhatsNew(all){
   const list = await wnLoad(); if(!list || !list.length) return;
   const key = wnKey(), seen = key ? wnSeen(key) : 0;
   // first visit ever: just the newest update (not the whole history); otherwise everything new since last time (max 4)
   const fresh = list.filter(e => e.no > seen && wnItems(e).length);
   const shown = all ? list.filter(e => wnItems(e).length) : (seen ? fresh.slice(0, 4) : fresh.slice(0, 1));
-  if(!shown.length) return;
+  if(!shown.length && !(all && WN.earlier && WN.earlier.length)) return;
   const latest = list[0].no;
   const { wrap, close } = ideaPopup(`
     <div style="text-align:center;font-size:30px;margin-bottom:2px;">✨🎉✨</div>
     <h3 style="margin:0 0 4px;text-align:center;">${all ? "What's new" : "Something's new!"}</h3>
-    <p class="av-msg" style="text-align:center;margin:0 0 12px;">${all ? 'Every update so far, newest first.' : `You're on update <strong>#${latest}</strong>. Here's what changed:`}</p>
-    <div style="max-height:52vh;overflow-y:auto;padding-right:4px;">${shown.map((e, i) => wnEntryHtml(e, i === 0)).join('')}</div>
+    <p class="av-msg" style="text-align:center;margin:0 0 12px;">${all ? 'Every update so far, newest first — and how the site started.' : `You're on update <strong>#${latest}</strong>. Here's what changed:`}</p>
+    <div style="max-height:52vh;overflow-y:auto;padding-right:4px;">${shown.map((e, i) => wnEntryHtml(e, i === 0)).join('')}${all ? wnEarlierHtml() : ''}</div>
     <button type="button" id="wnOk" class="club-guide-btn" style="width:100%;margin-top:14px;min-height:48px;background:#ce8491;color:#fff;">Got it ✨</button>`);
   const done = () => { if(key && !all) wnMarkSeen(key, latest); close(); };
   wrap.querySelector('#wnOk').addEventListener('click', done);

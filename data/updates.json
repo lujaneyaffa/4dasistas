@@ -249,5 +249,171 @@
         }
       ]
     }
+  ],
+  "earlier": [
+    {
+      "date": "2026-10-02",
+      "title": "Squads, joining clubs and event submissions",
+      "items": [
+        {
+          "text": "✨ The Squads tab: small casual crews around one regular thing (Quran, Badminton, Cowork, Steps) — request one and get its private WhatsApp link."
+        },
+        {
+          "text": "✨ Joining a club now needs an admin's approval, and your first pick is requested automatically when you sign up (you can pick two clubs)."
+        },
+        {
+          "text": "✨ Anyone can submit an event or a resource for the calendar from the new Submit buttons — an admin reviews every one."
+        },
+        {
+          "text": "✨ Everyone's availability heat-map (best and worst times) and green / red / yellow availability slots."
+        },
+        {
+          "text": "✨ Admin: one card per member with club tags, an availability calendar with filters, profile pop-ups with phone numbers, and email notifications with one-tap Accept / Edit / Deny links.",
+          "for": "admin"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-30",
+      "title": "Real member accounts for clubs",
+      "items": [
+        {
+          "text": "✨ Sign up creates your login (firstname.lastinitial) with your own PIN, and you can change your PIN any time."
+        },
+        {
+          "text": "✨ The signed-in Clubs page shows the clubs you're in, your availability, and idea bubbles to vote on."
+        },
+        {
+          "text": "✨ Idea boards got prices, per-club titles (“THE CUISINE CLUB”) and members-only voting."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-25",
+      "title": "Availability grids on every club board",
+      "items": [
+        {
+          "text": "✨ “Add your availability” — a quick grid for the next days — plus an “Everyone's availability” view so clubs can pick times that work."
+        },
+        {
+          "text": "✨ Search bar fixes, a trips continent filter, and a pickleball / sport dropdown clean-up."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-19",
+      "title": "Club idea boards (Mentimeter-style)",
+      "items": [
+        {
+          "text": "✨ Idea boards: add an activity idea with a Google Maps place, and everyone votes — the more votes, the bigger the bubble grows."
+        },
+        {
+          "text": "✨ Club members got a month-view availability picker (morning / afternoon / night) and the first Sign Up form that creates a login."
+        },
+        {
+          "text": "✨ Every tab and sub-tab got its own shareable link (like #/calendar or #/clubs)."
+        },
+        {
+          "text": "✨ Events can now repeat monthly (e.g. every 2nd Saturday) as well as weekly."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-14",
+      "title": "Admin editing right on the site",
+      "items": [
+        {
+          "text": "✨ Admins can create, edit and delete events and resources straight from the site (no separate CMS), with a Google address search limited to Canada and a “needs details” review queue.",
+          "for": "admin"
+        },
+        {
+          "text": "✨ The app remembers which tab you were on when you reopen it from your Home Screen, and works better on iPhone (safe areas, no accidental zoom)."
+        },
+        {
+          "text": "✨ A simpler 4-item menu bar, with Travel and About on the Home page."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-12",
+      "title": "Audience labels and the Knowledge calendar",
+      "items": [
+        {
+          "text": "✨ Every event shows who it's for: Muslim Women, Hijabi Friendly, Family Event, All Women or Muslim Youth."
+        },
+        {
+          "text": "✨ “Mosque Programs” became Knowledge (classes, halaqahs, talks), and many events were re-sorted into the right calendar."
+        },
+        {
+          "text": "✨ A big batch of new trips, retreats and community functions was added."
+        }
+      ]
+    },
+    {
+      "date": "2026-08-27",
+      "title": "Week strip and private club schedules",
+      "items": [
+        {
+          "text": "✨ The Home page's What's On Today has Day / Week / Month views with a swipeable strip."
+        },
+        {
+          "text": "✨ Events get an automatic emoji, and Calendar has Day / Week / Month views."
+        },
+        {
+          "text": "✨ The first private “Club Members Schedule”: usernames and a PIN so each club could share availability."
+        },
+        {
+          "text": "✨ A new About page with a volunteer sign-up form."
+        }
+      ]
+    },
+    {
+      "date": "2026-08-23",
+      "title": "Travel globe, support groups and Instagram events",
+      "items": [
+        {
+          "text": "✨ An interactive globe for Trips, plus a trips list with upcoming / past."
+        },
+        {
+          "text": "✨ A Support Groups page and expanded Mental Health resources."
+        },
+        {
+          "text": "✨ Dozens of real events and resources from Instagram: community BBQs, festivals, retreats, workshops, small businesses and more."
+        },
+        {
+          "text": "✨ Filter by several event types at once, events that appear in more than one calendar, end times, all-day events and an “Organized by” line."
+        }
+      ]
+    },
+    {
+      "date": "2026-08-18",
+      "title": "The app on your phone",
+      "items": [
+        {
+          "text": "✨ 4DASISTAS became an installable app: Add to Home Screen, works offline, with its own icon."
+        },
+        {
+          "text": "✨ Subscribe to the calendar in Apple / Google Calendar (a live calendar.ics feed)."
+        },
+        {
+          "text": "✨ Event pages show a map, and the new Clubs tab lists the community's clubs."
+        }
+      ]
+    },
+    {
+      "date": "2026-08-17",
+      "title": "The site launches",
+      "items": [
+        {
+          "text": "✨ The first 4DASISTAS: a community calendar for Muslim women in the GTA — sports, activities, community functions and trips — with Upcoming / Past filters."
+        },
+        {
+          "text": "✨ A Resources directory of 80+ Muslim-owned businesses, mosques, cafes and restaurants, with a map and a list view."
+        },
+        {
+          "text": "✨ A fresh colour palette and a mobile-friendly layout."
+        }
+      ]
+    }
   ]
 }

@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-12 · Claude · data/updates.json, index.html, service-worker.js (v111) · WHAT'S NEW now includes the site's history: new top-level `"earlier"` array in data/updates.json (10 entries, Aug 17 → Oct 2, built from the git history, member-friendly wording, optional `for` filters) shown ONLY in the full 'What's new' list (power menu) under '🌱 How we got here' — never as a pop-up and not numbered, so nobody's seen-state changes. Keep adding NEW things to `updates` as before; `earlier` is a fixed back-catalogue.
+
 - 2026-10-12 · Claude · index.html, service-worker.js (v110) · Vote page: the club picker is now the FIRST FIELD INSIDE the add-an-idea form (`ideaAddFormHtml(clubId, clubChoices)` → `#voteClubSel`, only shown when in 2+ clubs) instead of chips above it; switching club keeps what was typed (Cuisine adds its extra cuisine-type field). Layout → not in What's-new.
 
 - 2026-10-12 · Claude · index.html, service-worker.js (v109) · (1) Removed the preset emoji buttons from the club 'add an idea' form (the optional emoji box stays; blank = automatic). (2) Admin event popup: events WITHOUT a form now show a yellow 'No form on this event yet — Create a form (saves right away)' box (and 'Edit the form' when one exists) that saves the form instantly (PUT), so a form can't be lost by forgetting to save the event; the Add-event button now reads '✅ Form ready (n questions) — it saves with the event'. Likely cause of 'RSVP still shows on Pirate Puzzle Hunt': the event had no form saved (the form is only attached once the event itself is saved). Not in What's-new.
