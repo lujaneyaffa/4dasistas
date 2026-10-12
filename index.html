@@ -5880,8 +5880,13 @@ function clubCalManage(ev){
       <div id="calAttResults" style="max-height:26vh;overflow:auto;"></div>
       <p class="idea-pop-h" style="margin-top:10px;">✍️ Add by name (no profile needed)</p>
       <div style="display:flex;gap:6px;"><input id="calGuestName" type="text" maxlength="30" placeholder="Their name" autocomplete="off" style="flex:1;min-width:0;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;"><button type="button" id="calGuestAdd" class="club-guide-btn" style="padding:6px 14px;text-align:center;">+ Add</button></div>
-      ${ev.form ? `<p class="idea-pop-h" style="margin-top:12px;">📝 ${escapeCm(ev.form.title)} (${ev.form.fields.length} question${ev.form.fields.length === 1 ? '' : 's'})</p><button type="button" class="fb-mini" id="calRespBtn">View answers</button><div id="calRespBox" style="margin-top:6px;"></div>` : ''}
+      ${ev.form ? `<p class="idea-pop-h" style="margin-top:12px;">📝 ${escapeCm(ev.form.title)} (${ev.form.fields.length} question${ev.form.fields.length === 1 ? '' : 's'})</p><div class="fb-row" style="margin:0 0 6px;"><button type="button" class="fb-mini" id="calRespBtn">View answers</button><button type="button" class="fb-mini" id="calFormEdit">✏️ Edit the form</button></div><div id="calRespBox" style="margin-top:6px;"></div>` : `<div style="margin-top:12px;padding:10px;border-radius:12px;background:#fff3cd;"><strong>No form on this event yet</strong> — people can only press RSVP.<br><button type="button" class="club-guide-btn" id="calFormEdit" style="margin-top:6px;padding:6px 16px;min-height:0;text-align:center;">📝 Create a form (saves right away)</button></div>`}
       <div id="calMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>`;
+    const fe = wrap.querySelector('#calFormEdit');
+    if(fe) fe.addEventListener('click', () => openFormBuilder(ev.form || null, async f => {
+      try { const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id), 'PUT', { form: f }); ev.form = j.event.form; const i = state.clubCal.findIndex(e => e.id === ev.id); if(i >= 0) state.clubCal[i] = j.event; paint(); if(state.tab === 'clubs' || state.tab === 'admin') render(); }
+      catch(err){ wrap.querySelector('#calMsg').textContent = err.message; }
+    }));
     const rb = wrap.querySelector('#calRespBtn'); if(rb) rb.addEventListener('click', () => clubCalShowResponses(ev, wrap.querySelector('#calRespBox')));
     wrap.querySelector('#calEditBtn').addEventListener('click', () => { close(); clubCalForm(ev); });
     wrap.querySelector('#calDelBtn').addEventListener('click', async () => {
@@ -6071,7 +6076,7 @@ function clubCalForm(ev, presetDate){
   mountClubCalPlace(wrap);
   let draftForm = ev ? (ev.form || null) : null;
   const formBtn = wrap.querySelector('#cfFormBtn');
-  const paintFormBtn = () => { formBtn.textContent = draftForm ? `📝 Edit the form (${draftForm.fields.length} question${draftForm.fields.length === 1 ? '' : 's'})` : '📝 Create a form'; };
+  const paintFormBtn = () => { formBtn.textContent = draftForm ? `✅ Form ready (${draftForm.fields.length} question${draftForm.fields.length === 1 ? '' : 's'}) — tap to edit · it saves with the event` : '📝 Create a form'; };
   paintFormBtn();
   formBtn.addEventListener('click', () => openFormBuilder(draftForm, f => { draftForm = f; paintFormBtn(); }));
   const picked = []; // {userId,name} or {name}
@@ -6704,8 +6709,7 @@ function ideaAddFormHtml(clubId){
         <button type="button" class="idea-price-btn" data-price="$25">$25</button>
         <button type="button" class="idea-price-btn" data-price="Free">Free</button>
       </div>
-      <input id="ideaEmojiInput" type="text" maxlength="8" placeholder="Bubble emoji (optional — we pick one if you skip)" autocomplete="off" style="text-align:center;">
-      <div class="idea-price-quick" id="ideaEmojiQuick">${['🍕','🍣','☕','🎨','🎬','🎳','🥾','🏖️','🎤','🧁','🛍️','🎉'].map(e => `<button type="button" class="idea-price-btn idea-emoji-pick" data-emoji="${e}" style="min-width:42px;">${e}</button>`).join('')}</div>`;
+      <input id="ideaEmojiInput" type="text" maxlength="8" placeholder="Bubble emoji (optional — we pick one if you skip)" autocomplete="off" style="text-align:center;">`;
   return isCuisine ? `
     <form class="ideas-form" id="ideaForm" novalidate>
       <input id="ideaCuisineInput" type="text" maxlength="30" placeholder="Cuisine type (e.g. Lebanese, Korean, Dessert)" autocomplete="off">
