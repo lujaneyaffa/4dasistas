@@ -926,7 +926,16 @@ const sanitizeCalForm = (f) => {
     fields.push(fld);
   }
   if (!fields.length) return null;
-  return { title: cleanCalText(f.title, 80) || "Sign-up form", intro: String(f.intro || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 400), fields };
+  const longText = (v, n) => String(v || "").replace(/[\x00-\x08\x0b-\x1f\x7f<>]/g, " ").trim().slice(0, n);
+  const out = { title: cleanCalText(f.title, 80) || "Sign-up form", intro: longText(f.intro, 400), fields };
+  const footer = longText(f.footer, 800); if (footer) out.footer = footer; // description shown at the bottom of the form
+  // Payment: the site doesn't take money itself — it shows how to pay (an amount, a payment link, instructions) once someone has signed up.
+  if (f.payment && typeof f.payment === "object") {
+    let link = ""; try { const u = new URL(String(f.payment.link || "").trim()); if (u.protocol === "https:") link = u.href.slice(0, 500); } catch {}
+    const pay = { amount: cleanCalText(f.payment.amount, 30), link, note: longText(f.payment.note, 400) };
+    if (pay.amount || pay.link || pay.note) out.payment = pay;
+  }
+  return out;
 };
 // Check one person's answers against the form; returns {answers} or {error}.
 const checkCalAnswers = (form, raw) => {
@@ -3153,9 +3162,9 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const ev = (await readClubCal(env)).find((e) => e.id === adminCalRespMatch[1]);
       if (!ev || (leadCtx && !calClubs(ev).some((c) => leadCtx.clubs.includes(c)))) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
       let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
-      return jsonResponse({ form: ev.form || null, responses: Object.keys(map).map((uid) => ({ userId: uid, name: map[uid].name, contact: map[uid].contact || "", guest: !!map[uid].guest, answers: map[uid].answers, at: map[uid].at })).sort((a, b) => a.at - b.at) }, 200, corsHeaders);
+      return jsonResponse({ form: ev.form || null, responses: Object.keys(map).map((uid) => ({ userId: uid, name: map[uid].name, contact: map[uid].contact || "", guest: !!map[uid].guest, paid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).paid, answers: map[uid].answers, at: map[uid].at })).sort((a, b) => a.at - b.at) }, 200, corsHeaders);
     }
-    const adminCalMatch = path.match(/^\/api\/admin\/club-cal(?:\/([^/]+)(?:\/rsvp\/([^/]+)\/(accept|decline|remove|add))?)?\/?$/);
+    const adminCalMatch = path.match(/^\/api\/admin\/club-cal(?:\/([^/]+)(?:\/rsvp\/([^/]+)\/(accept|decline|remove|add|paid|unpaid))?)?\/?$/);
     if (adminCalMatch) {
       const M = request.method;
       const canClub = (cid) => !leadCtx || leadCtx.clubs.includes(cid);
@@ -3226,7 +3235,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (adminCalMatch[2] && M === "POST") {
         const r = (ev.rsvps || []).find((x) => x.id === adminCalMatch[2]);
         if (!r) return jsonResponse({ error: "Not on the list" }, 404, corsHeaders);
-        if (adminCalMatch[3] === "accept") r.status = "going"; else ev.rsvps = ev.rsvps.filter((x) => x.id !== r.id);
+        if (adminCalMatch[3] === "accept") r.status = "going";
+        else if (adminCalMatch[3] === "paid") r.paid = true;
+        else if (adminCalMatch[3] === "unpaid") delete r.paid;
+        else ev.rsvps = ev.rsvps.filter((x) => x.id !== r.id);
         await writeClubCal(env, all);
         return jsonResponse({ ok: true, event: view(ev) }, 200, corsHeaders);
       }
