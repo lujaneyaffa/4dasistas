@@ -8529,7 +8529,8 @@ function admCeHtml(){
   if(!state.clubCal || state.clubCalIsAdminData !== calIsAdmin()) clubCalLoad(true);
   const f = state.admCeFilter || 'upcoming';
   const chip = (k, l) => `<button type="button" class="filter-chip${f === k ? ' active' : ''}" data-cefilter="${k}">${l}</button>`;
-  return `<div style="text-align:center;margin:6px 0 10px;"><button type="button" class="club-guide-btn" id="ceAdd" style="min-height:46px;padding:10px 26px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add club event</button></div>
+  return `${admSec('clubcal', '🗓️ Club calendar — events &amp; RSVPs', clubCalSectionHtml(true), true)}
+    <h4 style="margin:14px 0 6px;">All club events</h4>
     <input id="ceQ" type="search" placeholder="Search club events…" value="${escapeCm(state.admCeQ || '')}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-bottom:8px;">
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;">${chip('upcoming', 'Upcoming')}${chip('past', 'Past')}${chip('all', 'All')}</div>
     <div id="ceList">${admCeListHtml()}</div>`;
@@ -9533,10 +9534,8 @@ function renderClubAdminPanel(){
     ` : ''}`;
   const clubsGrid = `
     ${inboxAdminHtml(lead)}
-    ${admSec('clubcal', '🗓️ Club calendar — events &amp; RSVPs', clubCalSectionHtml(true), true)}
     ${lead ? '' : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
     ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
-    ${admSec('clubtools', '🏛️ Club events & quick member', clubToolsHtml, false)}
     ${lead ? '' : admSec('clubdir', '🏛️ Club directory (add / edit clubs)', clubDirListHtml(), false)}
   `;
   const squadsGrid = lead ? '' : admSec('squads', '🪁 Squads — requests &amp; invite links', squadAdminHtml(), true, 'flat');
