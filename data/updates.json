@@ -1,6 +1,20 @@
 {
   "updates": [
     {
+      "no": 15,
+      "date": "2026-10-12",
+      "title": "Public events open straight to their form",
+      "items": [
+        {
+          "text": "✨ Publicized events (like puzzle hunts) now open straight to their sign-up form when you tap them — no account needed, just your name."
+        },
+        {
+          "text": "✨ Tick “Publicized event” when you create a form for a club event; sign-ups from people without an account show up in the answers with their name and contact.",
+          "for": "admin"
+        }
+      ]
+    },
+    {
       "no": 14,
       "date": "2026-10-11",
       "title": "Forms for club events",

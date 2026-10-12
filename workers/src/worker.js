@@ -1610,7 +1610,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!calMatch[1] && M === "GET") {
         const cutoff = new Date(Date.now() - 36 * 3600 * 1000).toISOString().slice(0, 10);
         const events = (await readClubCal(env)).filter((e) => e.date >= cutoff).sort((a, b) => a.date.localeCompare(b.date) || String(a.time).localeCompare(String(b.time)))
-          .map((e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", hasForm: !!e.form }));
+          .map((e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", hasForm: !!e.form, publicForm: !!(e.form && e.publicForm) }));
         // Idea bubbles that the admin gave a DATE also show on the calendars (cached ~2 minutes so this stays cheap).
         if (!_calIdeaCache || Date.now() - _calIdeaCache.at > 120000) {
           const items = [];
@@ -1622,10 +1622,30 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       }
       if (calMatch[1]) {
         const who = await ideaWho();
-        if (!who || !(who.id.startsWith("m:") || who.id === "admin")) return jsonResponse({ error: "Log in or sign up to see event details and RSVP" }, 401, corsHeaders);
         const all = await readClubCal(env);
         const ev = all.find((e) => e.id === calMatch[1]);
         if (!ev) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
+        if (!who || !(who.id.startsWith("m:") || who.id === "admin")) {
+          // A PUBLICIZED event (publicForm): anyone can open its form straight away and submit it with just a name — no account needed.
+          if (ev.publicForm && ev.form) {
+            if (!calMatch[2] && M === "GET") return jsonResponse({ id: ev.id, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", desc: ev.desc || "", publicForm: true, form: ev.form, guest: true }, 200, corsHeaders);
+            if (calMatch[2] === "/form" && M === "POST") {
+              if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
+              let fb; try { fb = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+              const nm = sanitizePersonName(fb && fb.name);
+              if (nm.length < 2) return jsonResponse({ error: "Please type your name" }, 400, corsHeaders);
+              const contact = String((fb && fb.contact) || "").replace(/[\x00-\x1f\x7f<>]/g, " ").trim().slice(0, 80);
+              const chk = checkCalAnswers(ev.form, fb && fb.answers);
+              if (chk.error) return jsonResponse({ error: chk.error }, 400, corsHeaders);
+              let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
+              if (Object.keys(map).length >= 1500) return jsonResponse({ error: "This form is full" }, 400, corsHeaders);
+              map[`g:${crypto.randomUUID().slice(0, 10)}`] = { name: nm, contact, answers: chk.answers, at: Date.now(), guest: true };
+              await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map));
+              return jsonResponse({ ok: true }, 200, corsHeaders);
+            }
+          }
+          return jsonResponse({ error: "Log in or sign up to see event details and RSVP" }, 401, corsHeaders);
+        }
         const uid = who.id.startsWith("m:") ? who.id.slice(2) : "";
         let inClub = false;
         if (uid) for (const cid of calClubs(ev)) if ((await readClubMemberIds(env, cid)).includes(uid)) { inClub = true; break; }
@@ -1633,7 +1653,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!calMatch[2] && M === "GET") {
           return jsonResponse({ id: ev.id, clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", desc: ev.desc || "", rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy),
             going: (ev.rsvps || []).filter((r) => r.status === "going").length, mine: mine ? mine.status : null, inClub,
-            form: ev.form || null, myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, 200, corsHeaders);
+            publicForm: !!ev.publicForm, form: ev.form || null, myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, 200, corsHeaders);
         }
         if (calMatch[2] === "/form" && M === "POST") {
           if (!uid) return jsonResponse({ error: "Sign in as a member to fill the form" }, 403, corsHeaders);
@@ -3097,7 +3117,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const ev = (await readClubCal(env)).find((e) => e.id === adminCalRespMatch[1]);
       if (!ev || (leadCtx && !calClubs(ev).some((c) => leadCtx.clubs.includes(c)))) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
       let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
-      return jsonResponse({ form: ev.form || null, responses: Object.keys(map).map((uid) => ({ userId: uid, name: map[uid].name, answers: map[uid].answers, at: map[uid].at })).sort((a, b) => a.at - b.at) }, 200, corsHeaders);
+      return jsonResponse({ form: ev.form || null, responses: Object.keys(map).map((uid) => ({ userId: uid, name: map[uid].name, contact: map[uid].contact || "", guest: !!map[uid].guest, answers: map[uid].answers, at: map[uid].at })).sort((a, b) => a.at - b.at) }, 200, corsHeaders);
     }
     const adminCalMatch = path.match(/^\/api\/admin\/club-cal(?:\/([^/]+)(?:\/rsvp\/([^/]+)\/(accept|decline|remove|add))?)?\/?$/);
     if (adminCalMatch) {
@@ -3106,7 +3126,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const canEv = (e) => calClubs(e).some(canClub); // a club admin manages any event their club is part of (collabs included)
       const roster = await readClubRoster(env);
       const clubTitle = (id) => (roster.find((c) => c.id === id) || {}).title || "";
-      const view = (e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", form: e.form || null, rsvps: e.rsvps || [] });
+      const view = (e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", form: e.form || null, publicForm: !!e.publicForm, rsvps: e.rsvps || [] });
       const all = await readClubCal(env);
       if (!adminCalMatch[1] && M === "GET") return jsonResponse({ events: all.filter(canEv).sort((a, b) => a.date.localeCompare(b.date)).map(view) }, 200, corsHeaders);
       let body = {};
@@ -3121,6 +3141,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
         const ev = { id: crypto.randomUUID(), clubId, clubIds, ...f, rsvps: [], at: Date.now() };
         { const cf = sanitizeCalForm(body.form); if (cf) ev.form = cf; }
+        if (body.publicForm) ev.publicForm = true;
         // Attendees chosen right in the "Add event" form: members (by id) and people without a profile (by name).
         for (const at of (Array.isArray(body.attendees) ? body.attendees : []).slice(0, 200)) {
           if (at && at.userId) { const u = await readUser(env, String(at.userId)); if (u && !ev.rsvps.some((r) => r.id === u.id)) ev.rsvps.push({ id: u.id, name: sanitizePersonName(u.name) || "Member", status: "going", at: Date.now(), added: true }); }
@@ -3143,6 +3164,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
         Object.assign(ev, f);
         if (body.form !== undefined) { const cf = sanitizeCalForm(body.form); if (cf) ev.form = cf; else delete ev.form; }
+        if (body.publicForm !== undefined) { if (body.publicForm) ev.publicForm = true; else delete ev.publicForm; }
         await writeClubCal(env, all);
         return jsonResponse({ ok: true, event: view(ev) }, 200, corsHeaders);
       }
