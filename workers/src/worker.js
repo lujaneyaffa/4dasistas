@@ -541,6 +541,24 @@ const notifyAdminOfSuggestion = async (env, ctx, kind, sug) => {
     footer: `Each button opens a review page — nothing happens until you confirm there. You can also find it on your admin page under <strong>Notifications</strong>.` });
   sendAdminEmail(env, ctx, isEvent ? `Event submitted: ${sug.name} (${sug.city}, ${sug.date})` : `Resource submitted: ${sug.title} (${sug.city})`, html);
 };
+// Email the admin when someone signs up through an event form (new sign-ups only, not edits).
+const notifyAdminOfFormSignup = (env, ctx, ev, person, answers, sel) => {
+  if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
+  const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
+  const form = ev.form || { fields: [] }, pay = form.payment || {};
+  const val = (v) => Array.isArray(v) ? v.join(", ") : String(v);
+  const rows = emailRow("Event", `${escapeHtml(ev.title)} · ${escapeHtml(ev.date)}`)
+    + emailRow("Name", escapeHtml(person.name) + (person.newAccount ? ' <span style="color:#2a7a4a">(new account)</span>' : ""))
+    + (person.phone ? emailRow("Phone", escapeHtml(person.phone)) : "")
+    + (person.contact ? emailRow("Contact", escapeHtml(person.contact)) : "")
+    + (sel && sel.ids && sel.ids.length ? emailRow("Add-ons", escapeHtml((pay.addons || []).filter((a) => sel.ids.includes(a.id)).map((a) => a.label).join(", "))) : "")
+    + (sel && sel.total != null ? emailRow("Total due", `<strong>${escapeHtml(String(sel.total))}</strong>`) : "")
+    + (form.fields || []).filter((f) => answers && answers[f.id] !== undefined).map((f) => emailRow(escapeHtml(f.label), escapeHtml(val(answers[f.id])))).join("");
+  const html = emailShell(env, { emoji: "📝", title: "New event sign-up", preheader: `${person.name} → ${ev.title}`,
+    body: `<table style="border-collapse:collapse;font-size:15px">${rows}</table><p style="margin:16px 0 4px">${emailBtn(`${origin}/#/admin`, "Open Club Events →")}</p>`,
+    footer: "See everyone's answers, mark people paid and download a CSV under Admin → Club Events → 📋 Answers." });
+  sendAdminEmail(env, ctx, `Sign-up: ${person.name} → ${ev.title}`, html);
+};
 const notifyAdminOfEventSuggestion = (env, ctx, sug) => notifyAdminOfSuggestion(env, ctx, "event", sug);
 const notifyAdminOfResourceSuggestion = (env, ctx, sug) => notifyAdminOfSuggestion(env, ctx, "resource", sug);
 // ---- Web Push (free phone notifications). A push with NO payload wakes the member's service worker, which then fetches
@@ -592,8 +610,7 @@ const createMemberFromForm = async (env, ctx, ip, input) => {
   await reserveUsername(env, username, user.id);
   _memberSearchCache = null; // so they can be found right away
   await Promise.all([env.SITE_DATA.put(ipKey, String(Number(ipCount || 0) + 1), { expirationTtl: 3700 }), env.SITE_DATA.put(dayKey, String(Number(dayCount || 0) + 1), { expirationTtl: 90000 })]);
-  sendAdminEmail(env, ctx, `New member: ${user.name}`, emailShell(env, { emoji: "🎉", title: "New member (from an event form)", preheader: `${user.name} just created an account`,
-    body: `<p style="margin:0 0 6px"><strong>${escapeHtml(user.name)}</strong> <span style="color:#776867">@${escapeHtml(user.username)}</span> created an account by filling in an event form.</p><p style="margin:0 0 6px">📞 ${escapeHtml(user.phone)}</p>`, footer: "They aren't in a club yet — they can request one from the Clubs page." }));
+  // (no separate 'new member' email: the event sign-up email says '(new account)')
   return { user, token: await createMemberSession(env, user.id) };
 };
 // People search (to sign in from a form): first name + last initial only, ≥3 letters, rate-limited, cached.
@@ -1727,6 +1744,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
                 await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map0));
                 ev.rsvps = (ev.rsvps || []).concat([{ id: made.user.id, name: made.user.name, status: "going", at: Date.now(), viaForm: true }]);
                 await writeClubCal(env, all);
+                notifyAdminOfFormSignup(env, ctx, ev, { name: made.user.name, phone: made.user.phone, newAccount: true }, chk0.answers, calAddonSelection(ev.form, fb.addons));
                 return jsonResponse({ ok: true, created: true, token: made.token, ...publicUser(made.user), clubs: [], waitlist: [] }, 201, corsHeaders);
               }
               const nm = sanitizePersonName(fb && fb.name);
@@ -1741,6 +1759,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map));
               ev.rsvps = ev.rsvps || []; ev.rsvps.push({ id: gid, name: nm, status: "going", at: Date.now(), guest: true, viaForm: true }); // shows in the attendee list too
               await writeClubCal(env, all);
+              notifyAdminOfFormSignup(env, ctx, ev, { name: nm, contact }, chk.answers, calAddonSelection(ev.form, fb && fb.addons));
               return jsonResponse({ ok: true }, 200, corsHeaders);
             }
           }
@@ -1773,6 +1792,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
             status = "going"; // a form sign-up is open to everyone: filling it in IS the RSVP
             ev.rsvps = (ev.rsvps || []).concat([{ id: uid, name: who.name, status, at: Date.now(), viaForm: true }]);
             await writeClubCal(env, all);
+            notifyAdminOfFormSignup(env, ctx, ev, { name: who.name, newAccount: false }, chk.answers, calAddonSelection(ev.form, fb && fb.addons));
           }
           return jsonResponse({ ok: true, answers: chk.answers, addons: (map[uid] || {}).addons || [], total: (map[uid] || {}).total ?? null, mine: status, going: (ev.rsvps || []).filter((r) => r.status === "going").length }, 200, corsHeaders);
         }
