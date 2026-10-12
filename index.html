@@ -5828,19 +5828,22 @@ async function clubCalPublicCard(box, id){
     const inp = 'class="fb-in"';
     box.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p><h3 style="margin:0 0 4px;">${escapeCm(d.title)}</h3>
       <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calLinkRowHtml(d.id)}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${d.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
-      <div style="margin:8px 0;padding:8px 10px;border-radius:12px;background:#fef7f4;border:2px dashed #f2d8d7;font-size:14px;">Already a member? <button type="button" class="club-guide-btn pfLogin" style="padding:4px 14px;min-height:0;margin-left:4px;text-align:center;">👤 Log in</button>
-        <div class="pfFind" style="display:none;margin-top:8px;">
-          <input class="fb-in pfQ" type="search" placeholder="Type your name to find yourself…" autocomplete="off">
-          <div class="pfResults" style="margin-top:4px;"></div>
-          <div class="pfPin" style="display:none;margin-top:6px;"><div class="pfWho" style="font-weight:700;margin-bottom:4px;"></div><input class="fb-in pfPinIn" type="password" inputmode="numeric" maxlength="4" placeholder="Your 4-digit PIN" autocomplete="current-password"><button type="button" class="club-guide-btn pfGo" style="width:100%;margin-top:6px;text-align:center;">Continue to the form</button></div>
-          <div class="pfLoginMsg" style="font-size:13px;min-height:16px;margin-top:4px;color:#c00;"></div></div></div>
       ${d.closed ? '<p style="font-weight:700;">🔒 Sign-ups are closed.</p>' : ''}
-      <div class="fb-card" style="margin-top:10px;box-shadow:none;"><h3 style="margin:0 0 4px;">📝 ${escapeCm(d.form.title)}</h3>${d.form.intro ? `<p style="margin:0 0 10px;white-space:pre-wrap;">${escapeCm(d.form.intro)}</p>` : ''}
-        <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">New here? These details create your 4DASISTAS account as you sign up.</p>
+      <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 8px;">1 · 👤 About you</h3>
+        <div style="padding:8px 10px;border-radius:12px;background:#fef7f4;border:2px dashed #f2d8d7;font-size:14px;">Already a member? <button type="button" class="club-guide-btn pfLogin" style="padding:4px 14px;min-height:0;margin-left:4px;text-align:center;">👤 Log in</button>
+          <div class="pfFind" style="display:none;margin-top:8px;">
+            <input class="fb-in pfQ" type="search" placeholder="Type your name to find yourself…" autocomplete="off">
+            <div class="pfResults" style="margin-top:4px;"></div>
+            <div class="pfPin" style="display:none;margin-top:6px;"><div class="pfWho" style="font-weight:700;margin-bottom:4px;"></div><input class="fb-in pfPinIn" type="password" inputmode="numeric" maxlength="4" placeholder="Your 4-digit PIN" autocomplete="current-password"><button type="button" class="club-guide-btn pfGo" style="width:100%;margin-top:6px;text-align:center;">Continue to the form</button></div>
+            <div class="pfLoginMsg" style="font-size:13px;min-height:16px;margin-top:4px;color:#c00;"></div></div></div>
+        <p style="margin:12px 0 8px;font-weight:700;">New here? Fill in your details — this creates your 4DASISTAS account.</p>
         <div class="fb-q"><label>Your full name <span class="req">*</span></label><input ${inp} data-base="name" type="text" maxlength="60" autocomplete="name" placeholder="First and last name"></div>
         <div class="fb-q"><label>Phone / WhatsApp number <span class="req">*</span></label><input ${inp} data-base="phone" type="tel" maxlength="25" autocomplete="tel" inputmode="tel"></div>
         <div class="fb-q"><label>Create a 4-digit PIN <span class="req">*</span></label><input ${inp} data-base="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"></div>
         <div class="fb-q"><label>Confirm your PIN <span class="req">*</span></label><input ${inp} data-base="pin2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"></div>
+        <div class="fb-q"><label>Which clubs are you interested in? <small style="font-weight:400;color:#776867;">(optional)</small></label><div class="pfClubs" style="display:flex;flex-wrap:wrap;gap:8px;">${clubsData.map(c => `<label style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:2px solid var(--brand-brown);background:#fff;font-size:14px;"><input type="checkbox" class="pfClub" value="${escapeCm(c.id)}" style="width:18px;height:18px;"> ${escapeCm(c.title)}</label>`).join('')}</div></div>
+        <div class="fb-q"><label>Anything you'd like us to know? <small style="font-weight:400;color:#776867;">(optional)</small></label><textarea ${inp} data-base="why" rows="2" maxlength="600"></textarea></div></div>
+      <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 4px;">2 · 📝 ${escapeCm(d.form.title)}</h3>${d.form.intro ? `<p style="margin:0 0 10px;white-space:pre-wrap;">${escapeCm(d.form.intro)}</p>` : ''}
         ${calFormFieldsHtml(d.form, {}, false)}
         <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Submit</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}${d.form.payment ? `<p class="ideas-hint" style="margin:10px 0 0;">💳 Payment${d.form.payment.amount ? ': ' + escapeCm(d.form.payment.amount) : ''} — you'll see how to pay right after you submit.</p>` : ''}</div>`;
     wireCalCopy(box);
@@ -5878,7 +5881,7 @@ async function clubCalPublicCard(box, id){
       if(base('pin') !== base('pin2')){ m.textContent = "The two PINs don't match."; return; }
       e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Sending…';
       try {
-        const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', body: JSON.stringify({ name: base('name'), phone: base('phone'), pin: base('pin'), answers: calFormCollect(box, d.form) }) });
+        const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', body: JSON.stringify({ name: base('name'), phone: base('phone'), pin: base('pin'), why: base('why'), interests: [...box.querySelectorAll('.pfClub:checked')].map(c => c.value), answers: calFormCollect(box, d.form) }) });
         if(r && r.token){ setCmSession(r); renderNavAuth(); }
         box.innerHTML = `<div style="text-align:center;padding:14px 0;"><div style="font-size:42px;">🎉</div><h3 style="margin:6px 0;">You're signed up!</h3><p class="av-msg">Thank you — your answers for <strong>${escapeCm(d.title)}</strong> were sent.</p>${r && r.username ? `<p class="av-msg" style="margin-top:8px;">We also created your 4DASISTAS account — your username is <strong>${escapeCm(r.username)}</strong> and your PIN is the one you just chose. You're signed in now.</p>` : ''}</div>${calPayHtml(d.form)}`;
       } catch(err){ e.target.disabled = false; m.style.color = '#c00'; m.textContent = err.message; }
@@ -5924,7 +5927,9 @@ async function clubCalMemberCard(box, id){
     };
     paint();
     if(d.form){
-      formBox.innerHTML = `<div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 4px;">📝 ${escapeCm(d.form.title)}</h3>${d.form.intro ? `<p style="margin:0 0 10px;white-space:pre-wrap;">${escapeCm(d.form.intro)}</p>` : ''}${calFormFieldsHtml(d.form, d.myAnswers, false)}
+      const meName = (getCmSession() || {}).name || '';
+      formBox.innerHTML = `<div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 6px;">1 · 👤 About you</h3><p style="margin:0;">✅ Signed in as <strong>${escapeCm(meName)}</strong> — your details are already on file.</p></div>
+      <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 4px;">2 · 📝 ${escapeCm(d.form.title)}</h3>${d.form.intro ? `<p style="margin:0 0 10px;white-space:pre-wrap;">${escapeCm(d.form.intro)}</p>` : ''}${calFormFieldsHtml(d.form, d.myAnswers, false)}
         <button type="button" class="club-guide-btn calFormSend" ${d.closed && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">${d.closed && !d.mine ? '🔒 Sign-ups closed' : d.myAnswers ? 'Update my answers' : 'Submit & RSVP'}</button><div class="calFormMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>
         ${calFormFooterHtml(d.form)}<div class="calPayBox">${d.form.payment ? (d.myAnswers ? calPayHtml(d.form) : `<p class="ideas-hint" style="margin:10px 0 0;">💳 Payment${d.form.payment.amount ? ': ' + escapeCm(d.form.payment.amount) : ''} — you'll see how to pay right after you sign up.</p>`) : ''}</div></div>`;
       formBox.querySelector('.calFormSend').addEventListener('click', async e => {

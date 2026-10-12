@@ -583,6 +583,11 @@ const createMemberFromForm = async (env, ctx, ip, input) => {
   if (await findUserIdByUsername(env, username)) return { status: 409, error: "That login was just taken — please try again" };
   const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, waitlist: [], createdAt: Date.now(), phone };
   user.lastLoginAt = user.createdAt; user.lastSeenAt = user.createdAt;
+  { // the shortened sign-up questions (clubs they're interested in, anything they'd like us to know) are kept on their profile like the full sign-up form's
+    const roster = await readClubRoster(env);
+    const titles = (Array.isArray(input.interests) ? input.interests : []).map(String).map((id) => (roster.find((c) => c.id === id) || {}).title).filter(Boolean);
+    const sf = sanitizeSignupForm({ ranked: titles, why: input.why }, "form"); if (sf) user.form = sf;
+  }
   await writeUser(env, user);
   await reserveUsername(env, username, user.id);
   _memberSearchCache = null; // so they can be found right away
