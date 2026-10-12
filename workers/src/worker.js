@@ -563,6 +563,36 @@ const vapidAuthHeader = async (env, endpoint) => {
 };
 // Send one notification to every device a member registered. Returns { sent, removed, devices }.
 // Members choose which kinds of notification they get (Settings → Notifications); `message.cat` is the kind.
+// A brand-new member created from an event FORM (the base fields every form asks logged-out people for: name, phone, a 4-digit PIN).
+const createMemberFromForm = async (env, ctx, ip, input) => {
+  const clean = (v, n) => String(v || "").replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
+  const name = clean(input.name, 60), pin = String(input.pin || "").trim(), phone = sanitizePhone(input.phone);
+  if (!name) return { status: 400, error: "Please enter your name" };
+  const username = await generateUniqueUsername(env, name);
+  if (!username) return { status: 400, error: "Please enter your first name and last name (or initial)" };
+  if (!/^\d{4}$/.test(pin)) return { status: 400, error: "Your PIN must be exactly 4 digits" };
+  if (!phone) return { status: 400, error: "Please add your phone / WhatsApp number" };
+  if (username !== usernameBaseFromName(name)) {
+    const norm = (n) => String(n || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if ((await listAllUsers(env)).some((u) => norm(u.name) === norm(name))) return { status: 409, error: `There's already a profile for ${name}. Tap “Already a member?” above, find yourself and enter your PIN.` };
+  }
+  const ipKey = `signuprate:${ip}:${Math.floor(Date.now() / 3600000)}`, dayKey = `signupday:${new Date().toISOString().slice(0, 10)}`;
+  const [ipCount, dayCount] = await Promise.all([env.SITE_DATA.get(ipKey), env.SITE_DATA.get(dayKey)]);
+  if (Number(ipCount || 0) >= SIGNUP_MAX_PER_IP_PER_HOUR) return { status: 429, error: "Too many sign-ups from this connection — please try again in an hour" };
+  if (Number(dayCount || 0) >= SIGNUP_MAX_PER_DAY) return { status: 429, error: "Sign-ups are very busy right now — please message us on Instagram" };
+  if (await findUserIdByUsername(env, username)) return { status: 409, error: "That login was just taken — please try again" };
+  const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, waitlist: [], createdAt: Date.now(), phone };
+  user.lastLoginAt = user.createdAt; user.lastSeenAt = user.createdAt;
+  await writeUser(env, user);
+  await reserveUsername(env, username, user.id);
+  _memberSearchCache = null; // so they can be found right away
+  await Promise.all([env.SITE_DATA.put(ipKey, String(Number(ipCount || 0) + 1), { expirationTtl: 3700 }), env.SITE_DATA.put(dayKey, String(Number(dayCount || 0) + 1), { expirationTtl: 90000 })]);
+  sendAdminEmail(env, ctx, `New member: ${user.name}`, emailShell(env, { emoji: "🎉", title: "New member (from an event form)", preheader: `${user.name} just created an account`,
+    body: `<p style="margin:0 0 6px"><strong>${escapeHtml(user.name)}</strong> <span style="color:#776867">@${escapeHtml(user.username)}</span> created an account by filling in an event form.</p><p style="margin:0 0 6px">📞 ${escapeHtml(user.phone)}</p>`, footer: "They aren't in a club yet — they can request one from the Clubs page." }));
+  return { user, token: await createMemberSession(env, user.id) };
+};
+// People search (to sign in from a form): first name + last initial only, ≥3 letters, rate-limited, cached.
+let _memberSearchCache = null;
 const NOTIF_CATS = ["reminders", "announcements", "clubs", "squads", "events"];
 const sendPushToUser = async (env, userId, message) => {
   if (message.cat) { const u = await readUser(env, userId); if (u && Array.isArray(u.notifOff) && u.notifOff.includes(message.cat)) return { sent: 0, removed: 0, devices: 0, muted: true }; }
@@ -1428,6 +1458,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (phone) user.phone = phone;
       await writeUser(env, user);
       await reserveUsername(env, username, user.id);
+      _memberSearchCache = null;
       // Signing up no longer drops anyone straight into a club - their #1 pick becomes a request an admin
       // approves (the account itself, and the form that goes to organizers, are unchanged).
       if (clubId) {
@@ -1618,6 +1649,18 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     };
     const NOT_IN_CLUB = "Only members of this club can vote or add ideas";
 
+    // ---- Find yourself (sign in from an event form): GET /api/member-search?q=ana  →  [{username, name:"Ana K."}] ----
+    if (path === "/api/member-search" && request.method === "GET") {
+      const q = String(url.searchParams.get("q") || "").trim().toLowerCase();
+      if (q.length < 3) return jsonResponse({ results: [] }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      const rk = `msrch:${request.headers.get("CF-Connecting-IP") || "unknown"}:${Math.floor(Date.now() / 3600000)}`;
+      const used = Number(await env.SITE_DATA.get(rk) || 0);
+      if (used >= 60) return jsonResponse({ error: "Too many searches — try again in a while" }, 429, corsHeaders);
+      await env.SITE_DATA.put(rk, String(used + 1), { expirationTtl: 3700 });
+      if (!_memberSearchCache || Date.now() - _memberSearchCache.at > 120000) _memberSearchCache = { at: Date.now(), people: (await listAllUsers(env)).filter((u) => u && u.username && u.name && !(u.archived && u.archived.reason !== "travelling")).map((u) => ({ username: u.username, name: String(u.name), low: String(u.name).toLowerCase() })) };
+      const short = (n) => { const parts = n.split(/\s+/); return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1].slice(0, 1).toUpperCase()}.` : parts[0]; };
+      return jsonResponse({ results: _memberSearchCache.people.filter((p) => p.low.includes(q)).slice(0, 6).map((p) => ({ username: p.username, name: short(p.name) })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
     // ---- Club calendar (public list; member details + RSVP) ----
     const calMatch = path.match(/^\/api\/club-calendar(?:\/([^/]+)(\/rsvp|\/form)?)?\/?$/);
     if (calMatch) {
@@ -1650,6 +1693,19 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
               let fb; try { fb = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
               if (ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) return jsonResponse({ error: "Sign-ups for this event are closed" }, 400, corsHeaders);
+              if (fb && fb.pin !== undefined) {
+                // Base member details came with the form: create the account (and sign them in), then record the sign-up as theirs.
+                const chk0 = checkCalAnswers(ev.form, fb.answers);
+                if (chk0.error) return jsonResponse({ error: chk0.error }, 400, corsHeaders);
+                const made = await createMemberFromForm(env, ctx, ideaIp, fb);
+                if (made.error) return jsonResponse({ error: made.error }, made.status, corsHeaders);
+                let map0 = {}; try { map0 = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
+                map0[made.user.id] = { name: made.user.name, answers: chk0.answers, at: Date.now() };
+                await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map0));
+                ev.rsvps = (ev.rsvps || []).concat([{ id: made.user.id, name: made.user.name, status: "going", at: Date.now(), viaForm: true }]);
+                await writeClubCal(env, all);
+                return jsonResponse({ ok: true, created: true, token: made.token, ...publicUser(made.user), clubs: [], waitlist: [] }, 201, corsHeaders);
+              }
               const nm = sanitizePersonName(fb && fb.name);
               if (nm.length < 2) return jsonResponse({ error: "Please type your name" }, 400, corsHeaders);
               const contact = String((fb && fb.contact) || "").replace(/[\x00-\x1f\x7f<>]/g, " ").trim().slice(0, 80);
@@ -1691,7 +1747,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           // Submitting the form IS the RSVP: club members are going at once, people from other clubs wait for approval.
           let status = wasIn ? wasIn.status : null;
           if (!wasIn) {
-            status = inClub ? "going" : "pending";
+            status = "going"; // a form sign-up is open to everyone: filling it in IS the RSVP
             ev.rsvps = (ev.rsvps || []).concat([{ id: uid, name: who.name, status, at: Date.now(), viaForm: true }]);
             await writeClubCal(env, all);
           }

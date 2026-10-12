@@ -5825,22 +5825,62 @@ function clubCalPublicPopup(id){
 async function clubCalPublicCard(box, id){
   try {
     const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id));
+    const inp = 'class="fb-in"';
     box.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p><h3 style="margin:0 0 4px;">${escapeCm(d.title)}</h3>
       <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calLinkRowHtml(d.id)}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${d.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
-      <div style="margin:8px 0;padding:8px 10px;border-radius:12px;background:#fef7f4;border:2px dashed #f2d8d7;font-size:14px;">No account needed — just fill the form below.<br>Already a member? <button type="button" class="club-guide-btn pfLogin" style="padding:4px 14px;min-height:0;margin-left:4px;text-align:center;">👤 Log in</button></div>
+      <div style="margin:8px 0;padding:8px 10px;border-radius:12px;background:#fef7f4;border:2px dashed #f2d8d7;font-size:14px;">Already a member? <button type="button" class="club-guide-btn pfLogin" style="padding:4px 14px;min-height:0;margin-left:4px;text-align:center;">👤 Log in</button>
+        <div class="pfFind" style="display:none;margin-top:8px;">
+          <input class="fb-in pfQ" type="search" placeholder="Type your name to find yourself…" autocomplete="off">
+          <div class="pfResults" style="margin-top:4px;"></div>
+          <div class="pfPin" style="display:none;margin-top:6px;"><div class="pfWho" style="font-weight:700;margin-bottom:4px;"></div><input class="fb-in pfPinIn" type="password" inputmode="numeric" maxlength="4" placeholder="Your 4-digit PIN" autocomplete="current-password"><button type="button" class="club-guide-btn pfGo" style="width:100%;margin-top:6px;text-align:center;">Continue to the form</button></div>
+          <div class="pfLoginMsg" style="font-size:13px;min-height:16px;margin-top:4px;color:#c00;"></div></div></div>
       ${d.closed ? '<p style="font-weight:700;">🔒 Sign-ups are closed.</p>' : ''}
       <div class="fb-card" style="margin-top:10px;box-shadow:none;"><h3 style="margin:0 0 4px;">📝 ${escapeCm(d.form.title)}</h3>${d.form.intro ? `<p style="margin:0 0 10px;white-space:pre-wrap;">${escapeCm(d.form.intro)}</p>` : ''}
-        <div class="fb-q"><label>Your name <span class="req">*</span></label><input class="fb-in pfName" type="text" maxlength="30" autocomplete="name"></div>
-        <div class="fb-q"><label>Email or phone (so we can reach you)</label><input class="fb-in pfContact" type="text" maxlength="80" autocomplete="email"></div>
+        <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">New here? These details create your 4DASISTAS account as you sign up.</p>
+        <div class="fb-q"><label>Your full name <span class="req">*</span></label><input ${inp} data-base="name" type="text" maxlength="60" autocomplete="name" placeholder="First and last name"></div>
+        <div class="fb-q"><label>Phone / WhatsApp number <span class="req">*</span></label><input ${inp} data-base="phone" type="tel" maxlength="25" autocomplete="tel" inputmode="tel"></div>
+        <div class="fb-q"><label>Create a 4-digit PIN <span class="req">*</span></label><input ${inp} data-base="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"></div>
+        <div class="fb-q"><label>Confirm your PIN <span class="req">*</span></label><input ${inp} data-base="pin2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"></div>
         ${calFormFieldsHtml(d.form, {}, false)}
         <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Submit</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}${d.form.payment ? `<p class="ideas-hint" style="margin:10px 0 0;">💳 Payment${d.form.payment.amount ? ': ' + escapeCm(d.form.payment.amount) : ''} — you'll see how to pay right after you submit.</p>` : ''}</div>`;
     wireCalCopy(box);
-    box.querySelector('.pfLogin').addEventListener('click', () => { calRememberOpen(id); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); });
-    box.querySelector('.pfSend').addEventListener('click', async e => {
-      const m = box.querySelector('.pfMsg'); e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Sending…';
+    // "Already a member?": find yourself by name, enter your PIN, and carry on with the form as yourself.
+    const find = box.querySelector('.pfFind'), q = box.querySelector('.pfQ'), results = box.querySelector('.pfResults'), pinBox = box.querySelector('.pfPin'), lmsg = box.querySelector('.pfLoginMsg');
+    let chosen = null, timer = null;
+    box.querySelector('.pfLogin').addEventListener('click', () => { find.style.display = find.style.display === 'none' ? 'block' : 'none'; if(find.style.display === 'block') q.focus(); });
+    q.addEventListener('input', () => {
+      clearTimeout(timer); chosen = null; pinBox.style.display = 'none'; lmsg.textContent = '';
+      const v = q.value.trim();
+      if(v.length < 3){ results.innerHTML = v ? '<p class="av-msg" style="margin:4px 0;">Keep typing…</p>' : ''; return; }
+      timer = setTimeout(async () => {
+        try {
+          const r = await cmApiRaw('/api/member-search?q=' + encodeURIComponent(v));
+          results.innerHTML = (r.results || []).length ? r.results.map(m => `<button type="button" class="fb-mini pfPick" data-u="${escapeCm(m.username)}" data-n="${escapeCm(m.name)}" style="display:block;width:100%;text-align:left;margin:4px 0;">👤 ${escapeCm(m.name)}</button>`).join('') : '<p class="av-msg" style="margin:4px 0;">No profile with that name — fill the form below to create one.</p>';
+          results.querySelectorAll('.pfPick').forEach(b => b.addEventListener('click', () => { chosen = b.dataset.u; box.querySelector('.pfWho').textContent = 'Hi ' + b.dataset.n + '! Enter your PIN:'; pinBox.style.display = 'block'; results.innerHTML = ''; box.querySelector('.pfPinIn').focus(); }));
+        } catch(err){ results.innerHTML = `<p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`; }
+      }, 350);
+    });
+    box.querySelector('.pfGo').addEventListener('click', async e => {
+      const pin = box.querySelector('.pfPinIn').value.trim();
+      if(!chosen || !/^\d{4}$/.test(pin)){ lmsg.textContent = 'Enter your 4-digit PIN.'; return; }
+      e.target.disabled = true; lmsg.style.color = '#776867'; lmsg.textContent = 'Signing in…';
       try {
-        await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', body: JSON.stringify({ name: box.querySelector('.pfName').value, contact: box.querySelector('.pfContact').value, answers: calFormCollect(box, d.form) }) });
-        box.innerHTML = `<div style="text-align:center;padding:14px 0;"><div style="font-size:42px;">🎉</div><h3 style="margin:6px 0;">You're signed up!</h3><p class="av-msg">Thank you — your answers for <strong>${escapeCm(d.title)}</strong> were sent.</p></div>${calPayHtml(d.form)}`;
+        const u = await cmApiRaw('/api/login', { method:'POST', body: JSON.stringify({ username: chosen, pin }) });
+        setCmSession(u); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); renderNavAuth(); openEventFormPage(id); // same page, now as yourself
+      } catch(err){ e.target.disabled = false; lmsg.style.color = '#c00'; lmsg.textContent = err.message; }
+    });
+    box.querySelector('.pfSend').addEventListener('click', async e => {
+      const m = box.querySelector('.pfMsg'), base = k => (box.querySelector(`[data-base="${k}"]`) || {}).value || '';
+      m.style.color = '#c00';
+      if(base('name').trim().split(/\s+/).length < 2){ m.textContent = 'Please enter your first and last name.'; return; }
+      if(!base('phone').trim()){ m.textContent = 'Please add your phone / WhatsApp number.'; return; }
+      if(!/^\d{4}$/.test(base('pin'))){ m.textContent = 'Choose a 4-digit PIN.'; return; }
+      if(base('pin') !== base('pin2')){ m.textContent = "The two PINs don't match."; return; }
+      e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Sending…';
+      try {
+        const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', body: JSON.stringify({ name: base('name'), phone: base('phone'), pin: base('pin'), answers: calFormCollect(box, d.form) }) });
+        if(r && r.token){ setCmSession(r); renderNavAuth(); }
+        box.innerHTML = `<div style="text-align:center;padding:14px 0;"><div style="font-size:42px;">🎉</div><h3 style="margin:6px 0;">You're signed up!</h3><p class="av-msg">Thank you — your answers for <strong>${escapeCm(d.title)}</strong> were sent.</p>${r && r.username ? `<p class="av-msg" style="margin-top:8px;">We also created your 4DASISTAS account — your username is <strong>${escapeCm(r.username)}</strong> and your PIN is the one you just chose. You're signed in now.</p>` : ''}</div>${calPayHtml(d.form)}`;
       } catch(err){ e.target.disabled = false; m.style.color = '#c00'; m.textContent = err.message; }
     });
   } catch(err){
@@ -5869,7 +5909,7 @@ async function clubCalMemberCard(box, id){
         ${d.form ? calLinkRowHtml(d.id) : ''}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}
         ${d.desc ? `<p style="margin:8px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
         ${d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}
-        <p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} going${d.inClub ? '' : ' · you\'re not in this club, so an admin approves your RSVP'}</p>
+        <p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} going${d.inClub || d.form ? '' : ' · you\'re not in this club, so an admin approves your RSVP'}</p>
         ${d.form ? `<p style="margin:6px 0;font-weight:700;">${d.mine === 'going' ? "✅ You're going" : d.mine === 'pending' ? '⏳ Requested — waiting for approval' : d.closed ? '🔒 Sign-ups are closed' : 'Fill in the form below to sign up 👇'}</p>${d.mine ? '<button type="button" class="av-link calRsvpBtn">Cancel my RSVP</button>' : ''}` : `<button type="button" class="club-guide-btn calRsvpBtn" ${d.closed && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>`}
         <div class="calRsvpMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>`;
       wireCalCopy(top);

@@ -22,10 +22,13 @@
       "title": "Event forms: sign up right in the form",
       "items": [
         {
-          "text": "✨ Events with a form open straight to the form — fill it in to sign up (that's your RSVP). No account needed, and there's a Log in button if you have one."
+          "text": "✨ Events with a form open straight to the form — fill it in to sign up (that's your RSVP). Already a member? Find yourself by name and enter your PIN right on the form."
         },
         {
-          "text": "✨ Anyone who fills a form shows in the event's attendee list, with their answers and contact.",
+          "text": "✨ New here? The form asks for your name, phone and a 4-digit PIN, and your 4DASISTAS account is created automatically as you sign up."
+        },
+        {
+          "text": "✨ Anyone who fills a form shows in the event's attendee list with their answers.",
           "for": "admin"
         }
       ]
