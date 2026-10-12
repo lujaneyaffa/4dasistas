@@ -968,11 +968,29 @@ const sanitizeCalForm = (f) => {
   if (f.payment && typeof f.payment === "object") {
     let link = ""; try { const u = new URL(String(f.payment.link || "").trim()); if (u.protocol === "https:") link = u.href.slice(0, 500); } catch {}
     const pay = { amount: cleanCalText(f.payment.amount, 30), link, note: longText(f.payment.note, 400) };
-    if (pay.amount || pay.link || pay.note) out.payment = pay;
+    // Add-ons: optional extras people can tick (e.g. "T-shirt +$10"); the total = the amount above + the ticked add-ons.
+    const seenA = new Set(), addons = [];
+    for (const a of (Array.isArray(f.payment.addons) ? f.payment.addons : []).slice(0, 12)) {
+      const label = cleanCalText(a && a.label, 60), price = Math.round(Number(a && a.price) * 100) / 100;
+      if (!label || !Number.isFinite(price) || price < 0 || price > 10000) continue;
+      let id = /^[a-z0-9]{3,16}$/.test(String((a && a.id) || "")) ? String(a.id) : crypto.randomUUID().slice(0, 8);
+      if (seenA.has(id)) id = crypto.randomUUID().slice(0, 8);
+      seenA.add(id); addons.push({ id, label, price });
+    }
+    if (addons.length) pay.addons = addons;
+    if (pay.amount || pay.link || pay.note || pay.addons) out.payment = pay;
   }
   return out;
 };
 // Check one person's answers against the form; returns {answers} or {error}.
+// Which add-ons were ticked + the total owed (only when the base amount is a number like "$15").
+const calAddonSelection = (form, ids) => {
+  const pay = (form && form.payment) || {}, list = Array.isArray(pay.addons) ? pay.addons : [];
+  const picked = list.filter((a) => (Array.isArray(ids) ? ids : []).map(String).includes(a.id));
+  const base = parseFloat(String(pay.amount || "").replace(/[^0-9.]/g, ""));
+  const sum = picked.reduce((t, a) => t + a.price, 0);
+  return { ids: picked.map((a) => a.id), total: Number.isFinite(base) ? Math.round((base + sum) * 100) / 100 : (picked.length ? Math.round(sum * 100) / 100 : null) };
+};
 const checkCalAnswers = (form, raw) => {
   const answers = {};
   for (const fld of form.fields) {
@@ -1705,7 +1723,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
                 const made = await createMemberFromForm(env, ctx, ideaIp, fb);
                 if (made.error) return jsonResponse({ error: made.error }, made.status, corsHeaders);
                 let map0 = {}; try { map0 = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
-                map0[made.user.id] = { name: made.user.name, answers: chk0.answers, at: Date.now() };
+                { const sel = calAddonSelection(ev.form, fb.addons); map0[made.user.id] = { name: made.user.name, answers: chk0.answers, at: Date.now(), ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }; }
                 await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map0));
                 ev.rsvps = (ev.rsvps || []).concat([{ id: made.user.id, name: made.user.name, status: "going", at: Date.now(), viaForm: true }]);
                 await writeClubCal(env, all);
@@ -1719,7 +1737,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
               if (Object.keys(map).length >= 1500) return jsonResponse({ error: "This form is full" }, 400, corsHeaders);
               const gid = `g:${crypto.randomUUID().slice(0, 10)}`;
-              map[gid] = { name: nm, contact, answers: chk.answers, at: Date.now(), guest: true };
+              { const sel = calAddonSelection(ev.form, fb && fb.addons); map[gid] = { name: nm, contact, answers: chk.answers, at: Date.now(), guest: true, ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }; }
               await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map));
               ev.rsvps = ev.rsvps || []; ev.rsvps.push({ id: gid, name: nm, status: "going", at: Date.now(), guest: true, viaForm: true }); // shows in the attendee list too
               await writeClubCal(env, all);
@@ -1735,7 +1753,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!calMatch[2] && M === "GET") {
           return jsonResponse({ id: ev.id, clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", desc: ev.desc || "", rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy),
             going: (ev.rsvps || []).filter((r) => r.status === "going").length, mine: mine ? mine.status : null, inClub,
-            publicForm: !!ev.form, form: ev.form || null, myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, 200, corsHeaders);
+            publicForm: !!ev.form, form: ev.form || null, myAddons: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).addons || []) : [], myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, 200, corsHeaders);
         }
         if (calMatch[2] === "/form" && M === "POST") {
           if (!uid) return jsonResponse({ error: "Sign in as a member to fill the form" }, 403, corsHeaders);
@@ -1747,7 +1765,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
           const wasIn = (ev.rsvps || []).find((r) => r.id === uid);
           if (!wasIn && ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) return jsonResponse({ error: "Sign-ups for this event are closed" }, 400, corsHeaders);
-          map[uid] = { name: who.name, answers: chk.answers, at: Date.now() };
+          { const sel = calAddonSelection(ev.form, fb && fb.addons); map[uid] = { name: who.name, answers: chk.answers, at: Date.now(), ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }; }
           await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map));
           // Submitting the form IS the RSVP: club members are going at once, people from other clubs wait for approval.
           let status = wasIn ? wasIn.status : null;
@@ -1756,7 +1774,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
             ev.rsvps = (ev.rsvps || []).concat([{ id: uid, name: who.name, status, at: Date.now(), viaForm: true }]);
             await writeClubCal(env, all);
           }
-          return jsonResponse({ ok: true, answers: chk.answers, mine: status, going: (ev.rsvps || []).filter((r) => r.status === "going").length }, 200, corsHeaders);
+          return jsonResponse({ ok: true, answers: chk.answers, addons: (map[uid] || {}).addons || [], total: (map[uid] || {}).total ?? null, mine: status, going: (ev.rsvps || []).filter((r) => r.status === "going").length }, 200, corsHeaders);
         }
         if (calMatch[2] === "/rsvp" && (M === "POST" || M === "DELETE")) {
           if (!uid) return jsonResponse({ error: "Sign in as a member to RSVP" }, 403, corsHeaders);
@@ -3223,7 +3241,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const ev = (await readClubCal(env)).find((e) => e.id === adminCalRespMatch[1]);
       if (!ev || (leadCtx && !calClubs(ev).some((c) => leadCtx.clubs.includes(c)))) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
       let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
-      return jsonResponse({ form: ev.form || null, responses: Object.keys(map).map((uid) => ({ userId: uid, name: map[uid].name, contact: map[uid].contact || "", guest: !!map[uid].guest, paid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).paid, answers: map[uid].answers, at: map[uid].at })).sort((a, b) => a.at - b.at) }, 200, corsHeaders);
+      return jsonResponse({ form: ev.form || null, responses: Object.keys(map).map((uid) => ({ userId: uid, name: map[uid].name, contact: map[uid].contact || "", guest: !!map[uid].guest, paid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).paid, addons: map[uid].addons || [], total: map[uid].total ?? null, answers: map[uid].answers, at: map[uid].at })).sort((a, b) => a.at - b.at) }, 200, corsHeaders);
     }
     const adminCalMatch = path.match(/^\/api\/admin\/club-cal(?:\/([^/]+)(?:\/rsvp\/([^/]+)\/(accept|decline|remove|add|paid|unpaid))?)?\/?$/);
     if (adminCalMatch) {
