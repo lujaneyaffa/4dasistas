@@ -3189,6 +3189,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       });
       wireAvailabilityPanel();
       wireClubBubbles();
+      calOpenPending();
       const welcomeClose = document.getElementById('avWelcomeClose');
       if(welcomeClose) welcomeClose.addEventListener('click', () => { state.availWelcome = ''; state.clubsNotice = ''; render(); });
       const cpnSaveBtn = document.getElementById('cpnSaveBtn');
@@ -5798,7 +5799,7 @@ async function clubCalPublicCard(box, id){
   try {
     const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id));
     box.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p><h3 style="margin:0 0 4px;">${escapeCm(d.title)}</h3>
-      <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${d.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
+      <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calLinkRowHtml(d.id)}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${d.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
       <div style="margin:8px 0;padding:8px 10px;border-radius:12px;background:#fef7f4;border:2px dashed #f2d8d7;font-size:14px;">No account needed — just fill the form below.<br>Already a member? <button type="button" class="club-guide-btn pfLogin" style="padding:4px 14px;min-height:0;margin-left:4px;text-align:center;">👤 Log in</button></div>
       ${d.closed ? '<p style="font-weight:700;">🔒 Sign-ups are closed.</p>' : ''}
       <div class="fb-card" style="margin-top:10px;box-shadow:none;"><h3 style="margin:0 0 4px;">📝 ${escapeCm(d.form.title)}</h3>${d.form.intro ? `<p style="margin:0 0 10px;white-space:pre-wrap;">${escapeCm(d.form.intro)}</p>` : ''}
@@ -5806,7 +5807,8 @@ async function clubCalPublicCard(box, id){
         <div class="fb-q"><label>Email or phone (so we can reach you)</label><input class="fb-in pfContact" type="text" maxlength="80" autocomplete="email"></div>
         ${calFormFieldsHtml(d.form, {}, false)}
         <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Submit</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}${d.form.payment ? `<p class="ideas-hint" style="margin:10px 0 0;">💳 Payment${d.form.payment.amount ? ': ' + escapeCm(d.form.payment.amount) : ''} — you'll see how to pay right after you submit.</p>` : ''}</div>`;
-    box.querySelector('.pfLogin').addEventListener('click', () => { document.querySelectorAll('.mem-pop').forEach(x => x.remove()); state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); });
+    wireCalCopy(box);
+    box.querySelector('.pfLogin').addEventListener('click', () => { calRememberOpen(id); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); });
     box.querySelector('.pfSend').addEventListener('click', async e => {
       const m = box.querySelector('.pfMsg'); e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Sending…';
       try {
@@ -5820,8 +5822,8 @@ async function clubCalPublicCard(box, id){
       const pe = (state.clubCal || []).find(e => e.id === id);
       box.innerHTML = `${pe ? `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(pe.clubTitle || '')}</p><h3 style="margin:0 0 4px;">${escapeCm(pe.title)}</h3><p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(pe.date))}</p>` : ''}<p class="av-msg" style="margin:8px 0 12px;">Log in or sign up to see the details and RSVP.</p>
         <div style="display:flex;gap:10px;"><button type="button" class="club-guide-btn pfL" style="flex:1;text-align:center;">Log In</button><button type="button" class="fall-cta-btn join-club-btn pfS" style="flex:1;">Sign Up</button></div>`;
-      box.querySelector('.pfL').addEventListener('click', () => { document.querySelectorAll('.mem-pop').forEach(x => x.remove()); state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); });
-      box.querySelector('.pfS').addEventListener('click', () => { document.querySelectorAll('.mem-pop').forEach(x => x.remove()); goToTab('fallsignup'); });
+      box.querySelector('.pfL').addEventListener('click', () => { calRememberOpen(id); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); });
+      box.querySelector('.pfS').addEventListener('click', () => { calRememberOpen(id); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); goToTab('fallsignup'); });
     } else box.innerHTML = `<p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`;
   }
 }
@@ -5837,12 +5839,13 @@ async function clubCalMemberCard(box, id){
       top.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>
         <h3 style="margin:0 0 6px;">${escapeCm(d.title)}</h3>
         <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>
-        ${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}
+        ${d.form ? calLinkRowHtml(d.id) : ''}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}
         ${d.desc ? `<p style="margin:8px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
         ${d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}
         <p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} going${d.inClub ? '' : ' · you\'re not in this club, so an admin approves your RSVP'}</p>
         ${d.form ? `<p style="margin:6px 0;font-weight:700;">${d.mine === 'going' ? "✅ You're going" : d.mine === 'pending' ? '⏳ Requested — waiting for approval' : d.closed ? '🔒 Sign-ups are closed' : 'Fill in the form below to sign up 👇'}</p>${d.mine ? '<button type="button" class="av-link calRsvpBtn">Cancel my RSVP</button>' : ''}` : `<button type="button" class="club-guide-btn calRsvpBtn" ${d.closed && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>`}
         <div class="calRsvpMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>`;
+      wireCalCopy(top);
       const rsvpBtn = top.querySelector('.calRsvpBtn'); // (an event with a form has no RSVP button until you've signed up — only a 'Cancel my RSVP' link)
       if(rsvpBtn) rsvpBtn.addEventListener('click', async e => {
         e.target.disabled = true;
@@ -5972,6 +5975,24 @@ function calFormCollect(box, form){
     else out[f.id] = els[0] ? els[0].value : '';
   });
   return out;
+}
+// Every form has its own link people can copy and share; opening it goes straight to the form.
+function calFormUrl(id){ return location.origin + '/#/form/' + encodeURIComponent(id); }
+function calLinkRowHtml(id){
+  return `<div class="calUrl" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 8px;padding:7px 10px;border-radius:12px;background:#fef7f4;border:2px dashed #f2d8d7;font-size:13px;"><span style="flex:1;min-width:0;overflow-wrap:anywhere;">🔗 ${escapeCm(calFormUrl(id).replace(/^https?:\/\//, ''))}</span><button type="button" class="fb-mini calCopy" data-url="${escapeCm(calFormUrl(id))}">Copy link</button></div>`;
+}
+function wireCalCopy(root){
+  root.querySelectorAll('.calCopy').forEach(b => b.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(b.dataset.url); b.textContent = 'Copied ✓'; setTimeout(() => { b.textContent = 'Copy link'; }, 1800); }
+    catch { window.prompt('Copy this link:', b.dataset.url); }
+  }));
+}
+// After logging in / signing up from a form, come BACK to the event (remembered for this tab only).
+function calRememberOpen(id){ try { sessionStorage.setItem('pendingEventOpen', id); } catch {} }
+function calOpenPending(){
+  let id = state.openEventId; state.openEventId = null;
+  if(!id && getCmSession()){ try { id = sessionStorage.getItem('pendingEventOpen'); if(id) sessionStorage.removeItem('pendingEventOpen'); } catch {} }
+  if(id) setTimeout(() => clubCalOpen(id), 350);
 }
 // The description at the bottom of a form, and how to pay (the site shows it; it doesn't take the money itself).
 function calFormFooterHtml(form){ return form.footer ? `<p style="margin:10px 0 0;font-size:14px;white-space:pre-wrap;color:#555;">${escapeCm(form.footer)}</p>` : ''; }
@@ -10332,6 +10353,8 @@ function currentSlugParts(){
 
 function applySlugParts(parts){
   const [slug, ...rest] = parts;
+  // A shared FORM link (#/form/<event id>): land on Clubs and open that event's form straight away.
+  if(slug === 'form' && rest[0]){ state.tab = 'clubs'; state.clubsPage = ''; state.openEventId = safeDecode(rest[0]); return; }
   let tab = SLUG_TO_TAB[slug] || slug;
   if(tab === 'clubs') state.clubsPage = ({ vote:'vote', availability:'avail', calendar:'cal' })[rest[0]] || '';
   if(tab === 'clubs' && rest[0]){
