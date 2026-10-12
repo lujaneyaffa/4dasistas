@@ -3,13 +3,13 @@
     {
       "no": 15,
       "date": "2026-10-12",
-      "title": "Public events open straight to their form",
+      "title": "Event forms: sign up right in the form",
       "items": [
         {
-          "text": "✨ Publicized events (like puzzle hunts) now open straight to their sign-up form when you tap them — no account needed, just your name."
+          "text": "✨ Events with a form open straight to the form — fill it in to sign up (that's your RSVP). No account needed, and there's a Log in button if you have one."
         },
         {
-          "text": "✨ Tick “Publicized event” when you create a form for a club event; sign-ups from people without an account show up in the answers with their name and contact.",
+          "text": "✨ Anyone who fills a form shows in the event's attendee list, with their answers and contact.",
           "for": "admin"
         }
       ]

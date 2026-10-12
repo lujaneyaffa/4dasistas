@@ -1610,7 +1610,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!calMatch[1] && M === "GET") {
         const cutoff = new Date(Date.now() - 36 * 3600 * 1000).toISOString().slice(0, 10);
         const events = (await readClubCal(env)).filter((e) => e.date >= cutoff).sort((a, b) => a.date.localeCompare(b.date) || String(a.time).localeCompare(String(b.time)))
-          .map((e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", hasForm: !!e.form, publicForm: !!(e.form && e.publicForm) }));
+          .map((e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", hasForm: !!e.form, publicForm: !!e.form }));
         // Idea bubbles that the admin gave a DATE also show on the calendars (cached ~2 minutes so this stays cheap).
         if (!_calIdeaCache || Date.now() - _calIdeaCache.at > 120000) {
           const items = [];
@@ -1627,11 +1627,12 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!ev) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
         if (!who || !(who.id.startsWith("m:") || who.id === "admin")) {
           // A PUBLICIZED event (publicForm): anyone can open its form straight away and submit it with just a name — no account needed.
-          if (ev.publicForm && ev.form) {
-            if (!calMatch[2] && M === "GET") return jsonResponse({ id: ev.id, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", desc: ev.desc || "", publicForm: true, form: ev.form, guest: true }, 200, corsHeaders);
+          if (ev.form) { // ANY event with a form can be filled in without an account
+            if (!calMatch[2] && M === "GET") return jsonResponse({ id: ev.id, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", desc: ev.desc || "", publicForm: true, form: ev.form, guest: true, rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) }, 200, corsHeaders);
             if (calMatch[2] === "/form" && M === "POST") {
               if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
               let fb; try { fb = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+              if (ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) return jsonResponse({ error: "Sign-ups for this event are closed" }, 400, corsHeaders);
               const nm = sanitizePersonName(fb && fb.name);
               if (nm.length < 2) return jsonResponse({ error: "Please type your name" }, 400, corsHeaders);
               const contact = String((fb && fb.contact) || "").replace(/[\x00-\x1f\x7f<>]/g, " ").trim().slice(0, 80);
@@ -1639,8 +1640,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               if (chk.error) return jsonResponse({ error: chk.error }, 400, corsHeaders);
               let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
               if (Object.keys(map).length >= 1500) return jsonResponse({ error: "This form is full" }, 400, corsHeaders);
-              map[`g:${crypto.randomUUID().slice(0, 10)}`] = { name: nm, contact, answers: chk.answers, at: Date.now(), guest: true };
+              const gid = `g:${crypto.randomUUID().slice(0, 10)}`;
+              map[gid] = { name: nm, contact, answers: chk.answers, at: Date.now(), guest: true };
               await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map));
+              ev.rsvps = ev.rsvps || []; ev.rsvps.push({ id: gid, name: nm, status: "going", at: Date.now(), guest: true, viaForm: true }); // shows in the attendee list too
+              await writeClubCal(env, all);
               return jsonResponse({ ok: true }, 200, corsHeaders);
             }
           }
@@ -1653,7 +1657,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!calMatch[2] && M === "GET") {
           return jsonResponse({ id: ev.id, clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", desc: ev.desc || "", rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy),
             going: (ev.rsvps || []).filter((r) => r.status === "going").length, mine: mine ? mine.status : null, inClub,
-            publicForm: !!ev.publicForm, form: ev.form || null, myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, 200, corsHeaders);
+            publicForm: !!ev.form, form: ev.form || null, myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, 200, corsHeaders);
         }
         if (calMatch[2] === "/form" && M === "POST") {
           if (!uid) return jsonResponse({ error: "Sign in as a member to fill the form" }, 403, corsHeaders);
@@ -1663,9 +1667,18 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           const chk = checkCalAnswers(ev.form, fb && fb.answers);
           if (chk.error) return jsonResponse({ error: chk.error }, 400, corsHeaders);
           let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
+          const wasIn = (ev.rsvps || []).find((r) => r.id === uid);
+          if (!wasIn && ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) return jsonResponse({ error: "Sign-ups for this event are closed" }, 400, corsHeaders);
           map[uid] = { name: who.name, answers: chk.answers, at: Date.now() };
           await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map));
-          return jsonResponse({ ok: true, answers: chk.answers }, 200, corsHeaders);
+          // Submitting the form IS the RSVP: club members are going at once, people from other clubs wait for approval.
+          let status = wasIn ? wasIn.status : null;
+          if (!wasIn) {
+            status = inClub ? "going" : "pending";
+            ev.rsvps = (ev.rsvps || []).concat([{ id: uid, name: who.name, status, at: Date.now(), viaForm: true }]);
+            await writeClubCal(env, all);
+          }
+          return jsonResponse({ ok: true, answers: chk.answers, mine: status, going: (ev.rsvps || []).filter((r) => r.status === "going").length }, 200, corsHeaders);
         }
         if (calMatch[2] === "/rsvp" && (M === "POST" || M === "DELETE")) {
           if (!uid) return jsonResponse({ error: "Sign in as a member to RSVP" }, 403, corsHeaders);
