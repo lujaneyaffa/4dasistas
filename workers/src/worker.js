@@ -3259,7 +3259,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     const adminCalRespMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/responses\/?$/);
     if (adminCalRespMatch && request.method === "GET") {
       const ev = (await readClubCal(env)).find((e) => e.id === adminCalRespMatch[1]);
-      if (!ev || (leadCtx && !calClubs(ev).some((c) => leadCtx.clubs.includes(c)))) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
+      if (!ev || (leadCtx && !(Array.isArray(ev.formLeads) && ev.formLeads.includes(leadCtx.username)))) return jsonResponse({ error: leadCtx && ev ? "Ask the main admin to give you access to this event's form" : "Event not found" }, leadCtx && ev ? 403 : 404, corsHeaders);
       let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
       return jsonResponse({ form: ev.form || null, responses: Object.keys(map).map((uid) => ({ userId: uid, name: map[uid].name, contact: map[uid].contact || "", guest: !!map[uid].guest, paid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).paid, addons: map[uid].addons || [], total: map[uid].total ?? null, answers: map[uid].answers, at: map[uid].at })).sort((a, b) => a.at - b.at) }, 200, corsHeaders);
     }
@@ -3267,10 +3267,12 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (adminCalMatch) {
       const M = request.method;
       const canClub = (cid) => !leadCtx || leadCtx.clubs.includes(cid);
-      const canEv = (e) => calClubs(e).some(canClub); // a club admin manages any event their club is part of (collabs included)
+      // A club admin manages any event their club is part of (collabs included) — but an event's FORM (editing it, the answers, who's paid) is only theirs when the main admin ticked them in `formLeads`.
+      const canForm = (e) => !leadCtx || (Array.isArray(e.formLeads) && e.formLeads.includes(leadCtx.username));
+      const canEv = (e) => calClubs(e).some(canClub) || canForm(e);
       const roster = await readClubRoster(env);
       const clubTitle = (id) => (roster.find((c) => c.id === id) || {}).title || "";
-      const view = (e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", form: e.form || null, publicForm: !!e.publicForm, rsvps: e.rsvps || [] });
+      const view = (e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", form: canForm(e) ? (e.form || null) : null, hasForm: !!e.form, canForm: canForm(e), ...(leadCtx ? {} : { formLeads: e.formLeads || [] }), publicForm: !!e.publicForm, rsvps: e.rsvps || [] });
       const all = await readClubCal(env);
       if (!adminCalMatch[1] && M === "GET") return jsonResponse({ events: all.filter(canEv).sort((a, b) => a.date.localeCompare(b.date)).map(view) }, 200, corsHeaders);
       let body = {};
@@ -3284,7 +3286,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (f.title.length < 3) return jsonResponse({ error: "Give the event a name (3+ letters)" }, 400, corsHeaders);
         if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
         const ev = { id: crypto.randomUUID(), clubId, clubIds, ...f, rsvps: [], at: Date.now() };
-        { const cf = sanitizeCalForm(body.form); if (cf) ev.form = cf; }
+        { const cf = sanitizeCalForm(body.form); if (cf) { ev.form = cf; if (leadCtx) ev.formLeads = [leadCtx.username]; } }
         if (body.publicForm) ev.publicForm = true;
         // Attendees chosen right in the "Add event" form: members (by id) and people without a profile (by name).
         for (const at of (Array.isArray(body.attendees) ? body.attendees : []).slice(0, 200)) {
@@ -3307,7 +3309,16 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (f.title.length < 3) return jsonResponse({ error: "Give the event a name (3+ letters)" }, 400, corsHeaders);
         if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
         Object.assign(ev, f);
-        if (body.form !== undefined) { const cf = sanitizeCalForm(body.form); if (cf) ev.form = cf; else delete ev.form; }
+        if (body.form !== undefined) { // (a club admin without access never sees the form, so their edit of the event details must not touch it)
+          const cf = sanitizeCalForm(body.form);
+          if (canForm(ev)) { if (cf) ev.form = cf; else delete ev.form; }
+          else if (!ev.form && cf) { ev.form = cf; ev.formLeads = [...new Set([...(ev.formLeads || []), leadCtx.username])]; } // they created the form, so it's theirs
+        }
+        if (body.formLeads !== undefined && !leadCtx) {
+          const names = [...new Set((Array.isArray(body.formLeads) ? body.formLeads : []).map(String))].slice(0, 30), good = [];
+          for (const u of names) if (await env.SITE_DATA.get(`clublead:${u}`)) good.push(u);
+          if (good.length) ev.formLeads = good; else delete ev.formLeads;
+        }
         if (body.publicForm !== undefined) { if (body.publicForm) ev.publicForm = true; else delete ev.publicForm; }
         await writeClubCal(env, all);
         return jsonResponse({ ok: true, event: view(ev) }, 200, corsHeaders);
@@ -3334,6 +3345,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (adminCalMatch[2] && M === "POST") {
         const r = (ev.rsvps || []).find((x) => x.id === adminCalMatch[2]);
         if (!r) return jsonResponse({ error: "Not on the list" }, 404, corsHeaders);
+        if ((adminCalMatch[3] === "paid" || adminCalMatch[3] === "unpaid") && !canForm(ev)) return jsonResponse({ error: "Ask the main admin to give you access to this event's form" }, 403, corsHeaders);
         if (adminCalMatch[3] === "accept") r.status = "going";
         else if (adminCalMatch[3] === "paid") r.paid = true;
         else if (adminCalMatch[3] === "unpaid") delete r.paid;

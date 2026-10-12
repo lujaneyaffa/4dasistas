@@ -5984,8 +5984,9 @@ function clubCalManage(ev){
       <p class="idea-pop-h" style="margin-top:10px;">✍️ Add by name (no profile needed)</p>
       <div style="display:flex;gap:6px;"><input id="calGuestName" type="text" maxlength="30" placeholder="Their name" autocomplete="off" style="flex:1;min-width:0;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;"><button type="button" id="calGuestAdd" class="club-guide-btn" style="padding:6px 14px;text-align:center;">+ Add</button></div>
       ${ev.form ? `<p style="margin:8px 0 0;"><button type="button" class="fb-mini" id="calOpenPage">📄 Open the form page</button></p>` : ''}
-      ${ev.form ? `<p class="idea-pop-h" style="margin-top:12px;">📝 ${escapeCm(ev.form.title)} (${ev.form.fields.length} question${ev.form.fields.length === 1 ? '' : 's'})</p><div class="fb-row" style="margin:0 0 6px;"><button type="button" class="fb-mini" id="calRespBtn">View answers</button><button type="button" class="fb-mini" id="calFormEdit">✏️ Edit the form</button></div><div id="calRespBox" style="margin-top:6px;"></div>` : `<div style="margin-top:12px;padding:10px;border-radius:12px;background:#fff3cd;"><strong>No form on this event yet</strong> — people can only press RSVP.<br><button type="button" class="club-guide-btn" id="calFormEdit" style="margin-top:6px;padding:6px 16px;min-height:0;text-align:center;">📝 Create a form (saves right away)</button></div>`}
+      ${!ev.form && ev.hasForm ? `<div style="margin-top:12px;padding:10px;border-radius:12px;background:#fdecea;">🔒 This event has a form — ask the main admin to give you access to it.</div>` : ev.form ? `<p class="idea-pop-h" style="margin-top:12px;">📝 ${escapeCm(ev.form.title)} (${ev.form.fields.length} question${ev.form.fields.length === 1 ? '' : 's'})</p><div class="fb-row" style="margin:0 0 6px;"><button type="button" class="fb-mini" id="calRespBtn">View answers</button><button type="button" class="fb-mini" id="calFormEdit">✏️ Edit the form</button>${state.cmAdminLoggedIn === true ? '<button type="button" class="fb-mini" id="calLeadAcc">🔑 Leader access</button>' : ''}</div><div id="calRespBox" style="margin-top:6px;"></div>` : `<div style="margin-top:12px;padding:10px;border-radius:12px;background:#fff3cd;"><strong>No form on this event yet</strong> — people can only press RSVP.<br><button type="button" class="club-guide-btn" id="calFormEdit" style="margin-top:6px;padding:6px 16px;min-height:0;text-align:center;">📝 Create a form (saves right away)</button></div>`}
       <div id="calMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>`;
+    const la = wrap.querySelector('#calLeadAcc'); if(la) la.addEventListener('click', () => clubCalLeaderAccess(ev));
     const op = wrap.querySelector('#calOpenPage'); if(op) op.addEventListener('click', () => { close(); openEventFormPage(ev.id); });
     const fe = wrap.querySelector('#calFormEdit');
     if(fe) fe.addEventListener('click', () => openFormBuilder(ev.form || null, async f => {
@@ -6275,6 +6276,7 @@ function clubCalForm(ev, presetDate){
   const formBtn = wrap.querySelector('#cfFormBtn');
   const paintFormBtn = () => { formBtn.textContent = draftForm ? `✅ Form ready (${draftForm.fields.length} question${draftForm.fields.length === 1 ? '' : 's'}) — tap to edit · it saves with the event` : '📝 Create a form'; };
   paintFormBtn();
+  if(ev && ev.hasForm && ev.canForm === false) formBtn.style.display = 'none'; // a club admin without access to this event's form can't see or change it
   formBtn.addEventListener('click', () => openFormBuilder(draftForm, f => { draftForm = f; paintFormBtn(); }));
   const picked = []; // {userId,name} or {name}
   if(!ev){
@@ -8591,6 +8593,23 @@ function admEvFormHtml(){
     <div class="fb-row"><button type="button" class="fb-mini" id="evFormEdit">${qs.length ? '✏️ Edit the questions' : '➕ Add questions'}</button><button type="button" class="club-guide-btn" id="evFormSave" style="padding:6px 18px;min-height:0;text-align:center;">Save</button><span id="evFormMsg" style="font-size:12px;"></span></div></div>`;
 }
 /* ---- Admin → Club Events: every club event in one list — edit it, build/edit its form, read the answers, manage who's coming ---- */
+// Main admin: choose which club leaders (club admins) may edit an event's FORM, read its answers and mark people paid.
+async function clubCalLeaderAccess(ev){
+  const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 4px;">🔑 Leader access</h3><p class="ideas-hint" style="text-align:left;margin:0 0 8px;">Club leaders always see their club's events. Tick who may also open <strong>${escapeCm(ev.title)}</strong>'s form, read its answers (names, phone numbers) and mark people paid.</p><div id="laBox"><p class="av-msg">Loading leaders…</p></div>`);
+  let leads = [];
+  try { const r = await fetch('/api/admin/club-leads', { credentials:'include' }); leads = r.ok ? ((await r.json()).leads || []) : []; } catch {}
+  const box = wrap.querySelector('#laBox'), have = new Set(ev.formLeads || []), evClubs = new Set(ev.clubIds || [ev.clubId]);
+  if(!leads.length){ box.innerHTML = '<p class="av-msg">No club admins yet — add them under Settings → Club admins.</p>'; return; }
+  box.innerHTML = leads.map(l => `<label class="fb-opt" style="padding:6px 0;"><input type="checkbox" class="laChk" value="${escapeCm(l.username)}" ${have.has(l.username) ? 'checked' : ''} style="width:20px;height:20px;"> <span><strong>${escapeCm(l.name || l.username)}</strong> <small style="color:#776867;">${escapeCm((l.clubs || []).map(avClubTitle).join(', ') || 'no clubs')}${(l.clubs || []).some(c => evClubs.has(c)) ? ' · in this event\'s club' : ''}</small></span></label>`).join('')
+    + `<div class="fb-row"><button type="button" class="fb-mini" id="laClubs">Select this event's club leaders</button><button type="button" class="fb-mini" id="laNone">Clear</button></div><div id="laMsg" style="font-size:13px;min-height:16px;margin-top:6px;"></div><button type="button" class="club-guide-btn" id="laSave" style="width:100%;margin-top:6px;text-align:center;">Save access</button>`;
+  box.querySelector('#laClubs').addEventListener('click', () => box.querySelectorAll('.laChk').forEach(c => { const l = leads.find(x => x.username === c.value); c.checked = !!l && (l.clubs || []).some(k => evClubs.has(k)); }));
+  box.querySelector('#laNone').addEventListener('click', () => box.querySelectorAll('.laChk').forEach(c => { c.checked = false; }));
+  box.querySelector('#laSave').addEventListener('click', async e => {
+    const names = [...box.querySelectorAll('.laChk:checked')].map(c => c.value), m = box.querySelector('#laMsg'); e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Saving…';
+    try { const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id), 'PUT', { formLeads: names }); const i = (state.clubCal || []).findIndex(x => x.id === ev.id); if(i >= 0) state.clubCal[i] = j.event; close(); if(state.tab === 'admin') render(); }
+    catch(err){ e.target.disabled = false; m.style.color = '#c00'; m.textContent = err.message; }
+  });
+}
 function admCeListHtml(){
   const all = (state.clubCal || []).filter(e => !String(e.id).startsWith('idea:'));
   const today = new Date().toISOString().slice(0, 10), f = state.admCeFilter || 'upcoming', q = (state.admCeQ || '').trim().toLowerCase();
@@ -8603,8 +8622,8 @@ function admCeListHtml(){
     return `<div class="fb-card" style="border-color:${col.fg};box-shadow:3px 3px 0 ${col.fg};">
       <div style="display:flex;gap:10px;align-items:flex-start;"><span class="cal-date" style="background:${col.bg};color:${col.fg};flex:0 0 74px;">${escapeCm(calDateLabel(e.date))}${e.date < today ? '<br><small>past</small>' : ''}</span>
         <span style="flex:1;min-width:0;"><strong style="font-size:16px;overflow-wrap:break-word;">${escapeCm(e.title)}</strong><br><small style="color:#776867;">🏷 ${escapeCm(e.clubTitle || avClubTitle(e.clubId))}${e.time ? ' · ⏰ ' + escapeCm(e.time) : ''}${e.place ? ' · 📍 ' + escapeCm(e.place) : ''}</small><br>
-        <small>👥 <b>${going}</b> going${pend ? ` · <b style="color:#b3261e;">${pend} waiting</b>` : ''} · ${e.form ? `📝 form (${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'})` : '<span style="color:#776867;">no form</span>'}${e.rsvpBy ? ` · RSVP by ${escapeCm(calDateLabel(e.rsvpBy))}` : ''}</small></span></div>
-      <div class="fb-row"><button type="button" class="fb-mini ce-edit" data-ceid="${escapeCm(e.id)}">✏️ Edit event</button><button type="button" class="fb-mini ce-form" data-ceid="${escapeCm(e.id)}">📝 ${e.form ? 'Edit form' : 'Create a form'}</button>${e.form ? `<button type="button" class="fb-mini ce-ans" data-ceid="${escapeCm(e.id)}">📋 Answers</button>` : ''}<button type="button" class="fb-mini ce-att" data-ceid="${escapeCm(e.id)}">👥 Attendees</button></div></div>`;
+        <small>👥 <b>${going}</b> going${pend ? ` · <b style="color:#b3261e;">${pend} waiting</b>` : ''} · ${e.form ? `📝 form (${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'})` : (e.hasForm ? '🔒 has a form (no access)' : '<span style="color:#776867;">no form</span>')}${(e.formLeads || []).length ? ` · 🔑 ${e.formLeads.length} leader${e.formLeads.length === 1 ? '' : 's'}` : ''}${e.rsvpBy ? ` · RSVP by ${escapeCm(calDateLabel(e.rsvpBy))}` : ''}</small></span></div>
+      <div class="fb-row"><button type="button" class="fb-mini ce-edit" data-ceid="${escapeCm(e.id)}">✏️ Edit event</button>${e.canForm === false && e.hasForm ? '' : `<button type="button" class="fb-mini ce-form" data-ceid="${escapeCm(e.id)}">📝 ${e.form ? 'Edit form' : 'Create a form'}</button>`}${e.form ? `<button type="button" class="fb-mini ce-ans" data-ceid="${escapeCm(e.id)}">📋 Answers</button>` : ''}${state.cmAdminLoggedIn === true && e.form ? `<button type="button" class="fb-mini ce-lead" data-ceid="${escapeCm(e.id)}">🔑 Leader access</button>` : ''}<button type="button" class="fb-mini ce-att" data-ceid="${escapeCm(e.id)}">👥 Attendees</button></div></div>`;
   }).join('');
 }
 function admCeHtml(){
@@ -8622,6 +8641,7 @@ function wireAdmEvents(){
   const find = id => (state.clubCal || []).find(e => e.id === id);
   const wireList = () => {
     document.querySelectorAll('.ce-edit').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) clubCalForm(e); }));
+    document.querySelectorAll('.ce-lead').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) clubCalLeaderAccess(e); }));
     document.querySelectorAll('.ce-att').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) clubCalManage(e); }));
     document.querySelectorAll('.ce-form').forEach(b => b.addEventListener('click', () => {
       const e = find(b.dataset.ceid); if(!e) return;
