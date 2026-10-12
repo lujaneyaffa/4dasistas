@@ -5740,7 +5740,7 @@ function clubCalDayPopup(key){
       sec.querySelector('.cdManage').addEventListener('click', () => { close(); clubCalManage(e); });
     } else if(member){
       sec.innerHTML = '<p class="av-msg">Loading…</p>'; clubCalMemberCard(sec, e.id);
-    } else if(e.publicForm){
+    } else if(!member){
       sec.innerHTML = '<p class="av-msg">Loading…</p>'; clubCalPublicCard(sec, e.id);
     } else {
       sec.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(e.clubTitle)}</p><h3 style="margin:0;">${escapeCm(e.title)}</h3><p class="ideas-hint" style="text-align:left;margin:4px 0 0;">${e.time ? '⏰ ' + escapeCm(e.time) + ' · ' : ''}Log in or sign up to see the details and RSVP.</p>`;
@@ -5763,7 +5763,7 @@ function wireClubCal(){
   const add = document.getElementById('calAddBtn');
   if(add) add.addEventListener('click', () => clubCalForm(null));
 }
-function clubCalOpenAny(id){ if(!state.clubCal || state.clubCalIsAdminData !== calIsAdmin()){ clubCalLoad(true).then(() => clubCalOpen(id)); } else clubCalOpen(id); }
+function clubCalOpenAny(id){ clubCalOpen(id); } // clubCalOpen asks the server itself, so it doesn't need the list loaded
 function clubCalIdeaPopup(e){
   const { wrap, close } = ideaPopup(`<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(e.clubTitle)}</p>
     <h3 style="margin:0 0 6px;">${e.emoji ? escapeCm(e.emoji) + ' ' : ''}${escapeCm(e.title)}</h3>
@@ -5773,11 +5773,15 @@ function clubCalIdeaPopup(e){
   wrap.querySelector('#calIdeaOpen').addEventListener('click', () => { close(); openClubIdeas(e.clubId); });
 }
 async function clubCalOpen(id){
-  if(String(id).startsWith('idea:')){ const ie = (state.clubCal || []).find(x => x.id === id); if(ie) clubCalIdeaPopup(ie); return; }
+  if(String(id).startsWith('idea:')){
+    let ie = (state.clubCal || []).find(x => x.id === id);
+    if(!ie){ const ci = CLUB_CAL_ITEMS.find(x => x.id === 'clubcal:' + id); if(ci) ie = { id, title:ci.title, date:ci.calDate, clubId:(ci.clubIds || [])[0], clubTitle:String(ci.location || '').replace(/ club$/, ''), emoji:'', done:false }; }
+    if(ie) clubCalIdeaPopup(ie); return;
+  }
+  if(calIsAdmin() && (!state.clubCal || !state.clubCalIsAdminData)) await clubCalLoad(true); // admin tapping from the main calendar: load the full list first
   const ev = (state.clubCal || []).find(e => e.id === id);
   if(calIsAdmin() && state.clubCalIsAdminData && ev) return clubCalManage(ev);
-  if(!getCmSession() && ev && ev.publicForm){ clubCalPublicPopup(id); return; }
-  if(!getCmSession()){ const pe = (state.clubCal || []).find(e => e.id === id); promptJoinToVote(pe ? `${pe.title} · ${calDateLabel(pe.date)} — log in or sign up to see the details and RSVP` : 'Log in or sign up to see the details and RSVP'); return; }
+  if(!getCmSession()){ clubCalPublicPopup(id); return; } // logged-out: the server decides — an event with a form opens its form, any other asks to log in
   const { wrap } = ideaPopup(`<p class="av-msg">Loading…</p>`);
   const box = document.createElement('div'); wrap.querySelector('.idea-pop-card').appendChild(box);
   wrap.querySelector('.idea-pop-card .av-msg').remove();
@@ -5810,7 +5814,16 @@ async function clubCalPublicCard(box, id){
         box.innerHTML = `<div style="text-align:center;padding:14px 0;"><div style="font-size:42px;">🎉</div><h3 style="margin:6px 0;">You're signed up!</h3><p class="av-msg">Thank you — your answers for <strong>${escapeCm(d.title)}</strong> were sent.</p></div>`;
       } catch(err){ e.target.disabled = false; m.style.color = '#c00'; m.textContent = err.message; }
     });
-  } catch(err){ box.innerHTML = `<p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`; }
+  } catch(err){
+    if(/log in|sign up/i.test(err.message)){
+      // No form on this event: details + RSVP are for members only.
+      const pe = (state.clubCal || []).find(e => e.id === id);
+      box.innerHTML = `${pe ? `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(pe.clubTitle || '')}</p><h3 style="margin:0 0 4px;">${escapeCm(pe.title)}</h3><p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(pe.date))}</p>` : ''}<p class="av-msg" style="margin:8px 0 12px;">Log in or sign up to see the details and RSVP.</p>
+        <div style="display:flex;gap:10px;"><button type="button" class="club-guide-btn pfL" style="flex:1;text-align:center;">Log In</button><button type="button" class="fall-cta-btn join-club-btn pfS" style="flex:1;">Sign Up</button></div>`;
+      box.querySelector('.pfL').addEventListener('click', () => { document.querySelectorAll('.mem-pop').forEach(x => x.remove()); state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); });
+      box.querySelector('.pfS').addEventListener('click', () => { document.querySelectorAll('.mem-pop').forEach(x => x.remove()); goToTab('fallsignup'); });
+    } else box.innerHTML = `<p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`;
+  }
 }
 // One event's full details + RSVP button, painted into `box` (used by the single-event popup and by the day popup that lists several).
 async function clubCalMemberCard(box, id){
@@ -5830,7 +5843,8 @@ async function clubCalMemberCard(box, id){
         <p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} going${d.inClub ? '' : ' · you\'re not in this club, so an admin approves your RSVP'}</p>
         ${d.form ? `<p style="margin:6px 0;font-weight:700;">${d.mine === 'going' ? "✅ You're going" : d.mine === 'pending' ? '⏳ Requested — waiting for approval' : d.closed ? '🔒 Sign-ups are closed' : 'Fill in the form below to sign up 👇'}</p>${d.mine ? '<button type="button" class="av-link calRsvpBtn">Cancel my RSVP</button>' : ''}` : `<button type="button" class="club-guide-btn calRsvpBtn" ${d.closed && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>`}
         <div class="calRsvpMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>`;
-      top.querySelector('.calRsvpBtn').addEventListener('click', async e => {
+      const rsvpBtn = top.querySelector('.calRsvpBtn'); // (an event with a form has no RSVP button until you've signed up — only a 'Cancel my RSVP' link)
+      if(rsvpBtn) rsvpBtn.addEventListener('click', async e => {
         e.target.disabled = true;
         try {
           const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/rsvp', { method: d.mine ? 'DELETE' : 'POST', headers: ideaHeaders() });
@@ -8399,7 +8413,55 @@ function admEvFormHtml(){
     ${qs.length ? `<ol style="margin:4px 0 8px 18px;padding:0;font-size:14px;">${qs.map(q => `<li>${escapeCm(q.label)}${q.required ? ' <span style="color:#b3261e;">*</span>' : ''} <small style="color:#776867;">(${escapeCm((FB_TYPES.find(t => t[0] === q.type) || [0, q.type])[1])})</small></li>`).join('')}</ol>` : '<p class="av-msg" style="margin:4px 0 8px;">None yet.</p>'}
     <div class="fb-row"><button type="button" class="fb-mini" id="evFormEdit">${qs.length ? '✏️ Edit the questions' : '➕ Add questions'}</button><button type="button" class="club-guide-btn" id="evFormSave" style="padding:6px 18px;min-height:0;text-align:center;">Save</button><span id="evFormMsg" style="font-size:12px;"></span></div></div>`;
 }
+/* ---- Admin → Club Events: every club event in one list — edit it, build/edit its form, read the answers, manage who's coming ---- */
+function admCeListHtml(){
+  const all = (state.clubCal || []).filter(e => !String(e.id).startsWith('idea:'));
+  const today = new Date().toISOString().slice(0, 10), f = state.admCeFilter || 'upcoming', q = (state.admCeQ || '').trim().toLowerCase();
+  const list = all.filter(e => (f === 'all' || (f === 'past' ? e.date < today : e.date >= today)) && (!q || `${e.title} ${e.clubTitle || ''} ${e.place || ''}`.toLowerCase().includes(q)))
+    .sort((a, b) => f === 'past' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
+  if(!state.clubCal) return '<p class="av-msg">Loading events…</p>';
+  if(!list.length) return `<p class="av-msg" style="text-align:center;">No ${f === 'all' ? '' : f + ' '}club events${q ? ' match' : ' yet'}.</p>`;
+  return list.map(e => {
+    const rs = e.rsvps || [], going = rs.filter(r => r.status === 'going').length, pend = rs.length - going, col = clubCol(e.clubId);
+    return `<div class="fb-card" style="border-color:${col.fg};box-shadow:3px 3px 0 ${col.fg};">
+      <div style="display:flex;gap:10px;align-items:flex-start;"><span class="cal-date" style="background:${col.bg};color:${col.fg};flex:0 0 74px;">${escapeCm(calDateLabel(e.date))}${e.date < today ? '<br><small>past</small>' : ''}</span>
+        <span style="flex:1;min-width:0;"><strong style="font-size:16px;overflow-wrap:break-word;">${escapeCm(e.title)}</strong><br><small style="color:#776867;">🏷 ${escapeCm(e.clubTitle || avClubTitle(e.clubId))}${e.time ? ' · ⏰ ' + escapeCm(e.time) : ''}${e.place ? ' · 📍 ' + escapeCm(e.place) : ''}</small><br>
+        <small>👥 <b>${going}</b> going${pend ? ` · <b style="color:#b3261e;">${pend} waiting</b>` : ''} · ${e.form ? `📝 form (${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'})` : '<span style="color:#776867;">no form</span>'}${e.rsvpBy ? ` · RSVP by ${escapeCm(calDateLabel(e.rsvpBy))}` : ''}</small></span></div>
+      <div class="fb-row"><button type="button" class="fb-mini ce-edit" data-ceid="${escapeCm(e.id)}">✏️ Edit event</button><button type="button" class="fb-mini ce-form" data-ceid="${escapeCm(e.id)}">📝 ${e.form ? 'Edit form' : 'Create a form'}</button>${e.form ? `<button type="button" class="fb-mini ce-ans" data-ceid="${escapeCm(e.id)}">📋 Answers</button>` : ''}<button type="button" class="fb-mini ce-att" data-ceid="${escapeCm(e.id)}">👥 Attendees</button></div></div>`;
+  }).join('');
+}
+function admCeHtml(){
+  if(!state.clubCal || state.clubCalIsAdminData !== calIsAdmin()) clubCalLoad(true);
+  const f = state.admCeFilter || 'upcoming';
+  const chip = (k, l) => `<button type="button" class="filter-chip${f === k ? ' active' : ''}" data-cefilter="${k}">${l}</button>`;
+  return `<div style="text-align:center;margin:6px 0 10px;"><button type="button" class="club-guide-btn" id="ceAdd" style="min-height:46px;padding:10px 26px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add club event</button></div>
+    <input id="ceQ" type="search" placeholder="Search club events…" value="${escapeCm(state.admCeQ || '')}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-bottom:8px;">
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;">${chip('upcoming', 'Upcoming')}${chip('past', 'Past')}${chip('all', 'All')}</div>
+    <div id="ceList">${admCeListHtml()}</div>`;
+}
+function wireAdmEvents(){
+  if(!document.getElementById('ceList')) return;
+  const find = id => (state.clubCal || []).find(e => e.id === id);
+  const wireList = () => {
+    document.querySelectorAll('.ce-edit').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) clubCalForm(e); }));
+    document.querySelectorAll('.ce-att').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) clubCalManage(e); }));
+    document.querySelectorAll('.ce-form').forEach(b => b.addEventListener('click', () => {
+      const e = find(b.dataset.ceid); if(!e) return;
+      openFormBuilder(e.form || null, async f => { try { const j = await clubCalAdminCall('/' + encodeURIComponent(e.id), 'PUT', { form: f }); const i = state.clubCal.findIndex(x => x.id === e.id); if(i >= 0) state.clubCal[i] = j.event; render(); } catch(err){ alert(err.message); } });
+    }));
+    document.querySelectorAll('.ce-ans').forEach(b => b.addEventListener('click', () => {
+      const e = find(b.dataset.ceid); if(!e) return;
+      const { wrap } = ideaPopup(`<h3 style="margin:0 0 6px;">📋 ${escapeCm(e.title)}</h3><div id="ceAnsBox"></div>`);
+      clubCalShowResponses(e, wrap.querySelector('#ceAnsBox'));
+    }));
+  };
+  wireList();
+  const add = document.getElementById('ceAdd'); if(add) add.addEventListener('click', () => clubCalForm(null));
+  const q = document.getElementById('ceQ'); if(q) q.addEventListener('input', () => { state.admCeQ = q.value; document.getElementById('ceList').innerHTML = admCeListHtml(); wireList(); });
+  document.querySelectorAll('[data-cefilter]').forEach(b => b.addEventListener('click', () => { state.admCeFilter = b.dataset.cefilter; render(); }));
+}
 function wireAdmCalendar(){
+  wireAdmEvents();
   const add = document.getElementById('admEvAdd'); if(add) add.addEventListener('click', () => openEventCreate());
   const q = document.getElementById('admEvQ');
   const wireEdits = root => root.querySelectorAll('.adm-ev-edit').forEach(b => b.addEventListener('click', () => openEventEdit(b.dataset.id)));
@@ -9334,7 +9396,7 @@ function renderClubAdminPanel(){
   }
   const clubId = state.cmAdminClub;
   const grp = state.admGroup === 'team' ? 'settings' : state.admGroup;
-  const allowedGroups = lead ? ['clubs', 'profiles'] : ['clubs', 'squads', 'directory', 'calendar', 'profiles', 'settings'];
+  const allowedGroups = lead ? ['clubs', 'events', 'profiles'] : ['clubs', 'events', 'squads', 'directory', 'calendar', 'profiles', 'settings'];
   const gsel = allowedGroups.includes(grp) ? grp : 'clubs';
   // Club events + quick member (per club) — lives in the Clubs grid
   const clubToolsHtml = `
@@ -9425,7 +9487,7 @@ function renderClubAdminPanel(){
     </div>
     ${lead ? `<p style="font-size:12px;color:#776867;margin:6px 0 0;">You manage: <strong>${adminClubs().map(c => escapeCm(c.title)).join(', ') || 'no clubs yet'}</strong>. Reminders only go to your clubs' members. Use "➕ New event" at the bottom of the page to add an official event.</p>` : ''}
     ${admGroupTilesHtml(lead, gsel)}
-    ${gsel === 'clubs' ? clubsGrid : gsel === 'squads' ? squadsGrid : gsel === 'directory' ? directoryGrid : gsel === 'calendar' ? calendarGrid : gsel === 'settings' ? settingsGrid : profilesGrid}
+    ${gsel === 'clubs' ? clubsGrid : gsel === 'events' ? admCeHtml() : gsel === 'squads' ? squadsGrid : gsel === 'directory' ? directoryGrid : gsel === 'calendar' ? calendarGrid : gsel === 'settings' ? settingsGrid : profilesGrid}
   </div>`;
 }
 // Three big tiles at the top of the Admin page switch between its grids (Clubs / Notifications & team / Profiles).
@@ -9434,6 +9496,7 @@ function admGroupTilesHtml(lead, cur){
   const sqReqs = (state.squadAdmin && state.squadAdmin.requests) ? state.squadAdmin.requests.length : 0;
   return `<div class="adm-tiles" style="grid-template-columns:repeat(3, minmax(0,1fr));">
     ${tile('clubs', '🏛️', 'Clubs', 'Requests · events · availability', admInboxCount())}
+    ${tile('events', '🎟️', 'Club Events', 'Edit · forms · answers', '')}
     ${lead ? '' : tile('squads', '🪁', 'Squads', 'Requests · invite links', sqReqs || '')}
     ${lead ? '' : tile('directory', '📖', 'Directory', 'Resource names', '')}
     ${lead ? '' : tile('calendar', '📅', 'The Calendar', 'Main calendar', '')}
