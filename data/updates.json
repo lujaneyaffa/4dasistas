@@ -1,6 +1,22 @@
 {
   "updates": [
     {
+      "no": 16,
+      "date": "2026-10-12",
+      "title": "Club calendar on your home page",
+      "items": [
+        {
+          "text": "✨ The club calendar now sits right on your Clubs home page, under the clubs you're in."
+        },
+        {
+          "text": "✨ Vote: the add-an-idea fields are right there — no extra tap — and the ideas from all your clubs are below to vote on."
+        },
+        {
+          "text": "✨ Availability: pick a period to look back at everyone's availability from earlier periods."
+        }
+      ]
+    },
+    {
       "no": 15,
       "date": "2026-10-12",
       "title": "Event forms: sign up right in the form",

@@ -355,11 +355,19 @@ const readAvailPeriodKV = async (env) => {
   try { const p = JSON.parse((await env.SITE_DATA.get("availperiod")) || "null"); if (p && /^\d{4}-\d{2}-\d{2}$/.test(p.start) && /^\d{4}-\d{2}-\d{2}$/.test(p.end) && p.end >= p.start) return { start: p.start, end: p.end }; } catch {}
   return DEFAULT_AVAIL_PERIOD;
 };
-const availPeriodDates = (period) => {
+const availPeriodDates = (period, includePast) => {
   const out = [], today = new Date().toISOString().slice(0, 10);
   const d = new Date(period.start + "T12:00:00Z"), end = new Date(period.end + "T12:00:00Z");
-  for (let i = 0; i < 60 && d <= end; i++) { const k = d.toISOString().slice(0, 10); if (k >= today) out.push(k); d.setUTCDate(d.getUTCDate() + 1); }
+  for (let i = 0; i < 60 && d <= end; i++) { const k = d.toISOString().slice(0, 10); if (includePast || k >= today) out.push(k); d.setUTCDate(d.getUTCDate() + 1); }
   return out;
+};
+// Every availability period that has been opened (newest first): the saved history + the current one + the very first default.
+const listAvailPeriods = async (env) => {
+  let hist = []; try { const a = JSON.parse((await env.SITE_DATA.get("availperiods")) || "[]"); if (Array.isArray(a)) hist = a; } catch {}
+  const cur = await readAvailPeriodKV(env);
+  for (const per of [cur, DEFAULT_AVAIL_PERIOD]) if (!hist.some((h) => h.start === per.start && h.end === per.end)) hist.push({ start: per.start, end: per.end, at: 0 });
+  hist.sort((a, b) => b.start.localeCompare(a.start));
+  return { current: cur, periods: hist };
 };
 const allClubIdsContaining = async (env, userId) => {
   const out = [];
@@ -1801,7 +1809,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       // counts = people AVAILABLE per slot (green + unset; red excluded), preferred = green only, unavailable = red.
       // Unset slots only count inside the availability PERIOD (set by the main admin).
       const counts = {}, preferred = {}, unavailable = {};
-      const windowDates = availPeriodDates(await readAvailPeriodKV(env)); // the fixed period the main admin opened (nothing outside it is assumed free)
+      // Members can look back at any SAVED period (?start=&end=); otherwise it is the current one.
+      let viewPeriod = await readAvailPeriodKV(env), viewPast = false;
+      const qs = url.searchParams.get("start"), qe = url.searchParams.get("end");
+      if (qs && qe && /^\d{4}-\d{2}-\d{2}$/.test(qs) && /^\d{4}-\d{2}-\d{2}$/.test(qe) && (await listAvailPeriods(env)).periods.some((h) => h.start === qs && h.end === qe)) { viewPeriod = { start: qs, end: qe }; viewPast = true; }
+      const windowDates = availPeriodDates(viewPeriod, viewPast); // the fixed period the main admin opened (nothing outside it is assumed free)
       const bump = (map, date, part) => { const slot = (map[date] = map[date] || { morning: 0, afternoon: 0, evening: 0 }); slot[part]++; };
       for (const p of people) {
         const dates = new Set([...windowDates, ...Object.keys(p.days), ...Object.keys(p.no)]);
@@ -2391,6 +2403,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ ...cur, ...(doc.deadline ? { deadline: doc.deadline } : {}), ...(ann ? { announce: ann } : {}) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     // Every period the admin has opened is kept, so an old one can be opened again to look at everyone's availability then.
+    if (path === "/api/avail-periods" && request.method === "GET") return jsonResponse(await listAvailPeriods(env), 200, { ...corsHeaders, "Cache-Control": "no-store" });
     if (path === "/api/admin/avail-periods" && request.method === "GET") {
       const cur = await readAvailPeriod();
       const hist = await readPeriodHistory();

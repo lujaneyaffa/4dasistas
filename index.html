@@ -3214,7 +3214,11 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         wireClubCal();
       } else {
         wireMyClubsSection();
-        if(state.clubsPage === 'cal') wireClubCal();
+        if(!state.clubsPage || state.clubsPage === 'cal') wireClubCal();
+        if(state.clubsPage === 'vote'){
+          wireIdeaAddForm('vote');
+          document.querySelectorAll('[data-voteclub]').forEach(b => b.addEventListener('click', () => { state.voteClub = b.dataset.voteclub; state.ideasStatus = ''; render(); }));
+        }
         wireIdeaAvailGrid();
         wireEveryoneAvailGrid();
         const sess = getCmSession();
@@ -6101,9 +6105,9 @@ function clubCalForm(ev, presetDate){
 // The signed-in member's Clubs page has two sub-pages: '' (home with two big buttons), 'vote' and 'avail'.
 function setClubsPage(page){
   const mine = (getCmSession() && getCmSession().clubs) || [];
-  if(page === 'vote' && mine.length === 1){ state.clubsPage = 'vote'; openClubIdeas(mine[0]); return; } // one club: straight to its idea board
+  if(page === 'vote') state.ideasStatus = '';
   state.clubsPage = page || '';
-  if(page === 'avail' && state.eavClub !== 'mine'){ state.eavClub = 'mine'; everyoneAvailLoad(); }
+  if(page === 'avail'){ state.eavPeriod = null; state.pubPeriods = null; if(state.eavClub !== 'mine') state.eavClub = 'mine'; everyoneAvailLoad(); }
   if(page === 'cal') state.clubCal = null;
   if(page === 'vote'){ state.publicIdeasAll = null; state.publicIdeasAllError = ''; } // reload fresh, for this member's clubs only
   state.tab = 'clubs';
@@ -6606,17 +6610,23 @@ function renderMyClubsSectionHtml(){
   const topRow = `<div style="margin-bottom:14px;">${changePinButtonHtml()}</div>`;
   if(!myClubs.length){
     // Not in a club yet: they can still look at the club calendar and ask to RSVP.
-    if(state.clubsPage === 'cal') return `<button type="button" class="back-btn" data-clubspage="">← Back</button>\n    ${clubCalSectionHtml()}`;
     return `${topRow}${pendingBanner}
       <p class="ideas-hint" style="max-width:520px;margin:0 auto;text-align:center;">You're not in a club yet. Request the club(s) you're part of below — an admin will approve them.</p>
-      <div class="clubs-big-btns" style="max-width:240px;"><button type="button" class="club-guide-btn clubs-big-btn" data-clubspage="cal"><span class="cbb-emoji">🗓️</span><span class="cbb-label">Calendar</span><span class="cbb-sub">Club events &amp; RSVP</span></button></div>
+      <div style="margin-top:18px;">${clubCalSectionHtml(true)}</div>
       ${requestSection}`;
   }
   // Two separate pages so everything isn't dumped on one screen: Vote (the club bubbles → idea boards) and Availability.
-  if(state.clubsPage === 'vote') return `<button type="button" class="back-btn" data-clubspage="">← Back</button>
-    <p class="ideas-hint" style="text-align:center;margin:0 0 6px;">Open a club to add an idea or see its board:</p>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 0 6px;">${myClubs.map(c => `<button type="button" class="club-guide-btn club-card" data-club-id="${escapeCm(c.id)}" style="width:auto;aspect-ratio:auto;height:auto;min-height:44px;padding:8px 16px;text-align:center;">${c.emoji ? escapeCm(c.emoji) + ' ' : ''}${escapeCm(c.title)}</button>`).join('')}</div>
-    ${renderPublicIdeasFeedHtml('🗳️ VOTE', 'Every idea from your clubs is here — tap a bubble to vote. Each bubble shows which club it\'s from.', 'No ideas yet — open a club above to add the first one!')}`;
+  if(state.clubsPage === 'vote'){
+    // The add-an-idea fields are right here (pick the club if you're in several) — no extra press — then every idea from your clubs to vote on.
+    if(!myClubs.some(c => c.id === state.voteClub)) state.voteClub = myClubs[0].id;
+    state.ideasClubId = state.voteClub;
+    return `<button type="button" class="back-btn" data-clubspage="">← Back</button>
+    ${myClubs.length > 1 ? `<p class="ideas-hint" style="text-align:center;margin:0 0 6px;">Add an idea to:</p><div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 0 8px;">${myClubs.map(c => `<button type="button" class="filter-chip${c.id === state.voteClub ? ' active' : ''}" data-voteclub="${escapeCm(c.id)}">${c.emoji ? escapeCm(c.emoji) + ' ' : ''}${escapeCm(c.title)}</button>`).join('')}</div>` : `<p class="ideas-hint" style="text-align:center;margin:0 0 6px;">Add an idea to <strong>${escapeCm(myClubs[0].title)}</strong>:</p>`}
+    <div style="max-width:520px;margin:0 auto;">${ideaAddFormHtml(state.voteClub)}</div>
+    <div class="ideas-status" id="ideasStatus" aria-live="polite" style="text-align:center;">${escapeCm(state.ideasStatus || '')}</div>
+    ${renderPublicIdeasFeedHtml('🗳️ VOTE', 'Every idea from your clubs is here — tap a bubble to vote. Each bubble shows which club it\'s from.', 'No ideas yet — add the first one above!')}
+    <p style="text-align:center;margin:12px 0 0;"><button type="button" class="av-link club-card" data-club-id="${escapeCm(state.voteClub)}">Open the ${escapeCm(avClubTitle(state.voteClub))} board →</button></p>`;
+  }
   if(state.clubsPage === 'cal') return `<button type="button" class="back-btn" data-clubspage="">← Back</button>
     ${clubCalSectionHtml()}`;
   if(state.clubsPage === 'avail') return `<button type="button" class="back-btn" data-clubspage="">← Back</button>
@@ -6629,12 +6639,12 @@ function renderMyClubsSectionHtml(){
   return `${topRow}${pendingBanner}${annBanner}
     <div class="clubs-big-btns">
       ${bigBtn('avail', '📅', 'Availability', 'Add yours &amp; see everyone\'s')}
-      ${bigBtn('cal', '🗓️', 'Calendar', 'Club events &amp; RSVP')}
       ${bigBtn('vote', '🗳️', 'Vote', myClubs.length > 1 ? 'All your clubs\' ideas in one place' : 'Vote on ideas for ' + escapeCm(myClubs[0].title))}
     </div>
     <h3 class="clubs-popular-title" style="margin:16px 0 2px;">CLUBS YOU'RE IN</h3>
     <p class="ideas-hint" style="text-align:center;margin:0 0 4px;">Tap a club to see its ideas and who's free.</p>
     <div class="club-bubbles">${myClubs.map((c, i) => clubBubbleHtml(c, i)).join('')}</div>
+    <div style="margin-top:18px;">${clubCalSectionHtml(true)}</div>
     ${requestSection}`;
 }
 function openPublicIdeaInfo(id){
@@ -6685,6 +6695,34 @@ function wirePublicIdeasFeed(){
   box.querySelectorAll('[data-ideaedit]').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); openIdeaEdit(x.dataset.ideaedit); }));
 }
 
+function ideaAddFormHtml(clubId){
+  const isCuisine = clubId === 'club-cuisine';
+  const priceFieldHtml = `
+      <input id="ideaPriceInput" type="text" maxlength="20" placeholder="Type the price (e.g. $35, $10–15, Free)" autocomplete="off" inputmode="text" style="display:none;">
+      <div class="idea-price-quick">
+        <button type="button" class="idea-price-btn" id="ideaPriceWriteBtn">✍️ Write price</button>
+        <button type="button" class="idea-price-btn" data-price="$25">$25</button>
+        <button type="button" class="idea-price-btn" data-price="Free">Free</button>
+      </div>
+      <input id="ideaEmojiInput" type="text" maxlength="8" placeholder="Bubble emoji (optional — we pick one if you skip)" autocomplete="off" style="text-align:center;">
+      <div class="idea-price-quick" id="ideaEmojiQuick">${['🍕','🍣','☕','🎨','🎬','🎳','🥾','🏖️','🎤','🧁','🛍️','🎉'].map(e => `<button type="button" class="idea-price-btn idea-emoji-pick" data-emoji="${e}" style="min-width:42px;">${e}</button>`).join('')}</div>`;
+  return isCuisine ? `
+    <form class="ideas-form" id="ideaForm" novalidate>
+      <input id="ideaCuisineInput" type="text" maxlength="30" placeholder="Cuisine type (e.g. Lebanese, Korean, Dessert)" autocomplete="off">
+      <input id="ideaInput" type="text" maxlength="80" placeholder="Name of the place" autocomplete="off">
+      <input id="ideaMapInput" type="text" placeholder="Google Maps link (optional)" autocomplete="off" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
+      ${priceFieldHtml}
+      <button type="submit" class="club-guide-btn" id="ideaAddBtn">Add restaurant</button>
+      <p class="ideas-hint">The first three are required; the map link is optional. To add one, find the place in Google Maps → Share → Copy link, then paste it here.</p>
+    </form>` : `
+    <form class="ideas-form" id="ideaForm" novalidate>
+      <input id="ideaInput" type="text" maxlength="80" placeholder="Event idea (e.g. Pottery night)" autocomplete="off">
+      <input id="ideaMapInput" type="text" placeholder="Google Maps link (optional)" autocomplete="off" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
+      ${priceFieldHtml}
+      <button type="submit" class="club-guide-btn" id="ideaAddBtn">Add option</button>
+      <p class="ideas-hint">Only the title is required. The map link is optional — to add one, find the place in Google Maps → Share → Copy link.</p>
+    </form>`;
+}
 function renderClubIdeas(el){
   const clubId = state.ideasClubId;
   const title = avClubTitle(clubId);
@@ -6704,32 +6742,7 @@ function renderClubIdeas(el){
   const whoBlock = (me && !state.ideasRenaming)
     ? `<div class="ideas-who">Voting as <strong>${escapeCm(me.name)}</strong>${me.kind === 'guest' ? ` · <button type="button" class="av-link" id="ideaRenameBtn">change name</button>` : me.kind === 'admin' ? ' (admin)' : ' (member)'}</div>`
     : joinForm;
-  const isCuisine = clubId === 'club-cuisine';
-  const priceFieldHtml = `
-      <input id="ideaPriceInput" type="text" maxlength="20" placeholder="Type the price (e.g. $35, $10–15, Free)" autocomplete="off" inputmode="text" style="display:none;">
-      <div class="idea-price-quick">
-        <button type="button" class="idea-price-btn" id="ideaPriceWriteBtn">✍️ Write price</button>
-        <button type="button" class="idea-price-btn" data-price="$25">$25</button>
-        <button type="button" class="idea-price-btn" data-price="Free">Free</button>
-      </div>
-      <input id="ideaEmojiInput" type="text" maxlength="8" placeholder="Bubble emoji (optional — we pick one if you skip)" autocomplete="off" style="text-align:center;">
-      <div class="idea-price-quick" id="ideaEmojiQuick">${['🍕','🍣','☕','🎨','🎬','🎳','🥾','🏖️','🎤','🧁','🛍️','🎉'].map(e => `<button type="button" class="idea-price-btn idea-emoji-pick" data-emoji="${e}" style="min-width:42px;">${e}</button>`).join('')}</div>`;
-  const addForm = (me && !state.ideasRenaming && !ideaCanActInClub(clubId)) ? `<p class="ideas-hint" style="text-align:center;">Only members of this club can vote or add ideas.</p>` : (me && !state.ideasRenaming) ? (isCuisine ? `
-    <form class="ideas-form" id="ideaForm" novalidate>
-      <input id="ideaCuisineInput" type="text" maxlength="30" placeholder="Cuisine type (e.g. Lebanese, Korean, Dessert)" autocomplete="off">
-      <input id="ideaInput" type="text" maxlength="80" placeholder="Name of the place" autocomplete="off">
-      <input id="ideaMapInput" type="text" placeholder="Google Maps link (optional)" autocomplete="off" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
-      ${priceFieldHtml}
-      <button type="submit" class="club-guide-btn" id="ideaAddBtn">Add restaurant</button>
-      <p class="ideas-hint">The first three are required; the map link is optional. To add one, find the place in Google Maps → Share → Copy link, then paste it here.</p>
-    </form>` : `
-    <form class="ideas-form" id="ideaForm" novalidate>
-      <input id="ideaInput" type="text" maxlength="80" placeholder="Event idea (e.g. Pottery night)" autocomplete="off">
-      <input id="ideaMapInput" type="text" placeholder="Google Maps link (optional)" autocomplete="off" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false">
-      ${priceFieldHtml}
-      <button type="submit" class="club-guide-btn" id="ideaAddBtn">Add option</button>
-      <p class="ideas-hint">Only the title is required. The map link is optional — to add one, find the place in Google Maps → Share → Copy link.</p>
-    </form>`) : '';
+  const addForm = (me && !state.ideasRenaming && !ideaCanActInClub(clubId)) ? `<p class="ideas-hint" style="text-align:center;">Only members of this club can vote or add ideas.</p>` : (me && !state.ideasRenaming) ? ideaAddFormHtml(clubId) : '';
 
   el.innerHTML = `
     <button class="back-btn" ${getCmSession() ? `data-clubspage="${state.clubsPage === 'vote' && ((getCmSession().clubs || []).length > 1) ? 'vote' : ''}"` : 'data-hometab="clubs"'}>← Back${getCmSession() ? '' : ' to clubs'}</button>
@@ -6978,8 +6991,23 @@ function eavTier(count, max){
   if(!count || max <= 0) return 0;
   return Math.max(1, Math.min(5, Math.ceil((count / max) * 5)));
 }
+// The dates the 'Everyone's availability' grid covers: the current period, or an older SAVED one the member picked.
+function eavDates(){
+  if(!state.eavPeriod) return iavNext15Dates();
+  const out = [], d = new Date(state.eavPeriod.start + 'T12:00:00'), e = new Date(state.eavPeriod.end + 'T12:00:00');
+  for(let i = 0; i < 60 && d <= e; i++){ out.push(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`); d.setDate(d.getDate() + 1); }
+  return out;
+}
+function eavKey(){ return (state.eavClub || 'mine') + '|' + (state.eavPeriod ? state.eavPeriod.start + '_' + state.eavPeriod.end : ''); }
+async function loadPubPeriods(){
+  if(state.pubPeriodsLoading) return;
+  state.pubPeriodsLoading = true;
+  try { const r = await fetch('/api/avail-periods', { cache:'no-store' }); if(r.ok) state.pubPeriods = (await r.json()).periods || []; } catch {}
+  state.pubPeriodsLoading = false;
+  if(state.tab === 'clubs' || state.tab === 'clubideas') render();
+}
 function eavGridHtml(){
-  const dates = iavNext15Dates();
+  const dates = eavDates();
   const counts = state.ideaAvailAll || {};
   let max = 0;
   dates.forEach(d => iavPartsFor(d).forEach(k => { const n = (counts[d] && counts[d][k]) || 0; if(n > max) max = n; }));
@@ -7009,7 +7037,7 @@ function eavBestWorstHtml(){
   const avail = state.ideaAvailAll || {}, pref = state.ideaAvailAllPreferred || {}, no = state.ideaAvailAllUnavailable || {};
   const get = (m, d, k) => (m[d] && m[d][k]) || 0;
   const slots = [];
-  iavNext15Dates().forEach(d => iavPartsFor(d).forEach(k => {
+  eavDates().forEach(d => iavPartsFor(d).forEach(k => {
     const dt = new Date(d + 'T12:00:00');
     slots.push({ d, k, a: get(avail, d, k), p: get(pref, d, k), x: get(no, d, k), label: `${dayLabelsShort[dt.getDay()]} ${monthNames[dt.getMonth()].slice(0,3)} ${dt.getDate()} ${k}` });
   }));
@@ -7046,8 +7074,14 @@ function everyoneAvailSectionHtml(me, onlyClubId){
   const chips = (sessClubs.length > 1 && !onlyClubId) ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;" aria-label="Which club's availability to view">${[['mine', 'All my clubs']].concat(sessClubs.map(id => [id, (clubsData.find(c => c.id === id) || {}).title || id])).map(([id, title]) => {
     const col = id === 'mine' ? { bg:'#f2d8d7', fg:'#76220b' } : clubCol(id); const on = (state.eavClub || 'mine') === id;
     return `<button type="button" class="eav-club-chip" data-club="${escapeCm(id)}" style="min-height:40px;padding:8px 16px;border-radius:999px;border:2px solid ${on ? col.fg : 'transparent'};background:${col.bg};color:${col.fg};font-weight:700;font-size:14px;cursor:pointer;">${escapeCm(title)}</button>`; }).join('')}</div>` : '';
+  const periods = state.pubPeriods || [];
+  if(!state.pubPeriods) loadPubPeriods();
+  const pfm = k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' });
+  const periodSel = (!onlyClubId && periods.length > 1) ? `<label style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;font-size:13px;font-weight:700;">🗂️ Period
+    <select id="eavPeriodSel" style="padding:8px 10px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:14px;background:#fff;">${periods.map(h => { const isCur = h.start === AVAIL_PERIOD.start && h.end === AVAIL_PERIOD.end, on = state.eavPeriod ? (state.eavPeriod.start === h.start && state.eavPeriod.end === h.end) : isCur; return `<option value="${h.start}_${h.end}" ${on ? 'selected' : ''}>${pfm(h.start)} → ${pfm(h.end)}${isCur ? ' (current)' : ''}</option>`; }).join('')}</select></label>` : '';
   return `<div class="iav-wrap">
     <h3 class="iav-title">🌿 ${onlyClubId ? "Who's free in " + escapeCm(avClubTitle(onlyClubId)) : "Everyone's availability"}</h3>
+    ${periodSel}
     ${chips}
     ${body}
   </div>`;
@@ -7059,7 +7093,10 @@ function eavApply(d){
   state.ideaAvailAllRespondents = d.respondents; state.ideaAvailAllPeople = d.people; state.ideaAvailAllWaiting = d.waiting || []; state.ideaAvailAllLoadedFor = true; state.ideaAvailAllError = '';
 }
 async function everyoneAvailFetch(key){
-  const data = await cmApiRaw('/api/idea-availability/all' + (key && key !== 'mine' ? '?club=' + encodeURIComponent(key) : ''), { headers: ideaHeaders() });
+  const [club, per] = String(key).split('|'), q = [];
+  if(club && club !== 'mine') q.push('club=' + encodeURIComponent(club));
+  if(per){ const [ps, pe] = per.split('_'); q.push('start=' + ps, 'end=' + pe); }
+  const data = await cmApiRaw('/api/idea-availability/all' + (q.length ? '?' + q.join('&') : ''), { headers: ideaHeaders() });
   // Any signed-in member (or the site admin) also gets everyone's name, not just the anonymous count (data.people).
   const d = { counts: data.counts || {}, preferred: data.preferred || {}, unavailable: data.unavailable || {}, respondents: data.respondents || 0, people: data.people || null, waiting: data.waiting || [], at: Date.now() };
   state.eavCache[key] = d;
@@ -7067,7 +7104,7 @@ async function everyoneAvailFetch(key){
 }
 async function everyoneAvailLoad(force){
   if(!ideaMe()) return;
-  const key = state.eavClub || 'mine';
+  const key = eavKey();
   const cached = state.eavCache[key];
   if(cached){
     eavApply(cached);
@@ -7080,10 +7117,10 @@ async function everyoneAvailLoad(force){
   state.ideaAvailAllLoading = !cached; state.ideaAvailAllError = '';
   try {
     const d = await everyoneAvailFetch(key);
-    if((state.eavClub || 'mine') === key) eavApply(d);
-  } catch(err){ if(!cached && (state.eavClub || 'mine') === key) state.ideaAvailAllError = err.message; }
+    if(eavKey() === key) eavApply(d);
+  } catch(err){ if(!cached && eavKey() === key) state.ideaAvailAllError = err.message; }
   state.eavInflight[key] = false;
-  if((state.eavClub || 'mine') === key) state.ideaAvailAllLoading = false;
+  if(eavKey() === key) state.ideaAvailAllLoading = false;
   if(state.tab === 'clubideas' || state.tab === 'clubs') render();
   eavPrefetch();
 }
@@ -7091,7 +7128,7 @@ function eavPrefetch(){ /* intentionally empty: prefetching every club multiplie
 // Names for one slot: PREFERRED (green) and AVAILABLE (didn't fill it in — counts as free, just not their preferred
 // time). People who marked it red are left out.
 function eavNamesFor(date, part){
-  const inWindow = iavNext15Dates().includes(date);
+  const inWindow = eavDates().includes(date);
   const preferred = [], available = [], unavailable = [];
   (state.ideaAvailAllPeople || []).forEach(p => {
     if(((p.no || {})[date] || []).includes(part)){ unavailable.push(p.name); return; }
@@ -7122,6 +7159,7 @@ function eavShowSlot(date, part){
 }
 function wireEveryoneAvailGrid(){
   document.querySelectorAll('.eav-slot-link').forEach(b => b.addEventListener('click', () => { if(state.ideaAvailAllPeople) eavShowSlot(b.dataset.date, b.dataset.part); }));
+  { const ps = document.getElementById('eavPeriodSel'); if(ps) ps.addEventListener('change', () => { const [a, b] = ps.value.split('_'); state.eavPeriod = (a === AVAIL_PERIOD.start && b === AVAIL_PERIOD.end) ? null : { start:a, end:b }; state.ideaAvailAll = null; everyoneAvailLoad(); render(); }); }
   document.querySelectorAll('.eav-club-chip').forEach(b => b.addEventListener('click', () => { state.eavClub = b.dataset.club; everyoneAvailLoad(); render(); }));
   if(state.ideaAvailAll === null && !state.ideaAvailAllLoading && !state.ideaAvailAllError) everyoneAvailLoad();
   if(state.ideaAvailAllPeople){
@@ -7259,33 +7297,7 @@ function ideasNeedName(){
   if(inp){ inp.focus(); inp.scrollIntoView({ block:'center' }); }
 }
 
-function wireClubIdeas(){
-  floatIdeaClouds();
-  if(state.ideas === null && !state.ideasLoading && !state.ideasError) ideasLoad();
-  wireIdeaAvailGrid();
-  wireEveryoneAvailGrid();
-  const ideaLogin = document.getElementById('ideaLoginBtn'), ideaSignup = document.getElementById('ideaSignupBtn');
-  if(ideaLogin) ideaLogin.addEventListener('click', () => goLogin());
-  if(ideaSignup) ideaSignup.addEventListener('click', () => goSignup());
-  const join = document.getElementById('ideaJoinForm');
-  if(join) join.addEventListener('submit', e => {
-    e.preventDefault();
-    const name = document.getElementById('ideaNameInput').value.replace(/\s+/g, ' ').trim();
-    if(name.length < 2) return ideasSetStatus('Please enter your name (at least 2 letters).');
-    ideaSaveGuest(name);
-    state.ideasRenaming = false; state.ideasStatus = 'Welcome, ' + name + '! You can vote and add options now.';
-    state.ideas = null;
-    state.ideaAvail = null; state.ideaAvailLoadedFor = null; state.ideaAvailError = ''; state.ideaAvailStatus = ''; state.ideaAvailDirty = false;
-    render();
-  });
-  const rename = document.getElementById('ideaRenameBtn');
-  if(rename) rename.addEventListener('click', () => { state.ideasRenaming = true; render(); });
-  const copy = document.getElementById('ideaCopyBtn');
-  if(copy) copy.addEventListener('click', async () => {
-    const link = clubLink(state.ideasClubId);
-    try { await navigator.clipboard.writeText(link); ideasSetStatus('Link copied — share it anywhere!'); }
-    catch { window.prompt('Copy this link:', link); }
-  });
+function wireIdeaAddForm(mode){
   // Price: tap $25 / Free, or "Write price" to reveal a box and type your own (the box isn't shown until you ask for it).
   {
     const input = document.getElementById('ideaPriceInput'), writeBtn = document.getElementById('ideaPriceWriteBtn');
@@ -7333,13 +7345,44 @@ function wireClubIdeas(){
         state.ideasStatus = 'Saved on this phone — it will post when you\'re back online.';
         render(); return;
       }
-      state.ideas = data.ideas; state.ideasStatus = 'Added — thanks! Others can vote on it now.';
+      state.ideasStatus = 'Added — thanks! Others can vote on it now.';
+      if(mode === 'vote'){ state.publicIdeasAll = null; render(); return; }
+      state.ideas = data.ideas;
       render();
     } catch(err){
       btn.disabled = false;
       ideasSetStatus(err.message, true);
     }
   });
+}
+function wireClubIdeas(){
+  floatIdeaClouds();
+  if(state.ideas === null && !state.ideasLoading && !state.ideasError) ideasLoad();
+  wireIdeaAvailGrid();
+  wireEveryoneAvailGrid();
+  const ideaLogin = document.getElementById('ideaLoginBtn'), ideaSignup = document.getElementById('ideaSignupBtn');
+  if(ideaLogin) ideaLogin.addEventListener('click', () => goLogin());
+  if(ideaSignup) ideaSignup.addEventListener('click', () => goSignup());
+  const join = document.getElementById('ideaJoinForm');
+  if(join) join.addEventListener('submit', e => {
+    e.preventDefault();
+    const name = document.getElementById('ideaNameInput').value.replace(/\s+/g, ' ').trim();
+    if(name.length < 2) return ideasSetStatus('Please enter your name (at least 2 letters).');
+    ideaSaveGuest(name);
+    state.ideasRenaming = false; state.ideasStatus = 'Welcome, ' + name + '! You can vote and add options now.';
+    state.ideas = null;
+    state.ideaAvail = null; state.ideaAvailLoadedFor = null; state.ideaAvailError = ''; state.ideaAvailStatus = ''; state.ideaAvailDirty = false;
+    render();
+  });
+  const rename = document.getElementById('ideaRenameBtn');
+  if(rename) rename.addEventListener('click', () => { state.ideasRenaming = true; render(); });
+  const copy = document.getElementById('ideaCopyBtn');
+  if(copy) copy.addEventListener('click', async () => {
+    const link = clubLink(state.ideasClubId);
+    try { await navigator.clipboard.writeText(link); ideasSetStatus('Link copied — share it anywhere!'); }
+    catch { window.prompt('Copy this link:', link); }
+  });
+  wireIdeaAddForm('board');
   document.querySelectorAll('.idea-bubble').forEach(b => b.addEventListener('click', e => {
     if(e.target.closest('.idea-mini')) return;
     ideaVote(b.dataset.ideaid, b);
