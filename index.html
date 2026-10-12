@@ -378,6 +378,8 @@
   .fb-wrap{ max-width:640px; margin:0 auto; }
   .fb-card{ background:#fff; border:2px solid var(--brand-brown); border-radius:16px; padding:12px; margin:0 0 12px; box-shadow:3px 3px 0 var(--brand-brown); }
   .fb-card input[type=text], .fb-card textarea, .fb-card select, .fb-in{ width:100%; box-sizing:border-box; padding:10px; border-radius:10px; border:2px solid var(--brand-brown); font:inherit; font-size:16px; background:#fff; }
+  .fb-handle{ display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:10px; background:#f2d8d7; color:#76220b; font-size:20px; cursor:grab; touch-action:none; user-select:none; flex:0 0 34px; }
+  .fb-handle:active{ cursor:grabbing; }
   .fb-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; }
   .fb-mini{ border:2px solid var(--brand-brown); background:#fff; border-radius:999px; padding:5px 12px; font:inherit; font-weight:700; font-size:13px; cursor:pointer; }
   .fb-q{ margin:0 0 12px; } .fb-q > label{ display:block; font-weight:700; margin:0 0 4px; } .fb-q .req{ color:#b3261e; }
@@ -1516,7 +1518,8 @@ const introText = {
   clubjoin: "A few simple expectations keep every club welcoming and easy to join.",
   fallsignup: "",
   clubideas: "",
-  clubmembers: ""
+  clubmembers: "",
+  eventform: ""
 };
 
 const dayOrder = ['sun','mon','tue','wed','thu','fri','sat'];
@@ -2580,7 +2583,7 @@ function renderHomescreenSlot(){
 
 // Contribution pills above the footer: a pink "Submit an event" and an "Add a resource" on every page EXCEPT
 // the Clubs and Squads areas (and the two submit pages themselves).
-const NO_PILL_TABS = ['admin','clubs','squads','clubideas','clubmembers','clubstart','clubjoin','fallsignup','submitevent','submitresource'];
+const NO_PILL_TABS = ['admin','clubs','squads','eventform','clubideas','clubmembers','clubstart','clubjoin','fallsignup','submitevent','submitresource'];
 function renderPageCta(){
   const slot = document.getElementById('pageCtaSlot');
   if(!slot) return;
@@ -3077,8 +3080,18 @@ function wireSquadsPage(){
   }));
 }
 
+// An event's FORM is its own page (#/form/<id>): the event details, a copyable link, the form, how to pay.
+function renderEventFormPage(el){
+  const id = state.formEventId;
+  document.getElementById('resourcePagination').innerHTML = '';
+  el.innerHTML = `<div class="rules-content" style="max-width:640px;margin:0 auto;"><button type="button" class="back-btn" data-hometab="clubs">← Back to clubs</button><div id="efBox" style="margin-top:8px;"><p class="av-msg">Loading…</p></div></div>`;
+  const box = document.getElementById('efBox');
+  if(getCmSession()) clubCalMemberCard(box, id); else clubCalPublicCard(box, id);
+  window.scrollTo({ top:0 });
+}
 function renderDirectory(){
   const el = document.getElementById('directory-view');
+  if(state.tab === 'eventform'){ renderEventFormPage(el); return; }
   if(state.tab === 'squads'){
     document.getElementById('resourcePagination').innerHTML = '';
     el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="justify-content:center;gap:14px;margin-bottom:6px;">
@@ -5070,7 +5083,7 @@ async function saveAboutEdit(){
 /* ============================================================
    MAIN RENDER
    ============================================================ */
-const DIRECTORY_TABS = ['admin','clubs','squads','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','submitevent','submitresource','clubmembers','clubideas'];
+const DIRECTORY_TABS = ['admin','clubs','squads','eventform','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','submitevent','submitresource','clubmembers','clubideas'];
 
 /* ============================================================
    CLUB MEMBERS SCHEDULE (private per-club sign-in + per-event availability)
@@ -5730,7 +5743,10 @@ function clubCalDayPopup(key){
   evs.forEach((e, i) => {
     const sec = document.createElement('div'); sec.style.cssText = (i ? 'border-top:2px dashed #f2d8d7;margin-top:12px;padding-top:12px;' : '');
     list.appendChild(sec);
-    if(String(e.id).startsWith('idea:')){
+    if(!String(e.id).startsWith('idea:') && !staff && (e.hasForm || e.form)){
+      sec.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(e.clubTitle)}</p><h3 style="margin:0 0 4px;">${escapeCm(e.title)}</h3><p class="ideas-hint" style="text-align:left;margin:0 0 6px;">${e.time ? '⏰ ' + escapeCm(e.time) + ' · ' : ''}Sign up with the form.</p><button type="button" class="club-guide-btn cdForm" style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">📝 Open the form</button>`;
+      sec.querySelector('.cdForm').addEventListener('click', () => { close(); openEventFormPage(e.id); });
+    } else if(String(e.id).startsWith('idea:')){
       sec.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(e.clubTitle)} · idea</p><h3 style="margin:0 0 4px;">${e.emoji ? escapeCm(e.emoji) + ' ' : ''}${escapeCm(e.title)}</h3><p class="ideas-hint" style="text-align:left;margin:0 0 6px;">${e.done ? '✅ We did this one.' : 'An idea the club is planning.'}</p><button type="button" class="club-guide-btn cdBoard" style="width:100%;text-align:center;">Open the board</button>`;
       sec.querySelector('.cdBoard').addEventListener('click', () => { close(); openClubIdeas(e.clubId); });
     } else if(staff){
@@ -5773,6 +5789,11 @@ function clubCalIdeaPopup(e){
     <button type="button" class="club-guide-btn" id="calIdeaOpen" style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Open the ${escapeCm(e.clubTitle.split(' × ')[0])} board</button>`);
   wrap.querySelector('#calIdeaOpen').addEventListener('click', () => { close(); openClubIdeas(e.clubId); });
 }
+function openEventFormPage(id){
+  document.querySelectorAll('.mem-pop').forEach(x => x.remove());
+  state.formEventId = id; state.tab = 'eventform';
+  render();
+}
 async function clubCalOpen(id){
   if(String(id).startsWith('idea:')){
     let ie = (state.clubCal || []).find(x => x.id === id);
@@ -5782,7 +5803,11 @@ async function clubCalOpen(id){
   if(calIsAdmin() && (!state.clubCal || !state.clubCalIsAdminData)) await clubCalLoad(true); // admin tapping from the main calendar: load the full list first
   const ev = (state.clubCal || []).find(e => e.id === id);
   if(calIsAdmin() && state.clubCalIsAdminData && ev) return clubCalManage(ev);
-  if(!getCmSession()){ clubCalPublicPopup(id); return; } // logged-out: the server decides — an event with a form opens its form, any other asks to log in
+  // An event WITH a form opens the form as its own page. The list may not say (or may not be loaded), so ask the server when unsure.
+  let hasForm = ev ? !!(ev.hasForm || ev.form || ev.publicForm) : null;
+  if(hasForm === null){ try { const d0 = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id), { headers: ideaHeaders() }); hasForm = !!d0.form; } catch { hasForm = false; } }
+  if(hasForm){ openEventFormPage(id); return; }
+  if(!getCmSession()){ clubCalPublicPopup(id); return; } // no form: logged-out people are asked to log in or sign up
   const { wrap } = ideaPopup(`<p class="av-msg">Loading…</p>`);
   const box = document.createElement('div'); wrap.querySelector('.idea-pop-card').appendChild(box);
   wrap.querySelector('.idea-pop-card .av-msg').remove();
@@ -5905,8 +5930,10 @@ function clubCalManage(ev){
       <div id="calAttResults" style="max-height:26vh;overflow:auto;"></div>
       <p class="idea-pop-h" style="margin-top:10px;">✍️ Add by name (no profile needed)</p>
       <div style="display:flex;gap:6px;"><input id="calGuestName" type="text" maxlength="30" placeholder="Their name" autocomplete="off" style="flex:1;min-width:0;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;"><button type="button" id="calGuestAdd" class="club-guide-btn" style="padding:6px 14px;text-align:center;">+ Add</button></div>
+      ${ev.form ? `<p style="margin:8px 0 0;"><button type="button" class="fb-mini" id="calOpenPage">📄 Open the form page</button></p>` : ''}
       ${ev.form ? `<p class="idea-pop-h" style="margin-top:12px;">📝 ${escapeCm(ev.form.title)} (${ev.form.fields.length} question${ev.form.fields.length === 1 ? '' : 's'})</p><div class="fb-row" style="margin:0 0 6px;"><button type="button" class="fb-mini" id="calRespBtn">View answers</button><button type="button" class="fb-mini" id="calFormEdit">✏️ Edit the form</button></div><div id="calRespBox" style="margin-top:6px;"></div>` : `<div style="margin-top:12px;padding:10px;border-radius:12px;background:#fff3cd;"><strong>No form on this event yet</strong> — people can only press RSVP.<br><button type="button" class="club-guide-btn" id="calFormEdit" style="margin-top:6px;padding:6px 16px;min-height:0;text-align:center;">📝 Create a form (saves right away)</button></div>`}
       <div id="calMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>`;
+    const op = wrap.querySelector('#calOpenPage'); if(op) op.addEventListener('click', () => { close(); openEventFormPage(ev.id); });
     const fe = wrap.querySelector('#calFormEdit');
     if(fe) fe.addEventListener('click', () => openFormBuilder(ev.form || null, async f => {
       try { const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id), 'PUT', { form: f }); ev.form = j.event.form; const i = state.clubCal.findIndex(e => e.id === ev.id); if(i >= 0) state.clubCal[i] = j.event; paint(); if(state.tab === 'clubs' || state.tab === 'admin') render(); }
@@ -6018,7 +6045,7 @@ function openFormBuilder(initial, onDone){
       return;
     }
     const cards = form.fields.map((f, i) => `<div class="fb-card" data-i="${i}">
-      <input type="text" class="fb-label" data-i="${i}" maxlength="120" placeholder="Question ${i + 1}" value="${escapeCm(f.label)}">
+      <div style="display:flex;gap:8px;align-items:center;"><span class="fb-handle" data-i="${i}" title="Drag to reorder" aria-label="Drag to reorder">⠿</span><input type="text" class="fb-label" data-i="${i}" maxlength="120" placeholder="Question ${i + 1}" value="${escapeCm(f.label)}"></div>
       <div class="fb-row"><select class="fb-type" data-i="${i}">${FB_TYPES.map(([k, l]) => `<option value="${k}" ${f.type === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
         <label class="fb-opt" style="margin:0;"><input type="checkbox" class="fb-req" data-i="${i}" ${f.required ? 'checked' : ''} style="width:20px;height:20px;"> Required</label></div>
       ${f.type === 'choice' || f.type === 'multi' ? `<textarea class="fb-opts" data-i="${i}" rows="3" placeholder="One option per line (at least 2)" style="margin-top:8px;">${escapeCm((f.options || []).join('\n'))}</textarea>` : ''}
@@ -6050,6 +6077,31 @@ function openFormBuilder(initial, onDone){
     q('.fb-up', (el, i) => el.addEventListener('click', () => { [form.fields[i - 1], form.fields[i]] = [form.fields[i], form.fields[i - 1]]; paint(); }));
     q('.fb-down', (el, i) => el.addEventListener('click', () => { [form.fields[i + 1], form.fields[i]] = [form.fields[i], form.fields[i + 1]]; paint(); }));
     q('.fb-del', (el, i) => el.addEventListener('click', () => { form.fields.splice(i, 1); paint(); }));
+    // Drag & drop: grab a question's ⠿ handle and move it up or down (works with mouse and touch; the page scrolls when you drag near its edge).
+    page.querySelectorAll('.fb-handle').forEach(h => h.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      const cards = [...page.querySelectorAll('.fb-card[data-i]')], card = h.closest('.fb-card'), from = Number(card.dataset.i);
+      const rects = cards.map(c => { const r = c.getBoundingClientRect(); return { top:r.top + page.scrollTop, bottom:r.bottom + page.scrollTop, h:r.height }; });
+      const gap = cards.length > 1 ? rects[1].top - rects[0].bottom : 12;
+      const startY = e.clientY + page.scrollTop; let lastY = e.clientY, to = from;
+      try { h.setPointerCapture(e.pointerId); } catch {}
+      card.style.position = 'relative'; card.style.zIndex = '6'; card.style.opacity = '.85'; card.style.boxShadow = '0 8px 22px rgba(0,0,0,.25)';
+      const update = () => {
+        const dy = lastY + page.scrollTop - startY; card.style.transform = `translateY(${dy}px)`;
+        const mid = rects[from].top + rects[from].h / 2 + dy;
+        to = from; rects.forEach((r, i) => { if(mid >= r.top && mid <= r.bottom) to = i; });
+        if(mid < rects[0].top) to = 0; if(mid > rects[rects.length - 1].bottom) to = rects.length - 1;
+        cards.forEach((c, i) => { if(i === from) return; let sh = 0; if(from < to && i > from && i <= to) sh = -(rects[from].h + gap); else if(from > to && i < from && i >= to) sh = rects[from].h + gap; c.style.transition = 'transform .12s'; c.style.transform = sh ? `translateY(${sh}px)` : ''; });
+      };
+      const scroller = setInterval(() => { const edge = 90; if(lastY < edge) page.scrollTop -= 12; else if(lastY > window.innerHeight - edge) page.scrollTop += 12; else return; update(); }, 16);
+      const move = ev => { lastY = ev.clientY; update(); };
+      const up = () => {
+        clearInterval(scroller); h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up);
+        if(to !== from){ const [moved] = form.fields.splice(from, 1); form.fields.splice(to, 0, moved); }
+        paint();
+      };
+      h.addEventListener('pointermove', move); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
+    }));
     page.querySelectorAll('.fb-add').forEach(b => b.addEventListener('click', () => { form.fields.push({ id: nid(), type: b.dataset.t, label: '', required: false, ...(b.dataset.t === 'choice' || b.dataset.t === 'multi' ? { options: ['Option 1', 'Option 2'] } : {}) }); paint(); const last = page.querySelectorAll('.fb-label'); if(last.length) last[last.length - 1].focus(); }));
     page.querySelector('#fbPreview').addEventListener('click', () => { preview = true; paint(); });
     const clr = page.querySelector('#fbClear'); if(clr) clr.addEventListener('click', () => { if(confirm('Remove all questions? The event will have no form.')){ form.fields = []; form.title = ''; form.intro = ''; paint(); } });
@@ -10327,6 +10379,7 @@ function safeDecode(v){ try { return decodeURIComponent(v); } catch { return v; 
 
 function currentSlugParts(){
   const t = state.tab;
+  if(t === 'eventform' && state.formEventId) return ['form', state.formEventId];
   if(t === 'clubideas' && state.ideasClubId) return ['clubs', clubSlug(state.ideasClubId)];
   if(t === 'clubs' && state.clubsPage) return ['clubs', state.clubsPage === 'avail' ? 'availability' : state.clubsPage === 'cal' ? 'calendar' : 'vote'];
   if(t === 'clubmembers' && state.clubMembersId) return ['clubs', clubSlug(state.clubMembersId), 'members'];
@@ -10354,7 +10407,7 @@ function currentSlugParts(){
 function applySlugParts(parts){
   const [slug, ...rest] = parts;
   // A shared FORM link (#/form/<event id>): land on Clubs and open that event's form straight away.
-  if(slug === 'form' && rest[0]){ state.tab = 'clubs'; state.clubsPage = ''; state.openEventId = safeDecode(rest[0]); return; }
+  if(slug === 'form' && rest[0]){ state.tab = 'eventform'; state.formEventId = safeDecode(rest[0]); return; }
   let tab = SLUG_TO_TAB[slug] || slug;
   if(tab === 'clubs') state.clubsPage = ({ vote:'vote', availability:'avail', calendar:'cal' })[rest[0]] || '';
   if(tab === 'clubs' && rest[0]){
@@ -10419,7 +10472,7 @@ function syncStateToHash(){
   // Full state still saved to localStorage (used to restore after a home-screen
   // app relaunch, which always opens with no hash at all — see note above).
   const params = new URLSearchParams();
-  params.set('tab', state.tab === 'clubideas' ? 'clubs' : state.tab);
+  params.set('tab', state.tab === 'clubideas' || state.tab === 'eventform' ? 'clubs' : state.tab);
   params.set('cat', state.categoryFilter);
   params.set('view', state.view);
   params.set('time', state.timeFilter);
@@ -10482,7 +10535,7 @@ function restoreStateFromHash(){
 }
 
 function syncToggleButtonClasses(){
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === (state.tab === 'clubideas' ? 'clubs' : state.tab)));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === (state.tab === 'clubideas' || state.tab === 'eventform' ? 'clubs' : state.tab)));
   document.querySelectorAll('#viewToggle button').forEach(b => b.classList.toggle('active', b.dataset.view === state.view));
   const eventSortSelect = document.getElementById('eventSortSelect');
   if(eventSortSelect) eventSortSelect.value = state.eventSort;
