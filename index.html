@@ -3754,6 +3754,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
     el.innerHTML = `
       <div class="rules-content" style="max-width:560px;margin:0 auto;">
         <p class="rules-lead">Know an event we should add?</p>
+        ${calLinkRowHtml('', location.origin + '/#/submit-event', '🔗 Share this form:')}
         <p style="margin-bottom:12px;">Send it to us — everything below is required, and an admin reviews every submission.</p>
         <div id="esIntro"></div>
         <form id="eventSubForm" novalidate style="display:flex;flex-direction:column;gap:10px;">
@@ -3775,12 +3776,13 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
           <button type="submit" class="club-guide-btn" id="esSubmit" style="background:#ce8491;color:#fff;width:100%;text-align:center;min-height:46px;">Submit event</button>
         </form>
       </div>`;
-    setTimeout(setupEventSubmitForm, 0);
+    setTimeout(() => { wireCalCopy(el); setupEventSubmitForm(); }, 0);
   } else if(state.tab === 'submitresource'){
     document.getElementById('resourcePagination').innerHTML = '';
     el.innerHTML = `
       <div class="rules-content" style="max-width:560px;margin:0 auto;">
         <p class="rules-lead">Know a business or resource we should add?</p>
+        ${calLinkRowHtml('', location.origin + '/#/add-resource', '🔗 Share this form:')}
         <p style="margin-bottom:12px;">Send it to us — everything below is required, and an admin reviews every submission.</p>
         <form id="resSubForm" novalidate style="display:flex;flex-direction:column;gap:10px;">
           <input id="rsTitle" type="text" maxlength="120" placeholder="Name of the business / resource" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
@@ -3799,7 +3801,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
           <button type="submit" class="club-guide-btn" id="rsSubmit" style="background:#ce8491;color:#fff;width:100%;text-align:center;min-height:46px;">Submit resource</button>
         </form>
       </div>`;
-    setTimeout(setupResourceSubmitForm, 0);
+    setTimeout(() => { wireCalCopy(el); setupResourceSubmitForm(); }, 0);
   }
 }
 
@@ -6005,14 +6007,15 @@ function calFormCollect(box, form){
 }
 // Every form has its own link people can copy and share; opening it goes straight to the form.
 function calFormUrl(id){ return location.origin + '/#/form/' + encodeURIComponent(id); }
-function calLinkRowHtml(id){
-  return `<div class="calUrl" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 8px;padding:7px 10px;border-radius:12px;background:#fef7f4;border:2px dashed #f2d8d7;font-size:13px;"><span style="flex:1;min-width:0;overflow-wrap:anywhere;">🔗 ${escapeCm(calFormUrl(id).replace(/^https?:\/\//, ''))}</span><button type="button" class="fb-mini calCopy" data-url="${escapeCm(calFormUrl(id))}">Copy link</button></div>`;
+function calLinkRowHtml(id, urlOverride, label){
+  const url = urlOverride || calFormUrl(id);
+  return `<div class="calUrl" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 8px;padding:7px 10px;border-radius:12px;background:#fef7f4;border:2px dashed #f2d8d7;font-size:13px;"><span style="flex:1;min-width:0;overflow-wrap:anywhere;">${label ? escapeCm(label) + ' ' : '🔗 '}${escapeCm(url.replace(/^https?:\/\//, ''))}</span><button type="button" class="fb-mini calCopy" data-url="${escapeCm(url)}">Copy link</button></div>`;
 }
 function wireCalCopy(root){
-  root.querySelectorAll('.calCopy').forEach(b => b.addEventListener('click', async () => {
+  root.querySelectorAll('.calCopy').forEach(b => { if(b.dataset.w) return; b.dataset.w = '1'; b.addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(b.dataset.url); b.textContent = 'Copied ✓'; setTimeout(() => { b.textContent = 'Copy link'; }, 1800); }
     catch { window.prompt('Copy this link:', b.dataset.url); }
-  }));
+  }); });
 }
 // After logging in / signing up from a form, come BACK to the event (remembered for this tab only).
 function calRememberOpen(id){ try { sessionStorage.setItem('pendingEventOpen', id); } catch {} }
@@ -8498,7 +8501,7 @@ function admEvSubsHtml(){
 function admEvFormHtml(){
   if(!state.evFormCfg){ if(!state.evFormLoading){ state.evFormLoading = true; fetch('/api/event-form-config', { cache:'no-store' }).then(r => r.ok ? r.json() : { intro:'', form:null }).catch(() => ({ intro:'', form:null })).then(c => { state.evFormCfg = c; state.evFormLoading = false; if(state.tab === 'admin') render(); }); } return '<p class="av-msg">Loading…</p>'; }
   const c = state.evFormCfg, qs = (c.form && c.form.fields) || [];
-  return `<div class="cp-box"><p class="ideas-hint" style="text-align:left;margin:0 0 8px;">The “Submit an event” page always asks for the link, name, date, genre and city. Here you can add a short message at the top and extra questions of your own.</p>
+  return `<div class="cp-box">${calLinkRowHtml('', location.origin + '/#/submit-event', '🔗 Public link:')}<p class="ideas-hint" style="text-align:left;margin:0 0 8px;">The “Submit an event” page always asks for the link, name, date, genre and city. Here you can add a short message at the top and extra questions of your own.</p>
     <label style="display:block;font-size:12px;font-weight:700;color:#776867;">Message at the top (optional)</label>
     <textarea id="evFormIntro" rows="2" maxlength="500" style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:15px;margin-bottom:8px;">${escapeCm(c.intro || '')}</textarea>
     <strong style="font-size:13px;">Extra questions (${qs.length})</strong>
@@ -9537,7 +9540,7 @@ function renderClubAdminPanel(){
     ${lead ? '' : admSec('clubdir', '🏛️ Club directory (add / edit clubs)', clubDirListHtml(), false)}
   `;
   const squadsGrid = lead ? '' : admSec('squads', '🪁 Squads — requests &amp; invite links', squadAdminHtml(), true, 'flat');
-  const directoryGrid = lead ? '' : admSec('labels-res', '🏷️ Names of resource categories', labelsAdminHtml('resource'), true, 'flat');
+  const directoryGrid = lead ? '' : admSec('reslink', '🔗 Public “Add a resource” link', `<div class="cp-box">${calLinkRowHtml('', location.origin + '/#/add-resource', '🔗 Public link:')}<p class="ideas-hint" style="text-align:left;margin:0;">Share this with anyone who wants to suggest a business or resource — they don't need an account.</p></div>`, true, 'flat') + admSec('labels-res', '🏷️ Names of resource categories', labelsAdminHtml('resource'), true, 'flat');
   const calendarGrid = `
     <div style="text-align:center;margin:6px 0 12px;"><button type="button" class="club-guide-btn" id="admEvAdd" style="min-height:46px;padding:10px 26px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add event</button></div>
     ${admSec('evsearch', '🔎 Find & edit an event', admEvSearchHtml(), true)}
@@ -10180,6 +10183,7 @@ function wireClubAdminPanel(){
   { const bc = document.getElementById('admBackCurrent'); if(bc) bc.addEventListener('click', () => { admAvail.viewPeriod = null; admAvail.month = String(AVAIL_PERIOD.start).slice(0, 7); render(); }); }
   wireWaTemplates();
   wireAdmCalendar();
+  wireCalCopy(document);
   wireD1Admin();
   wireFormImport();
   { const mb = document.getElementById('admMissingBtn'); if(mb) mb.addEventListener('click', startMissingDetailsReview); if(document.getElementById('calAddBtn') || document.querySelector('.cal-list')) wireClubCal(); }
