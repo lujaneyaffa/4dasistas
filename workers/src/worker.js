@@ -475,7 +475,7 @@ const buildBackup = async (env) => {
   const pushSubscriptions = {};
   for (const u of users) { const raw = await safe(`push ${u.id}`, () => env.SITE_DATA.get(pushKey(u.id)), null); if (raw) pushSubscriptions[u.id] = raw; }
   const settings = {};
-  for (const k of ["clubRoster", "clubcal", "labels", "availperiod", "availperiods", "watemplates", SUBSCRIBER_INDEX_KEY]) settings[k] = await safe(`setting ${k}`, () => env.SITE_DATA.get(k), null);
+  for (const k of ["clubRoster", "clubcal", "labels", "evsubform", "availperiod", "availperiods", "watemplates", SUBSCRIBER_INDEX_KEY]) settings[k] = await safe(`setting ${k}`, () => env.SITE_DATA.get(k), null);
   const counts = { users: users.length, availability: Object.keys(availability).length, clubs: clubIds.length, joinRequests: Object.keys(joinRequests).length, squadRequests: Object.keys(squadRequests).length, eventSubmissions: Object.keys(eventSubmissions).length, resourceSubmissions: Object.keys(resourceSubmissions).length, clubAdmins: Object.keys(clubAdmins).length };
   return { version: 2, at: new Date().toISOString(), storage: (await d1On(env)) ? "d1" : "kv", counts, warnings, users, availability, clubMembers, ideas, clubEvents, clubEventResponses, calForms, squads, joinRequests, squadRequests, eventSubmissions, resourceSubmissions, clubAdmins, pushSubscriptions, settings };
 };
@@ -524,7 +524,7 @@ const notifyAdminOfSuggestion = async (env, ctx, kind, sug) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
   const isEvent = kind === "event";
   const rows = isEvent
-    ? emailRow("Event", escapeHtml(sug.name)) + emailRow("Date", escapeHtml(sug.date)) + emailRow("Genre", escapeHtml(sug.genre === "other" ? `Other: ${sug.genreOther || ""}` : (sug.genre || "—"))) + emailRow("City", escapeHtml(sug.city)) + emailRow("Link", `<a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a>`)
+    ? (sug.extra || []).map((x) => emailRow(escapeHtml(x.label), escapeHtml(x.value))).join("") + emailRow("Event", escapeHtml(sug.name)) + emailRow("Date", escapeHtml(sug.date)) + emailRow("Genre", escapeHtml(sug.genre === "other" ? `Other: ${sug.genreOther || ""}` : (sug.genre || "—"))) + emailRow("City", escapeHtml(sug.city)) + emailRow("Link", `<a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a>`)
     : emailRow("Name", escapeHtml(sug.title)) + emailRow("Type", escapeHtml(sug.type === "other" ? `Other: ${sug.typeOther || ""}` : sug.type)) + emailRow("City", escapeHtml(sug.city)) + emailRow("Link", `<a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a>`);
   const comments = sug.comments ? emailNote(`<div style="font-size:12px;opacity:.8;margin-bottom:2px">💬 Comments from the submitter</div>${escapeHtml(sug.comments).replace(/\n/g, "<br>")}`) : "";
   const html = emailShell(env, {
@@ -1869,6 +1869,15 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return false;
     };
     // ---- Public: anyone can suggest an event (link, name, date, city). Stored for the admin + emailed. ----
+    // The "Submit an event" form can have extra questions + an intro, edited by the main admin (Admin → The Calendar → Event submission form).
+    const readEventFormCfg = async () => { try { const c = JSON.parse((await env.SITE_DATA.get("evsubform")) || "{}") || {}; return { intro: String(c.intro || ""), form: c.form && c.form.fields ? c.form : null }; } catch { return { intro: "", form: null }; } };
+    if (path === "/api/event-form-config" && request.method === "GET") return jsonResponse(await readEventFormCfg(), 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    if (path === "/api/admin/event-form-config" && request.method === "PUT") {
+      let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const cfg = { intro: String(body.intro || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 500), form: sanitizeCalForm(body.form) };
+      await env.SITE_DATA.put("evsubform", JSON.stringify(cfg));
+      return jsonResponse({ ok: true, ...cfg }, 200, corsHeaders);
+    }
     if (path === "/api/event-suggestions" && request.method === "POST") {
       let body;
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
@@ -1898,6 +1907,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await env.SITE_DATA.put(dayKey, String(dayCount + 1), { expirationTtl: 172800 });
       const comments = String(body.comments || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 600);
       const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, link, name, date, city, virtual, genre, genreOther, comments, at: Date.now() };
+      { const cfg = await readEventFormCfg(); if (cfg.form) { const chk = checkCalAnswers(cfg.form, body.extra); if (chk.error) return jsonResponse({ error: chk.error }, 400, corsHeaders); sug.extra = cfg.form.fields.filter((f) => chk.answers[f.id] !== undefined).map((f) => ({ label: f.label, value: Array.isArray(chk.answers[f.id]) ? chk.answers[f.id].join(", ") : String(chk.answers[f.id]) })); } }
       await env.SITE_DATA.put(`eventsug:${sug.id}`, JSON.stringify(sug));
       notifyAdminOfEventSuggestion(env, ctx, sug);
       return jsonResponse({ ok: true }, 201, corsHeaders);
@@ -2331,7 +2341,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/club-cal") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup") || path.startsWith("/api/admin/wa-templates") || path.startsWith("/api/admin/email-preview");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/club-cal") || path.startsWith("/api/admin/event-form") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup") || path.startsWith("/api/admin/wa-templates") || path.startsWith("/api/admin/email-preview");
 
     if (requiresAuth && !leadCtx) {
       const token = getSessionToken(request);
