@@ -8693,7 +8693,81 @@ function waTemplatesAdminHtml(){
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><button type="button" class="club-guide-btn" id="waTplSave" style="background:var(--blush);">Save wording</button><button type="button" class="club-guide-btn" id="waTplReset" style="padding:6px 14px;font-size:12px;">Reset all to default</button></div>
     <span id="waTplStatus" style="font-size:12px;display:block;margin-top:6px;"></span></div>`;
 }
+/* ---- 💬 Send a WhatsApp message: pick the wording, then WHO gets it (one member, a club, a squad, everyone, people in no club) — each person with a number gets their own one-tap button. ---- */
+const WA_SEND = { tpl:'remind', text:null, aud:'club', club:'', squad:'', q:'', sent:{} };
+const WA_SEND_TPLS = [['remind', '⏰ Add your availability'], ['newPeriod', '🗓️ New availability period'], ['welcome', '👋 Welcome a new member'], ['notif', '🔔 Turn on notifications'], ['joinAccept', '✅ Club request accepted'], ['custom', '✍️ Write my own']];
+function waSendTemplateText(){
+  if(WA_SEND.tpl === 'custom') return '';
+  return (state.waTemplates && state.waTemplates[WA_SEND.tpl]) || WA_DEFAULTS[WA_SEND.tpl] || '';
+}
+function waSendFill(text, u){
+  const first = String(u.name || '').trim().split(/\s+/)[0] || 'there';
+  const range = `${new Date(AVAIL_PERIOD.start + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' })} → ${new Date(AVAIL_PERIOD.end + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' })}`;
+  const clubName = WA_SEND.tpl === 'newPeriod' ? range : (WA_SEND.aud === 'club' && WA_SEND.club ? avClubTitle(WA_SEND.club) : (u.clubs && u.clubs[0] ? avClubTitle(u.clubs[0]) : 'your'));
+  const dl = state.availDeadline ? ' by ' + new Date(state.availDeadline + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric' }) : '';
+  return String(text).replace(/\{first\}/g, first).replace(/\{name\}/g, u.name || '').replace(/\{club\}/g, clubName).replace(/\{deadline\}/g, dl);
+}
+function waSendAudience(users){
+  const live = users.filter(u => !admIsArchived(u));
+  if(WA_SEND.aud === 'one'){ const q = WA_SEND.q.trim().toLowerCase(); return q.length < 2 ? [] : live.filter(u => String(u.name).toLowerCase().includes(q) || String(u.username || '').toLowerCase().includes(q)).slice(0, 12); }
+  if(WA_SEND.aud === 'club') return WA_SEND.club ? live.filter(u => (u.clubs || []).includes(WA_SEND.club)) : [];
+  if(WA_SEND.aud === 'squad') return WA_SEND.squad ? live.filter(u => (u.squads || []).includes(WA_SEND.squad)) : [];
+  if(WA_SEND.aud === 'noclub') return live.filter(u => !(u.clubs || []).length);
+  return live;
+}
+function waSendHtml(){
+  if(WA_SEND.text === null) WA_SEND.text = waSendTemplateText();
+  const sel = 'width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;background:#fff;margin-bottom:8px;';
+  const users = Array.isArray(state.cmAdminAllUsers) ? state.cmAdminAllUsers : null;
+  const audOpts = [['club', '🏛️ A club'], ['one', '🙋 One member'], ['squad', '🪁 A squad'], ['noclub', '🆕 People not in a club yet'], ['all', '👥 Everyone']];
+  let list = '';
+  if(!users) list = '<p class="av-msg">Loading members…</p>';
+  else {
+    const aud = waSendAudience(users), withNum = aud.filter(u => admWhatsAppLink(u.phone, 'x')), without = aud.length - withNum.length;
+    list = `<p class="ideas-hint" style="text-align:left;margin:4px 0 6px;"><strong>${withNum.length}</strong> ${withNum.length === 1 ? 'person' : 'people'} with a number${without ? ` · ${without} without one` : ''}.</p>
+      <div style="max-height:44vh;overflow:auto;">${withNum.map(u => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid rgba(0,0,0,.1);"><span style="flex:1;min-width:0;"><strong>${escapeCm(u.name)}</strong><br><small style="color:#776867;">${escapeCm((u.clubs || []).map(avClubTitle).join(', ') || 'no club')}</small></span><a class="wa-send-go" data-uid="${escapeCm(u.id)}" target="_blank" rel="noopener" href="${escapeCm(admWhatsAppLink(u.phone, waSendFill(WA_SEND.text, u)))}" style="text-decoration:none;white-space:nowrap;border:2px solid #25a244;background:${WA_SEND.sent[u.id] ? '#f1f1f1' : '#e6f4ea'};border-radius:999px;padding:6px 14px;font-weight:700;color:#14532d;">${WA_SEND.sent[u.id] ? '✓ Opened' : '💬 WhatsApp'}</a></div>`).join('') || '<p class="av-msg">Nobody to show yet — pick who to message above.</p>'}</div>
+      ${withNum.length > 1 ? `<button type="button" class="fb-mini" id="waCopyNums" style="margin-top:8px;">📋 Copy all ${withNum.length} numbers</button><span id="waCopyMsg" style="font-size:12px;margin-left:8px;color:#2a7a4a;"></span>` : ''}`;
+  }
+  return `<div class="cp-box" id="waSendBox">
+    <label style="display:block;font-size:12px;font-weight:700;color:#776867;margin-bottom:3px;">1 · Message</label>
+    <select id="waTpl" style="${sel}">${WA_SEND_TPLS.map(([k, l]) => `<option value="${k}" ${WA_SEND.tpl === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+    <textarea id="waText" rows="3" maxlength="600" style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:14px;margin-bottom:4px;">${escapeCm(WA_SEND.text)}</textarea>
+    <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">{first} = their first name · {club} = club (or the dates) · {deadline} = “ by &lt;day&gt;”. Each person gets their own version.</p>
+    <label style="display:block;font-size:12px;font-weight:700;color:#776867;margin-bottom:3px;">2 · Send it to</label>
+    <select id="waAud" style="${sel}">${audOpts.map(([k, l]) => `<option value="${k}" ${WA_SEND.aud === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+    ${WA_SEND.aud === 'club' ? `<select id="waClub" style="${sel}"><option value="">Pick a club…</option>${clubsData.map(c => `<option value="${escapeCm(c.id)}" ${WA_SEND.club === c.id ? 'selected' : ''}>${escapeCm(c.title)}</option>`).join('')}</select>` : ''}
+    ${WA_SEND.aud === 'squad' ? `<select id="waSquad" style="${sel}"><option value="">Pick a squad…</option>${SQUADS.map(q => `<option value="${escapeCm(q.id)}" ${WA_SEND.squad === q.id ? 'selected' : ''}>${escapeCm(q.title)}</option>`).join('')}</select>` : ''}
+    ${WA_SEND.aud === 'one' ? `<input id="waQ" type="search" placeholder="Search a member by name…" value="${escapeCm(WA_SEND.q)}" autocomplete="off" style="${sel}">` : ''}
+    ${list}</div>`;
+}
+function waSendRepaint(){
+  const box = document.getElementById('waSendBox'); if(!box) return;
+  const focusId = document.activeElement && document.activeElement.id, pos = document.activeElement && document.activeElement.selectionStart;
+  box.outerHTML = waSendHtml(); wireWaSend();
+  if(focusId){ const el = document.getElementById(focusId); if(el){ el.focus(); try { el.setSelectionRange(pos, pos); } catch {} } }
+}
+async function wireWaSend(){
+  const box = document.getElementById('waSendBox'); if(!box) return;
+  if(!Array.isArray(state.cmAdminAllUsers) && !state.waUsersLoading){
+    state.waUsersLoading = true;
+    try { const r = await fetch('/api/admin/users', { credentials:'include' }); if(r.ok) state.cmAdminAllUsers = (await r.json()).users || []; } catch {}
+    state.waUsersLoading = false; waSendRepaint(); return;
+  }
+  const on = (id, ev, fn) => { const el = document.getElementById(id); if(el) el.addEventListener(ev, fn); };
+  on('waTpl', 'change', e => { WA_SEND.tpl = e.target.value; WA_SEND.text = waSendTemplateText(); waSendRepaint(); });
+  on('waText', 'input', e => { WA_SEND.text = e.target.value; box.querySelectorAll('.wa-send-go').forEach(a => { const u = (state.cmAdminAllUsers || []).find(x => x.id === a.dataset.uid); if(u) a.href = admWhatsAppLink(u.phone, waSendFill(WA_SEND.text, u)); }); });
+  on('waAud', 'change', e => { WA_SEND.aud = e.target.value; WA_SEND.sent = {}; waSendRepaint(); });
+  on('waClub', 'change', e => { WA_SEND.club = e.target.value; WA_SEND.sent = {}; waSendRepaint(); });
+  on('waSquad', 'change', e => { WA_SEND.squad = e.target.value; WA_SEND.sent = {}; waSendRepaint(); });
+  on('waQ', 'input', e => { WA_SEND.q = e.target.value; waSendRepaint(); });
+  box.querySelectorAll('.wa-send-go').forEach(a => a.addEventListener('click', () => { WA_SEND.sent[a.dataset.uid] = true; a.textContent = '✓ Opened'; a.style.background = '#f1f1f1'; }));
+  on('waCopyNums', 'click', async () => {
+    const nums = waSendAudience(state.cmAdminAllUsers || []).map(u => String(u.phone || '').trim()).filter(Boolean).join(', ');
+    try { await navigator.clipboard.writeText(nums); document.getElementById('waCopyMsg').textContent = 'Copied ✓'; } catch { window.prompt('Copy these numbers:', nums); }
+  });
+}
 function wireWaTemplates(){
+  wireWaSend();
   // 'Open in WhatsApp' under each wording: opens WhatsApp with that text ready to send (pick the chat there).
   document.querySelectorAll('.wa-open').forEach(a => a.addEventListener('click', () => {
     const ta = document.querySelector(`.wa-tpl[data-key="${a.dataset.key}"]`);
@@ -9174,6 +9248,7 @@ function renderClubAdminPanel(){
     ${lead ? '' : admSec('labels-ev', '🏷️ Names of event genres', labelsAdminHtml('event'), false)}
   `;
   const settingsGrid = lead ? '' : `
+    ${admSec('wasend', '💬 Send a WhatsApp message (pick who)', waSendHtml(), false)}
     ${admSec('watpl', '💬 WhatsApp messages — your wording', waTemplatesAdminHtml(), false)}
     ${lead ? '' : admSec('push', '📲 Push notifications', pushAdminHtml(), false)}
     ${lead ? '' : admSec('leads', '🧑‍💼 Club admins' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
