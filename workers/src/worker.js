@@ -3039,7 +3039,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     // Wording of the WhatsApp messages the admin sends (availability reminder, notifications nudge, club accepted / declined). {first} {name} {club} are filled in.
-    const WA_KEYS = ["remind", "notif", "joinAccept", "joinDecline", "newPeriod", "welcome"];
+    const WA_KEYS = ["remind", "notif", "joinAccept", "joinDecline", "newPeriod", "welcome", "squadAccept"];
     if (path === "/api/admin/wa-templates" && request.method === "GET") {
       let t = {}; try { t = JSON.parse((await env.SITE_DATA.get("watemplates")) || "{}") || {}; } catch {}
       return jsonResponse({ templates: t }, 200, corsHeaders);
@@ -3047,7 +3047,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (path === "/api/admin/wa-templates" && request.method === "PUT") {
       let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       const out = {};
-      for (const k of WA_KEYS) { const v = String((body.templates || {})[k] || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 600); if (v) out[k] = v; }
+      for (const k of WA_KEYS) { const v = String((body.templates || {})[k] || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 1800); if (v) out[k] = v; }
       await env.SITE_DATA.put("watemplates", JSON.stringify(out));
       return jsonResponse({ ok: true, templates: out }, 200, corsHeaders);
     }

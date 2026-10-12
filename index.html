@@ -3029,6 +3029,7 @@ function admHideRequestRows(attrs){
 async function admAnswerSquad(squadId, userId, action){
   const key = `q:${squadId}:${userId}`;
   const req = (admNotif.items.find(i => i.id === key) || {}).r || ((state.squadAdmin && state.squadAdmin.requests) || []).find(r => r.squadId === squadId && r.userId === userId);
+  const sqLink = ((state.squadAdmin && state.squadAdmin.squads || []).find(q => q.id === squadId) || {}).link || ''; // read BEFORE the list is reloaded
   // INSTANT: the row disappears the moment you tap; the server call happens in the background and the row comes back only if it fails.
   admHideRequestRows({ 'squad-id': squadId, 'user-id': userId });
   const keepItems = admNotif.items, keepSquadReqs = state.squadAdmin ? state.squadAdmin.requests : null;
@@ -3042,7 +3043,8 @@ async function admAnswerSquad(squadId, userId, action){
     const data = await res.json().catch(() => ({}));
     if(!res.ok && res.status !== 404) throw new Error(data.error || 'Could not update that request');
     if(action === 'accept'){ state.squadAdmin = null; if(state.tab === 'squads') render(); } // member list changed: reload
-    admToast(`${action === 'accept' ? '✅ Accepted' : '❌ Declined'}${req ? ' · ' + escapeCm(req.name) + ' · ' + escapeCm(req.squadTitle) : ''} — they'll see it next time they open the app.`);
+    const swa = req && action === 'accept' ? admWhatsAppLink(req.phone, waMsg('squadAccept', req.name, '', '', { link: sqLink, squad: req.squadTitle })) : '';
+    admToast(`${action === 'accept' ? '✅ Accepted' : '❌ Declined'}${req ? ' · ' + escapeCm(req.name) + ' · ' + escapeCm(req.squadTitle) : ''} — they'll see it next time they open the app.${swa ? `<br><a href="${escapeCm(swa)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;padding:10px 18px;border-radius:999px;background:#25a244;color:#fff;font-weight:800;text-decoration:none;">💬 Welcome ${escapeCm(String(req.name || '').split(' ')[0])} on WhatsApp</a>` : ''}`);
   } catch(err){
     admNotif.dismissed.delete(key); admNotif.items = keepItems; if(state.squadAdmin && keepSquadReqs) state.squadAdmin.requests = keepSquadReqs;
     admUpdateBell(); if(admNotif.panel) admRenderPanel(); if(state.tab === 'squads') render();
@@ -8740,35 +8742,39 @@ function admMarkSeen(){ try { localStorage.setItem('admNotifSeenAt', String(Date
 const WA_DEFAULTS = {
   remind: "Hi {first}! Quick reminder to add your availability on 4DASISTAS so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs",
   notif: "Hi {first}! Please open 4DASISTAS from your Home Screen and tap Allow notifications so we can send you reminders 💛 4dasistas.ca",
-  joinAccept: "Hi {first}! You've been accepted into the {club} club on 4DASISTAS 🎉 Open the app to see it.",
+  joinAccept: "Hi {first}! 🎉 You're in — welcome to the {club} Club on 4DASISTAS! 💛\n\nJoin our group chat here: {link}\n\nA few good-to-knows 🌸\n• Aim to join at least 2 club activities a month (more if you're free!)\n• Use the group chat for plans, spontaneous ideas and \"who's in?\" messages\n• Bigger activities are usually 3–10 people — if it's full, spots are first come, first served\n• Plus-ones are welcome when there's space\n• Be welcoming to everyone — no cliques, exclusion, pressure or gatekeeping\n• If you become inactive we may free up your spot — you're always welcome back later\n\nPlease introduce yourself in the chat 👋 Your name, what you're into, and what you'd love to do with the club! Also add your availability and vote on ideas at 4dasistas.ca",
+  squadAccept: "Hi {first}! 🎉 Welcome to the {squad} squad on 4DASISTAS! 💛\n\nJoin the squad chat here: {link}\n\nThis is a casual, open group — not a full club 🌸\n• Drop a message whenever you're up for it — no pressure to reply every time, just genuine \"let's go\" energy\n• Keep it welcoming, respectful and positive — no negativity, cliques or excluding others; every level is welcome\n• Respect everyone's privacy — no screenshots or sharing personal info/photos outside the group without permission\n• Inactive members may be removed to keep spots open for others\n\nPlease introduce yourself in the chat 👋 Your name and what you're hoping to get out of the squad!",
   newPeriod: "Hi {first}! 🌸 A new availability period is open: {club}. Please add yours on 4DASISTAS{deadline} so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs/availability",
   welcome: "Hi {first}! 🌸 Welcome to 4DASISTAS — we're so happy you're here! Log in with your username and PIN at 4dasistas.ca, add your availability, and say hi in your club 💛",
   joinDecline: "Hi {first}, thanks for requesting the {club} club on 4DASISTAS. We couldn't approve it this time — message us if you have questions.",
 };
-function waMsg(key, name, club, deadline){
-  const t = (state.waTemplates && state.waTemplates[key]) || WA_DEFAULTS[key];
+function waMsg(key, name, club, deadline, extra){
+  let t = (state.waTemplates && state.waTemplates[key]) || WA_DEFAULTS[key];
+  const link = (extra && extra.link) || '', squad = (extra && extra.squad) || '';
+  if(!link) t = t.split('\n').filter(l => !l.includes('{link}')).join('\n').replace(/\n{3,}/g, '\n\n'); // no group link on file → drop that line
   const first = String(name || '').trim().split(/\s+/)[0] || 'there';
   const dl = deadline ? ' by ' + new Date(deadline + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric' }) : '';
-  return t.replace(/\{first\}/g, first).replace(/\{name\}/g, String(name || '')).replace(/\{club\}/g, club || 'the').replace(/\{deadline\}/g, dl);
+  return t.replace(/\{first\}/g, first).replace(/\{name\}/g, String(name || '')).replace(/\{club\}/g, club || 'the').replace(/\{squad\}/g, squad).replace(/\{link\}/g, link).replace(/\{deadline\}/g, dl);
 }
 async function loadWaTemplates(){
   try { const r = await fetch('/api/admin/wa-templates', { credentials:'include' }); if(r.ok) state.waTemplates = (await r.json()).templates || {}; } catch {}
 }
 function waTemplatesAdminHtml(){
-  const f = (key, label, hint) => `<label style="display:block;margin-top:10px;font-weight:700;font-size:13px;">${label}<span style="display:block;font-weight:400;font-size:11px;color:#776867;">${hint}</span><textarea class="wa-tpl" data-key="${key}" rows="3" maxlength="600" style="width:100%;margin-top:4px;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:14px;font-family:inherit;box-sizing:border-box;">${escapeCm((state.waTemplates && state.waTemplates[key]) || WA_DEFAULTS[key])}</textarea><a class="wa-open" data-key="${key}" href="#" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;padding:8px 16px;border-radius:999px;background:#25a244;color:#fff;font-weight:800;font-size:13px;text-decoration:none;">💬 Open in WhatsApp</a></label>`;
+  const f = (key, label, hint) => `<label style="display:block;margin-top:10px;font-weight:700;font-size:13px;">${label}<span style="display:block;font-weight:400;font-size:11px;color:#776867;">${hint}</span><textarea class="wa-tpl" data-key="${key}" rows="3" maxlength="1800" style="width:100%;margin-top:4px;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:14px;font-family:inherit;box-sizing:border-box;">${escapeCm((state.waTemplates && state.waTemplates[key]) || WA_DEFAULTS[key])}</textarea><a class="wa-open" data-key="${key}" href="#" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;padding:8px 16px;border-radius:999px;background:#25a244;color:#fff;font-weight:800;font-size:13px;text-decoration:none;">💬 Open in WhatsApp</a></label>`;
   return `<div class="cp-box"><p style="font-size:12px;color:#776867;margin:0;line-height:1.5;">The text that's pre-filled when you tap a WhatsApp button. Use <code>{first}</code> (first name), <code>{name}</code> (full name) and <code>{club}</code> (club). You can still edit it in WhatsApp before sending.</p>
     ${f('remind', '⏰ Availability reminder', 'The green "WhatsApp reminder" button in the availability calendar.')}
     ${f('notif', '🔔 Turn on notifications', 'Nudge for people who haven\'t turned notifications on.')}
     ${f('welcome', '👋 Welcome a new member', 'The "💬 WhatsApp" buttons on a profile. Use {first} / {name}.')}
     ${f('newPeriod', '🗓️ New availability period', 'Offered when you open a new period. {club} = the dates, {deadline} = " by <day>" (blank if no deadline).')}
-    ${f('joinAccept', '✅ Club request accepted', 'Offered after you accept a join request.')}
+    ${f('joinAccept', '✅ Club request accepted — welcome + rules', 'Offered after you accept a club request. {club} = club, {link} = the club\'s WhatsApp group link.')}
+    ${f('squadAccept', '🪁 Squad request accepted — welcome + rules', 'Offered after you accept a squad request. {squad} = squad, {link} = the squad\'s WhatsApp invite link.')}
     ${f('joinDecline', '❌ Club request declined', 'Offered after you decline a join request.')}
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><button type="button" class="club-guide-btn" id="waTplSave" style="background:var(--blush);">Save wording</button><button type="button" class="club-guide-btn" id="waTplReset" style="padding:6px 14px;font-size:12px;">Reset all to default</button></div>
     <span id="waTplStatus" style="font-size:12px;display:block;margin-top:6px;"></span></div>`;
 }
 /* ---- 💬 Send a WhatsApp message: pick the wording, then WHO gets it (one member, a club, a squad, everyone, people in no club) — each person with a number gets their own one-tap button. ---- */
 const WA_SEND = { tpl:'remind', text:null, aud:'club', club:'', squad:'', q:'', sent:{} };
-const WA_SEND_TPLS = [['remind', '⏰ Add your availability'], ['newPeriod', '🗓️ New availability period'], ['welcome', '👋 Welcome a new member'], ['notif', '🔔 Turn on notifications'], ['joinAccept', '✅ Club request accepted'], ['custom', '✍️ Write my own']];
+const WA_SEND_TPLS = [['remind', '⏰ Add your availability'], ['newPeriod', '🗓️ New availability period'], ['welcome', '👋 Welcome a new member'], ['notif', '🔔 Turn on notifications'], ['joinAccept', '✅ Club welcome + rules'], ['squadAccept', '🪁 Squad welcome + rules'], ['custom', '✍️ Write my own']];
 function waSendTemplateText(){
   if(WA_SEND.tpl === 'custom') return '';
   return (state.waTemplates && state.waTemplates[WA_SEND.tpl]) || WA_DEFAULTS[WA_SEND.tpl] || '';
@@ -8778,7 +8784,13 @@ function waSendFill(text, u){
   const range = `${new Date(AVAIL_PERIOD.start + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' })} → ${new Date(AVAIL_PERIOD.end + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' })}`;
   const clubName = WA_SEND.tpl === 'newPeriod' ? range : (WA_SEND.aud === 'club' && WA_SEND.club ? avClubTitle(WA_SEND.club) : (u.clubs && u.clubs[0] ? avClubTitle(u.clubs[0]) : 'your'));
   const dl = state.availDeadline ? ' by ' + new Date(state.availDeadline + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric' }) : '';
-  return String(text).replace(/\{first\}/g, first).replace(/\{name\}/g, u.name || '').replace(/\{club\}/g, clubName).replace(/\{deadline\}/g, dl);
+  let link = '';
+  if(WA_SEND.aud === 'club' && WA_SEND.club) link = (clubsData.find(c => c.id === WA_SEND.club) || {}).signup || '';
+  else if(WA_SEND.aud === 'squad' && WA_SEND.squad) link = (((state.squadAdmin && state.squadAdmin.squads) || []).find(q => q.id === WA_SEND.squad) || {}).link || '';
+  let t = String(text);
+  if(!link) t = t.split('\n').filter(l => !l.includes('{link}')).join('\n').replace(/\n{3,}/g, '\n\n');
+  const squadName = WA_SEND.aud === 'squad' && WA_SEND.squad ? ((SQUADS.find(q => q.id === WA_SEND.squad) || {}).title || '') : '';
+  return t.replace(/\{first\}/g, first).replace(/\{name\}/g, u.name || '').replace(/\{club\}/g, clubName).replace(/\{squad\}/g, squadName).replace(/\{link\}/g, link).replace(/\{deadline\}/g, dl);
 }
 function waSendAudience(users){
   const live = users.filter(u => !admIsArchived(u));
@@ -8975,7 +8987,7 @@ async function admAnswerJoin(clubId, userId, action){
     if(!res.ok && res.status !== 404) throw new Error(data.error || 'Could not update that request');
     if(action === 'accept'){ admAvail.people = null; cmAdminLoadAllMembers().then(() => { const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName); if((state.tab === 'clubs' || state.tab === 'admin') && !typing) render(); }); }
     const first = req ? String(req.name || '').split(' ')[0] : 'her';
-    const wa = req ? admWhatsAppLink(req.phone, waMsg(action === 'accept' ? 'joinAccept' : 'joinDecline', req.name, req.clubTitle)) : '';
+    const wa = req ? admWhatsAppLink(req.phone, waMsg(action === 'accept' ? 'joinAccept' : 'joinDecline', req.name, req.clubTitle, '', { link: ((clubsData.find(c => c.id === clubId) || {}).signup || '') })) : '';
     admToast(`${action === 'accept' ? '✅ Accepted' : '❌ Declined'}${req ? ' · ' + escapeCm(req.name) : ''} — they'll see a notice next time they open the app.${wa ? `<br><a href="${escapeCm(wa)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;padding:10px 18px;border-radius:999px;background:#25a244;color:#fff;font-weight:800;text-decoration:none;">💬 Message ${escapeCm(first)} on WhatsApp</a>` : ''}`);
   } catch(err){
     admNotif.dismissed.delete(id); admNotif.items = keepItems; state.cmAdminJoinRequests = keepReqs;
