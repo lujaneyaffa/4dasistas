@@ -5860,7 +5860,7 @@ async function clubCalMemberCard(box, id){
     const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id), { headers: ideaHeaders() });
     box.innerHTML = '';
     const top = document.createElement('div'), formBox = document.createElement('div');
-    if(d.publicForm) box.append(formBox, top); else box.append(top, formBox); // publicized events: the FORM comes first
+    box.append(top, formBox); // details + the copyable link on TOP, then the form (and payment / description) below
     const paint = () => {
       const label = d.mine === 'going' ? "✅ You're going — tap to cancel" : d.mine === 'pending' ? '⏳ Requested — waiting for approval (tap to cancel)' : d.inClub ? '🎟️ RSVP — I\'m going' : '🎟️ Request to RSVP';
       top.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>

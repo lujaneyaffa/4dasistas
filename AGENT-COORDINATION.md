@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-12 · Claude · index.html, service-worker.js (v118) · FORM PAGE ORDER FIX: for logged-in members the event details + copyable link + description were rendered BELOW the form (`box.append(formBox, top)` for form events) — on iPhone they were pushed to the bottom. Now always details/link/desc FIRST, then the form, description footer and payment (`clubCalMemberCard`: `box.append(top, formBox)`). Logged-out page already had this order. Not in What's-new.
+
 - 2026-10-12 · Claude · index.html, service-worker.js (v117) · ADMIN: the '🗓️ Club calendar — events & RSVPs' mini calendar section moved from the Clubs tab to the TOP of the 🎟️ Club Events tab (its own '➕ Add event' button is the add button now; the separate 'Add club event' button was dropped). REMOVED the old '🏛️ Club events & quick member' section from the Clubs tab (Lujane asked). Clubs tab now: Notifications, Availability period, Availability calendar, Club directory. Not in What's-new.
 
 - 2026-10-12 · Claude · index.html, service-worker.js (v116) · COPYABLE PUBLIC LINKS for the public submission forms: the 'Submit an event' (#/submit-event) and 'Add a resource' (#/add-resource) pages now show '🔗 Share this form: <url> [Copy link]' at the top (`calLinkRowHtml(id, url, label)` + `wireCalCopy`, which now skips already-wired buttons); the admin Calendar tab's 'Event submission form' section and a new Directory-tab 'Public Add a resource link' section show the same copy boxes. Not in What's-new.
