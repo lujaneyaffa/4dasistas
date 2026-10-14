@@ -489,8 +489,8 @@ const buildBackup = async (env) => {
 };
 // The daily cron fired twice a few seconds apart (two near-identical emails). Whoever claims today's slot first sends; the other stops.
 // D1 gives an atomic "first one wins" (INSERT OR IGNORE); without D1 it falls back to a best-effort KV marker.
-const claimBackupSlot = async (env) => {
-  const key = `backup:${new Date().toISOString().slice(0, 10)}`;
+const claimBackupSlot = async (env, prefix) => {
+  const key = `${prefix || "backup"}:${new Date().toISOString().slice(0, 10)}`; // one claim per day per job — the cron can fire more than once
   try {
     if (env.DB) { await d1Ensure(env); const r = await env.DB.prepare("INSERT OR IGNORE INTO meta (k, v) VALUES (?, ?)").bind(key, String(Date.now())).run(); return !!(r.meta && r.meta.changes > 0); }
   } catch {}
@@ -518,10 +518,10 @@ const sendBackupEmail = async (env, label) => {
   if (!r.ok) r = await send(false); // never lose the data backup just because the code zip couldn't be fetched
   return r.ok ? { ok: true, users: c.users } : { ok: false, error: `Email failed (${r.status})` };
 };
-const digestEmailHtml = (env, dateString, events, unsubscribeUrl) => {
+const digestEmailHtml = (env, dateString, events, unsubscribeUrl, manageUrl) => {
   const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
   const list = events.map((item) => `<div style="margin:0 0 10px;padding:12px 14px;border-radius:14px;background:#fef7f4;border:2px solid #f2d8d7"><div style="font-weight:700;color:#76220b;font-size:16px">${escapeHtml(item.title)}</div><div style="font-size:13px;color:#555;margin-top:2px">🕒 ${escapeHtml(item.date || "Today")} &nbsp;·&nbsp; 📍 ${escapeHtml(item.location || "Location TBA")}</div></div>`).join("");
-  return emailShell(env, { emoji: "☀️", title: "What's on today", preheader: `${events.length} thing${events.length === 1 ? "" : "s"} happening today`, body: `<p style="margin:0 0 14px;color:#776867">${escapeHtml(dateString)}</p>${list}<p style="margin:16px 0 4px">${emailBtn(origin + "/", "See the full calendar →")}</p>`, footer: `You're receiving this because you subscribed to the 4DASISTAS daily list. <a href="${unsubscribeUrl}" style="color:#776867">Unsubscribe</a>` });
+  return emailShell(env, { emoji: "☀️", title: "What's on today", preheader: `${events.length} thing${events.length === 1 ? "" : "s"} happening today`, body: `<p style="margin:0 0 14px;color:#776867">${escapeHtml(dateString)}</p>${list}<p style="margin:16px 0 4px">${emailBtn(origin + "/", "See the full calendar →")}${manageUrl ? emailBtn(manageUrl, "⚙️ Manage subscription", "#fff", "#76220b") : ""}</p>`, footer: `You're receiving this because you subscribed to the 4DASISTAS daily list. <a href="${manageUrl || unsubscribeUrl}" style="color:#776867">Manage</a> · <a href="${unsubscribeUrl}" style="color:#776867">Unsubscribe</a>` });
 };
 const sendAdminEmail = (env, ctx, subject, html) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
@@ -1383,25 +1383,42 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ clubs: await readClubRoster(env) }, 200, corsHeaders);
     }
 
+    const readSubs = async () => { try { const a = JSON.parse((await env.SITE_DATA.get(SUBSCRIBER_INDEX_KEY)) || "[]"); return Array.isArray(a) ? a : []; } catch { return []; } };
+    const subPage = (title, body) => new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)} — 4DASISTAS</title></head><body style="margin:0;background:#fef7f4;font-family:Arial,Helvetica,sans-serif;color:#373d3b"><div style="background:#ce8491;padding:18px;text-align:center;color:#fff;font:700 26px Georgia,serif;letter-spacing:.12em">4DASISTAS</div><div style="max-width:480px;margin:22px auto;padding:0 16px"><div style="background:#fff;border:2px solid #76220b;border-radius:18px;padding:20px">${body}</div></div></body></html>`, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", ...corsHeaders } });
+    const subBtn = (label, action, token, bg, color) => `<form method="POST" action="/api/manage-subscription" style="margin:10px 0 0"><input type="hidden" name="token" value="${escapeHtml(token)}"><input type="hidden" name="action" value="${action}"><button style="width:100%;padding:13px;border-radius:999px;border:2px solid #76220b;background:${bg};color:${color};font:700 16px Arial;cursor:pointer">${label}</button></form>`;
     if (path === "/api/subscribe" && request.method === "POST") {
       let email;
       try { email = String((await request.json()).email || "").trim().toLowerCase(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return jsonResponse({ error: "Valid email required" }, 400, corsHeaders);
-      const index = JSON.parse((await env.SITE_DATA.get(SUBSCRIBER_INDEX_KEY)) || "[]");
+      const index = await readSubs();
       const existing = index.find(subscriber => subscriber.email === email);
-      if (existing) return jsonResponse({ ok: true }, 200, corsHeaders);
+      if (existing) { if (existing.paused) { delete existing.paused; await env.SITE_DATA.put(SUBSCRIBER_INDEX_KEY, JSON.stringify(index)); } return jsonResponse({ ok: true }, 200, corsHeaders); }
       const token = crypto.randomUUID();
       index.push({ email, token, createdAt: Date.now() });
       await env.SITE_DATA.put(SUBSCRIBER_INDEX_KEY, JSON.stringify(index));
       return jsonResponse({ ok: true }, 201, corsHeaders);
     }
-
+    // One-tap unsubscribe (the email's footer link) pauses the daily list and points to the manage page, where it can be turned back on or the email removed.
     if (path === "/api/unsubscribe" && request.method === "GET") {
-      const token = url.searchParams.get("token");
-      const index = JSON.parse((await env.SITE_DATA.get(SUBSCRIBER_INDEX_KEY)) || "[]");
-      const next = index.filter(subscriber => subscriber.token !== token);
-      await env.SITE_DATA.put(SUBSCRIBER_INDEX_KEY, JSON.stringify(next));
-      return new Response("You have been unsubscribed from the daily 4DASISTAS list.", { headers: { "Content-Type": "text/plain", ...corsHeaders } });
+      const token = url.searchParams.get("token") || "";
+      const index = await readSubs(), me = index.find((x) => x.token === token);
+      if (me) { me.paused = true; await env.SITE_DATA.put(SUBSCRIBER_INDEX_KEY, JSON.stringify(index)); }
+      return subPage("Unsubscribed", `<h2 style="margin:0 0 8px">You're unsubscribed ✅</h2><p>You won't get the daily “What's on today” email any more.</p>${me ? `<p style="margin:14px 0 0"><a href="/api/manage-subscription?token=${encodeURIComponent(token)}" style="color:#76220b;font-weight:700">Changed your mind? Manage your subscription →</a></p>` : ""}`);
+    }
+    if (path === "/api/manage-subscription" && (request.method === "GET" || request.method === "POST")) {
+      let token = url.searchParams.get("token") || "", action = "";
+      if (request.method === "POST") { try { const f = await request.formData(); token = String(f.get("token") || token); action = String(f.get("action") || ""); } catch {} }
+      const index = await readSubs(), me = index.find((x) => x.token === token);
+      if (!me) return subPage("Subscription", `<h2 style="margin:0 0 8px">We couldn't find that subscription</h2><p>It may already have been removed. You can subscribe again any time from <a href="/" style="color:#76220b;font-weight:700">4dasistas.ca</a>.</p>`);
+      let note = "";
+      if (action === "pause") { me.paused = true; note = "Paused — you won't get the daily email."; }
+      else if (action === "resume") { delete me.paused; note = "You're subscribed again 🎉"; }
+      else if (action === "delete") {
+        await env.SITE_DATA.put(SUBSCRIBER_INDEX_KEY, JSON.stringify(index.filter((x) => x.token !== token)));
+        return subPage("Removed", `<h2 style="margin:0 0 8px">Your email was removed 🗑️</h2><p>We've deleted ${escapeHtml(me.email)} from the daily list.</p>`);
+      }
+      if (action) await env.SITE_DATA.put(SUBSCRIBER_INDEX_KEY, JSON.stringify(index));
+      return subPage("Manage subscription", `<h2 style="margin:0 0 6px">Manage your subscription ⚙️</h2><p style="margin:0 0 4px">Daily “What's on today” email to <strong>${escapeHtml(me.email)}</strong></p><p style="margin:0 0 10px">Status: <strong style="color:${me.paused ? "#b3261e" : "#2a7a4a"}">${me.paused ? "Paused" : "Subscribed"}</strong></p>${note ? `<p style="background:#e6f4ea;border-radius:10px;padding:8px 10px">${escapeHtml(note)}</p>` : ""}${me.paused ? subBtn("Turn it back on", "resume", token, "#ce8491", "#fff") : subBtn("Pause the daily email", "pause", token, "#fff", "#76220b")}${subBtn("Remove my email completely", "delete", token, "#fdecea", "#b3261e")}`);
     }
 
     // ---- Club Members Schedule (public sign-in/profile/event-availability routes) ----
@@ -2411,6 +2428,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (path === "/api/admin/club-members" && M === "GET") ok = true;
         else if (path === "/api/admin/users" && M === "GET") ok = true;
         else if (path === "/api/admin/idea-availability" && M === "GET") ok = true;
+        else if (path === "/api/admin/avail-periods" && M === "GET") ok = true; // club admins can look back at earlier periods
         else if (path === "/api/admin/join-requests" && M === "GET") ok = true;
         else if (path === "/api/admin/calendar-event" && M === "POST") ok = true;
         else if (path === "/api/admin/wa-templates" && M === "GET") ok = true;
@@ -3105,7 +3123,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       else if (kind === "event") { await notifyAdminOfSuggestion(penv, pctx, "event", sampleEvent); msg = cap[0]; }
       else if (kind === "resource") { await notifyAdminOfSuggestion(penv, pctx, "resource", sampleRes); msg = cap[0]; }
       else if (kind === "backup") { await sendBackupEmail(penv, "Daily backup"); msg = cap[0]; }
-      else if (kind === "digest") msg = { subject: "What's on today", html: digestEmailHtml(env, "Sunday, October 18", [{ title: "Pilates at the Lake", date: "Today · 10:00 AM", location: "Toronto" }, { title: "Sisters Quran circle", date: "Today · 7:30 PM", location: "Mississauga" }], "#") };
+      else if (kind === "digest") msg = { subject: "What's on today", html: digestEmailHtml(env, "Sunday, October 18", [{ title: "Pilates at the Lake", date: "Today · 10:00 AM", location: "Toronto" }, { title: "Sisters Quran circle", date: "Today · 7:30 PM", location: "Mississauga" }], "#", "#") };
       if (kind === "index" || !msg) {
         const links = [["join", "🙋‍♀️ Join request"], ["squad", "🪁 Squad request"], ["event", "🗓️ Event submitted"], ["resource", "🛍️ Resource submitted"], ["backup", "🛟 Daily backup"], ["digest", "☀️ Daily digest (subscribers)"]];
         return new Response(`<!DOCTYPE html><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:Arial;background:#fef7f4;padding:24px"><h2 style="color:#76220b">Email previews</h2><p>Nothing is sent — these are examples with made-up people.</p>${links.map(([k, l]) => `<p><a href="?kind=${k}" style="color:#76220b;font-size:18px">${l}</a></p>`).join("")}</body>`, { headers: { "Content-Type": "text/html; charset=UTF-8", "Cache-Control": "no-store" } });
@@ -3839,15 +3857,17 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
   async scheduled(controller, env, ctx) {
     ctx.waitUntil((async () => { try { const claimed = await claimBackupSlot(env); console.log("daily backup slot", claimed ? "claimed — sending" : "already taken — skipping"); if (claimed) await sendBackupEmail(env, "Daily backup"); } catch (e) { console.error("Backup email failed", String(e)); } })()); // once a day; independent of the digest below
     if (!env.RESEND_API_KEY) return;
-    const subscribers = JSON.parse((await env.SITE_DATA.get(SUBSCRIBER_INDEX_KEY)) || "[]");
+    let subscribers = JSON.parse((await env.SITE_DATA.get(SUBSCRIBER_INDEX_KEY)) || "[]");
+    { const seenE = new Set(); subscribers = subscribers.filter((x) => x && x.email && !x.paused && !seenE.has(x.email) && seenE.add(x.email)); } // one email per address, none to paused ones
     if (!subscribers.length) return;
     const { dateString, events } = await readTodayEvents(env);
     if (!events.length) return;
+    if (!(await claimBackupSlot(env, "digest"))) { console.log("daily digest already sent today — skipping"); return; } // the cron fired more than once (that's why the digest arrived 4 times)
     const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
     const subject = `What's on today at 4DASISTAS — ${dateString}`;
     for (const subscriber of subscribers) {
-      const unsubscribeUrl = `${origin}/api/unsubscribe?token=${encodeURIComponent(subscriber.token)}`;
-      ctx.waitUntil(postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [subscriber.email], subject, html: digestEmailHtml(env, dateString, events, unsubscribeUrl) }));
+      const unsubscribeUrl = `${origin}/api/unsubscribe?token=${encodeURIComponent(subscriber.token)}`, manageUrl = `${origin}/api/manage-subscription?token=${encodeURIComponent(subscriber.token)}`;
+      ctx.waitUntil(postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [subscriber.email], subject, html: digestEmailHtml(env, dateString, events, unsubscribeUrl, manageUrl) }));
     }
   },
 };
