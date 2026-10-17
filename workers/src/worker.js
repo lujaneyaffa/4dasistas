@@ -3669,6 +3669,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       if (!body.fields || typeof body.fields !== "object") return jsonResponse({ error: "fields object is required" }, 400, corsHeaders);
       const fields = { ...body.fields };
+      if (fields.signup !== undefined) { const v = String(fields.signup || "").trim().slice(0, 500); if (v && !/^https:\/\//i.test(v)) return jsonResponse({ error: "The link must start with https://" }, 400, corsHeaders); fields.signup = v; }
       delete fields.id; // immutable once created
       delete fields.slug; // immutable once created — shared links point at it
       if (fields.emoji !== undefined) fields.emoji = String(fields.emoji || "").trim().slice(0, 8);

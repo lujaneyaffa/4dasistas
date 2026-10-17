@@ -9174,7 +9174,7 @@ function wireWaTemplates(){
   document.querySelectorAll('.wa-open').forEach(a => a.addEventListener('click', () => {
     const ta = document.querySelector(`.wa-tpl[data-key="${a.dataset.key}"]`);
     const txt = String((ta && ta.value) || '').replace(/\{first\}/g, 'there').replace(/\{name\}/g, '').replace(/\{club\}/g, 'your club').replace(/\{deadline\}/g, '');
-    a.href = 'https://wa.me/?text=' + encodeURIComponent(txt);
+    a.href = 'https://api.whatsapp.com/send?text=' + waEnc(txt);
   }));
   const save = document.getElementById('waTplSave'); if(!save) return;
   const st = document.getElementById('waTplStatus');
@@ -9182,10 +9182,14 @@ function wireWaTemplates(){
   save.addEventListener('click', async () => { st.style.color = '#776867'; st.textContent = 'Saving…'; try { const d = await leadApi('PUT', '/api/admin/wa-templates', { templates: collect() }); state.waTemplates = d.templates || {}; st.style.color = '#2a7a4a'; st.textContent = 'Saved ✓'; } catch(err){ st.style.color = '#c00'; st.textContent = err.message; } });
   document.getElementById('waTplReset').addEventListener('click', async () => { if(!confirm('Reset all four messages to the original wording?')) return; try { await leadApi('PUT', '/api/admin/wa-templates', { templates: {} }); state.waTemplates = {}; render(); } catch(err){ st.style.color = '#c00'; st.textContent = err.message; } });
 }
+// Encode a WhatsApp message so emoji, dashes and apostrophes arrive intact (wa.me turned some into “?”): api.whatsapp.com/send + strict UTF-8 percent-encoding.
+function waEnc(text){
+  return encodeURIComponent(String(text).normalize('NFC').replace(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g, '')).replace(/[!'()*~]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+}
 function admWhatsAppLink(phone, text){
   let d = String(phone || '').replace(/\D/g, '');
   if(d.length === 10) d = '1' + d; // Canadian/US number without the country code
-  return d.length >= 11 ? `https://wa.me/${d}?text=${encodeURIComponent(text)}` : '';
+  return d.length >= 11 ? `https://api.whatsapp.com/send?phone=${d}&text=${waEnc(text)}` : '';
 }
 function admToast(html, onClick){
   let t = document.getElementById('admToast');
@@ -9528,6 +9532,27 @@ function renderAdminAllMembersPanels(){
   return searchBox + `<div class="clubs-grid">${cardsHtml}</div>` + archivesHtml;
 }
 
+// 🔗 Club links: every club's WhatsApp group link in one list, edit + save right there (the link sent in the welcome message and shown on the club's page).
+function clubLinksHtml(){
+  return `<div class="cp-box"><p class="ideas-hint" style="text-align:left;margin:0 0 8px;">The WhatsApp (or Instagram) link for each club. It goes into the “welcome” WhatsApp message as {link}. Leave empty to remove.</p>
+    ${clubsData.map(c => `<div style="padding:8px 0;border-top:1px solid rgba(0,0,0,.1);"><strong>${c.emoji ? escapeCm(c.emoji) + ' ' : ''}${escapeCm(c.title)}</strong>
+      <div class="fb-row" style="flex-wrap:nowrap;margin-top:4px;"><input type="url" class="cl-in" data-clid="${escapeCm(c.id)}" value="${escapeCm(c.signup || '')}" placeholder="https://chat.whatsapp.com/…" inputmode="url" autocapitalize="none" autocorrect="off" style="flex:1;min-width:0;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;"><button type="button" class="fb-mini cl-save" data-clid="${escapeCm(c.id)}">Save</button></div>
+      <div class="cl-msg" data-clid="${escapeCm(c.id)}" style="font-size:12px;min-height:14px;"></div></div>`).join('')}</div>`;
+}
+function wireClubLinks(){
+  document.querySelectorAll('.cl-save').forEach(b => b.addEventListener('click', async () => {
+    const id = b.dataset.clid, inp = document.querySelector(`.cl-in[data-clid="${id}"]`), msg = document.querySelector(`.cl-msg[data-clid="${id}"]`), v = inp.value.trim();
+    if(v && !/^https:\/\//i.test(v)){ msg.style.color = '#c00'; msg.textContent = 'The link must start with https://'; return; }
+    b.disabled = true; msg.style.color = '#776867'; msg.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/admin/clubs/' + encodeURIComponent(id), { method:'PUT', headers:{ 'Content-Type':'application/json' }, credentials:'include', body: JSON.stringify({ fields:{ signup: v } }) });
+      await clubDirCheckResponse(res);
+      const c = clubsData.find(x => x.id === id); if(c) c.signup = v;
+      msg.style.color = '#2a7a4a'; msg.textContent = v ? 'Saved ✓' : 'Link removed ✓';
+    } catch(err){ msg.style.color = '#c00'; msg.textContent = err.message; }
+    b.disabled = false;
+  }));
+}
 function clubDirEditFormHtml(){
   const editing = state.cmAdminClubDirEditing;
   if(!editing) return '';
@@ -9638,6 +9663,7 @@ function renderClubAdminPanel(){
     ${inboxAdminHtml(lead)}
     ${lead ? admSec('periodsview', '🗂️ Availability periods — tap one to view it', `<div class="cp-box">${periodHistoryHtml(k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' })) || '<p class="av-msg">Loading…</p>'}</div>`, true) : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
     ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
+    ${lead ? '' : admSec('clublinks', '🔗 Club links (WhatsApp groups)', clubLinksHtml(), true)}
     ${lead ? '' : admSec('clubdir', '🏛️ Club directory (add / edit clubs)', clubDirListHtml(), false)}
   `;
   const squadsGrid = lead ? '' : admSec('squads', '🪁 Squads — requests &amp; invite links', squadAdminHtml(), true, 'flat');
@@ -10284,6 +10310,7 @@ function wireClubAdminPanel(){
   { const bc = document.getElementById('admBackCurrent'); if(bc) bc.addEventListener('click', () => { admAvail.viewPeriod = null; admAvail.month = String(AVAIL_PERIOD.start).slice(0, 7); render(); }); }
   wireWaTemplates();
   wireAdmCalendar();
+  wireClubLinks();
   wireCalCopy(document);
   wireD1Admin();
   wireFormImport();
