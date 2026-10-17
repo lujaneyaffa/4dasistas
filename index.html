@@ -3046,8 +3046,8 @@ async function admAnswerSquad(squadId, userId, action){
     const data = await res.json().catch(() => ({}));
     if(!res.ok && res.status !== 404) throw new Error(data.error || 'Could not update that request');
     if(action === 'accept'){ state.squadAdmin = null; if(state.tab === 'squads') render(); } // member list changed: reload
-    const swa = req && action === 'accept' ? admWhatsAppLink(req.phone, waMsg('squadAccept', req.name, '', '', { link: sqLink, squad: req.squadTitle })) : '';
-    admToast(`${action === 'accept' ? '✅ Accepted' : '❌ Declined'}${req ? ' · ' + escapeCm(req.name) + ' · ' + escapeCm(req.squadTitle) : ''} — they'll see it next time they open the app.${swa ? `<br><a href="${escapeCm(swa)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;padding:10px 18px;border-radius:999px;background:#25a244;color:#fff;font-weight:800;text-decoration:none;">💬 Welcome ${escapeCm(String(req.name || '').split(' ')[0])} on WhatsApp</a>` : ''}`);
+    admToast(`${action === 'accept' ? '✅ Accepted' : '❌ Declined'}${req ? ' · ' + escapeCm(req.name) + ' · ' + escapeCm(req.squadTitle) : ''} — they'll see it next time they open the app.`);
+    if(req && action === 'accept') admWaPrompt(`✅ ${req.name} joined ${req.squadTitle}!`, req.name, req.phone, waMsg('squadAccept', req.name, '', '', { link: sqLink, squad: req.squadTitle }));
   } catch(err){
     admNotif.dismissed.delete(key); admNotif.items = keepItems; if(state.squadAdmin && keepSquadReqs) state.squadAdmin.requests = keepSquadReqs;
     admUpdateBell(); if(admNotif.panel) admRenderPanel(); if(state.tab === 'squads') render();
@@ -9174,7 +9174,7 @@ function wireWaTemplates(){
   document.querySelectorAll('.wa-open').forEach(a => a.addEventListener('click', () => {
     const ta = document.querySelector(`.wa-tpl[data-key="${a.dataset.key}"]`);
     const txt = String((ta && ta.value) || '').replace(/\{first\}/g, 'there').replace(/\{name\}/g, '').replace(/\{club\}/g, 'your club').replace(/\{deadline\}/g, '');
-    a.href = 'https://api.whatsapp.com/send?text=' + waEnc(txt);
+    a.href = (isMobileDevice() ? 'https://api.whatsapp.com/send?' : 'https://web.whatsapp.com/send?') + 'text=' + waEnc(txt);
   }));
   const save = document.getElementById('waTplSave'); if(!save) return;
   const st = document.getElementById('waTplStatus');
@@ -9189,7 +9189,24 @@ function waEnc(text){
 function admWhatsAppLink(phone, text){
   let d = String(phone || '').replace(/\D/g, '');
   if(d.length === 10) d = '1' + d; // Canadian/US number without the country code
-  return d.length >= 11 ? `https://api.whatsapp.com/send?phone=${d}&text=${waEnc(text)}` : '';
+  if(d.length < 11) return '';
+  // WhatsApp's DESKTOP app turns emoji from links into � — on a computer open WhatsApp Web instead (it keeps them); phones keep the app link.
+  return (isMobileDevice() ? 'https://api.whatsapp.com/send?' : 'https://web.whatsapp.com/send?') + `phone=${d}&text=${waEnc(text)}`;
+}
+// After accepting someone: a centred pop-up (stays until you close it) to send them the welcome on WhatsApp — or copy the message.
+function admWaPrompt(title, name, phone, text){
+  const link = admWhatsAppLink(phone, text), first = String(name || '').split(' ')[0] || 'her';
+  const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 6px;">${escapeCm(title)}</h3>
+    <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">${link ? `Send ${escapeCm(first)} this welcome on WhatsApp:` : `${escapeCm(first)} has no phone number on file — copy the message and send it yourself:`}</p>
+    <div style="max-height:34vh;overflow:auto;padding:10px;border-radius:12px;background:#fef7f4;border:2px dashed #f2d8d7;white-space:pre-wrap;font-size:14px;">${escapeCm(text)}</div>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+      ${link ? `<a class="waPromptGo" href="${escapeCm(link)}" target="_blank" rel="noopener" style="display:block;text-align:center;padding:13px 18px;border-radius:999px;background:#25a244;color:#fff;font-weight:800;text-decoration:none;">💬 Send on WhatsApp</a>` : ''}
+      <button type="button" class="club-guide-btn waPromptCopy" style="text-align:center;">📋 Copy the message</button>
+      <button type="button" class="club-guide-btn waPromptX" style="text-align:center;background:#fff;">✕ Close</button></div>`);
+  const card = wrap.querySelector('.idea-pop-card'); if(card) card.style.cssText += ';max-width:min(460px,92vw);';
+  const go = wrap.querySelector('.waPromptGo'); if(go) go.addEventListener('click', () => { go.textContent = '✓ Opened WhatsApp'; });
+  wrap.querySelector('.waPromptCopy').addEventListener('click', async e => { try { await navigator.clipboard.writeText(text); e.target.textContent = 'Copied ✓'; } catch { window.prompt('Copy this message:', text); } });
+  wrap.querySelector('.waPromptX').addEventListener('click', close);
 }
 function admToast(html, onClick){
   let t = document.getElementById('admToast');
@@ -9308,8 +9325,9 @@ async function admAnswerJoin(clubId, userId, action){
     if(!res.ok && res.status !== 404) throw new Error(data.error || 'Could not update that request');
     if(action === 'accept'){ admAvail.people = null; cmAdminLoadAllMembers().then(() => { const typing = document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName); if((state.tab === 'clubs' || state.tab === 'admin') && !typing) render(); }); }
     const first = req ? String(req.name || '').split(' ')[0] : 'her';
-    const wa = req ? admWhatsAppLink(req.phone, waMsg(action === 'accept' ? 'joinAccept' : 'joinDecline', req.name, req.clubTitle, '', { link: ((clubsData.find(c => c.id === clubId) || {}).signup || '') })) : '';
-    admToast(`${action === 'accept' ? '✅ Accepted' : '❌ Declined'}${req ? ' · ' + escapeCm(req.name) : ''} — they'll see a notice next time they open the app.${wa ? `<br><a href="${escapeCm(wa)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;padding:10px 18px;border-radius:999px;background:#25a244;color:#fff;font-weight:800;text-decoration:none;">💬 Message ${escapeCm(first)} on WhatsApp</a>` : ''}`);
+    const waText = req ? waMsg(action === 'accept' ? 'joinAccept' : 'joinDecline', req.name, req.clubTitle, '', { link: ((clubsData.find(c => c.id === clubId) || {}).signup || '') }) : '';
+    admToast(`${action === 'accept' ? '✅ Accepted' : '❌ Declined'}${req ? ' · ' + escapeCm(req.name) : ''} — they'll see a notice next time they open the app.`);
+    if(req && waText) admWaPrompt(action === 'accept' ? `✅ ${req.name} is in!` : `❌ ${req.name} declined`, req.name, req.phone, waText);
   } catch(err){
     admNotif.dismissed.delete(id); admNotif.items = keepItems; state.cmAdminJoinRequests = keepReqs;
     admUpdateBell();
