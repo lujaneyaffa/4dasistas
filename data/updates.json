@@ -1,6 +1,16 @@
 {
   "updates": [
     {
+      "no": 19,
+      "date": "2026-10-18",
+      "title": "Events to be scheduled",
+      "items": [
+        {
+          "text": "✨ Some club events don't have a date yet. They now show under “TO BE SCHEDULED” on your club calendar — tap “Show interest” (after confirming your availability is filled in) and we'll pick a date that works."
+        }
+      ]
+    },
+    {
       "no": 18,
       "date": "2026-10-18",
       "title": "Availability reminder",

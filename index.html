@@ -5698,6 +5698,10 @@ async function clubCalLoad(force){
       const r = await fetch('/api/club-calendar', { cache:'no-store' });
       state.clubCal = r.ok ? ((await r.json()).events || []) : []; state.clubCalIsAdminData = false;
     }
+    state.clubCalTbd = (state.clubCal || []).filter(e => e.tbd); state.clubCal = (state.clubCal || []).filter(e => !e.tbd); // "date to be decided" events live in their own list
+    if(!calIsAdmin() && getCmSession()){
+      try { const tr = await fetch('/api/club-calendar/tbd', { headers: ideaHeaders(), cache:'no-store' }); state.clubCalTbd = tr.ok ? ((await tr.json()).events || []) : []; } catch { state.clubCalTbd = []; }
+    }
     state.clubCalError = '';
   } catch { state.clubCalError = "Couldn't load the calendar — check your connection."; if(!state.clubCal) state.clubCal = []; }
   state.clubCalLoading = false;
@@ -5743,7 +5747,63 @@ function clubCalSectionHtml(compact){
   return `<h3 class="clubs-popular-title">📅 CLUB CALENDAR</h3>
     ${compact ? '' : `<p class="ideas-hint" style="text-align:center;margin:0 0 8px;">Tap an event to see details and RSVP.</p>`}
     <div style="display:flex;gap:8px;justify-content:center;margin:0 0 10px;flex-wrap:wrap;">${tog('cal', '📅 Calendar')}${tog('list', '📋 List')}${calIsAdmin() ? `<button type="button" class="club-guide-btn" id="calAddBtn" style="min-height:36px;padding:4px 16px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add event</button>` : ''}</div>
-    ${body}`;
+    ${body}${clubCalTbdHtml()}`;
+}
+// "TO BE SCHEDULED": events with no date yet. Signed-in members of the club see them here and show interest (after confirming their availability); the admin manages them.
+function clubCalTbdHtml(){
+  const list = state.clubCalTbd || [], adm = calIsAdmin();
+  if(!list.length || (!adm && !getCmSession())) return '';
+  const cards = list.map(e => {
+    const col = clubCol(e.clubId);
+    const meta = `<small style="color:#776867;">🏷 ${escapeCm(e.clubTitle || avClubTitle(e.clubId))}${e.time ? ' · ⏰ ' + escapeCm(e.time) : ''}${e.place ? ' · 📍 ' + escapeCm(e.place) : ''}</small>`;
+    const n = adm ? (e.interest || []).length : (e.interested || 0);
+    const act = adm
+      ? `<button type="button" class="fb-mini tbd-manage" data-ceid="${escapeCm(e.id)}">👥 Interested (${n}) · edit</button>`
+      : `<button type="button" class="club-guide-btn tbd-interest" data-ceid="${escapeCm(e.id)}" style="margin-top:8px;text-align:center;${e.mine ? 'background:#e6f4ea;border-color:#2a7a4a;' : 'background:var(--brand-rose);color:#fff;'}">${e.mine ? '✓ You\'re interested — tap to undo' : '🙋 Show interest'}</button>`;
+    return `<div class="fb-card" style="border-color:${col.fg};box-shadow:3px 3px 0 ${col.fg};margin-top:8px;"><strong style="font-size:16px;overflow-wrap:break-word;">${escapeCm(e.title)}</strong><br>${meta}${e.desc ? `<p style="margin:6px 0 0;font-size:14px;white-space:pre-wrap;">${escapeCm(e.desc)}</p>` : ''}
+      <small style="display:block;margin-top:6px;">🙋 <b>${n}</b> interested</small>${act}</div>`;
+  }).join('');
+  return `<h3 class="clubs-popular-title" style="margin-top:22px;">🕒 TO BE SCHEDULED</h3><p class="ideas-hint" style="text-align:center;margin:0 0 4px;">${adm ? 'No date yet — members of the club can show interest.' : 'No date yet — show interest (and make sure your availability is filled in) so we can pick a time that works.'}</p>${cards}`;
+}
+// Show interest: first make sure the member has filled in their availability for the current period.
+async function tbdShowInterest(id, on){
+  const ev = (state.clubCalTbd || []).find(e => e.id === id); if(!ev) return;
+  const send = async () => {
+    const r = await fetch('/api/club-calendar/' + encodeURIComponent(id) + '/interest', { method: on ? 'POST' : 'DELETE', headers: ideaHeaders() });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok){ const e = new Error(d.error || 'Something went wrong'); e.needAvail = !!d.needAvail; throw e; }
+    ev.mine = on; ev.interested = d.interested; render();
+  };
+  if(!on){ try { await send(); } catch(err){ alert(err.message); } return; }
+  if(!state.ideaAvailLoadedFor || state.ideaAvailOwner !== ideaOwnerKey()) await ideaAvailLoad();
+  const filled = iavNext15Dates().some(d => (state.ideaAvail && state.ideaAvail[d]) || (state.ideaAvailNo && state.ideaAvailNo[d]));
+  const { wrap, close } = ideaPopup(filled ? `<h3 style="margin:0 0 6px;">🙋 ${escapeCm(ev.title)}</h3>
+      <p style="margin:0 0 10px;">We'll use everyone's availability to pick the date, so please confirm yours is up to date.</p>
+      <label style="display:flex;gap:8px;align-items:flex-start;margin:0 0 10px;font-weight:600;"><input type="checkbox" id="tbdOk" style="margin-top:3px;"> I've filled in my availability</label>
+      <div id="tbdMsg" style="font-size:13px;color:#c00;min-height:16px;"></div>
+      <div style="display:flex;gap:8px;"><button type="button" class="club-guide-btn" id="tbdGo" style="flex:2;text-align:center;background:var(--brand-rose);color:#fff;">Show interest</button><button type="button" class="club-guide-btn" id="tbdX" style="flex:1;text-align:center;background:#fff;">Cancel</button></div>`
+    : `<h3 style="margin:0 0 6px;">📅 Add your availability first</h3>
+      <p style="margin:0 0 10px;">You haven't filled in your availability for the current period yet. Add it, then come back and tap <strong>Show interest</strong> — we use it to choose the date.</p>
+      <div style="display:flex;gap:8px;"><button type="button" class="club-guide-btn" id="tbdAv" style="flex:2;text-align:center;background:var(--brand-rose);color:#fff;">Add my availability</button><button type="button" class="club-guide-btn" id="tbdX" style="flex:1;text-align:center;background:#fff;">Later</button></div>`);
+  wrap.querySelector('#tbdX').addEventListener('click', close);
+  const av = wrap.querySelector('#tbdAv'); if(av) av.addEventListener('click', () => { close(); if(location.hash === '#/clubs/availability') location.hash = '#/clubs'; location.hash = '#/clubs/availability'; });
+  const go = wrap.querySelector('#tbdGo');
+  if(go) go.addEventListener('click', async () => {
+    if(!wrap.querySelector('#tbdOk').checked){ wrap.querySelector('#tbdMsg').textContent = 'Tick the box to confirm.'; return; }
+    go.disabled = true;
+    try { await send(); close(); } catch(err){ go.disabled = false; wrap.querySelector('#tbdMsg').textContent = err.message; }
+  });
+}
+// Admin: who is interested in an undated event, plus Edit (set the date there to schedule it).
+function tbdManage(id){
+  const ev = (state.clubCalTbd || []).find(e => e.id === id); if(!ev) return;
+  const ppl = ev.interest || [];
+  const { wrap, close } = ideaPopup(`<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(ev.clubTitle || '')}</p><h3 style="margin:0 0 6px;">${escapeCm(ev.title)}</h3>
+    <p class="idea-pop-h">🙋 Interested (${ppl.length})</p>${ppl.length ? ppl.map(i => `<div style="padding:5px 0;border-top:1px solid rgba(0,0,0,.1);font-weight:600;">${escapeCm(i.name)}</div>`).join('') : '<p class="av-msg">Nobody yet.</p>'}
+    <p class="ideas-hint" style="text-align:left;margin:10px 0 6px;">Everyone listed has confirmed their availability. To schedule it, edit the event and untick “Date to be decided”.</p>
+    <div style="display:flex;gap:8px;"><button type="button" class="club-guide-btn" id="tbdEdit" style="flex:1;text-align:center;">✏️ Edit / schedule</button><button type="button" class="club-guide-btn" id="tbdDel" style="flex:1;text-align:center;background:#fdecea;">🗑 Remove</button></div>`);
+  wrap.querySelector('#tbdEdit').addEventListener('click', () => { close(); clubCalForm(ev); });
+  wrap.querySelector('#tbdDel').addEventListener('click', async () => { if(!confirm('Remove this event?')) return; try { await clubCalAdminCall('/' + encodeURIComponent(ev.id), 'DELETE'); close(); clubCalReload(); } catch(err){ alert(err.message); } });
 }
 // Tapping a day shows EVERY event that day with its full details right away (no second tap): members get the RSVP button, admins a manage button, visitors a log-in / sign-up prompt.
 function clubCalDayPopup(key){
@@ -5803,6 +5863,8 @@ function wireClubCal(){
   }));
   const add = document.getElementById('calAddBtn');
   if(add) add.addEventListener('click', () => clubCalForm(null));
+  document.querySelectorAll('.tbd-interest').forEach(b => b.addEventListener('click', () => { const e = (state.clubCalTbd || []).find(x => x.id === b.dataset.ceid); tbdShowInterest(b.dataset.ceid, !(e && e.mine)); }));
+  document.querySelectorAll('.tbd-manage').forEach(b => b.addEventListener('click', () => tbdManage(b.dataset.ceid)));
 }
 function clubCalOpenAny(id){ clubCalOpen(id); } // clubCalOpen asks the server itself, so it doesn't need the list loaded
 function clubCalIdeaPopup(e){
@@ -6349,7 +6411,8 @@ function clubCalForm(ev, presetDate){
     <p class="ideas-hint" style="text-align:left;margin:0 0 4px;">Which club(s)? Tick more than one for a collab.</p>
     <div class="cp-clubs" style="margin-bottom:8px;">${clubs.map(c => `<label class="cp-club"><input type="checkbox" class="cf-club" value="${escapeCm(c.id)}" ${sel.has(c.id) ? 'checked' : ''}> ${escapeCm(c.title)}</label>`).join('')}</div>
     <input id="cfTitle" type="text" maxlength="80" placeholder="Event name" value="${escapeCm(ev ? ev.title : '')}" style="${f}">
-    <input id="cfDate" type="date" value="${escapeCm(ev ? ev.date : (presetDate || ''))}" style="${f}">
+    <label style="display:flex;gap:8px;align-items:center;margin:0 0 6px;font-weight:700;font-size:14px;"><input type="checkbox" id="cfTbd" ${ev && ev.tbd ? 'checked' : ''}> 🕒 Date to be decided (TBD)</label>
+    <input id="cfDate" type="date" value="${escapeCm(ev && !ev.tbd ? ev.date : (presetDate || ''))}" style="${f}">
     <input id="cfTime" type="text" maxlength="30" placeholder="Time (optional, e.g. 6:30 PM)" value="${escapeCm(ev ? ev.time : '')}" style="${f}">
     <label style="display:block;font-size:12px;color:#776867;margin:0 0 2px;">Last day to RSVP (optional)</label>
     <input id="cfRsvpBy" type="date" value="${escapeCm(ev ? (ev.rsvpBy || '') : '')}" style="${f}">
@@ -6371,6 +6434,9 @@ function clubCalForm(ev, presetDate){
     <div id="cfMsg" style="font-size:13px;color:#c00;min-height:18px;margin-bottom:6px;"></div>
     <button type="button" class="club-guide-btn" id="cfSave" style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">${ev ? 'Save changes' : 'Add event'}</button>`);
   mountClubCalPlace(wrap);
+  { const tb = wrap.querySelector('#cfTbd'), dt = wrap.querySelector('#cfDate'), rb = wrap.querySelector('#cfRsvpBy');
+    const sync = () => { dt.disabled = tb.checked; rb.disabled = tb.checked; dt.style.opacity = rb.style.opacity = tb.checked ? '.4' : '1'; };
+    tb.addEventListener('change', sync); sync(); }
   let draftForm = ev ? (ev.form || null) : null;
   const formBtn = wrap.querySelector('#cfFormBtn');
   const paintFormBtn = () => { formBtn.textContent = draftForm ? `✅ Form ready (${draftForm.fields.length} question${draftForm.fields.length === 1 ? '' : 's'}) — tap to edit · it saves with the event` : '📝 Create a form'; };
@@ -6396,6 +6462,7 @@ function clubCalForm(ev, presetDate){
   wrap.querySelector('#cfSave').addEventListener('click', async e => {
     const body = { title: wrap.querySelector('#cfTitle').value, date: wrap.querySelector('#cfDate').value, time: wrap.querySelector('#cfTime').value, place: wrap.querySelector('#cfPlace').value, mapUrl: cleanMapLink(wrap.querySelector('#cfMap').value), rsvpBy: wrap.querySelector('#cfRsvpBy').value, desc: wrap.querySelector('#cfDesc').value };
     body.clubIds = [...wrap.querySelectorAll('.cf-club:checked')].map(x => x.value);
+    body.tbd = wrap.querySelector('#cfTbd').checked; if(body.tbd){ body.date = ''; body.rsvpBy = ''; }
     body.form = draftForm ? (() => { const c = { ...draftForm }; delete c.rsvpBy; delete c.desc; return c; })() : null; // the date lives in the event's own field above
     if(!ev) body.attendees = picked.map(a => a.userId ? { userId:a.userId } : { name:a.name });
     if(!body.clubIds.length){ wrap.querySelector('#cfMsg').textContent = 'Tick at least one club.'; return; }

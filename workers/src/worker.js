@@ -1744,14 +1744,14 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (path === "/api/public-profile" && request.method === "GET") {
       const evId = url.searchParams.get("event"), clubId = url.searchParams.get("club"), pid = String(url.searchParams.get("p") || "");
       let ids = [];
-      if (evId) { const ev1 = (await readClubCal(env)).find((e) => e.id === evId); if (ev1 && ev1.date < new Date().toISOString().slice(0, 10)) ids = (ev1.rsvps || []).filter((x) => x.status === "going" && !String(x.id).startsWith("g:")).map((x) => x.id); }
+      if (evId) { const ev1 = (await readClubCal(env)).find((e) => e.id === evId); if (ev1 && !ev1.tbd && ev1.date < new Date().toISOString().slice(0, 10)) ids = (ev1.rsvps || []).filter((x) => x.status === "going" && !String(x.id).startsWith("g:")).map((x) => x.id); }
       else if (clubId) ids = await readClubMemberIds(env, clubId);
       for (const uid of ids) {
         if ((await pubId(env, uid)) !== pid) continue;
         const u = await readUser(env, uid); if (!u) break;
         const roster = await readClubRoster(env), mine = await allClubIdsContaining(env, uid);
         const todayIso = new Date().toISOString().slice(0, 10);
-        const activities = (await readClubCal(env)).filter((e) => e.date < todayIso && (e.rsvps || []).some((x) => x.id === uid && x.status === "going"))
+        const activities = (await readClubCal(env)).filter((e) => !e.tbd && e.date < todayIso && (e.rsvps || []).some((x) => x.id === uid && x.status === "going"))
           .sort((a, b) => b.date.localeCompare(a.date)).map((e) => ({ title: e.title, date: e.date, clubs: calClubs(e).map((cid) => (roster.find((c) => c.id === cid) || {}).title).filter(Boolean) }));
         return jsonResponse({ first: maskPublic(u.username || firstNameOnly(u.name)), joined: u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : "", clubs: mine.map((id) => (roster.find((c) => c.id === id) || {}).title).filter(Boolean), activities }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
       }
@@ -1770,13 +1770,13 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ results: _memberSearchCache.people.filter((p) => p.low.includes(q)).slice(0, 6).map((p) => ({ username: p.username, name: short(p.name) })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     // ---- Club calendar (public list; member details + RSVP) ----
-    const calMatch = path.match(/^\/api\/club-calendar(?:\/([^/]+)(\/rsvp|\/form|\/attendees)?)?\/?$/);
+    const calMatch = path.match(/^\/api\/club-calendar(?:\/([^/]+)(\/rsvp|\/form|\/attendees|\/interest)?)?\/?$/);
     if (calMatch) {
       const M = request.method;
       const roster = await readClubRoster(env);
       const clubTitle = (id) => (roster.find((c) => c.id === id) || {}).title || "";
       if (!calMatch[1] && M === "GET") {
-        const events = (await readClubCal(env)).sort((a, b) => a.date.localeCompare(b.date) || String(a.time).localeCompare(String(b.time)))
+        const events = (await readClubCal(env)).filter((e) => !e.tbd).sort((a, b) => a.date.localeCompare(b.date) || String(a.time).localeCompare(String(b.time)))
           .map((e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", hasForm: !!e.form, publicForm: !!e.form }));
         // Idea bubbles that the admin gave a DATE also show on the calendars (cached ~2 minutes so this stays cheap).
         if (!_calIdeaCache || Date.now() - _calIdeaCache.at > 120000) {
@@ -1791,7 +1791,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (calMatch[1] && calMatch[2] === "/attendees" && M === "GET") {
         const ev0 = (await readClubCal(env)).find((e) => e.id === calMatch[1]);
         if (!ev0) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
-        if (ev0.date >= new Date().toISOString().slice(0, 10)) return jsonResponse({ past: false, attendees: [] }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+        if (ev0.tbd || ev0.date >= new Date().toISOString().slice(0, 10)) return jsonResponse({ past: false, attendees: [] }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
         const out = [];
         for (const r of (ev0.rsvps || []).filter((x) => x.status === "going")) {
           if (String(r.id).startsWith("g:")) { out.push({ first: maskPublic(firstNameOnly(r.name)) }); continue; } // no profile: a first name only
@@ -1800,6 +1800,16 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         }
         out.sort((a, b) => a.first.localeCompare(b.first));
         return jsonResponse({ past: true, attendees: out }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      }
+      // MEMBERS ONLY: the "to be scheduled" events of the clubs this member is in (no date yet — they show interest instead of RSVPing).
+      if (calMatch[1] === "tbd" && !calMatch[2] && M === "GET") {
+        const who = await ideaWho();
+        if (!who || !who.id.startsWith("m:")) return jsonResponse({ events: [] }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+        const uid = who.id.slice(2), mineClubs = [];
+        for (const c of roster) if ((await readClubMemberIds(env, c.id)).includes(uid)) mineClubs.push(c.id);
+        const events = (await readClubCal(env)).filter((e) => e.tbd && calClubs(e).some((c) => mineClubs.includes(c)))
+          .map((e) => ({ id: e.id, clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, time: e.time || "", place: e.place || "", desc: e.desc || "", interested: (e.interest || []).length, mine: (e.interest || []).some((i) => i.id === uid) }));
+        return jsonResponse({ events }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
       }
       if (calMatch[1]) {
         const who = await ideaWho();
@@ -1878,6 +1888,20 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
             notifyAdminOfFormSignup(env, ctx, ev, { name: who.name, newAccount: false }, chk.answers, calAddonSelection(ev.form, fb && fb.addons));
           }
           return jsonResponse({ ok: true, answers: chk.answers, addons: (map[uid] || {}).addons || [], total: (map[uid] || {}).total ?? null, mine: status, going: (ev.rsvps || []).filter((r) => r.status === "going").length }, 200, corsHeaders);
+        }
+        if (calMatch[2] === "/interest" && (M === "POST" || M === "DELETE")) {
+          if (!uid || !ev.tbd) return jsonResponse({ error: "Sign in as a member to show interest" }, 403, corsHeaders);
+          if (!inClub) return jsonResponse({ error: "This one is for members of the club" }, 403, corsHeaders);
+          ev.interest = (ev.interest || []).filter((i) => i.id !== uid);
+          if (M === "POST") {
+            // They must have filled in their availability for the current period first — it's what we use to pick the date.
+            const per = await readAvailPeriodKV(env), doc = parseIdeaAvailDoc(await readIaDoc(env, `m:${uid}`));
+            const inPer = (d) => d >= per.start && d <= per.end;
+            if (!Object.keys(doc.days).some(inPer) && !Object.keys(doc.no).some(inPer)) return jsonResponse({ error: "Please add your availability first, then show interest", needAvail: true }, 400, corsHeaders);
+            ev.interest.push({ id: uid, name: who.name, at: Date.now() });
+          }
+          await writeClubCal(env, all);
+          return jsonResponse({ ok: true, mine: M === "POST", interested: ev.interest.length }, 200, corsHeaders);
         }
         if (calMatch[2] === "/rsvp" && (M === "POST" || M === "DELETE")) {
           if (!uid) return jsonResponse({ error: "Sign in as a member to RSVP" }, 403, corsHeaders);
@@ -3384,7 +3408,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const canEv = (e) => calClubs(e).some(canClub) || canForm(e);
       const roster = await readClubRoster(env);
       const clubTitle = (id) => (roster.find((c) => c.id === id) || {}).title || "";
-      const view = (e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", form: canForm(e) ? (e.form || null) : null, hasForm: !!e.form, canForm: canForm(e), ...(leadCtx ? {} : { formLeads: e.formLeads || [] }), publicForm: !!e.publicForm, rsvps: e.rsvps || [] });
+      const view = (e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", form: canForm(e) ? (e.form || null) : null, hasForm: !!e.form, canForm: canForm(e), ...(leadCtx ? {} : { formLeads: e.formLeads || [] }), publicForm: !!e.publicForm, rsvps: e.rsvps || [], ...(e.tbd ? { tbd: true, interest: e.interest || [] } : {}) });
       const all = await readClubCal(env);
       if (!adminCalMatch[1] && M === "GET") return jsonResponse({ events: all.filter(canEv).sort((a, b) => a.date.localeCompare(b.date)).map(view) }, 200, corsHeaders);
       let body = {};
@@ -3397,9 +3421,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (String(body.mapUrl || "").trim() && !isGoogleMapsUrl(body.mapUrl)) return jsonResponse({ error: "That isn't a Google Maps link — in Google Maps tap Share → Copy link" }, 400, corsHeaders);
         const f = calFields(body);
         if (f.title.length < 3) return jsonResponse({ error: "Give the event a name (3+ letters)" }, 400, corsHeaders);
-        if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
-        const ev = { id: crypto.randomUUID(), clubId, clubIds, ...f, rsvps: [], at: Date.now() };
-        { const cf = sanitizeCalForm(body.form); if (cf) { if (cf.rsvpBy !== undefined) { ev.rsvpBy = cf.rsvpBy || ev.rsvpBy || ""; } if (cf.desc !== undefined) ev.desc = cf.desc; delete cf.rsvpBy; delete cf.desc; ev.form = cf; if (leadCtx) ev.formLeads = [leadCtx.username]; } }
+        const tbd = !!body.tbd; // "date to be decided": members of the club can show interest instead of RSVPing
+        if (tbd) { f.date = ""; f.rsvpBy = ""; } else if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
+        const ev = { id: crypto.randomUUID(), clubId, clubIds, ...f, ...(tbd ? { tbd: true, interest: [] } : {}), rsvps: [], at: Date.now() };
+        { const cf = sanitizeCalForm(body.form); if (cf && !tbd) { if (cf.rsvpBy !== undefined) { ev.rsvpBy = cf.rsvpBy || ev.rsvpBy || ""; } if (cf.desc !== undefined) ev.desc = cf.desc; delete cf.rsvpBy; delete cf.desc; ev.form = cf; if (leadCtx) ev.formLeads = [leadCtx.username]; } }
         if (body.publicForm) ev.publicForm = true;
         // Attendees chosen right in the "Add event" form: members (by id) and people without a profile (by name).
         for (const at of (Array.isArray(body.attendees) ? body.attendees : []).slice(0, 200)) {
@@ -3421,8 +3446,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (body.mapUrl !== undefined && String(body.mapUrl || "").trim() && !isGoogleMapsUrl(body.mapUrl)) return jsonResponse({ error: "That isn't a Google Maps link — in Google Maps tap Share → Copy link" }, 400, corsHeaders);
         const f = calFields({ ...ev, ...body });
         if (f.title.length < 3) return jsonResponse({ error: "Give the event a name (3+ letters)" }, 400, corsHeaders);
-        if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
+        const wantTbd = body.tbd !== undefined ? !!body.tbd : !!ev.tbd;
+        if (wantTbd) { f.date = ""; f.rsvpBy = ""; } else if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
         Object.assign(ev, f);
+        if (wantTbd) { ev.tbd = true; ev.interest = ev.interest || []; } else delete ev.tbd; // (the interest list stays on the event so the admin still sees who was keen)
         if (body.form !== undefined) { // (a club admin without access never sees the form, so their edit of the event details must not touch it)
           const cf = sanitizeCalForm(body.form);
           if (cf) { if (cf.rsvpBy !== undefined && (canForm(ev) || !ev.form)) ev.rsvpBy = cf.rsvpBy; if (cf.desc !== undefined && (canForm(ev) || !ev.form)) ev.desc = cf.desc; delete cf.rsvpBy; delete cf.desc; }
