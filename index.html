@@ -72,13 +72,13 @@
   button{ font-family:inherit; }
   a{ color:inherit; }
 
-  header{ padding:calc(20px + env(safe-area-inset-top)) 20px 18px; text-align:center; background:#ce8491; } /* exact colour of the logo image's own background */
+  header{ padding:calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right, 0px)) 18px calc(20px + env(safe-area-inset-left, 0px)); text-align:center; background:#ce8491; } /* exact colour of the logo image's own background */
   .wordmark-link{ text-decoration:none; color:inherit; display:inline-block; }
   .wordmark-img{ display:block; width:clamp(110px,30vw,150px); height:auto; margin:0 auto; }
   .header-disclaimer{ font-size:11px; color:#2a2022; max-width:440px; margin:8px auto 0; line-height:1.5; text-align:center; }
 
   .pwr-btn{
-    position:fixed; top:calc(14px + env(safe-area-inset-top, 0px)); right:14px; z-index:60;
+    position:fixed; top:calc(14px + env(safe-area-inset-top, 0px)); right:calc(14px + env(safe-area-inset-right, 0px)); z-index:60;
     display:flex; align-items:center; justify-content:center;
     width:38px; height:38px; border-radius:50%;
     background:var(--brand-blush); color:var(--brand-brown); border:2px solid var(--charcoal); cursor:pointer; padding:0;
@@ -86,7 +86,7 @@
   }
   .pwr-btn.staff::after{ content:''; position:absolute; top:-3px; right:-3px; width:12px; height:12px; border-radius:50%; background:#f2b705; border:2px solid var(--charcoal); }
   .pwr-btn svg{ width:18px; height:18px; flex-shrink:0; display:block; }
-  .pwr-menu{ position:fixed; top:calc(58px + env(safe-area-inset-top, 0px)); right:12px; z-index:61; display:none; flex-direction:column; gap:6px; min-width:170px; padding:10px; background:var(--brand-cream); border:2px solid var(--charcoal); border-radius:16px; box-shadow:3px 3px 0 var(--charcoal); }
+  .pwr-menu{ position:fixed; top:calc(58px + env(safe-area-inset-top, 0px)); right:calc(12px + env(safe-area-inset-right, 0px)); z-index:61; display:none; flex-direction:column; gap:6px; min-width:170px; padding:10px; background:var(--brand-cream); border:2px solid var(--charcoal); border-radius:16px; box-shadow:3px 3px 0 var(--charcoal); }
   .pwr-menu.open{ display:flex; }
   .pwr-menu button{ font-family:'Outfit','Inter',sans-serif; font-weight:700; font-size:14px; min-height:42px; padding:0 14px; border-radius:999px; border:2px solid var(--brand-brown); background:var(--brand-blush); color:var(--brand-brown); cursor:pointer; white-space:nowrap; }
   .pwr-menu button.primary{ background:var(--brand-rose); color:#fff; }
@@ -277,7 +277,7 @@
     .week-col .day-label{ font-size:13px; }
     .week-pill{ font-size:13px; padding:8px 9px; }
 
-    .pwr-btn{ width:44px; height:44px; top:calc(10px + env(safe-area-inset-top, 0px)); right:12px; }
+    .pwr-btn{ width:44px; height:44px; top:calc(10px + env(safe-area-inset-top, 0px)); right:calc(12px + env(safe-area-inset-right, 0px)); }
     .home-tile{ padding:20px 54px 20px 18px; }
     .home-tile-title{ font-size:19px; padding-right:48px; }
     .home-tile[data-hometab="homescreen"] .home-tile-title{ padding-left:44px; padding-right:44px; }
@@ -374,7 +374,7 @@
   .home-quicklinks .club-guide-btn:hover{ scale:1.1; }
   .home-quicklinks .club-guide-btn[data-hometab="homescreen"]{ font-size:13px; line-height:1.2; }
   /* "Clubs you're in" for signed-in members: same round shape + gentle float as Travel / About, always ONE line, club colours + logos */
-  .fb-page{ position:fixed; inset:0; z-index:10050; background:var(--cream); overflow:auto; padding:14px 14px 40px; -webkit-overflow-scrolling:touch; }
+  .fb-page{ position:fixed; inset:0; z-index:10050; background:var(--cream); overflow:auto; padding:calc(14px + env(safe-area-inset-top, 0px)) calc(14px + env(safe-area-inset-right, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)) calc(14px + env(safe-area-inset-left, 0px)); -webkit-overflow-scrolling:touch; }
   .fb-wrap{ max-width:640px; margin:0 auto; }
   .fb-card{ background:#fff; border:2px solid var(--brand-brown); border-radius:16px; padding:12px; margin:0 0 12px; box-shadow:3px 3px 0 var(--brand-brown); }
   .fb-card input[type=text], .fb-card textarea, .fb-card select, .fb-in{ width:100%; box-sizing:border-box; padding:10px; border-radius:10px; border:2px solid var(--brand-brown); font:inherit; font-size:16px; background:#fff; }
@@ -527,12 +527,12 @@
   .av-waitlist{ font-size:13px; line-height:1.45; padding:10px 12px; margin:0 0 12px; border-radius:12px; background:#fdf1d6; border:1.5px solid #d9b25c; }
   .fall-login-box{ border:2px dashed var(--charcoal); border-radius:14px; padding:12px; }
   body.av-editing{ overflow:hidden; }
-  .av-overlay{ position:fixed; inset:0; z-index:200; background:var(--cream); overflow-y:auto; -webkit-overflow-scrolling:touch; padding:64px 12px 40px; box-sizing:border-box; }
+  .av-overlay{ position:fixed; inset:0; z-index:200; background:var(--cream); overflow-y:auto; -webkit-overflow-scrolling:touch; padding:calc(64px + env(safe-area-inset-top, 0px)) calc(12px + env(safe-area-inset-right, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)) calc(12px + env(safe-area-inset-left, 0px)); box-sizing:border-box; }
   .av-overlay.has-sheet{ padding-bottom:340px; }
   .av-overlay-inner{ max-width:640px; margin:0 auto; }
   .av-overlay-title{ margin:0 0 8px; font-size:17px; font-weight:700; }
   .av-overlay-title small{ display:block; font-size:12px; font-weight:500; color:var(--muted); }
-  .av-exit{ position:fixed; top:calc(12px + env(safe-area-inset-top, 0px)); right:14px; z-index:230; min-height:44px; padding:0 18px; border:2px solid var(--charcoal); border-radius:999px; background:var(--charcoal); color:var(--cream); font-family:'Outfit','Inter',sans-serif; font-size:15px; font-weight:700; cursor:pointer; box-shadow:2px 2px 0 rgba(0,0,0,0.2); }
+  .av-exit{ position:fixed; top:calc(12px + env(safe-area-inset-top, 0px)); right:calc(14px + env(safe-area-inset-right, 0px)); z-index:230; min-height:44px; padding:0 18px; border:2px solid var(--charcoal); border-radius:999px; background:var(--charcoal); color:var(--cream); font-family:'Outfit','Inter',sans-serif; font-size:15px; font-weight:700; cursor:pointer; box-shadow:2px 2px 0 rgba(0,0,0,0.2); }
   .mem-section{ margin-top:22px; padding-top:14px; border-top:1.5px dashed rgba(55,61,59,0.3); }
   .mem-title{ margin:0 0 10px; font-size:16px; }
   .mem-filter{ display:block; font-size:13px; margin-bottom:10px; }
@@ -543,7 +543,8 @@
   .mem-avatar-big{ width:84px; height:84px; font-size:34px; margin:0 auto; }
   .mem-name{ font-weight:700; font-size:14px; line-height:1.2; word-break:break-word; }
   .mem-clubs{ font-size:11px; color:var(--muted); line-height:1.25; }
-  .mem-pop{ position:fixed; inset:0; z-index:300; background:rgba(33,30,28,0.5); display:flex; align-items:center; justify-content:center; padding:20px; }
+  .mem-pop{ position:fixed; inset:0; z-index:300; background:rgba(33,30,28,0.5); display:flex; align-items:center; justify-content:center; padding:calc(20px + env(safe-area-inset-top, 0px)) calc(20px + env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) calc(20px + env(safe-area-inset-left, 0px)); }
+  .mem-pop-card{ max-height:calc(100vh - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); max-height:calc(100dvh - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y:auto; -webkit-overflow-scrolling:touch; }
   .mem-pop-card{ position:relative; width:min(340px,100%); background:var(--cream); border:2px solid var(--charcoal); border-radius:18px; padding:22px 18px 18px; text-align:center; }
   .mem-pop-close{ position:absolute; top:8px; right:10px; border:none; background:none; font-size:20px; cursor:pointer; }
   .mem-pop-photo{ width:110px; height:110px; border-radius:50%; object-fit:cover; border:2px solid var(--charcoal); }
@@ -823,7 +824,7 @@
   .panel-links{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
 
   /* ---- detail view ---- */
-  #detail-view{ display:none; position:fixed; inset:0; z-index:5000; background:rgba(33,30,28,0.5); align-items:flex-start; justify-content:center; padding:20px 16px; overflow-y:auto; }
+  #detail-view{ display:none; position:fixed; inset:0; z-index:5000; background:rgba(33,30,28,0.5); align-items:flex-start; justify-content:center; padding:calc(20px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) calc(16px + env(safe-area-inset-left, 0px)); overflow-y:auto; }
   #detail-view.open{ display:flex; }
   .back-btn{ font-family:'Outfit','Inter',sans-serif; font-weight:600; font-size:14px; background:none; border:none; color:var(--rose-deep); cursor:pointer; margin-bottom:16px; padding:0; }
   .detail-modal-wrap{ position:relative; width:100%; max-width:560px; margin:20px auto; }
@@ -841,7 +842,7 @@
        and blocked pasting into a focused field. inset:0 alone stays anchored and doesn't fight it. */
     #detail-view.is-form{ padding:0; align-items:stretch; overflow:hidden; background:#fff; }
     #detail-view.is-form .detail-modal-wrap{ margin:0; max-width:none; height:100%; min-height:0; display:flex; }
-    #detail-view.is-form .detail-card{ width:100%; height:100%; max-height:none; border:none; border-radius:0; box-shadow:none; box-sizing:border-box; padding:calc(14px + env(safe-area-inset-top, 0px)) 16px 0; }
+    #detail-view.is-form .detail-card{ width:100%; height:100%; max-height:none; border:none; border-radius:0; box-shadow:none; box-sizing:border-box; padding:calc(14px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) 0 calc(16px + env(safe-area-inset-left, 0px)); }
     #detail-view.is-form .detail-close-btn{ display:none; } /* the form has its own Cancel buttons; a floating ✕ sat on top of the fields */
     /* 16px inputs stop iOS zooming the page when a field is focused; bigger checkboxes / tap rows */
     #detail-view.is-form input:not([type=checkbox]):not([type=radio]), #detail-view.is-form select, #detail-view.is-form textarea{ font-size:16px !important; min-height:44px; }
@@ -864,7 +865,7 @@
   .link-btn.primary{ background:var(--charcoal); color:var(--cream); }
   .link-btn.secondary{ background:white; color:var(--charcoal); }
 
-  footer{ position:relative; text-align:center; padding:18px 20px calc(22px + env(safe-area-inset-bottom)); border-top:1px solid rgba(33,30,28,0.12); margin-top:16px; background:#ce8491; }
+  footer{ position:relative; text-align:center; padding:18px calc(20px + env(safe-area-inset-right, 0px)) calc(22px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left, 0px)); border-top:1px solid rgba(33,30,28,0.12); margin-top:16px; background:#ce8491; }
   /* Admin event form: keep native date/time pickers inside the card (iOS Safari gives them a wide intrinsic size) */
   #detailCard input[type=date], #detailCard input[type=time]{ display:block; width:100%; min-width:0; max-width:100%; box-sizing:border-box; min-height:44px; background:#fff; font-family:inherit; }
   #detailCard select, #detailCard input[type=text], #detailCard textarea{ max-width:100%; }
@@ -11349,7 +11350,7 @@ loadData().then(() => Promise.all([loadLabels(), loadAvailPeriod()])).then(() =>
     const gate = document.getElementById('pushGate');
     if(gate){
       const b = document.createElement('button'); b.type = 'button'; b.textContent = '✕ Close preview';
-      b.style.cssText = 'position:fixed;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:20002;padding:8px 14px;border-radius:999px;border:2px solid #76220b;background:#fff;color:#76220b;font-weight:700;cursor:pointer;';
+      b.style.cssText = 'position:fixed;top:calc(10px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right, 0px));z-index:20002;padding:8px 14px;border-radius:999px;border:2px solid #76220b;background:#fff;color:#76220b;font-weight:700;cursor:pointer;';
       b.addEventListener('click', () => { gate.remove(); b.remove(); document.body.style.overflow = ''; });
       document.body.appendChild(b);
     }
