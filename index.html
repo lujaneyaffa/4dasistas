@@ -358,8 +358,6 @@
 .club-card .monogram img{ transform:scale(1.15); }
 .club-card .panel-desc{ text-align:center; font-size:13.5px; line-height:1.45; margin-top:10px; }
 .clubs-popular-title{ font-family:'Amiri',Georgia,serif; font-size:21px; font-weight:700; letter-spacing:0.02em; text-align:center; margin:22px 0 10px; }
-.club-card-more{ display:block; width:min(100%,420px); margin:14px auto 0; padding:10px 16px; border:1.5px dashed var(--muted); border-radius:999px; text-align:center; text-decoration:none; color:var(--charcoal); font-size:12.5px; background:var(--card); }
-.club-card-more strong{ font-weight:700; }
   .clubs-grid .club-card{ width:100%; }
   .panel-card{ background:var(--card); border:2px solid var(--charcoal); border-radius:16px; padding:18px; margin-bottom:16px; box-shadow:3px 3px 0 var(--charcoal); text-align:left; position:relative; }
   .resource-photo{ width:100%; height:180px; object-fit:cover; display:block; margin:-2px 0 14px; border-radius:10px; background:var(--brand-blush); }
@@ -1187,9 +1185,6 @@
     </a>
   </div>
   <img class="footer-logo" src="assets/OFFICIAL%20LOGO.png" alt="Not a cult (Yet)">
-  <a class="club-card-more" href="https://www.instagram.com/4dasistas.ca/" target="_blank" rel="noopener" style="margin-top:6px;">
-    <span>✨</span> <strong>More to Launch</strong> — Have an idea? Hit us up!!
-  </a>
   <div class="footer-admin-corner">
     <button type="button" class="footer-admin-btn" id="footerNewEventBtn" style="display:none;">➕ New event</button>
     <button type="button" class="footer-admin-btn footer-missing-btn" id="footerMissingDetailsBtn" style="display:none;">📋 Needs details</button>
@@ -5859,7 +5854,7 @@ async function clubCalPublicCard(box, id){
         ${calFormFieldsHtml(d.form, {}, false)}
         ${calAddonsHtml(d.form, [])}
         <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Submit</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}${d.form.payment ? `<p class="ideas-hint" style="margin:10px 0 0;">💳 Payment${d.form.payment.amount ? ': ' + escapeCm(d.form.payment.amount) : ''} — you'll see how to pay right after you submit.</p>` : ''}</div>`;
-    wireCalCopy(box); wireCalAddons(box, d.form);
+    wireCalCopy(box); wireCalAddons(box, d.form); calMountLocations(box);
     // "Already a member?": find yourself by name, enter your PIN, and carry on with the form as yourself.
     const find = box.querySelector('.pfFind'), q = box.querySelector('.pfQ'), results = box.querySelector('.pfResults'), pinBox = box.querySelector('.pfPin'), lmsg = box.querySelector('.pfLoginMsg');
     let chosen = null, timer = null;
@@ -5947,7 +5942,7 @@ async function clubCalMemberCard(box, id){
         ${calAddonsHtml(d.form, d.myAddons)}
         <button type="button" class="club-guide-btn calFormSend" ${d.closed && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">${d.closed && !d.mine ? '🔒 Sign-ups closed' : d.myAnswers ? 'Update my answers' : 'Submit & RSVP'}</button><div class="calFormMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>
         ${calFormFooterHtml(d.form)}<div class="calPayBox">${d.form.payment ? (d.myAnswers ? calPayHtml(d.form, '', d.myAddons) : `<p class="ideas-hint" style="margin:10px 0 0;">💳 Payment${d.form.payment.amount ? ': ' + escapeCm(d.form.payment.amount) : ''} — you'll see how to pay right after you sign up.</p>`) : ''}</div></div>`;
-      wireCalAddons(formBox, d.form);
+      wireCalAddons(formBox, d.form); calMountLocations(formBox);
       formBox.querySelector('.calFormSend').addEventListener('click', async e => {
         const m = formBox.querySelector('.calFormMsg'); e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Saving…';
         try { const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ answers: calFormCollect(formBox, d.form), addons: calAddonIds(formBox) }) }); d.myAnswers = r.answers; d.myAddons = r.addons || []; d.mine = r.mine; d.going = r.going; m.style.color = '#2a7a4a'; m.textContent = r.mine === 'pending' ? '✓ Sent — an admin will approve your spot.' : "✓ You're signed up — thank you!"; e.target.textContent = 'Update my answers'; const pb = formBox.querySelector('.calPayBox'); paint(); if(pb && d.form.payment){ const nb = formBox.querySelector('.calPayBox'); if(nb) nb.innerHTML = calPayHtml(d.form, '', d.myAddons); } }
@@ -6042,7 +6037,7 @@ function clubCalManage(ev){
   paint();
 }
 /* ---- Form builder ("Create a form" on a club event): a full page where the admin adds / edits / reorders questions that members then fill. ---- */
-const FB_TYPES = [['text', 'Short answer'], ['longtext', 'Long answer'], ['choice', 'Pick one'], ['multi', 'Pick several'], ['yesno', 'Yes / No'], ['number', 'Number'], ['date', 'Date']];
+const FB_TYPES = [['text', 'Short answer'], ['longtext', 'Long answer'], ['choice', 'Pick one'], ['multi', 'Pick several'], ['yesno', 'Yes / No'], ['number', 'Number'], ['date', 'Date'], ['location', '📍 Location (map pin, Canada)']];
 function calFormFieldsHtml(form, answers, locked){
   const a = answers || {}, dis = locked ? 'disabled' : '';
   return form.fields.map(f => {
@@ -6051,6 +6046,7 @@ function calFormFieldsHtml(form, answers, locked){
     if(f.type === 'longtext') inp = `<textarea class="fb-in" data-fid="${f.id}" rows="3" maxlength="1000" ${dis}>${escapeCm(v || '')}</textarea>`;
     else if(f.type === 'number') inp = `<input class="fb-in" data-fid="${f.id}" type="number" inputmode="decimal" value="${escapeCm(v || '')}" ${dis}>`;
     else if(f.type === 'date') inp = `<input class="fb-in" data-fid="${f.id}" type="date" value="${escapeCm(v || '')}" ${dis}>`;
+    else if(f.type === 'location') inp = locked ? `<div class="calLocChosen" style="padding:8px 10px;border-radius:8px;background:#f3efe9;font-size:13px;color:#776867;">📍 People search a place in Canada and pick it from the list.</div>` : `<div class="calLoc" data-locfid="${f.id}"><div class="calLocSlot"></div><div class="calLocChosen ev-loc-chosen${v && v.address ? '' : ' empty'}" style="margin-top:6px;">${v && v.address ? '📍 ' + escapeCm(v.address) : 'Search for a place in Canada, then pick it from the list'}</div><input type="hidden" class="calLocVal" data-fid="${f.id}" value="${escapeCm(v && v.address ? JSON.stringify(v) : '')}"></div>`;
     else if(f.type === 'yesno' || f.type === 'choice') inp = (f.type === 'yesno' ? ['Yes', 'No'] : f.options).map(o => `<label class="fb-opt"><input type="radio" name="fq-${f.id}" data-fid="${f.id}" value="${escapeCm(o)}" ${v === o ? 'checked' : ''} ${dis} style="width:20px;height:20px;"> ${escapeCm(o)}</label>`).join('');
     else if(f.type === 'multi') inp = f.options.map(o => `<label class="fb-opt"><input type="checkbox" data-fid="${f.id}" value="${escapeCm(o)}" ${(v || []).includes(o) ? 'checked' : ''} ${dis} style="width:20px;height:20px;"> ${escapeCm(o)}</label>`).join('');
     else inp = `<input class="fb-in" data-fid="${f.id}" type="text" maxlength="200" value="${escapeCm(v || '')}" ${dis}>`;
@@ -6063,6 +6059,7 @@ function calFormCollect(box, form){
     const els = [...box.querySelectorAll(`[data-fid="${f.id}"]`)];
     if(f.type === 'multi') out[f.id] = els.filter(e => e.checked).map(e => e.value);
     else if(f.type === 'yesno' || f.type === 'choice'){ const c = els.find(e => e.checked); out[f.id] = c ? c.value : ''; }
+    else if(f.type === 'location'){ const raw = els[0] ? els[0].value : ''; let o = ''; try { o = raw ? JSON.parse(raw) : ''; } catch {} out[f.id] = o; }
     else out[f.id] = els[0] ? els[0].value : '';
   });
   return out;
@@ -6122,6 +6119,32 @@ function calPayHtml(form, heading, ids){
     ${hasAdd ? `<div style="margin-top:4px;font-size:14px;">${r.base != null ? `Base ${escapeCm(calMoney(r.base, r.sym))}` : escapeCm(pay.amount || '')}${r.picked.map(a => `<br>+ ${escapeCm(a.label)} ${escapeCm(calMoney(a.price, r.sym))}`).join('')}</div>` : ''}
     ${pay.note ? `<div style="margin-top:4px;white-space:pre-wrap;font-size:14px;">${escapeCm(pay.note)}</div>` : ''}
     ${pay.link ? `<a href="${escapeCm(pay.link)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;padding:10px 18px;border-radius:999px;background:#2a7a4a;color:#fff;font-weight:800;text-decoration:none;">💳 Pay now</a>` : ''}</div>`;
+}
+// 📍 Location questions: a Google Places search limited to Canada; the picked place (address + coordinates) is kept for the admin's map.
+async function calMountLocations(root){
+  const boxes = [...root.querySelectorAll('.calLoc')]; if(!boxes.length) return;
+  const setVal = (box, o) => { box.querySelector('.calLocVal').value = o ? JSON.stringify(o) : ''; const ch = box.querySelector('.calLocChosen'); ch.classList.toggle('empty', !o); ch.innerHTML = o ? `📍 ${escapeCm(o.address)} <button type="button" class="av-link calLocClear" style="margin-left:6px;">clear</button>` : 'Search for a place in Canada, then pick it from the list'; const c = ch.querySelector('.calLocClear'); if(c) c.addEventListener('click', () => setVal(box, null)); };
+  boxes.forEach(b => { try { const o = JSON.parse(b.querySelector('.calLocVal').value || 'null'); if(o) setVal(b, o); } catch {} });
+  try {
+    await loadGoogleMaps();
+    const lib = await google.maps.importLibrary('places');
+    boxes.forEach(box => {
+      const slot = box.querySelector('.calLocSlot'); if(!slot || slot.dataset.m) return; slot.dataset.m = '1';
+      const el = new lib.PlaceAutocompleteElement({ includedRegionCodes:['ca'] });
+      slot.appendChild(el);
+      el.addEventListener('gmp-select', async evt => {
+        const place = evt.placePrediction && evt.placePrediction.toPlace(); if(!place) return;
+        try {
+          await place.fetchFields({ fields:['formattedAddress','displayName','location'] });
+          const addr = place.formattedAddress || '', nm = place.displayName || '', loc = place.location;
+          if(addr) setVal(box, { address: (nm && !addr.includes(nm) ? nm + ', ' : '') + addr, ...(loc ? { lat: loc.lat(), lng: loc.lng() } : {}) });
+        } catch(err){ console.error('Could not fetch place details', err); }
+      });
+    });
+  } catch(err){
+    // Google Maps couldn't load: a plain address box (no map pin) so the form still works
+    boxes.forEach(box => { const slot = box.querySelector('.calLocSlot'); slot.innerHTML = '<input class="fb-in calLocText" type="text" maxlength="200" placeholder="Type the address">'; slot.querySelector('.calLocText').addEventListener('input', e => setVal(box, e.target.value.trim() ? { address: e.target.value.trim() } : null)); });
+  }
 }
 function openFormBuilder(initial, onDone, opts){
   const form = JSON.parse(JSON.stringify(initial || { title:'', intro:'', fields:[] }));
@@ -6229,8 +6252,14 @@ async function clubCalShowResponses(ev, box){
   try {
     const d = await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/responses', 'GET');
     if(!d.form || !d.responses.length){ box.innerHTML = '<p class="av-msg">No answers yet.</p>'; return; }
-    const fmt = (f, v) => Array.isArray(v) ? v.join(', ') : (v || '—');
+    const fmt = (f, v) => Array.isArray(v) ? v.join(', ') : (v && typeof v === 'object' ? (v.address || '—') : (v || '—'));
     box.innerHTML = d.responses.map(r => `<div style="border-top:1px solid rgba(0,0,0,.1);padding:8px 0;"><strong>${escapeCm(r.name)}</strong>${r.contact ? ` <small style="color:#776867;">${escapeCm(r.contact)}</small>` : ''}${r.guest ? ' <small>(public form)</small>' : ''}${d.form.payment ? (r.paid ? ' <b style="color:#2a7a4a;">💳 Paid ✓</b>' : ' <small style="color:#b3261e;">not paid</small>') : ''}${(r.addons || []).length ? `<div style="font-size:13px;"><span style="color:#776867;">Add-ons:</span> ${escapeCm(r.addons.map(id => (((d.form.payment || {}).addons || []).find(a => a.id === id) || {}).label || '').filter(Boolean).join(', '))}</div>` : ''}${r.total != null ? `<div style="font-size:13px;"><span style="color:#776867;">Total due:</span> <b>${escapeCm(calMoney(r.total, calMoneyParts(d.form).sym))}</b></div>` : ''}${d.form.fields.map(f => `<div style="font-size:13px;"><span style="color:#776867;">${escapeCm(f.label)}:</span> ${escapeCm(fmt(f, (r.answers || {})[f.id]))}</div>`).join('')}</div>`).join('') + '<button type="button" class="fb-mini" id="calCsv" style="margin-top:8px;">⬇️ Download CSV</button>';
+    // 📍 Location questions: a map with a pin per person (carpooling / picking a meeting spot)
+    d.form.fields.filter(f => f.type === 'location').forEach(f => {
+      const pins = d.responses.filter(r => r.answers && r.answers[f.id] && typeof r.answers[f.id] === 'object' && r.answers[f.id].lat != null);
+      const b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'fb-mini'; b2.style.cssText = 'margin:8px 8px 0 0;'; b2.textContent = `🗺️ Map: ${f.label.slice(0, 40)} (${pins.length} pin${pins.length === 1 ? '' : 's'})`;
+      b2.addEventListener('click', () => clubCalLocationMap(ev, f, d.responses)); box.appendChild(b2);
+    });
     box.querySelector('#calCsv').addEventListener('click', () => {
       const esc = v => '"' + String(v).replace(/"/g, '""') + '"';
       const aoLabel = r => (r.addons || []).map(id => (((d.form.payment || {}).addons || []).find(a => a.id === id) || {}).label || '').filter(Boolean).join('; ');
@@ -6239,6 +6268,23 @@ async function clubCalShowResponses(ev, box){
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (ev.title || 'form').replace(/[^\w-]+/g, '_') + '-responses.csv'; a.click();
     });
   } catch(err){ box.innerHTML = `<p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`; }
+}
+// A map of where everyone who answered a 📍 Location question is (Leaflet + OpenStreetMap, a pin per person) with the list underneath.
+function clubCalLocationMap(ev, field, responses){
+  const rows = responses.filter(r => r.answers && r.answers[field.id] && typeof r.answers[field.id] === 'object' && r.answers[field.id].address);
+  const pins = rows.filter(r => r.answers[field.id].lat != null);
+  const { wrap } = ideaPopup(`<h3 style="margin:0 0 4px;">🗺️ ${escapeCm(ev.title)}</h3><p class="ideas-hint" style="text-align:left;margin:0 0 6px;">${escapeCm(field.label)} — ${pins.length} pin${pins.length === 1 ? '' : 's'}${rows.length > pins.length ? ` (${rows.length - pins.length} typed an address without a pin)` : ''}</p>
+    <div id="clMap" style="height:min(340px,48vh);border:2px solid var(--brand-brown);border-radius:12px;"></div>
+    <div style="max-height:26vh;overflow:auto;margin-top:8px;">${rows.map(r => `<div style="padding:5px 0;border-top:1px solid rgba(0,0,0,.1);font-size:14px;"><strong>${escapeCm(r.name)}</strong><br><span style="color:#555;">📍 ${escapeCm(r.answers[field.id].address)}</span> <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.answers[field.id].lat != null ? r.answers[field.id].lat + ',' + r.answers[field.id].lng : r.answers[field.id].address)}" target="_blank" rel="noopener" style="font-size:12px;">open ↗</a></div>`).join('') || '<p class="av-msg">No locations yet.</p>'}</div>`);
+  const card = wrap.querySelector('.idea-pop-card'); if(card) card.style.cssText += ';max-width:min(560px,94vw);width:min(560px,94vw);';
+  setTimeout(() => {
+    const el = wrap.querySelector('#clMap'); if(!el || typeof L === 'undefined') return;
+    const map = L.map(el, { scrollWheelZoom:false }).setView([56.1, -96.0], 4);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:18, attribution:'© OpenStreetMap' }).addTo(map);
+    const group = pins.map(r => L.marker([r.answers[field.id].lat, r.answers[field.id].lng]).addTo(map).bindPopup(`<strong>${escapeCm(r.name)}</strong><br>${escapeCm(r.answers[field.id].address)}`));
+    if(group.length > 1) map.fitBounds(L.featureGroup(group).getBounds().pad(0.2)); else if(group.length === 1) map.setView(group[0].getLatLng(), 11);
+    setTimeout(() => map.invalidateSize(), 200);
+  }, 150);
 }
 // Place = search box restricted to Canada (same as adding a general event); falls back to a plain text box if Google Maps can't load.
 async function mountClubCalPlace(wrap){

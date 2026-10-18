@@ -546,7 +546,7 @@ const notifyAdminOfFormSignup = (env, ctx, ev, person, answers, sel) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
   const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
   const form = ev.form || { fields: [] }, pay = form.payment || {};
-  const val = (v) => Array.isArray(v) ? v.join(", ") : String(v);
+  const val = (v) => Array.isArray(v) ? v.join(", ") : (v && typeof v === "object" ? String(v.address || "") : String(v));
   const rows = emailRow("Event", `${escapeHtml(ev.title)} · ${escapeHtml(ev.date)}`)
     + emailRow("Name", escapeHtml(person.name) + (person.newAccount ? ' <span style="color:#2a7a4a">(new account)</span>' : ""))
     + (person.phone ? emailRow("Phone", escapeHtml(person.phone)) : "")
@@ -962,7 +962,7 @@ const cleanCalText = (v, n) => String(v || "").replace(/[\x00-\x1f\x7f]/g, " ").
 // A collab event belongs to several clubs: `clubIds` (clubId = the first, kept for older data).
 const calClubs = (e) => (Array.isArray(e.clubIds) && e.clubIds.length ? e.clubIds : [e.clubId]).filter(Boolean);
 // A sign-up form the admin builds for an event: {title, intro, fields:[{id,type,label,required,options?}]}. Answers live in KV `calform:<eventId>` (userId -> {name, answers, at}).
-const CAL_FIELD_TYPES = ["text", "longtext", "yesno", "choice", "multi", "number", "date"];
+const CAL_FIELD_TYPES = ["text", "longtext", "yesno", "choice", "multi", "number", "date", "location"];
 const calFormKey = (eventId) => `calform:${eventId}`;
 const sanitizeCalForm = (f) => {
   if (!f || typeof f !== "object" || !Array.isArray(f.fields)) return null;
@@ -1019,6 +1019,10 @@ const checkCalAnswers = (form, raw) => {
     else if (fld.type === "yesno") v = v === "Yes" || v === "No" ? v : "";
     else if (fld.type === "number") v = v === "" || v == null ? "" : (Number.isFinite(Number(v)) ? String(Number(v)).slice(0, 20) : "");
     else if (fld.type === "date") v = /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : "";
+    else if (fld.type === "location") { // a place picked on the map (Canada only): {address, lat, lng}; the pin is dropped if the coordinates aren't in Canada
+      const o = v && typeof v === "object" ? v : null, lat = Number(o && o.lat), lng = Number(o && o.lng), address = cleanCalText(o && o.address, 200);
+      v = address ? { address, ...(Number.isFinite(lat) && Number.isFinite(lng) && lat >= 41 && lat <= 84 && lng >= -142 && lng <= -52 ? { lat: Math.round(lat * 1e5) / 1e5, lng: Math.round(lng * 1e5) / 1e5 } : {}) } : "";
+    }
     else v = String(v || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, fld.type === "longtext" ? 1000 : 200);
     const empty = Array.isArray(v) ? !v.length : v === "";
     if (fld.required && empty) return { error: `Please answer: ${fld.label}` };
@@ -2046,7 +2050,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await env.SITE_DATA.put(dayKey, String(dayCount + 1), { expirationTtl: 172800 });
       const comments = String(body.comments || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 600);
       const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, link, name, date, city, virtual, genre, genreOther, comments, at: Date.now() };
-      { const cfg = await readEventFormCfg(); if (cfg.form) { const chk = checkCalAnswers(cfg.form, body.extra); if (chk.error) return jsonResponse({ error: chk.error }, 400, corsHeaders); sug.extra = cfg.form.fields.filter((f) => chk.answers[f.id] !== undefined).map((f) => ({ label: f.label, value: Array.isArray(chk.answers[f.id]) ? chk.answers[f.id].join(", ") : String(chk.answers[f.id]) })); } }
+      { const cfg = await readEventFormCfg(); if (cfg.form) { const chk = checkCalAnswers(cfg.form, body.extra); if (chk.error) return jsonResponse({ error: chk.error }, 400, corsHeaders); sug.extra = cfg.form.fields.filter((f) => chk.answers[f.id] !== undefined).map((f) => ({ label: f.label, value: Array.isArray(chk.answers[f.id]) ? chk.answers[f.id].join(", ") : (chk.answers[f.id] && typeof chk.answers[f.id] === "object" ? String(chk.answers[f.id].address || "") : String(chk.answers[f.id])) })); } }
       await env.SITE_DATA.put(`eventsug:${sug.id}`, JSON.stringify(sug));
       notifyAdminOfEventSuggestion(env, ctx, sug);
       return jsonResponse({ ok: true }, 201, corsHeaders);
