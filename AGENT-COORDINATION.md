@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-18 · Claude · workers/src/worker.js, service-worker.js (v138) · PUBLIC NAMES MASKED: every public name (attendee lists, club member lists, the profile pop-up heading) has its LAST THREE characters replaced by *** (`maskPublic`: alice.a → alic***; names of 3 or fewer characters → ***), done on the SERVER so the full username never leaves it. Applies to guests' first names too. Not in What's-new.
+
 - 2026-10-18 · Claude · index.html, workers/src/worker.js, service-worker.js (v137) · PUBLIC NAMES = USERNAMES + ACTIVITIES (Lujane's explicit change from 'first name only'): public attendee lists and club member lists now show the member's USERNAME (e.g. alice.a); people added without a profile stay a first name (not tappable). Tapping a username → `/api/public-profile` now returns {username (in `first`), joined, clubs, activities[{title,date,clubs}]} — every PAST event they attended; future events excluded. Still never exposed publicly: real/last name, phone, email, user id, PIN. Not in What's-new.
 
 - 2026-10-18 · Claude · workers/src/worker.js, index.html, service-worker.js (v136) · PRIVACY LEAK CLOSED: `GET /api/clubs/:id/members` (full names + usernames) now requires a signed-in member (Bearer), the main admin or a club admin cookie — anonymous callers get 401 (the public first-names-only list is `/public-members`). `cmLoadRoster` now sends the member's auth header. Auth is checked inline (memberIdFromRequest is defined later in the handler — TDZ). Tested: anon 401, member 200, admin 200. Not in What's-new.
