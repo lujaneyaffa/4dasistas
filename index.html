@@ -8576,7 +8576,7 @@ function admEvResultsHtml(){
   if(q.length < 2) return '<p class="av-msg" style="margin:6px 0 0;">Type at least 2 letters to search every event.</p>';
   const hits = admEvEditable().filter(e => `${e.title} ${e.location || ''} ${e.organizedBy || ''} ${e.city || ''}`.toLowerCase().includes(q)).slice(0, 25);
   if(!hits.length) return '<p class="av-msg" style="margin:6px 0 0;">No event matches.</p>';
-  return hits.map(e => `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(0,0,0,.1);"><span style="flex:1;min-width:0;"><strong>${escapeCm(e.title)}</strong><br><small style="color:#776867;">${escapeCm(e.calDate || e.eventDate || e.date || 'recurring')} · ${escapeCm(e.section || '')}${e.location ? ' · ' + escapeCm(String(e.location).slice(0, 40)) : ''}</small></span><button type="button" class="club-guide-btn adm-ev-edit" data-id="${escapeCm(e.id)}" style="padding:6px 14px;min-height:0;text-align:center;">✏️ Edit</button></div>`).join('');
+  return hits.map(e => `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(0,0,0,.1);"><span style="flex:1;min-width:0;"><strong>${escapeCm(e.title)}</strong><br><small style="color:#776867;">${escapeCm(e.calDate || e.eventDate || e.date || 'recurring')} · ${escapeCm(e.section || '')}${e.location ? ' · ' + escapeCm(String(e.location).slice(0, 40)) : ''}</small></span><button type="button" class="club-guide-btn adm-ev-edit" data-evid="${escapeCm(e.id)}" style="padding:6px 14px;min-height:0;text-align:center;">✏️ Edit</button></div>`).join('');
 }
 function admEvSearchHtml(){
   return `<div class="cp-box"><input id="admEvQ" type="search" placeholder="Search events by name or place…" value="${escapeCm(state.admEvQ || '')}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;"><div id="admEvResults">${admEvResultsHtml()}</div></div>`;
@@ -8598,9 +8598,9 @@ function admEvMiniHtml(){
 function admEvDayPopup(key){
   const evs = admEvEditable().filter(e => (e.calDate || e.eventDate) === key);
   const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 8px;">${escapeCm(ideaLongDate(key))}</h3>
-    ${evs.length ? evs.map(e => `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(0,0,0,.1);"><span style="flex:1;min-width:0;"><strong>${escapeCm(e.title)}</strong><br><small style="color:#776867;">${escapeCm(e.time || (e.allDay ? 'All day' : ''))} ${escapeCm(e.location ? '· ' + String(e.location).slice(0, 40) : '')}</small></span><button type="button" class="club-guide-btn adm-ev-edit" data-id="${escapeCm(e.id)}" style="padding:6px 14px;min-height:0;text-align:center;">✏️ Edit</button></div>`).join('') : '<p class="av-msg">Nothing on this day yet.</p>'}
+    ${evs.length ? evs.map(e => `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(0,0,0,.1);"><span style="flex:1;min-width:0;"><strong>${escapeCm(e.title)}</strong><br><small style="color:#776867;">${escapeCm(e.time || (e.allDay ? 'All day' : ''))} ${escapeCm(e.location ? '· ' + String(e.location).slice(0, 40) : '')}</small></span><button type="button" class="club-guide-btn adm-ev-edit" data-evid="${escapeCm(e.id)}" style="padding:6px 14px;min-height:0;text-align:center;">✏️ Edit</button></div>`).join('') : '<p class="av-msg">Nothing on this day yet.</p>'}
     <button type="button" class="club-guide-btn" id="admDayAdd" style="width:100%;margin-top:12px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add an event on this date</button>`);
-  wrap.querySelectorAll('.adm-ev-edit').forEach(b => b.addEventListener('click', () => { close(); openEventEdit(b.dataset.id); }));
+  wrap.querySelectorAll('.adm-ev-edit').forEach(b => b.addEventListener('click', () => { close(); openEventEdit(b.dataset.evid); }));
   wrap.querySelector('#admDayAdd').addEventListener('click', () => { close(); openEventCreate(key); });
 }
 function admEvSubsHtml(){
@@ -8687,7 +8687,7 @@ function wireAdmCalendar(){
   wireAdmEvents();
   const add = document.getElementById('admEvAdd'); if(add) add.addEventListener('click', () => openEventCreate());
   const q = document.getElementById('admEvQ');
-  const wireEdits = root => root.querySelectorAll('.adm-ev-edit').forEach(b => b.addEventListener('click', () => openEventEdit(b.dataset.id)));
+  const wireEdits = root => root.querySelectorAll('.adm-ev-edit').forEach(b => b.addEventListener('click', () => openEventEdit(b.dataset.evid)));
   if(q){ q.addEventListener('input', () => { state.admEvQ = q.value; const r = document.getElementById('admEvResults'); r.innerHTML = admEvResultsHtml(); wireEdits(r); }); wireEdits(document.getElementById('admEvResults')); }
   document.querySelectorAll('[data-admday]').forEach(b => b.addEventListener('click', () => admEvDayPopup(b.dataset.admday)));
   document.querySelectorAll('[data-admnav]').forEach(b => b.addEventListener('click', () => { const [y, m] = (state.admEvMonth || new Date().toISOString().slice(0, 7)).split('-').map(Number), d = new Date(y, m - 1 + Number(b.dataset.admnav), 1); state.admEvMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); render(); }));
@@ -9045,7 +9045,7 @@ function resourceSuggestionsAdminHtml(){
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Submitted resources${list.length ? ` (${list.length})` : ''}</h4>
     ${list.length ? list.map(x => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
       <span style="min-width:0;"><strong>${escapeCm(x.title)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(x.type === 'other' ? 'Other: ' + (x.typeOther || '') : label(x.type))} · ${escapeCm(x.city)}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
-      <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--brand-blush);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn res-sug-dismiss" data-id="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted resources.</p>'}</div>`;
+      <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--brand-blush);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn res-sug-dismiss" data-sugid="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted resources.</p>'}</div>`;
 }
 async function cmAdminLoadEventSuggestions(){
   try {
@@ -9059,7 +9059,7 @@ function eventSuggestionsAdminHtml(){
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Submitted events${list.length ? ` (${list.length})` : ''}</h4>
     ${list.length ? list.map(x => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
       <span style="min-width:0;"><strong>${escapeCm(x.name)}</strong>${(x.extra || []).length ? `<br><span style="font-size:12px;">${x.extra.map(q => `<b>${escapeCm(q.label)}:</b> ${escapeCm(q.value)}`).join(' · ')}</span>` : ''}<br><span style="font-size:12px;color:#776867;">${escapeCm(x.date)} · ${escapeCm(x.city)}${x.genre ? ' · ' + escapeCm(x.genre === 'other' ? 'Other: ' + (x.genreOther || '') : x.genre) : ''}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
-      <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--brand-blush);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn event-sug-dismiss" data-id="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted events.</p>'}</div>`;
+      <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--brand-blush);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn event-sug-dismiss" data-sugid="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted events.</p>'}</div>`;
 }
 function joinRequestsAdminHtml(){
   const reqs = state.cmAdminJoinRequests;
@@ -10380,8 +10380,8 @@ function wireClubAdminPanel(){
   }
   document.querySelectorAll('.cm-admin-delete-profile').forEach(b => b.addEventListener('click', () => cmAdminDeleteProfile(b.dataset.memberId, b.dataset.name)));
   document.querySelectorAll('.adm-profile-link').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.userId)));
-  document.querySelectorAll('.res-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/resource-suggestions/' + encodeURIComponent(b.dataset.id), { method:'DELETE', credentials:'include' }); await cmAdminLoadResourceSuggestions(); render(); }));
-  document.querySelectorAll('.event-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/event-suggestions/' + encodeURIComponent(b.dataset.id), { method:'DELETE', credentials:'include' }); await cmAdminLoadEventSuggestions(); render(); }));
+  document.querySelectorAll('.res-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/resource-suggestions/' + encodeURIComponent(b.dataset.sugid), { method:'DELETE', credentials:'include' }); await cmAdminLoadResourceSuggestions(); render(); }));
+  document.querySelectorAll('.event-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/event-suggestions/' + encodeURIComponent(b.dataset.sugid), { method:'DELETE', credentials:'include' }); await cmAdminLoadEventSuggestions(); render(); }));
   const loginBtn = document.getElementById('cmAdminLoginBtn');
   if(loginBtn) loginBtn.addEventListener('click', cmAdminLogin);
   const logoutBtn = document.getElementById('cmAdminLogoutBtn');
