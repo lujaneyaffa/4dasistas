@@ -969,22 +969,22 @@ const sanitizeCalForm = (f) => {
   const fields = [], seen = new Set();
   for (const x of f.fields.slice(0, 30)) {
     if (!x || !CAL_FIELD_TYPES.includes(x.type)) continue;
-    const label = cleanCalText(x.label, 120); if (!label) continue;
+    const label = String(x.label || "").replace(/[\x00-\x08\x0b-\x1f\x7f<>]/g, " ").replace(/[ \t]+/g, " ").trim().slice(0, 1000); if (!label) continue; // long questions (and line breaks) are allowed
     let id = /^[a-z0-9]{3,16}$/.test(String(x.id || "")) ? String(x.id) : crypto.randomUUID().slice(0, 8);
     if (seen.has(id)) id = crypto.randomUUID().slice(0, 8);
     seen.add(id);
     const fld = { id, type: x.type, label, required: !!x.required };
-    if (x.type === "choice" || x.type === "multi") { fld.options = (Array.isArray(x.options) ? x.options : []).map((o) => cleanCalText(o, 60)).filter(Boolean).slice(0, 12); if (fld.options.length < 2) continue; }
+    if (x.type === "choice" || x.type === "multi") { fld.options = (Array.isArray(x.options) ? x.options : []).map((o) => cleanCalText(o, 160)).filter(Boolean).slice(0, 12); if (fld.options.length < 2) continue; }
     fields.push(fld);
   }
   if (!fields.length) return null;
   const longText = (v, n) => String(v || "").replace(/[\x00-\x08\x0b-\x1f\x7f<>]/g, " ").trim().slice(0, n);
-  const out = { title: cleanCalText(f.title, 80) || "Sign-up form", intro: longText(f.intro, 400), fields };
-  const footer = longText(f.footer, 800); if (footer) out.footer = footer; // description shown at the bottom of the form
+  const out = { title: cleanCalText(f.title, 140) || "Sign-up form", intro: longText(f.intro, 2000), fields };
+  const footer = longText(f.footer, 3000); if (footer) out.footer = footer; // description shown at the bottom of the form
   // Payment: the site doesn't take money itself — it shows how to pay (an amount, a payment link, instructions) once someone has signed up.
   if (f.payment && typeof f.payment === "object") {
     let link = ""; try { const u = new URL(String(f.payment.link || "").trim()); if (u.protocol === "https:") link = u.href.slice(0, 500); } catch {}
-    const pay = { amount: cleanCalText(f.payment.amount, 30), link, note: longText(f.payment.note, 400) };
+    const pay = { amount: cleanCalText(f.payment.amount, 30), link, note: longText(f.payment.note, 1000) };
     // Add-ons: optional extras people can tick (e.g. "T-shirt +$10"); the total = the amount above + the ticked add-ons.
     const seenA = new Set(), addons = [];
     for (const a of (Array.isArray(f.payment.addons) ? f.payment.addons : []).slice(0, 12)) {

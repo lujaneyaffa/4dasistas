@@ -382,7 +382,7 @@
   .fb-handle:active{ cursor:grabbing; }
   .fb-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; }
   .fb-mini{ border:2px solid var(--brand-brown); background:#fff; border-radius:999px; padding:5px 12px; font:inherit; font-weight:700; font-size:13px; cursor:pointer; }
-  .fb-q{ margin:0 0 12px; } .fb-q > label{ display:block; font-weight:700; margin:0 0 4px; } .fb-q .req{ color:#b3261e; }
+  .fb-q{ margin:0 0 12px; } .fb-q > label{ display:block; font-weight:700; margin:0 0 4px; white-space:pre-wrap; overflow-wrap:break-word; } .fb-q .req{ color:#b3261e; }
   .fb-opt{ display:flex; align-items:center; gap:8px; padding:4px 0; }
   .mini-cal{ max-width:420px; margin:0 auto; padding:10px 10px 12px; border:2px solid var(--brand-brown); border-radius:18px; background:#fff; box-shadow:3px 3px 0 var(--brand-brown); }
   .mc-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; font-size:15px; }
@@ -6121,7 +6121,7 @@ function openFormBuilder(initial, onDone){
       return;
     }
     const cards = form.fields.map((f, i) => `<div class="fb-card" data-i="${i}">
-      <div style="display:flex;gap:8px;align-items:center;"><span class="fb-handle" data-i="${i}" title="Drag to reorder" aria-label="Drag to reorder">⠿</span><input type="text" class="fb-label" data-i="${i}" maxlength="120" placeholder="Question ${i + 1}" value="${escapeCm(f.label)}"></div>
+      <div style="display:flex;gap:8px;align-items:flex-start;"><span class="fb-handle" data-i="${i}" title="Drag to reorder" aria-label="Drag to reorder">⠿</span><textarea class="fb-label" data-i="${i}" rows="${Math.min(8, Math.max(1, Math.ceil(String(f.label || '').length / 38)))}" maxlength="1000" placeholder="Question ${i + 1} (as long as you like)" style="resize:vertical;">${escapeCm(f.label)}</textarea></div>
       <div class="fb-row"><select class="fb-type" data-i="${i}">${FB_TYPES.map(([k, l]) => `<option value="${k}" ${f.type === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
         <label class="fb-opt" style="margin:0;"><input type="checkbox" class="fb-req" data-i="${i}" ${f.required ? 'checked' : ''} style="width:20px;height:20px;"> Required</label></div>
       ${f.type === 'choice' || f.type === 'multi' ? `<textarea class="fb-opts" data-i="${i}" rows="3" placeholder="One option per line (at least 2)" style="margin-top:8px;">${escapeCm((f.options || []).join('\n'))}</textarea>` : ''}
@@ -6130,18 +6130,18 @@ function openFormBuilder(initial, onDone){
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;"><button type="button" class="fb-mini" id="fbCancel">← Back to event</button><button type="button" class="club-guide-btn" id="fbDone" style="padding:8px 20px;text-align:center;background:var(--brand-rose);color:#fff;">✓ Done</button></div>
       <h2 style="margin:0 0 8px;">📝 Create a form</h2>
       <p class="ideas-hint" style="text-align:left;margin:0 0 10px;">Members fill this in from the event. Add as many questions as you like — you can edit it any time.</p>
-      <div class="fb-card"><input type="text" id="fbTitle" maxlength="80" placeholder="Form title (e.g. Dinner sign-up)" value="${escapeCm(form.title)}"><textarea id="fbIntro" rows="2" maxlength="400" placeholder="Short intro (optional)" style="margin-top:8px;">${escapeCm(form.intro)}</textarea></div>
+      <div class="fb-card"><input type="text" id="fbTitle" maxlength="140" placeholder="Form title (e.g. Dinner sign-up)" value="${escapeCm(form.title)}"><textarea id="fbIntro" rows="3" maxlength="2000" placeholder="Short intro (optional)" style="margin-top:8px;">${escapeCm(form.intro)}</textarea></div>
       ${cards || '<p class="av-msg" style="text-align:center;">No questions yet — add one below.</p>'}
       <div class="fb-card"><strong style="font-size:14px;">➕ Add a question</strong><div class="fb-row">${FB_TYPES.map(([k, l]) => `<button type="button" class="fb-mini fb-add" data-t="${k}">${l}</button>`).join('')}</div></div>
       <div class="fb-card"><strong style="font-size:14px;">💳 Payment (optional)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 8px;">The site doesn't take the money itself — it shows people how to pay once they've signed up.</p>
         <input type="text" id="fbPayAmt" maxlength="30" placeholder="Amount (e.g. $15)" value="${escapeCm((form.payment || {}).amount || '')}">
         <input type="text" id="fbPayLink" maxlength="500" placeholder="Payment link (https://…) — Square, PayPal, Stripe…" value="${escapeCm((form.payment || {}).link || '')}" style="margin-top:8px;" inputmode="url" autocapitalize="none">
-        <textarea id="fbPayNote" rows="2" maxlength="400" placeholder="Instructions (e.g. Or e-Transfer to pay@example.com with your name in the message)" style="margin-top:8px;">${escapeCm((form.payment || {}).note || '')}</textarea>
+        <textarea id="fbPayNote" rows="3" maxlength="1000" placeholder="Instructions (e.g. Or e-Transfer to pay@example.com with your name in the message)" style="margin-top:8px;">${escapeCm((form.payment || {}).note || '')}</textarea>
         <div style="margin-top:12px;"><strong style="font-size:13px;">➕ Add-ons (optional extras people can tick)</strong>
           <p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">e.g. “T-shirt” +$10. The total = the amount above + the add-ons they tick.</p>
           ${((form.payment || {}).addons || []).map((a, i) => `<div class="fb-row" style="margin-top:6px;flex-wrap:nowrap;"><input type="text" class="fb-ao-label" data-i="${i}" maxlength="60" placeholder="Add-on name" value="${escapeCm(a.label)}" style="flex:1;min-width:0;"><input type="number" class="fb-ao-price" data-i="${i}" min="0" step="0.01" placeholder="Price" value="${escapeCm(a.price === undefined || a.price === '' ? '' : a.price)}" style="width:92px;flex:0 0 92px;"><button type="button" class="fb-mini fb-ao-del" data-i="${i}" aria-label="Remove add-on" style="background:#fdecea;">🗑</button></div>`).join('')}
           <button type="button" class="fb-mini" id="fbAoAdd" style="margin-top:8px;">➕ Add an add-on</button></div></div>
-      <div class="fb-card"><strong style="font-size:14px;">📝 Description at the bottom (optional)</strong><textarea id="fbFooter" rows="3" maxlength="800" placeholder="Shown under the form — e.g. refund policy, what to bring, contact…" style="margin-top:6px;">${escapeCm(form.footer || '')}</textarea></div>
+      <div class="fb-card"><strong style="font-size:14px;">📝 Description at the bottom (optional)</strong><textarea id="fbFooter" rows="4" maxlength="3000" placeholder="Shown under the form — e.g. refund policy, what to bring, contact…" style="margin-top:6px;">${escapeCm(form.footer || '')}</textarea></div>
       <div id="fbMsg" style="color:#c00;font-size:13px;min-height:18px;margin-bottom:8px;">${escapeCm(msg)}</div>
       <div class="fb-row"><button type="button" class="fb-mini" id="fbPreview">👁 Preview</button>${form.fields.length ? '<button type="button" class="fb-mini" id="fbClear" style="background:#fdecea;">Remove the whole form</button>' : ''}</div></div>`;
     const q = (sel, fn) => page.querySelectorAll(sel).forEach(el => fn(el, Number(el.dataset.i)));
@@ -6154,7 +6154,7 @@ function openFormBuilder(initial, onDone){
     page.querySelectorAll('.fb-ao-del').forEach(el => el.addEventListener('click', () => { form.payment.addons.splice(Number(el.dataset.i), 1); if(!form.payment.addons.length){ delete form.payment.addons; if(!form.payment.amount && !form.payment.link && !form.payment.note) delete form.payment; } paint(); }));
     ['#fbPayAmt', '#fbPayLink', '#fbPayNote'].forEach(id => page.querySelector(id).addEventListener('input', syncPay));
     page.querySelector('#fbFooter').addEventListener('input', e => { if(e.target.value.trim()) form.footer = e.target.value; else delete form.footer; });
-    q('.fb-label', (el, i) => el.addEventListener('input', () => { form.fields[i].label = el.value; }));
+    q('.fb-label', (el, i) => el.addEventListener('input', () => { form.fields[i].label = el.value; el.rows = Math.min(8, Math.max(1, Math.ceil(el.value.length / 38))); }));
     q('.fb-req', (el, i) => el.addEventListener('change', () => { form.fields[i].required = el.checked; }));
     q('.fb-opts', (el, i) => el.addEventListener('input', () => { form.fields[i].options = el.value.split('\n').map(x => x.trim()).filter(Boolean); }));
     q('.fb-type', (el, i) => el.addEventListener('change', () => { form.fields[i].type = el.value; if((el.value === 'choice' || el.value === 'multi') && !(form.fields[i].options || []).length) form.fields[i].options = ['Option 1', 'Option 2']; paint(); }));
