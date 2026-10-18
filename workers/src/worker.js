@@ -1732,7 +1732,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       for (const uid of (await readClubMemberIds(env, cid)).slice(0, 300)) {
         const u = await readUser(env, uid);
         if (!u || (u.archived && u.archived.reason !== "travelling")) continue;
-        members.push({ p: await pubId(env, uid), first: firstNameOnly(u.name), joined: u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : "" });
+        members.push({ p: await pubId(env, uid), first: u.username || firstNameOnly(u.name), joined: u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : "" });
       }
       members.sort((a, b) => a.first.localeCompare(b.first));
       return jsonResponse({ members }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
@@ -1747,7 +1747,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if ((await pubId(env, uid)) !== pid) continue;
         const u = await readUser(env, uid); if (!u) break;
         const roster = await readClubRoster(env), mine = await allClubIdsContaining(env, uid);
-        return jsonResponse({ first: firstNameOnly(u.name), joined: u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : "", clubs: mine.map((id) => (roster.find((c) => c.id === id) || {}).title).filter(Boolean) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+        const todayIso = new Date().toISOString().slice(0, 10);
+        const activities = (await readClubCal(env)).filter((e) => e.date < todayIso && (e.rsvps || []).some((x) => x.id === uid && x.status === "going"))
+          .sort((a, b) => b.date.localeCompare(a.date)).map((e) => ({ title: e.title, date: e.date, clubs: calClubs(e).map((cid) => (roster.find((c) => c.id === cid) || {}).title).filter(Boolean) }));
+        return jsonResponse({ first: u.username || firstNameOnly(u.name), joined: u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : "", clubs: mine.map((id) => (roster.find((c) => c.id === id) || {}).title).filter(Boolean), activities }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
       }
       return jsonResponse({ error: "Not found" }, 404, corsHeaders);
     }
@@ -1787,7 +1790,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!ev0) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
         if (ev0.date >= new Date().toISOString().slice(0, 10)) return jsonResponse({ past: false, attendees: [] }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
         const out = [];
-        for (const r of (ev0.rsvps || []).filter((x) => x.status === "going")) out.push({ first: firstNameOnly(r.name), ...(String(r.id).startsWith("g:") ? {} : { p: await pubId(env, r.id) }) });
+        for (const r of (ev0.rsvps || []).filter((x) => x.status === "going")) {
+          if (String(r.id).startsWith("g:")) { out.push({ first: firstNameOnly(r.name) }); continue; } // no profile: a first name only
+          const u = await readUser(env, r.id);
+          out.push({ first: u && u.username ? u.username : firstNameOnly(r.name), p: await pubId(env, r.id) }); // members are listed by USERNAME
+        }
         out.sort((a, b) => a.first.localeCompare(b.first));
         return jsonResponse({ past: true, attendees: out }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
       }

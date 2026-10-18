@@ -5672,7 +5672,7 @@ async function calAttendeesInto(container, id, date){
     const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/attendees');
     if(!r.past || !r.attendees.length) return;
     const box = document.createElement('div'); box.style.cssText = 'margin:12px 0 0;';
-    box.innerHTML = `<strong style="font-size:14px;">👥 Who attended (${r.attendees.length})</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">First names only. Tap a name to see when they joined and their clubs.</p><div>${r.attendees.map(a => a.p ? `<button type="button" class="filter-chip calAtt" data-p="${escapeCm(a.p)}" data-first="${escapeCm(a.first)}" style="margin:2px 4px 2px 0;">${escapeCm(a.first)}</button>` : `<span class="filter-chip" style="margin:2px 4px 2px 0;opacity:.8;">${escapeCm(a.first)}</span>`).join('')}</div>`;
+    box.innerHTML = `<strong style="font-size:14px;">👥 Who attended (${r.attendees.length})</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">Tap a username to see when they joined, their clubs and the activities they attended.</p><div>${r.attendees.map(a => a.p ? `<button type="button" class="filter-chip calAtt" data-p="${escapeCm(a.p)}" data-first="${escapeCm(a.first)}" style="margin:2px 4px 2px 0;">${escapeCm(a.first)}</button>` : `<span class="filter-chip" style="margin:2px 4px 2px 0;opacity:.8;">${escapeCm(a.first)}</span>`).join('')}</div>`;
     container.appendChild(box);
     box.querySelectorAll('.calAtt').forEach(b => b.addEventListener('click', () => calPublicProfilePopup({ event: id }, b.dataset.p, b.dataset.first)));
   } catch {}
@@ -7027,7 +7027,9 @@ async function calPublicProfilePopup(ctx, p, first){
     const q = (ctx.event ? 'event=' + encodeURIComponent(ctx.event) : 'club=' + encodeURIComponent(ctx.club)) + '&p=' + encodeURIComponent(p);
     const d = await cmApiRaw('/api/public-profile?' + q);
     wrap.querySelector('#ppBox').innerHTML = `<p style="margin:0 0 8px;">📅 Joined 4DASISTAS on <strong>${escapeCm(calFmtDate(d.joined) || '—')}</strong></p>
-      <p style="margin:0 0 4px;font-weight:700;">🏛️ In ${d.clubs.length === 1 ? 'this club' : 'these clubs'}:</p><div>${d.clubs.length ? d.clubs.map(c => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:4px 12px;border-radius:999px;background:#f2d8d7;font-weight:700;font-size:13px;">${escapeCm(c)}</span>`).join('') : '<span class="av-msg">No club yet</span>'}</div>`;
+      <p style="margin:0 0 4px;font-weight:700;">🏛️ In ${d.clubs.length === 1 ? 'this club' : 'these clubs'}:</p><div>${d.clubs.length ? d.clubs.map(c => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:4px 12px;border-radius:999px;background:#f2d8d7;font-weight:700;font-size:13px;">${escapeCm(c)}</span>`).join('') : '<span class="av-msg">No club yet</span>'}</div>
+      <p style="margin:12px 0 4px;font-weight:700;">🎟️ Activities attended (${(d.activities || []).length})</p>
+      ${(d.activities || []).length ? `<div style="max-height:34vh;overflow:auto;">${d.activities.map(a => `<div style="padding:6px 0;border-top:1px solid rgba(0,0,0,.1);"><strong>${escapeCm(a.title)}</strong><br><small style="color:#776867;">${escapeCm(calFmtDate(a.date))}${a.clubs.length ? ' · ' + escapeCm(a.clubs.join(' × ')) : ''}</small></div>`).join('')}</div>` : '<p class="av-msg" style="margin:0;">None recorded yet.</p>'}`;
   } catch(err){ wrap.querySelector('#ppBox').innerHTML = `<p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`; }
 }
 state.pubMembers = state.pubMembers || {};
@@ -7042,7 +7044,7 @@ function clubMembersPublicHtml(clubId){
   const list = state.pubMembers[clubId];
   if(!list){ loadPubMembers(clubId); return `<h3 class="clubs-popular-title" style="margin-top:22px;">👥 MEMBERS</h3><p class="av-msg" style="text-align:center;">Loading…</p>`; }
   return `<h3 class="clubs-popular-title" style="margin-top:22px;">👥 MEMBERS (${list.length})</h3>
-    <p class="ideas-hint" style="text-align:center;margin:0 0 8px;">First names only. Tap a name to see when they joined and which clubs they're in.</p>
+    <p class="ideas-hint" style="text-align:center;margin:0 0 8px;">Tap a username to see when they joined, their clubs and the activities they attended.</p>
     <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">${list.map(m => `<button type="button" class="filter-chip pubMember" data-p="${escapeCm(m.p)}" data-first="${escapeCm(m.first)}">${escapeCm(m.first)}</button>`).join('') || '<span class="av-msg">No members yet.</span>'}</div>`;
 }
 function renderClubIdeas(el){
