@@ -8027,7 +8027,7 @@ function openClubMembers(clubId, title){
 }
 
 async function cmLoadRoster(clubId){
-  const data = await cmApi(encodeURIComponent(clubId) + '/members');
+  const data = await cmApi(encodeURIComponent(clubId) + '/members', { headers: cmAuthHeaders() });
   state.cmMembers = (data && data.members) || [];
 }
 

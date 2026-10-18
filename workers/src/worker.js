@@ -1546,6 +1546,14 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     }
 
     if (cmMembersMatch && request.method === "GET") {
+      // Full names + usernames: signed-in members, the main admin and club admins only (the PUBLIC list is /public-members: first names only).
+      let allowed = false;
+      { const ah = request.headers.get("Authorization") || "", tk = ah.startsWith("Bearer ") ? ah.slice(7) : "";
+        if (tk && (await env.SITE_DATA.get(`membersession:${tk}`))) allowed = true;
+        const ck = request.headers.get("Cookie") || "", sm = ck.match(/(?:^|;\s*)session=([^;]+)/), lm = ck.match(/(?:^|;\s*)leadsession=([^;]+)/);
+        if (!allowed && sm && (await env.SITE_DATA.get(`session:${sm[1]}`))) allowed = true;
+        if (!allowed && lm && (await env.SITE_DATA.get(`leadsession:${lm[1]}`))) allowed = true; }
+      if (!allowed) return jsonResponse({ error: "Log in to see the member list" }, 401, corsHeaders);
       const clubId = decodeURIComponent(cmMembersMatch[1]);
       const members = await resolveClubMembers(env, clubId);
       return jsonResponse({ members: members.map(publicUser) }, 200, corsHeaders);
