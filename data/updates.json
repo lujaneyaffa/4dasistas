@@ -1,6 +1,16 @@
 {
   "updates": [
     {
+      "no": 18,
+      "date": "2026-10-18",
+      "title": "Availability reminder",
+      "items": [
+        {
+          "text": "✨ When a new availability period is open and you haven't added yours yet, you'll get a friendly prompt when you sign in with a button straight to it."
+        }
+      ]
+    },
+    {
       "no": 17,
       "date": "2026-10-18",
       "title": "Public club calendar & members",

@@ -5108,7 +5108,7 @@ function resetUserScopedState(){
   try { clearTimeout(iavSaveTimer); } catch {} // (declared further down — try/catch keeps an early call safe)
   Object.assign(state, {
     ideaAvail:null, ideaAvailNo:{}, ideaAvailSubmitted:false, ideaAvailOwner:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'',
-    ideaAvailStatus:'', ideaAvailDirty:false, ideaAvailSaving:false, ideaAvailResave:false, iavEditing:false, iavUnsetWarned:false,
+    ideaAvailStatus:'', ideaAvailDirty:false, ideaAvailSaving:false, ideaAvailResave:false, iavEditing:false, iavUnsetWarned:false, availNagShown:false,
     mySquads:[], squadPending:[], squadReqError:'', eavClub:'mine', eavCache:{}, eavInflight:{}, ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{},
     pushRegistered:false, phoneConfirmed:true, myPhone:'', myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
     ideas:null, ideasError:'', ideasStatus:'',
@@ -5125,6 +5125,7 @@ function setCmSession(session){
   const prev = getCmSession();
   if(!prev || (session && prev.id !== session.id)) resetUserScopedState(); // a different person signed in on this browser
   localStorage.setItem(cmSessionKey(), JSON.stringify(session));
+  setTimeout(availNagCheck, 1500); // new availability period not filled in yet? ask once per sign-in
   rememberLastLogin(session); // per-device only: lets the login page offer "Log in as <this device's last user>"
 }
 // "Log in as <name>": remembered in THIS browser only (localStorage is per-device, so it is never shown to other
@@ -7273,6 +7274,27 @@ function ideaAvailScheduleSave(){
   clearTimeout(iavSaveTimer);
   iavSetStatus('Saving…');
   iavSaveTimer = setTimeout(ideaAvailSave, 700);
+}
+// When a member signs in (or opens the app) and hasn't filled in the CURRENT availability period, ask once to do it now.
+async function availNagCheck(){
+  try {
+    if(state.availNagShown || !getCmSession() || state.cmAdminLoggedIn === true || document.querySelector('.avNagPop')) return;
+    if(!iavNext15Dates().length) return; // period is over
+    if(!state.ideaAvailLoadedFor || state.ideaAvailOwner !== ideaOwnerKey()){ await ideaAvailLoad(); if(!state.ideaAvailLoadedFor) return; }
+    if(state.availNagShown || !getCmSession()) return;
+    const filled = iavNext15Dates().some(d => (state.ideaAvail && state.ideaAvail[d]) || (state.ideaAvailNo && state.ideaAvailNo[d]));
+    if(filled) return;
+    state.availNagShown = true;
+    const fmt = k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' });
+    const dl = state.availDeadline ? ` Please fill it in by <strong>${escapeCm(new Date(state.availDeadline + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric' }))}</strong>.` : '';
+    const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 6px;">📅 New availability period</h3>
+      <p style="margin:0 0 6px;">A new period is open: <strong>${escapeCm(fmt(AVAIL_PERIOD.start))} → ${escapeCm(fmt(AVAIL_PERIOD.end))}</strong>, and you haven't added your availability yet.${dl}</p>
+      <p class="ideas-hint" style="text-align:left;margin:0 0 10px;">It takes a minute and helps us pick times that work for everyone 💛</p>
+      <div style="display:flex;gap:8px;"><button type="button" class="club-guide-btn avNagGo" style="flex:2;text-align:center;background:var(--brand-rose);color:#fff;">Add my availability</button><button type="button" class="club-guide-btn avNagLater" style="flex:1;text-align:center;background:#fff;">Later</button></div>`);
+    wrap.classList.add('avNagPop');
+    wrap.querySelector('.avNagLater').addEventListener('click', close);
+    wrap.querySelector('.avNagGo').addEventListener('click', () => { close(); if(location.hash === '#/clubs/availability') location.hash = '#/clubs'; location.hash = '#/clubs/availability'; });
+  } catch {}
 }
 async function ideaAvailLoad(){
   if(state.ideaAvailLoading) return;
@@ -11475,6 +11497,7 @@ loadData().then(() => Promise.all([loadLabels(), loadAvailPeriod()])).then(() =>
   if(!enterDeepLinkState()) render();
   showLoadWarning();
   checkAdminSession();
+  setTimeout(availNagCheck, 2500);
   const initId = eventIdFromHash();
   if(initId) renderDetail(initId);
 }).catch(err => {
