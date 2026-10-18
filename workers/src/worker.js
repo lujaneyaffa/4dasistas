@@ -980,6 +980,7 @@ const sanitizeCalForm = (f) => {
   if (!fields.length) return null;
   const longText = (v, n) => String(v || "").replace(/[\x00-\x08\x0b-\x1f\x7f<>]/g, " ").trim().slice(0, n);
   const out = { title: cleanCalText(f.title, 140) || "Sign-up form", intro: longText(f.intro, 2000), fields };
+  if (typeof f.rsvpBy === "string") out.rsvpBy = /^\d{4}-\d{2}-\d{2}$/.test(f.rsvpBy) ? f.rsvpBy : ""; // the form builder can set the event's last RSVP day (moved onto the event below)
   const footer = longText(f.footer, 3000); if (footer) out.footer = footer; // description shown at the bottom of the form
   // Payment: the site doesn't take money itself — it shows how to pay (an amount, a payment link, instructions) once someone has signed up.
   if (f.payment && typeof f.payment === "object") {
@@ -3304,7 +3305,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (f.title.length < 3) return jsonResponse({ error: "Give the event a name (3+ letters)" }, 400, corsHeaders);
         if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
         const ev = { id: crypto.randomUUID(), clubId, clubIds, ...f, rsvps: [], at: Date.now() };
-        { const cf = sanitizeCalForm(body.form); if (cf) { ev.form = cf; if (leadCtx) ev.formLeads = [leadCtx.username]; } }
+        { const cf = sanitizeCalForm(body.form); if (cf) { if (cf.rsvpBy !== undefined) { ev.rsvpBy = cf.rsvpBy || ev.rsvpBy || ""; } delete cf.rsvpBy; ev.form = cf; if (leadCtx) ev.formLeads = [leadCtx.username]; } }
         if (body.publicForm) ev.publicForm = true;
         // Attendees chosen right in the "Add event" form: members (by id) and people without a profile (by name).
         for (const at of (Array.isArray(body.attendees) ? body.attendees : []).slice(0, 200)) {
@@ -3329,6 +3330,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         Object.assign(ev, f);
         if (body.form !== undefined) { // (a club admin without access never sees the form, so their edit of the event details must not touch it)
           const cf = sanitizeCalForm(body.form);
+          if (cf) { if (cf.rsvpBy !== undefined && (canForm(ev) || !ev.form)) ev.rsvpBy = cf.rsvpBy; delete cf.rsvpBy; }
           if (canForm(ev)) { if (cf) ev.form = cf; else delete ev.form; }
           else if (!ev.form && cf) { ev.form = cf; ev.formLeads = [...new Set([...(ev.formLeads || []), leadCtx.username])]; } // they created the form, so it's theirs
         }

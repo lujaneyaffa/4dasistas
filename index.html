@@ -5829,7 +5829,7 @@ async function clubCalPublicCard(box, id){
     const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id));
     const inp = 'class="fb-in"';
     box.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p><h3 style="margin:0 0 4px;">${escapeCm(d.title)}</h3>
-      <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calLinkRowHtml(d.id)}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${d.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
+      <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${d.rsvpBy ? `<p style="margin:4px 0;font-weight:700;color:${d.closed ? '#b3261e' : '#76220b'};">⏳ ${d.closed ? 'Sign-ups are closed' : 'Sign up by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}${calLinkRowHtml(d.id)}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${d.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
       ${d.closed ? '<p style="font-weight:700;">🔒 Sign-ups are closed.</p>' : ''}
       <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 8px;">1 · 👤 About you</h3>
         <div style="padding:8px 10px;border-radius:12px;background:#fef7f4;border:2px dashed #f2d8d7;font-size:14px;">Already a member? <button type="button" class="club-guide-btn pfLogin" style="padding:4px 14px;min-height:0;margin-left:4px;text-align:center;">👤 Log in</button>
@@ -5990,9 +5990,9 @@ function clubCalManage(ev){
     const op = wrap.querySelector('#calOpenPage'); if(op) op.addEventListener('click', () => { close(); openEventFormPage(ev.id); });
     const fe = wrap.querySelector('#calFormEdit');
     if(fe) fe.addEventListener('click', () => openFormBuilder(ev.form || null, async f => {
-      try { const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id), 'PUT', { form: f }); ev.form = j.event.form; const i = state.clubCal.findIndex(e => e.id === ev.id); if(i >= 0) state.clubCal[i] = j.event; paint(); if(state.tab === 'clubs' || state.tab === 'admin') render(); }
+      try { const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id), 'PUT', { form: f }); ev.form = j.event.form; ev.rsvpBy = j.event.rsvpBy; const i = state.clubCal.findIndex(e => e.id === ev.id); if(i >= 0) state.clubCal[i] = j.event; paint(); if(state.tab === 'clubs' || state.tab === 'admin') render(); }
       catch(err){ wrap.querySelector('#calMsg').textContent = err.message; }
-    }));
+    }, { rsvpBy: ev.rsvpBy || '', showRsvpBy: true }));
     const rb = wrap.querySelector('#calRespBtn'); if(rb) rb.addEventListener('click', () => clubCalShowResponses(ev, wrap.querySelector('#calRespBox')));
     wrap.querySelector('#calEditBtn').addEventListener('click', () => { close(); clubCalForm(ev); });
     wrap.querySelector('#calDelBtn').addEventListener('click', async () => {
@@ -6105,8 +6105,9 @@ function calPayHtml(form, heading, ids){
     ${pay.note ? `<div style="margin-top:4px;white-space:pre-wrap;font-size:14px;">${escapeCm(pay.note)}</div>` : ''}
     ${pay.link ? `<a href="${escapeCm(pay.link)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:8px;padding:10px 18px;border-radius:999px;background:#2a7a4a;color:#fff;font-weight:800;text-decoration:none;">💳 Pay now</a>` : ''}</div>`;
 }
-function openFormBuilder(initial, onDone){
+function openFormBuilder(initial, onDone, opts){
   const form = JSON.parse(JSON.stringify(initial || { title:'', intro:'', fields:[] }));
+  if(opts && opts.rsvpBy !== undefined && form.rsvpBy === undefined) form.rsvpBy = opts.rsvpBy || ''; // the event's last RSVP day (editable here too)
   const page = document.createElement('div'); page.className = 'fb-page';
   document.body.appendChild(page);
   const prevOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden';
@@ -6131,6 +6132,7 @@ function openFormBuilder(initial, onDone){
       <h2 style="margin:0 0 8px;">📝 Create a form</h2>
       <p class="ideas-hint" style="text-align:left;margin:0 0 10px;">Members fill this in from the event. Add as many questions as you like — you can edit it any time.</p>
       <div class="fb-card"><input type="text" id="fbTitle" maxlength="140" placeholder="Form title (e.g. Dinner sign-up)" value="${escapeCm(form.title)}"><textarea id="fbIntro" rows="3" maxlength="2000" placeholder="Short intro (optional)" style="margin-top:8px;">${escapeCm(form.intro)}</textarea></div>
+      ${opts && opts.showRsvpBy ? `<div class="fb-card"><strong style="font-size:14px;">⏳ Last day to RSVP (optional)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">After this day the form closes — nobody new can sign up. It's the same date as the event's “last day to RSVP”.</p><input type="date" id="fbRsvpBy" value="${escapeCm(form.rsvpBy || '')}"></div>` : ''}
       ${cards || '<p class="av-msg" style="text-align:center;">No questions yet — add one below.</p>'}
       <div class="fb-card"><strong style="font-size:14px;">➕ Add a question</strong><div class="fb-row">${FB_TYPES.map(([k, l]) => `<button type="button" class="fb-mini fb-add" data-t="${k}">${l}</button>`).join('')}</div></div>
       <div class="fb-card"><strong style="font-size:14px;">💳 Payment (optional)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 8px;">The site doesn't take the money itself — it shows people how to pay once they've signed up.</p>
@@ -6147,6 +6149,7 @@ function openFormBuilder(initial, onDone){
     const q = (sel, fn) => page.querySelectorAll(sel).forEach(el => fn(el, Number(el.dataset.i)));
     page.querySelector('#fbTitle').addEventListener('input', e => { form.title = e.target.value; });
     page.querySelector('#fbIntro').addEventListener('input', e => { form.intro = e.target.value; });
+    { const rb = page.querySelector('#fbRsvpBy'); if(rb) rb.addEventListener('input', () => { form.rsvpBy = rb.value; }); }
     const syncPay = () => { const p = { amount: page.querySelector('#fbPayAmt').value.trim(), link: page.querySelector('#fbPayLink').value.trim(), note: page.querySelector('#fbPayNote').value.trim() }; const ao = (form.payment || {}).addons; if(ao && ao.length) p.addons = ao; if(p.amount || p.link || p.note || p.addons) form.payment = p; else delete form.payment; };
     page.querySelector('#fbAoAdd').addEventListener('click', () => { syncPay(); form.payment = form.payment || {}; (form.payment.addons = form.payment.addons || []).push({ id: nid(), label: '', price: '' }); paint(); const l = page.querySelectorAll('.fb-ao-label'); if(l.length) l[l.length - 1].focus(); });
     page.querySelectorAll('.fb-ao-label').forEach(el => el.addEventListener('input', () => { form.payment.addons[Number(el.dataset.i)].label = el.value; }));
@@ -6277,7 +6280,7 @@ function clubCalForm(ev, presetDate){
   const paintFormBtn = () => { formBtn.textContent = draftForm ? `✅ Form ready (${draftForm.fields.length} question${draftForm.fields.length === 1 ? '' : 's'}) — tap to edit · it saves with the event` : '📝 Create a form'; };
   paintFormBtn();
   if(ev && ev.hasForm && ev.canForm === false) formBtn.style.display = 'none'; // a club admin without access to this event's form can't see or change it
-  formBtn.addEventListener('click', () => openFormBuilder(draftForm, f => { draftForm = f; paintFormBtn(); }));
+  formBtn.addEventListener('click', () => openFormBuilder(draftForm, f => { draftForm = f; if(f && f.rsvpBy !== undefined){ wrap.querySelector('#cfRsvpBy').value = f.rsvpBy || ''; } paintFormBtn(); }, { rsvpBy: wrap.querySelector('#cfRsvpBy').value, showRsvpBy: true }));
   const picked = []; // {userId,name} or {name}
   if(!ev){
     const chips = wrap.querySelector('#cfChips'), search = wrap.querySelector('#cfAttSearch'), results = wrap.querySelector('#cfAttResults');
@@ -6297,7 +6300,7 @@ function clubCalForm(ev, presetDate){
   wrap.querySelector('#cfSave').addEventListener('click', async e => {
     const body = { title: wrap.querySelector('#cfTitle').value, date: wrap.querySelector('#cfDate').value, time: wrap.querySelector('#cfTime').value, place: wrap.querySelector('#cfPlace').value, rsvpBy: wrap.querySelector('#cfRsvpBy').value, desc: wrap.querySelector('#cfDesc').value };
     body.clubIds = [...wrap.querySelectorAll('.cf-club:checked')].map(x => x.value);
-    body.form = draftForm;
+    body.form = draftForm ? (() => { const c = { ...draftForm }; delete c.rsvpBy; return c; })() : null; // the date lives in the event's own field above
     if(!ev) body.attendees = picked.map(a => a.userId ? { userId:a.userId } : { name:a.name });
     if(!body.clubIds.length){ wrap.querySelector('#cfMsg').textContent = 'Tick at least one club.'; return; }
     e.target.disabled = true;
@@ -8645,7 +8648,7 @@ function wireAdmEvents(){
     document.querySelectorAll('.ce-att').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) clubCalManage(e); }));
     document.querySelectorAll('.ce-form').forEach(b => b.addEventListener('click', () => {
       const e = find(b.dataset.ceid); if(!e) return;
-      openFormBuilder(e.form || null, async f => { try { const j = await clubCalAdminCall('/' + encodeURIComponent(e.id), 'PUT', { form: f }); const i = state.clubCal.findIndex(x => x.id === e.id); if(i >= 0) state.clubCal[i] = j.event; render(); } catch(err){ alert(err.message); } });
+      openFormBuilder(e.form || null, async f => { try { const j = await clubCalAdminCall('/' + encodeURIComponent(e.id), 'PUT', { form: f }); const i = state.clubCal.findIndex(x => x.id === e.id); if(i >= 0) state.clubCal[i] = j.event; render(); } catch(err){ alert(err.message); } }, { rsvpBy: e.rsvpBy || '', showRsvpBy: true });
     }));
     document.querySelectorAll('.ce-ans').forEach(b => b.addEventListener('click', () => {
       const e = find(b.dataset.ceid); if(!e) return;
