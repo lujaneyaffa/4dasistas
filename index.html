@@ -5838,7 +5838,7 @@ async function clubCalPublicCard(box, id){
     const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id));
     const inp = 'class="fb-in"';
     box.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p><h3 style="margin:0 0 4px;">${escapeCm(d.title)}</h3>
-      <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${d.rsvpBy ? `<p style="margin:4px 0;font-weight:700;color:${d.closed ? '#b3261e' : '#76220b'};">⏳ ${d.closed ? 'Sign-ups are closed' : 'Sign up by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}${calLinkRowHtml(d.id)}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${d.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
+      <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${d.rsvpBy ? `<p style="margin:4px 0;font-weight:700;color:${d.closed ? '#b3261e' : '#76220b'};">⏳ ${d.closed ? 'Sign-ups are closed' : 'Sign up by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}${calLinkRowHtml(d.id)}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}${d.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
       ${d.closed ? '<p style="font-weight:700;">🔒 Sign-ups are closed.</p>' : ''}
       <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 8px;">1 · 👤 About you</h3>
         <div style="padding:8px 10px;border-radius:12px;background:#fef7f4;border:2px dashed #f2d8d7;font-size:14px;">Already a member? <button type="button" class="club-guide-btn pfLogin" style="padding:4px 14px;min-height:0;margin-left:4px;text-align:center;">👤 Log in</button>
@@ -5922,7 +5922,7 @@ async function clubCalMemberCard(box, id){
       top.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>
         <h3 style="margin:0 0 6px;">${escapeCm(d.title)}</h3>
         <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>
-        ${d.form ? calLinkRowHtml(d.id) : ''}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}
+        ${d.form ? calLinkRowHtml(d.id) : ''}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}
         ${d.desc ? `<p style="margin:8px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
         ${d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}
         <p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} going${d.inClub || d.form ? '' : ' · you\'re not in this club, so an admin approves your RSVP'}</p>
@@ -5981,7 +5981,7 @@ function clubCalManage(ev){
       <p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(ev.clubTitle)}</p>
       <h3 style="margin:0 0 6px;">${escapeCm(ev.title)}</h3>
       <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(ev.date))}${ev.time ? ' · ⏰ ' + escapeCm(ev.time) : ''}${past ? ' · <strong>(past)</strong>' : ''}</p>
-      ${ev.place ? `<p style="margin:4px 0;">📍 ${escapeCm(ev.place)}</p>` : ''}
+      ${ev.place ? `<p style="margin:4px 0;">📍 ${escapeCm(ev.place)}</p>` : ''}${calMapHtml(ev)}
       ${ev.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;text-align:left;">⏳ RSVP by ${escapeCm(ideaLongDate(ev.rsvpBy))}</p>` : ''}
       ${ev.desc ? `<p style="margin:8px 0;white-space:pre-wrap;">${escapeCm(ev.desc)}</p>` : ''}
       <div style="display:flex;gap:8px;margin:10px 0;"><button type="button" class="club-guide-btn" id="calEditBtn" style="flex:1;text-align:center;">✏️ Edit</button><button type="button" class="club-guide-btn" id="calDelBtn" style="flex:1;text-align:center;background:#fdecea;">🗑 Remove</button></div>
@@ -6084,6 +6084,14 @@ function calOpenPending(){
   let id = state.openEventId; state.openEventId = null;
   if(!id && getCmSession()){ try { id = sessionStorage.getItem('pendingEventOpen'); if(id) sessionStorage.removeItem('pendingEventOpen'); } catch {} }
   if(id) setTimeout(() => clubCalOpen(id), 350);
+}
+// A pinned map on the event page: the pasted Google Maps link (exact spot), else the place text — embedded, plus an 'Open in Google Maps' link.
+function calMapHtml(d){
+  const map = safeMapUrl(d.mapUrl), q = String(d.place || '').trim();
+  if(!map && !q) return '';
+  const src = ideaMapEmbedUrl({ mapUrl: map, title: q || d.title || '' });
+  const open = map || ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q));
+  return `<div class="calMap" style="margin:8px 0;"><iframe title="Map of ${escapeCm(q || d.title || 'the event')}" src="${escapeCm(src)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" style="width:100%;height:230px;border:2px solid var(--brand-brown);border-radius:12px;display:block;"></iframe><a href="${escapeCm(open)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:4px;font-size:13px;font-weight:700;color:var(--brand-brown);">📍 Open in Google Maps ↗</a></div>`;
 }
 // The description at the bottom of a form, and how to pay (the site shows it; it doesn't take the money itself).
 function calFormFooterHtml(form){ return form.footer ? `<p style="margin:10px 0 0;font-size:14px;white-space:pre-wrap;color:#555;">${escapeCm(form.footer)}</p>` : ''; }
@@ -6275,6 +6283,9 @@ function clubCalForm(ev, presetDate){
     <input id="cfPlace" type="hidden" value="${escapeCm(ev ? ev.place : '')}">
     <div id="cfPlaceSlot"></div>
     <div id="cfPlaceChosen" class="ev-loc-chosen${ev && ev.place ? '' : ' empty'}" style="margin:0 0 8px;">${ev && ev.place ? '📍 ' + escapeCm(ev.place) : 'No place chosen yet'}</div>
+    <label style="display:block;font-size:12px;color:#776867;margin:0 0 2px;">🗺️ Google Maps link (optional — pins the exact spot on a map people can see)</label>
+    <input id="cfMap" type="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Paste the link from Google Maps → Share → Copy link" value="${escapeCm(ev ? (ev.mapUrl || '') : '')}" style="${f}">
+    <p class="ideas-hint" style="text-align:left;margin:-4px 0 8px;">No link? The map is built from the place above.</p>
     <textarea id="cfDesc" maxlength="3000" rows="4" placeholder="Event description (optional) — shown at the top of the page" style="${f}">${escapeCm(ev ? ev.desc : '')}</textarea>
     ${ev ? '' : `<p class="idea-pop-h" style="margin:6px 0 4px;">👥 Who's going? (optional)</p>
       <div id="cfChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>
@@ -6309,7 +6320,7 @@ function clubCalForm(ev, presetDate){
     wrap.querySelector('#cfGuestAdd').addEventListener('click', () => { const inp = wrap.querySelector('#cfGuestName'), nm = inp.value.trim(); if(nm.length < 2) return; picked.push({ name:nm }); inp.value = ''; paintChips(); });
   }
   wrap.querySelector('#cfSave').addEventListener('click', async e => {
-    const body = { title: wrap.querySelector('#cfTitle').value, date: wrap.querySelector('#cfDate').value, time: wrap.querySelector('#cfTime').value, place: wrap.querySelector('#cfPlace').value, rsvpBy: wrap.querySelector('#cfRsvpBy').value, desc: wrap.querySelector('#cfDesc').value };
+    const body = { title: wrap.querySelector('#cfTitle').value, date: wrap.querySelector('#cfDate').value, time: wrap.querySelector('#cfTime').value, place: wrap.querySelector('#cfPlace').value, mapUrl: cleanMapLink(wrap.querySelector('#cfMap').value), rsvpBy: wrap.querySelector('#cfRsvpBy').value, desc: wrap.querySelector('#cfDesc').value };
     body.clubIds = [...wrap.querySelectorAll('.cf-club:checked')].map(x => x.value);
     body.form = draftForm ? (() => { const c = { ...draftForm }; delete c.rsvpBy; delete c.desc; return c; })() : null; // the date lives in the event's own field above
     if(!ev) body.attendees = picked.map(a => a.userId ? { userId:a.userId } : { name:a.name });
