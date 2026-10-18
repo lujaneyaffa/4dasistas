@@ -365,7 +365,8 @@ const availPeriodDates = (period, includePast) => {
 const listAvailPeriods = async (env) => {
   let hist = []; try { const a = JSON.parse((await env.SITE_DATA.get("availperiods")) || "[]"); if (Array.isArray(a)) hist = a; } catch {}
   const cur = await readAvailPeriodKV(env);
-  for (const per of [cur, DEFAULT_AVAIL_PERIOD]) if (!hist.some((h) => h.start === per.start && h.end === per.end)) hist.push({ start: per.start, end: per.end, at: 0 });
+  let hidden = []; try { const a = JSON.parse((await env.SITE_DATA.get("availperiodsHidden")) || "[]"); if (Array.isArray(a)) hidden = a; } catch {}
+  for (const per of [cur, DEFAULT_AVAIL_PERIOD]) if (!hist.some((h) => h.start === per.start && h.end === per.end) && !(hidden.includes(`${per.start}_${per.end}`) && per !== cur)) hist.push({ start: per.start, end: per.end, at: 0 });
   hist.sort((a, b) => b.start.localeCompare(a.start));
   return { current: cur, periods: hist };
 };
@@ -483,7 +484,7 @@ const buildBackup = async (env) => {
   const pushSubscriptions = {};
   for (const u of users) { const raw = await safe(`push ${u.id}`, () => env.SITE_DATA.get(pushKey(u.id)), null); if (raw) pushSubscriptions[u.id] = raw; }
   const settings = {};
-  for (const k of ["clubRoster", "clubcal", "labels", "evsubform", "availperiod", "availperiods", "watemplates", SUBSCRIBER_INDEX_KEY]) settings[k] = await safe(`setting ${k}`, () => env.SITE_DATA.get(k), null);
+  for (const k of ["clubRoster", "clubcal", "labels", "evsubform", "availperiod", "availperiods", "availperiodsHidden", "watemplates", SUBSCRIBER_INDEX_KEY]) settings[k] = await safe(`setting ${k}`, () => env.SITE_DATA.get(k), null);
   const counts = { users: users.length, availability: Object.keys(availability).length, clubs: clubIds.length, joinRequests: Object.keys(joinRequests).length, squadRequests: Object.keys(squadRequests).length, eventSubmissions: Object.keys(eventSubmissions).length, resourceSubmissions: Object.keys(resourceSubmissions).length, clubAdmins: Object.keys(clubAdmins).length };
   return { version: 2, at: new Date().toISOString(), storage: (await d1On(env)) ? "d1" : "kv", counts, warnings, users, availability, clubMembers, ideas, clubEvents, clubEventResponses, calForms, squads, joinRequests, squadRequests, eventSubmissions, resourceSubmissions, clubAdmins, pushSubscriptions, settings };
 };
@@ -2188,7 +2189,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const me = meId ? await readUser(env, meId) : null;
       if (!me) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
       // "last active" for the admin profile view — written at most once an hour per person (KV writes are limited)
-      if (!me.lastSeenAt || Date.now() - me.lastSeenAt > 21600000) { me.lastSeenAt = Date.now(); await writeUser(env, me); }
+      if (!me.lastSeenAt || Date.now() - me.lastSeenAt > 3600000) { me.lastSeenAt = Date.now(); await writeUser(env, me); }
       const clubs = await allClubIdsContaining(env, me.id);
       let notices = [];
       try { notices = JSON.parse((await env.SITE_DATA.get(`notice:${me.id}`)) || "[]"); } catch {}
@@ -2598,11 +2599,38 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (path === "/api/avail-periods" && request.method === "GET") return jsonResponse(await listAvailPeriods(env), 200, { ...corsHeaders, "Cache-Control": "no-store" });
     if (path === "/api/admin/avail-periods" && request.method === "GET") {
       const cur = await readAvailPeriod();
-      const hist = await readPeriodHistory();
-      // Periods from before history was kept: the very first period (the built-in default) is always listed, and older ones can be added by hand below.
-      for (const per of [cur, DEFAULT_AVAIL_PERIOD]) if (!hist.some((h) => h.start === per.start && h.end === per.end)) hist.push({ start: per.start, end: per.end, at: 0 });
-      hist.sort((a, b) => b.start.localeCompare(a.start));
+      const hist = (await listAvailPeriods(env)).periods;
       return jsonResponse({ current: cur, periods: hist }, 200, corsHeaders);
+    }
+    // Edit or delete a saved period (the CURRENT one can be edited — it changes the live period — but not deleted).
+    if (path === "/api/admin/avail-periods" && (request.method === "PUT" || request.method === "DELETE")) {
+      let body = {};
+      if (request.method === "PUT") { try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); } }
+      const start = String(body.start || url.searchParams.get("start") || ""), end = String(body.end || url.searchParams.get("end") || "");
+      if (!isValidDateString(start) || !isValidDateString(end)) return jsonResponse({ error: "Unknown period" }, 400, corsHeaders);
+      const cur = await readAvailPeriod(), isCur = cur.start === start && cur.end === end;
+      let hist = (await listAvailPeriods(env)).periods;
+      if (!hist.some((h) => h.start === start && h.end === end)) return jsonResponse({ error: "That period isn't in the list" }, 404, corsHeaders);
+      let hidden = []; try { const a = JSON.parse((await env.SITE_DATA.get("availperiodsHidden")) || "[]"); if (Array.isArray(a)) hidden = a; } catch {}
+      if (request.method === "DELETE") {
+        if (isCur) return jsonResponse({ error: "That's the current period — set a different current period first, then delete this one" }, 400, corsHeaders);
+        hist = hist.filter((h) => !(h.start === start && h.end === end));
+        if (!hidden.includes(`${start}_${end}`)) hidden.push(`${start}_${end}`);
+      } else {
+        const ns = String(body.newStart || ""), ne = String(body.newEnd || "");
+        if (!isValidDateString(ns) || !isValidDateString(ne) || ne < ns) return jsonResponse({ error: "Pick a start date and an end date after it" }, 400, corsHeaders);
+        if ((Date.parse(ne + "T00:00:00Z") - Date.parse(ns + "T00:00:00Z")) / 86400000 > 45) return jsonResponse({ error: "Keep the period to 45 days or less" }, 400, corsHeaders);
+        if ((ns !== start || ne !== end) && hist.some((h) => h.start === ns && h.end === ne)) return jsonResponse({ error: "A period with those dates already exists" }, 409, corsHeaders);
+        hist = hist.map((h) => (h.start === start && h.end === end ? { ...h, start: ns, end: ne } : h));
+        if (!hidden.includes(`${start}_${end}`) && (ns !== start || ne !== end)) hidden.push(`${start}_${end}`); // (hides the old dates if it was the built-in first period)
+        hidden = hidden.filter((k) => k !== `${ns}_${ne}`);
+        if (isCur) { const doc = await readAvailDoc(); await env.SITE_DATA.put("availperiod", JSON.stringify({ ...doc, start: ns, end: ne, at: Date.now() })); }
+      }
+      hist = hist.map((h) => ({ start: h.start, end: h.end, at: h.at || 0 }));
+      hist.sort((a, b) => b.start.localeCompare(a.start));
+      await env.SITE_DATA.put("availperiods", JSON.stringify(hist.slice(0, 40)));
+      await env.SITE_DATA.put("availperiodsHidden", JSON.stringify(hidden.slice(0, 40)));
+      return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     // Add an OLDER period to the saved list (it does not change the current one) so its availability can be viewed again.
     if (path === "/api/admin/avail-periods" && request.method === "POST") {
@@ -3244,7 +3272,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     // Wording of the WhatsApp messages the admin sends (availability reminder, notifications nudge, club accepted / declined). {first} {name} {club} are filled in.
-    const WA_KEYS = ["remind", "notif", "joinAccept", "joinDecline", "newPeriod", "welcome", "squadAccept"];
+    const WA_KEYS = ["remind", "notif", "joinAccept", "joinDecline", "newPeriod", "welcome", "squadAccept", "eventRemind", "payRemind"];
     if (path === "/api/admin/wa-templates" && request.method === "GET") {
       let t = {}; try { t = JSON.parse((await env.SITE_DATA.get("watemplates")) || "{}") || {}; } catch {}
       return jsonResponse({ templates: t }, 200, corsHeaders);

@@ -5989,6 +5989,8 @@ function clubCalManage(ev){
     const row = (r, pending) => `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid rgba(0,0,0,.1);"><span style="flex:1;font-weight:600;">${escapeCm(r.name)}</span>
       ${pending ? `<button type="button" class="calrs" data-a="accept" data-u="${escapeCm(r.id)}" style="border:2px solid #2a7a4a;background:#e6f4ea;border-radius:999px;padding:4px 10px;cursor:pointer;">✓ Accept</button>` : ''}
       ${!pending && ev.form && ev.form.payment ? `<button type="button" class="calrs" data-a="${r.paid ? 'unpaid' : 'paid'}" data-u="${escapeCm(r.id)}" style="border:2px solid #2a7a4a;background:${r.paid ? '#2a7a4a' : '#fff'};color:${r.paid ? '#fff' : '#2a7a4a'};border-radius:999px;padding:4px 10px;cursor:pointer;font-weight:700;">${r.paid ? '💳 Paid ✓' : 'Mark paid'}</button>` : ''}
+      ${!pending && !r.guest ? `<button type="button" class="calwa" data-k="eventRemind" data-u="${escapeCm(r.id)}" aria-label="WhatsApp reminder" title="WhatsApp reminder" style="border:2px solid #25a244;background:#fff;border-radius:999px;padding:4px 8px;cursor:pointer;">💬</button>` : ''}
+      ${!pending && !r.guest && !r.paid && ev.form && ev.form.payment ? `<button type="button" class="calwa" data-k="payRemind" data-u="${escapeCm(r.id)}" aria-label="Payment reminder" title="Payment reminder on WhatsApp" style="border:2px solid #25a244;background:#fff;border-radius:999px;padding:4px 8px;cursor:pointer;">💳💬</button>` : ''}
       <button type="button" class="calrs" data-a="${pending ? 'decline' : 'remove'}" data-u="${escapeCm(r.id)}" style="border:2px solid #b3261e;background:#fdecea;border-radius:999px;padding:4px 10px;cursor:pointer;">${pending ? '✕ Decline' : 'Remove'}</button></div>`;
     wrap.querySelector('.idea-pop-card').innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
       <p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(ev.clubTitle)}</p>
@@ -6043,6 +6045,13 @@ function clubCalManage(ev){
         paint(); if(state.tab === 'clubs' || state.tab === 'admin') render();
       } catch(err){ wrap.querySelector('#calMsg').textContent = err.message; }
     });
+    wrap.querySelectorAll('.calwa').forEach(b => b.addEventListener('click', async () => {
+      const r = (ev.rsvps || []).find(x => x.id === b.dataset.u); if(!r) return;
+      if(!usersCache){ b.disabled = true; usersCache = await calLoadUsers(); b.disabled = false; }
+      const u = (usersCache || []).find(x => x.id === r.id);
+      if(!state.waTemplates) await loadWaTemplates();
+      admWaPrompt(b.dataset.k === 'payRemind' ? '💳 Payment reminder' : '📅 Event reminder', r.name, u && u.phone, waEventMsg(b.dataset.k, r.name, ev), 'this reminder');
+    }));
     wrap.querySelectorAll('.calrs').forEach(b => b.addEventListener('click', async () => {
       try {
         const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/rsvp/' + encodeURIComponent(b.dataset.u) + '/' + b.dataset.a, 'POST');
@@ -8553,7 +8562,9 @@ function periodHistoryHtml(fmt){
   const cur = AVAIL_PERIOD, vp = admAvail.viewPeriod;
   const rows = state.availPeriods.map(h => {
     const isCur = h.start === cur.start && h.end === cur.end, on = vp ? (vp.start === h.start && vp.end === h.end) : isCur;
-    return `<button type="button" class="period-view" data-start="${escapeCm(h.start)}" data-end="${escapeCm(h.end)}" style="display:flex;justify-content:space-between;gap:8px;width:100%;margin:0 0 6px;padding:9px 12px;border-radius:12px;border:2px solid #76220b;background:${on ? '#f2d8d7' : '#fff'};font:inherit;font-weight:700;cursor:pointer;text-align:left;"><span>${escapeCm(fmt(h.start))} → ${escapeCm(fmt(h.end))}</span><span style="font-weight:600;color:#776867;">${isCur ? 'current' : (on ? 'viewing ✓' : 'view')}</span></button>`;
+    const mainAdm = state.cmAdminLoggedIn === true;
+    const ctl = mainAdm ? `<button type="button" class="period-edit" data-start="${escapeCm(h.start)}" data-end="${escapeCm(h.end)}" aria-label="Edit period" style="flex:none;width:40px;margin:0 0 6px;border-radius:12px;border:2px solid #76220b;background:#fff;cursor:pointer;">✏️</button>${isCur ? '' : `<button type="button" class="period-del" data-start="${escapeCm(h.start)}" data-end="${escapeCm(h.end)}" aria-label="Delete period" style="flex:none;width:40px;margin:0 0 6px;border-radius:12px;border:2px solid #76220b;background:#fff;cursor:pointer;">🗑</button>`}` : '';
+    return `<div style="display:flex;gap:6px;align-items:stretch;"><button type="button" class="period-view" data-start="${escapeCm(h.start)}" data-end="${escapeCm(h.end)}" style="display:flex;justify-content:space-between;gap:8px;flex:1;min-width:0;margin:0 0 6px;padding:9px 12px;border-radius:12px;border:2px solid #76220b;background:${on ? '#f2d8d7' : '#fff'};font:inherit;font-weight:700;cursor:pointer;text-align:left;"><span>${escapeCm(fmt(h.start))} → ${escapeCm(fmt(h.end))}</span><span style="font-weight:600;color:#776867;">${isCur ? 'current' : (on ? 'viewing ✓' : 'view')}</span></button>${ctl}</div>`;
   }).join('');
   return `<div style="margin-top:14px;"><strong style="font-size:13px;">🗂️ All periods (saved)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 8px;">Tap one to see everyone's availability for it in the calendar below.</p>${rows}
     ${state.cmAdminLoggedIn === true ? `<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:13px;font-weight:700;">➕ Add an older period to this list</summary><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"><input type="date" id="oldPeriodStart" style="flex:1;min-width:130px;padding:9px;border-radius:10px;border:2px solid var(--brand-brown);"><input type="date" id="oldPeriodEnd" style="flex:1;min-width:130px;padding:9px;border-radius:10px;border:2px solid var(--brand-brown);"><button type="button" class="club-guide-btn" id="oldPeriodAdd" style="padding:6px 16px;text-align:center;">Add</button></div><div id="oldPeriodMsg" style="font-size:12px;color:#c00;min-height:16px;"></div><p class="ideas-hint" style="text-align:left;margin:0;">Everyone's answers from then are still stored — add the dates to look at them again.</p></details>` : ''}</div>`;
@@ -8596,6 +8607,28 @@ function wirePeriodAdmin(){
     admAvail.month = String(b.dataset.start).slice(0, 7); admAvail.day = null; admAvail.person = null;
     render();
     const box = document.getElementById('admAvailBox'); if(box) box.scrollIntoView({ block:'start', behavior:'smooth' });
+  }));
+  document.querySelectorAll('.period-edit').forEach(b => b.addEventListener('click', () => {
+    const start = b.dataset.start, end = b.dataset.end;
+    const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 6px;">✏️ Edit period</h3>
+      <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">Changing the dates keeps everyone's saved answers for the days that still fall inside.</p>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;"><input type="date" id="pedStart" value="${escapeCm(start)}" style="flex:1;min-width:130px;padding:9px;border-radius:10px;border:2px solid var(--brand-brown);"><input type="date" id="pedEnd" value="${escapeCm(end)}" style="flex:1;min-width:130px;padding:9px;border-radius:10px;border:2px solid var(--brand-brown);"></div>
+      <div id="pedMsg" style="font-size:12px;color:#c00;min-height:16px;margin:4px 0;"></div>
+      <div style="display:flex;gap:8px;"><button type="button" class="club-guide-btn" id="pedSave" style="flex:1;text-align:center;">Save</button><button type="button" class="club-guide-btn" id="pedCancel" style="flex:1;text-align:center;background:#fff;color:#76220b;">Cancel</button></div>`);
+    wrap.querySelector('#pedCancel').addEventListener('click', close);
+    wrap.querySelector('#pedSave').addEventListener('click', async () => {
+      try {
+        await leadApi('PUT', '/api/admin/avail-periods', { start, end, newStart: wrap.querySelector('#pedStart').value, newEnd: wrap.querySelector('#pedEnd').value });
+        const wasCur = start === AVAIL_PERIOD.start && end === AVAIL_PERIOD.end;
+        if(wasCur){ AVAIL_PERIOD = { start: wrap.querySelector('#pedStart').value, end: wrap.querySelector('#pedEnd').value }; state.eavCache = {}; state.ideaAvailAllLoadedFor = null; admAvail.people = null; }
+        state.availPeriods = null; admAvail.viewPeriod = null; close(); render();
+      } catch(err){ wrap.querySelector('#pedMsg').textContent = err.message; }
+    });
+  }));
+  document.querySelectorAll('.period-del').forEach(b => b.addEventListener('click', async () => {
+    if(!confirm('Remove this period from the saved list? (Members\' answers are kept; you can add the dates back later.)')) return;
+    try { await leadApi('DELETE', '/api/admin/avail-periods?start=' + encodeURIComponent(b.dataset.start) + '&end=' + encodeURIComponent(b.dataset.end)); state.availPeriods = null; admAvail.viewPeriod = null; render(); }
+    catch(err){ alert(err.message); }
   }));
   const btn = document.getElementById('periodSave'); if(!btn) return;
   btn.addEventListener('click', async () => {
@@ -9028,7 +9061,7 @@ async function openAdminProfile(userId){
       <div style="text-align:center;margin-bottom:8px;">${avatar}<h3 style="margin:10px 0 0;">${escapeCm(u.name)}</h3><div style="font-size:13px;color:var(--muted);">${escapeCm(u.username)}</div></div>
       ${row('📞 Phone', u.phone ? `<a href="tel:${escapeCm(u.phone.replace(/[^\d+]/g, ''))}" style="font-weight:700;">${escapeCm(u.phone)}</a>` : '<span style="color:var(--muted);">No phone on file</span>')}
       ${row('Joined', u.createdAt ? `${escapeCm(admFmtDate(u.createdAt))}<br><span style="font-size:12px;color:var(--muted);">${escapeCm(admAgo(u.createdAt))}</span>` : '<span style="color:var(--muted);">Before records began</span>')}
-      ${row('Last signed in', u.lastLoginAt ? `${escapeCm(admFmtDate(u.lastLoginAt))}<br><span style="font-size:12px;color:var(--muted);">${escapeCm(admAgo(u.lastLoginAt))}</span>` : '<span style="color:var(--muted);">Not recorded yet</span>')}
+      ${row('Last active', admLastActive(u) ? `${escapeCm(admFmtDate(admLastActive(u)))}<br><span style="font-size:12px;color:var(--muted);">${escapeCm(admAgo(admLastActive(u)))}</span>` : '<span style="color:var(--muted);">Not recorded yet</span>')}
       ${row('Already in', tags(u.clubs || []))}
       ${u.form ? `<div style="margin:10px 0 4px;padding:12px 14px;border-radius:14px;background:#fff8e8;border:2px solid #e6cf86;color:#5b4a10;font-size:14px;line-height:1.55;">
         <div style="font-weight:800;margin-bottom:4px;">📝 What they wrote on the sign-up form${u.form.at ? ` <span style="font-weight:500;font-size:12px;">(${escapeCm(new Date(u.form.at).toLocaleDateString('en-CA', { month:'short', day:'numeric' }))})</span>` : ''}</div>
@@ -9183,6 +9216,8 @@ const WA_DEFAULTS = {
   squadAccept: "Hi {first}! 🎉 Welcome to the {squad} squad on 4DASISTAS! 💛\n\nJoin the squad chat here: {link}\n\nThis is a casual, open group — not a full club 🌸\n• Drop a message whenever you're up for it — no pressure to reply every time, just genuine \"let's go\" energy\n• Keep it welcoming, respectful and positive — no negativity, cliques or excluding others; every level is welcome\n• Respect everyone's privacy — no screenshots or sharing personal info/photos outside the group without permission\n• Inactive members may be removed to keep spots open for others\n\nPlease introduce yourself in the chat 👋 Your name and what you're hoping to get out of the squad!",
   newPeriod: "Hi {first}! 🌸 A new availability period is open: {club}. Please add yours on 4DASISTAS{deadline} so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs/availability",
   welcome: "Hi {first}! 🌸 Welcome to 4DASISTAS — we're so happy you're here! Log in with your username and PIN at 4dasistas.ca, add your availability, and say hi in your club 💛",
+  eventRemind: "Hi {first}! 🌸 Friendly reminder about {event} on {date}{time}{place} — we're looking forward to seeing you! 💛 4dasistas.ca/#/clubs",
+  payRemind: "Hi {first}! 💳 A gentle reminder that your payment for {event} ({amount}) is still outstanding. Thank you! 💛",
   joinDecline: "Hi {first}, thanks for requesting the {club} club on 4DASISTAS. We couldn't approve it this time — message us if you have questions.",
 };
 function waMsg(key, name, club, deadline, extra){
@@ -9192,6 +9227,14 @@ function waMsg(key, name, club, deadline, extra){
   const first = String(name || '').trim().split(/\s+/)[0] || 'there';
   const dl = deadline ? ' by ' + new Date(deadline + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric' }) : '';
   return t.replace(/\{first\}/g, first).replace(/\{name\}/g, String(name || '')).replace(/\{club\}/g, club || 'the').replace(/\{squad\}/g, squad).replace(/\{link\}/g, link).replace(/\{deadline\}/g, dl);
+}
+// Per-person event reminders: {event} {date} {time} (" at 6pm") {place} (" at <place>") {amount}
+function waEventMsg(key, name, ev){
+  const t = (state.waTemplates && state.waTemplates[key]) || WA_DEFAULTS[key];
+  const first = String(name || '').trim().split(/\s+/)[0] || 'there';
+  return t.replace(/\{first\}/g, first).replace(/\{name\}/g, String(name || '')).replace(/\{event\}/g, ev.title || 'the event')
+    .replace(/\{date\}/g, ideaLongDate(ev.date)).replace(/\{time\}/g, ev.time ? ' at ' + ev.time : '').replace(/\{place\}/g, ev.place ? ' · ' + ev.place : '')
+    .replace(/\{amount\}/g, ((ev.form || {}).payment || {}).amount || 'the amount due');
 }
 async function loadWaTemplates(){
   try { const r = await fetch('/api/admin/wa-templates', { credentials:'include' }); if(r.ok) state.waTemplates = (await r.json()).templates || {}; } catch {}
@@ -9205,6 +9248,8 @@ function waTemplatesAdminHtml(){
     ${f('newPeriod', '🗓️ New availability period', 'Offered when you open a new period. {club} = the dates, {deadline} = " by <day>" (blank if no deadline).')}
     ${f('joinAccept', '✅ Club request accepted — welcome + rules', 'Offered after you accept a club request. {club} = club, {link} = the club\'s WhatsApp group link.')}
     ${f('squadAccept', '🪁 Squad request accepted — welcome + rules', 'Offered after you accept a squad request. {squad} = squad, {link} = the squad\'s WhatsApp invite link.')}
+    ${f('eventRemind', '📅 Event reminder (per person)', 'The 💬 button next to each attendee in an event. {event}, {date}, {time}, {place}.')}
+    ${f('payRemind', '💳 Payment reminder (per person)', 'The 💳 button next to someone who hasn\'t paid. {event}, {amount}.')}
     ${f('joinDecline', '❌ Club request declined', 'Offered after you decline a join request.')}
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><button type="button" class="club-guide-btn" id="waTplSave" style="background:var(--blush);">Save wording</button><button type="button" class="club-guide-btn" id="waTplReset" style="padding:6px 14px;font-size:12px;">Reset all to default</button></div>
     <span id="waTplStatus" style="font-size:12px;display:block;margin-top:6px;"></span></div>`;
@@ -9294,7 +9339,7 @@ function wireWaTemplates(){
   document.querySelectorAll('.wa-open').forEach(a => a.addEventListener('click', () => {
     const ta = document.querySelector(`.wa-tpl[data-key="${a.dataset.key}"]`);
     const txt = String((ta && ta.value) || '').replace(/\{first\}/g, 'there').replace(/\{name\}/g, '').replace(/\{club\}/g, 'your club').replace(/\{deadline\}/g, '');
-    a.href = (isMobileDevice() ? 'https://api.whatsapp.com/send?' : 'https://web.whatsapp.com/send?') + 'text=' + waEnc(txt);
+    a.href = (isMobileDevice() ? 'https://api.whatsapp.com/send?' : 'whatsapp://send?') + 'text=' + waEnc(txt);
   }));
   const save = document.getElementById('waTplSave'); if(!save) return;
   const st = document.getElementById('waTplStatus');
@@ -9306,21 +9351,24 @@ function wireWaTemplates(){
 function waEnc(text){
   return encodeURIComponent(String(text).normalize('NFC').replace(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g, '')).replace(/[!'()*~]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
 }
-function admWhatsAppLink(phone, text){
+// Last active = the latest of sign-in and the app being opened (the server stamps lastSeenAt at most hourly).
+function admLastActive(u){ return Math.max((u && u.lastSeenAt) || 0, (u && u.lastLoginAt) || 0); }
+function admWhatsAppLink(phone, text, web){
   let d = String(phone || '').replace(/\D/g, '');
   if(d.length === 10) d = '1' + d; // Canadian/US number without the country code
   if(d.length < 11) return '';
-  // WhatsApp's DESKTOP app turns emoji from links into � — on a computer open WhatsApp Web instead (it keeps them); phones keep the app link.
-  return (isMobileDevice() ? 'https://api.whatsapp.com/send?' : 'https://web.whatsapp.com/send?') + `phone=${d}&text=${waEnc(text)}`;
+  // Phones: the app link. Computers: the installed WhatsApp app (whatsapp://) — pass web=true for WhatsApp Web instead.
+  return (isMobileDevice() ? 'https://api.whatsapp.com/send?' : (web ? 'https://web.whatsapp.com/send?' : 'whatsapp://send?')) + `phone=${d}&text=${waEnc(text)}`;
 }
 // After accepting someone: a centred pop-up (stays until you close it) to send them the welcome on WhatsApp — or copy the message.
-function admWaPrompt(title, name, phone, text){
+function admWaPrompt(title, name, phone, text, what){
   const link = admWhatsAppLink(phone, text), first = String(name || '').split(' ')[0] || 'her';
   const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 6px;">${escapeCm(title)}</h3>
-    <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">${link ? `Send ${escapeCm(first)} this welcome on WhatsApp:` : `${escapeCm(first)} has no phone number on file — copy the message and send it yourself:`}</p>
+    <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">${link ? `Send ${escapeCm(first)} ${what ? escapeCm(what) : 'this welcome'} on WhatsApp:` : `${escapeCm(first)} has no phone number on file — copy the message and send it yourself:`}</p>
     <div style="max-height:34vh;overflow:auto;padding:10px;border-radius:12px;background:#fef7f4;border:2px dashed #f2d8d7;white-space:pre-wrap;font-size:14px;">${escapeCm(text)}</div>
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
-      ${link ? `<a class="waPromptGo" href="${escapeCm(link)}" target="_blank" rel="noopener" style="display:block;text-align:center;padding:13px 18px;border-radius:999px;background:#25a244;color:#fff;font-weight:800;text-decoration:none;">💬 Send on WhatsApp</a>` : ''}
+      ${link ? `<a class="waPromptGo" href="${escapeCm(link)}" ${isMobileDevice() ? 'target="_blank" rel="noopener"' : ''} style="display:block;text-align:center;padding:13px 18px;border-radius:999px;background:#25a244;color:#fff;font-weight:800;text-decoration:none;">💬 Send on WhatsApp</a>` : ''}
+      ${link && !isMobileDevice() ? `<a href="${escapeCm(admWhatsAppLink(phone, text, true))}" target="_blank" rel="noopener" style="text-align:center;font-size:12px;color:#776867;">Open in WhatsApp Web instead</a>` : ''}
       <button type="button" class="club-guide-btn waPromptCopy" style="text-align:center;">📋 Copy the message</button>
       <button type="button" class="club-guide-btn waPromptX" style="text-align:center;background:#fff;">✕ Close</button></div>`);
   const card = wrap.querySelector('.idea-pop-card'); if(card) card.style.cssText += ';max-width:min(460px,92vw);';
@@ -9608,7 +9656,7 @@ function renderAdminAllMembersPanels(){
     (m.name || '').toLowerCase().includes(q) || (m.username || '').toLowerCase().includes(q) ||
     (qDigits.length >= 3 && (m.phone || '').replace(/\D/g, '').includes(qDigits)) ||
     m.clubIds.some(cid => avClubTitle(cid).toLowerCase().includes(q)));
-  const searchBox = `<div style="margin-bottom:12px;"><input id="admMemberSearch" type="search" value="${escapeCm(state.cmAdminMemberQuery || '')}" placeholder="🔍 Search profiles by name, username, phone or club" autocomplete="off" autocapitalize="none" style="width:100%;padding:12px 14px;border-radius:999px;border:2px solid var(--brand-brown);font-size:16px;box-sizing:border-box;background:#fff;"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 4px 0;"><span style="font-size:12px;color:#776867;">${q ? `${people.length} of ${everyone.length} profiles` : `${everyone.length} profiles`} · Sort by:</span>${[['alpha','A–Z'],['joined','Join date'],['login','Last login'],['club','Club']].map(([k, l]) => { const on = (state.cmAdminMemberSort || 'alpha') === k; return `<button type="button" class="adm-sort" data-sort="${k}" style="min-height:34px;padding:5px 14px;border-radius:999px;border:2px solid var(--brand-brown);background:${on ? 'var(--brand-brown)' : 'transparent'};color:${on ? 'var(--brand-cream)' : 'var(--brand-brown)'};font-weight:700;font-size:13px;cursor:pointer;">${l}</button>`; }).join('')}</div></div>`;
+  const searchBox = `<div style="margin-bottom:12px;"><input id="admMemberSearch" type="search" value="${escapeCm(state.cmAdminMemberQuery || '')}" placeholder="🔍 Search profiles by name, username, phone or club" autocomplete="off" autocapitalize="none" style="width:100%;padding:12px 14px;border-radius:999px;border:2px solid var(--brand-brown);font-size:16px;box-sizing:border-box;background:#fff;"><div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 4px 0;"><span style="font-size:12px;color:#776867;">${q ? `${people.length} of ${everyone.length} profiles` : `${everyone.length} profiles`} · Sort by:</span>${[['alpha','A–Z'],['joined','Join date'],['login','Last active'],['club','Club']].map(([k, l]) => { const on = (state.cmAdminMemberSort || 'alpha') === k; return `<button type="button" class="adm-sort" data-sort="${k}" style="min-height:34px;padding:5px 14px;border-radius:999px;border:2px solid var(--brand-brown);background:${on ? 'var(--brand-brown)' : 'transparent'};color:${on ? 'var(--brand-cream)' : 'var(--brand-brown)'};font-weight:700;font-size:13px;cursor:pointer;">${l}</button>`; }).join('')}</div></div>`;
   if(!people.length) return searchBox + '<p style="font-size:13px;">No profiles match that search.</p>';
   const renderCard = (m) => {
     const firstClub = m.clubIds[0] || 'none'; // the club id in these admin URLs is ignored by the server (it edits the person)
@@ -9642,7 +9690,7 @@ function renderAdminAllMembersPanels(){
       ${m.photo ? `<img src="${escapeCm(m.photo)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;margin:0 auto 8px;display:block;">` : `<div class="monogram" style="margin:0 auto 8px;">${escapeCm((m.name || '?').charAt(0).toUpperCase())}</div>`}
       <h4 style="font-size:14px;margin-bottom:2px;"><button type="button" class="adm-profile-link" data-user-id="${escapeCm(m.id)}" title="Open profile" style="border:none;background:none;padding:0;font:inherit;font-weight:inherit;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button></h4>
       <div style="font-size:11px;color:#776867;margin-bottom:${(state.cmAdminMemberSort === 'login') ? '2px' : '8px'};">${escapeCm(m.username)}</div>
-      ${(state.cmAdminMemberSort === 'login') ? `<div style="font-size:11px;color:${m.lastLoginAt ? '#776867' : '#b3261e'};margin-bottom:8px;">${m.lastLoginAt ? 'Last login: ' + escapeCm(admFmtDate(m.lastLoginAt)) + ' (' + escapeCm(admAgo(m.lastLoginAt)) + ')' : 'Never logged in'}</div>` : ''}
+      ${(state.cmAdminMemberSort === 'login') ? `<div style="font-size:11px;color:${admLastActive(m) ? '#776867' : '#b3261e'};margin-bottom:8px;">${admLastActive(m) ? 'Last active: ' + escapeCm(admFmtDate(admLastActive(m))) + ' (' + escapeCm(admAgo(admLastActive(m))) + ')' : 'Never active'}</div>` : ''}
       <div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;">${tags}${noClubTag}</div>
       ${formInterestChips(m.formRanked)}
     </div>`;
@@ -9651,7 +9699,7 @@ function renderAdminAllMembersPanels(){
   const mode = state.cmAdminMemberSort || 'alpha';
   const byName = (x, y) => (x.name || '').localeCompare(y.name || '');
   const firstClubTitle = m => m.clubIds.length ? m.clubIds.map(c => avClubTitle(c)).sort()[0] : '\uffff';
-  const sortedPeople = people.slice().sort(mode === 'login' ? (x, y) => ((y.lastLoginAt || 0) - (x.lastLoginAt || 0)) || byName(x, y) // newest sign-in first; people who never signed in (0) sink to the bottom
+  const sortedPeople = people.slice().sort(mode === 'login' ? (x, y) => (admLastActive(y) - admLastActive(x)) || byName(x, y) // newest sign-in first; people who never signed in (0) sink to the bottom
     : mode === 'joined' ? (x, y) => ((y.createdAt || 0) - (x.createdAt || 0)) || byName(x, y)
     : mode === 'club' ? (x, y) => firstClubTitle(x).localeCompare(firstClubTitle(y)) || byName(x, y) : byName);
   let lastGroup = null;
