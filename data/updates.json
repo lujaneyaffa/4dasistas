@@ -1,6 +1,19 @@
 {
   "updates": [
     {
+      "no": 17,
+      "date": "2026-10-18",
+      "title": "Public club calendar & members",
+      "items": [
+        {
+          "text": "✨ The club calendar now shows every event since the beginning, including past ones — and for past events it says who attended."
+        },
+        {
+          "text": "✨ Tap a past event to see who attended (first names only), and tap a name to see when they joined and which clubs they're in. Clubs have a public member list the same way — nothing else is shown."
+        }
+      ]
+    },
+    {
       "no": 16,
       "date": "2026-10-12",
       "title": "Club calendar on your home page",

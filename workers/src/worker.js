@@ -581,6 +581,9 @@ const vapidAuthHeader = async (env, endpoint) => {
 };
 // Send one notification to every device a member registered. Returns { sent, removed, devices }.
 // Members choose which kinds of notification they get (Settings → Notifications); `message.cat` is the kind.
+// ---- Public, privacy-minimal member info: FIRST NAME ONLY + an opaque id (never the user id / username / phone) ----
+const pubId = async (env, uid) => (await sha256Hex(`${uid}:pub:${env.ADMIN_PASSWORD || "4ds"}`)).slice(0, 16);
+const firstNameOnly = (n) => String(n || "").trim().split(/\s+/)[0].slice(0, 30) || "Member";
 // A brand-new member created from an event FORM (the base fields every form asks logged-out people for: name, phone, a 4-digit PIN).
 const createMemberFromForm = async (env, ctx, ip, input) => {
   const clean = (v, n) => String(v || "").replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
@@ -1712,6 +1715,34 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     };
     const NOT_IN_CLUB = "Only members of this club can vote or add ideas";
 
+    // Public: current members of a club (first name + opaque id + the date they joined 4DASISTAS) — nothing else.
+    const pubMembersMatch = path.match(/^\/api\/clubs\/([^/]+)\/public-members\/?$/);
+    if (pubMembersMatch && request.method === "GET") {
+      const cid = decodeURIComponent(pubMembersMatch[1]);
+      if (!(await isKnownClubId(env, cid))) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
+      const members = [];
+      for (const uid of (await readClubMemberIds(env, cid)).slice(0, 300)) {
+        const u = await readUser(env, uid);
+        if (!u || (u.archived && u.archived.reason !== "travelling")) continue;
+        members.push({ p: await pubId(env, uid), first: firstNameOnly(u.name), joined: u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : "" });
+      }
+      members.sort((a, b) => a.first.localeCompare(b.first));
+      return jsonResponse({ members }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    // Public: one person's joined date + the clubs they're in, reachable only through a club's member list or a past event's attendee list.
+    if (path === "/api/public-profile" && request.method === "GET") {
+      const evId = url.searchParams.get("event"), clubId = url.searchParams.get("club"), pid = String(url.searchParams.get("p") || "");
+      let ids = [];
+      if (evId) { const ev1 = (await readClubCal(env)).find((e) => e.id === evId); if (ev1 && ev1.date < new Date().toISOString().slice(0, 10)) ids = (ev1.rsvps || []).filter((x) => x.status === "going" && !String(x.id).startsWith("g:")).map((x) => x.id); }
+      else if (clubId) ids = await readClubMemberIds(env, clubId);
+      for (const uid of ids) {
+        if ((await pubId(env, uid)) !== pid) continue;
+        const u = await readUser(env, uid); if (!u) break;
+        const roster = await readClubRoster(env), mine = await allClubIdsContaining(env, uid);
+        return jsonResponse({ first: firstNameOnly(u.name), joined: u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : "", clubs: mine.map((id) => (roster.find((c) => c.id === id) || {}).title).filter(Boolean) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      }
+      return jsonResponse({ error: "Not found" }, 404, corsHeaders);
+    }
     // ---- Find yourself (sign in from an event form): GET /api/member-search?q=ana  →  [{username, name:"Ana K."}] ----
     if (path === "/api/member-search" && request.method === "GET") {
       const q = String(url.searchParams.get("q") || "").trim().toLowerCase();
@@ -1725,14 +1756,13 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ results: _memberSearchCache.people.filter((p) => p.low.includes(q)).slice(0, 6).map((p) => ({ username: p.username, name: short(p.name) })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     // ---- Club calendar (public list; member details + RSVP) ----
-    const calMatch = path.match(/^\/api\/club-calendar(?:\/([^/]+)(\/rsvp|\/form)?)?\/?$/);
+    const calMatch = path.match(/^\/api\/club-calendar(?:\/([^/]+)(\/rsvp|\/form|\/attendees)?)?\/?$/);
     if (calMatch) {
       const M = request.method;
       const roster = await readClubRoster(env);
       const clubTitle = (id) => (roster.find((c) => c.id === id) || {}).title || "";
       if (!calMatch[1] && M === "GET") {
-        const cutoff = new Date(Date.now() - 36 * 3600 * 1000).toISOString().slice(0, 10);
-        const events = (await readClubCal(env)).filter((e) => e.date >= cutoff).sort((a, b) => a.date.localeCompare(b.date) || String(a.time).localeCompare(String(b.time)))
+        const events = (await readClubCal(env)).sort((a, b) => a.date.localeCompare(b.date) || String(a.time).localeCompare(String(b.time)))
           .map((e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", hasForm: !!e.form, publicForm: !!e.form }));
         // Idea bubbles that the admin gave a DATE also show on the calendars (cached ~2 minutes so this stays cheap).
         if (!_calIdeaCache || Date.now() - _calIdeaCache.at > 120000) {
@@ -1740,8 +1770,18 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           for (const c of roster) for (const i of await readClubIdeas(env, c.id)) if (i && /^\d{4}-\d{2}-\d{2}$/.test(i.date || "")) items.push({ id: `idea:${c.id}:${i.id}`, kind: "idea", clubId: c.id, clubIds: [c.id], clubTitle: c.title || "", title: i.title, emoji: i.emoji || "", date: i.date, time: "", done: !!i.done });
           _calIdeaCache = { at: Date.now(), items };
         }
-        const ideaItems = _calIdeaCache.items.filter((i) => i.date >= cutoff);
+        const ideaItems = _calIdeaCache.items; // every dated event/idea, past ones too — the public calendar goes back to the very first event
         return jsonResponse({ events: events.concat(ideaItems).sort((a, b) => a.date.localeCompare(b.date)) }, 200, corsHeaders);
+      }
+      // PUBLIC (privacy-minimal): who attended a PAST event — first names only; people with a profile get an opaque id so their joined date + clubs can be looked up.
+      if (calMatch[1] && calMatch[2] === "/attendees" && M === "GET") {
+        const ev0 = (await readClubCal(env)).find((e) => e.id === calMatch[1]);
+        if (!ev0) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
+        if (ev0.date >= new Date().toISOString().slice(0, 10)) return jsonResponse({ past: false, attendees: [] }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+        const out = [];
+        for (const r of (ev0.rsvps || []).filter((x) => x.status === "going")) out.push({ first: firstNameOnly(r.name), ...(String(r.id).startsWith("g:") ? {} : { p: await pubId(env, r.id) }) });
+        out.sort((a, b) => a.first.localeCompare(b.first));
+        return jsonResponse({ past: true, attendees: out }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
       }
       if (calMatch[1]) {
         const who = await ideaWho();
@@ -1756,6 +1796,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
               let fb; try { fb = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
               if (ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) return jsonResponse({ error: "Sign-ups for this event are closed" }, 400, corsHeaders);
+              if (ev.date < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "This event has already happened" }, 400, corsHeaders);
               if (fb && fb.pin !== undefined) {
                 // Base member details came with the form: create the account (and sign them in), then record the sign-up as theirs.
                 const chk0 = checkCalAnswers(ev.form, fb.answers);
@@ -1807,6 +1848,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
           const wasIn = (ev.rsvps || []).find((r) => r.id === uid);
           if (!wasIn && ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) return jsonResponse({ error: "Sign-ups for this event are closed" }, 400, corsHeaders);
+          if (!wasIn && ev.date < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "This event has already happened" }, 400, corsHeaders);
           { const sel = calAddonSelection(ev.form, fb && fb.addons); map[uid] = { name: who.name, answers: chk.answers, at: Date.now(), ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }; }
           await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map));
           // Submitting the form IS the RSVP: club members are going at once, people from other clubs wait for approval.
@@ -1823,6 +1865,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           if (!uid) return jsonResponse({ error: "Sign in as a member to RSVP" }, 403, corsHeaders);
           if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
           if (M === "POST" && ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) return jsonResponse({ error: "RSVPs for this event are closed" }, 400, corsHeaders);
+          if (M === "POST" && ev.date < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "This event has already happened" }, 400, corsHeaders);
           ev.rsvps = (ev.rsvps || []).filter((r) => r.id !== uid);
           let status = null;
           if (M === "POST") {
