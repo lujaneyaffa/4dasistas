@@ -5754,11 +5754,20 @@ function clubCalDayPopup(key){
       sec.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(e.clubTitle)} · idea</p><h3 style="margin:0 0 4px;">${e.emoji ? escapeCm(e.emoji) + ' ' : ''}${escapeCm(e.title)}</h3><p class="ideas-hint" style="text-align:left;margin:0 0 6px;">${e.done ? '✅ We did this one.' : 'An idea the club is planning.'}</p><button type="button" class="club-guide-btn cdBoard" style="width:100%;text-align:center;">Open the board</button>`;
       sec.querySelector('.cdBoard').addEventListener('click', () => { close(); openClubIdeas(e.clubId); });
     } else if(staff){
-      const rs = e.rsvps || [], going = rs.filter(r => r.status === 'going').length, pend = rs.length - going;
-      sec.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(e.clubTitle)}</p><h3 style="margin:0 0 4px;">${escapeCm(e.title)}</h3>
-        <p style="margin:2px 0;">${e.time ? '⏰ ' + escapeCm(e.time) : ''}${e.place ? ' · 📍 ' + escapeCm(e.place) : ''}</p>${e.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(e.desc)}</p>` : ''}
-        <p class="ideas-hint" style="margin:4px 0 8px;text-align:left;">👥 ${going} going${pend ? ` · <b style="color:#b3261e;">${pend} waiting</b>` : ''}</p><button type="button" class="club-guide-btn cdManage" style="width:100%;text-align:center;">Manage attendees / edit</button>`;
+      const rs = e.rsvps || [], goingL = rs.filter(r => r.status === 'going'), pendL = rs.filter(r => r.status === 'pending');
+      const chips = (list, col) => list.slice(0, 14).map(r => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 10px;border-radius:999px;background:${col};font-size:13px;font-weight:600;">${escapeCm(r.name)}${r.paid ? ' 💳' : ''}</span>`).join('') + (list.length > 14 ? `<small> +${list.length - 14} more</small>` : '');
+      sec.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(e.clubTitle)}</p>
+        <h3 style="margin:0 0 6px;"><button type="button" class="av-link cdOpen" style="font:inherit;font-weight:800;font-size:18px;text-align:left;color:inherit;text-decoration:underline;">${escapeCm(e.title)}</button></h3>
+        <p class="idea-pop-date" style="margin:0;">📅 ${escapeCm(ideaLongDate(e.date))}${e.time ? ' · ⏰ ' + escapeCm(e.time) : ''}</p>
+        ${e.place ? `<p style="margin:4px 0;">📍 ${escapeCm(e.place)}</p>` : ''}
+        <p style="margin:4px 0;font-weight:700;color:#76220b;">⏳ ${e.rsvpBy ? 'Last day to RSVP: ' + escapeCm(ideaLongDate(e.rsvpBy)) : 'No RSVP deadline'}</p>
+        ${e.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(e.desc)}</p>` : ''}
+        <p style="margin:4px 0;font-size:13px;color:#776867;">📝 ${e.form ? `Form: ${escapeCm(e.form.title)} (${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'})` : (e.hasForm ? 'Has a form (no access)' : 'No form — plain RSVP')}</p>
+        <div style="margin:8px 0 2px;"><strong style="font-size:13px;">✅ Going (${goingL.length})</strong><div>${goingL.length ? chips(goingL, '#e6f4ea') : '<small style="color:#776867;">Nobody yet.</small>'}</div></div>
+        ${pendL.length ? `<div style="margin:6px 0 2px;"><strong style="font-size:13px;color:#b3261e;">⏳ Waiting for approval (${pendL.length})</strong><div>${chips(pendL, '#fdecea')}</div></div>` : ''}
+        <button type="button" class="club-guide-btn cdManage" style="width:100%;margin-top:8px;text-align:center;">👥 Manage attendees / ✏️ edit</button>`;
       sec.querySelector('.cdManage').addEventListener('click', () => { close(); clubCalManage(e); });
+      sec.querySelector('.cdOpen').addEventListener('click', () => { close(); clubCalManage(e); });
     } else if(member){
       sec.innerHTML = '<p class="av-msg">Loading…</p>'; clubCalMemberCard(sec, e.id);
     } else if(!member){
@@ -5992,7 +6001,7 @@ function clubCalManage(ev){
     if(fe) fe.addEventListener('click', () => openFormBuilder(ev.form || null, async f => {
       try { const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id), 'PUT', { form: f }); ev.form = j.event.form; ev.rsvpBy = j.event.rsvpBy; const i = state.clubCal.findIndex(e => e.id === ev.id); if(i >= 0) state.clubCal[i] = j.event; paint(); if(state.tab === 'clubs' || state.tab === 'admin') render(); }
       catch(err){ wrap.querySelector('#calMsg').textContent = err.message; }
-    }, { rsvpBy: ev.rsvpBy || '', showRsvpBy: true }));
+    }, { rsvpBy: ev.rsvpBy || '', desc: ev.desc || '', showRsvpBy: true }));
     const rb = wrap.querySelector('#calRespBtn'); if(rb) rb.addEventListener('click', () => clubCalShowResponses(ev, wrap.querySelector('#calRespBox')));
     wrap.querySelector('#calEditBtn').addEventListener('click', () => { close(); clubCalForm(ev); });
     wrap.querySelector('#calDelBtn').addEventListener('click', async () => {
@@ -6108,6 +6117,7 @@ function calPayHtml(form, heading, ids){
 function openFormBuilder(initial, onDone, opts){
   const form = JSON.parse(JSON.stringify(initial || { title:'', intro:'', fields:[] }));
   if(opts && opts.rsvpBy !== undefined && form.rsvpBy === undefined) form.rsvpBy = opts.rsvpBy || ''; // the event's last RSVP day (editable here too)
+  if(opts && opts.desc !== undefined && form.desc === undefined) form.desc = opts.desc || ''; // the event's description (editable here too)
   const page = document.createElement('div'); page.className = 'fb-page';
   document.body.appendChild(page);
   const prevOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden';
@@ -6131,6 +6141,7 @@ function openFormBuilder(initial, onDone, opts){
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;"><button type="button" class="fb-mini" id="fbCancel">← Back to event</button><button type="button" class="club-guide-btn" id="fbDone" style="padding:8px 20px;text-align:center;background:var(--brand-rose);color:#fff;">✓ Done</button></div>
       <h2 style="margin:0 0 8px;">📝 Create a form</h2>
       <p class="ideas-hint" style="text-align:left;margin:0 0 10px;">Members fill this in from the event. Add as many questions as you like — you can edit it any time.</p>
+      ${opts && opts.showRsvpBy ? `<div class="fb-card"><strong style="font-size:14px;">📄 Event description</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">Shown at the top of the page under the date — separate from the questions below.</p><textarea id="fbEvDesc" rows="5" maxlength="3000" placeholder="What the event is, what to bring, where to meet…">${escapeCm(form.desc || '')}</textarea></div>` : ''}
       <div class="fb-card"><input type="text" id="fbTitle" maxlength="140" placeholder="Form title (e.g. Dinner sign-up)" value="${escapeCm(form.title)}"><textarea id="fbIntro" rows="3" maxlength="2000" placeholder="Short intro (optional)" style="margin-top:8px;">${escapeCm(form.intro)}</textarea></div>
       ${opts && opts.showRsvpBy ? `<div class="fb-card"><strong style="font-size:14px;">⏳ Last day to RSVP (optional)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">After this day the form closes — nobody new can sign up. It's the same date as the event's “last day to RSVP”.</p><input type="date" id="fbRsvpBy" value="${escapeCm(form.rsvpBy || '')}"></div>` : ''}
       ${cards || '<p class="av-msg" style="text-align:center;">No questions yet — add one below.</p>'}
@@ -6149,7 +6160,7 @@ function openFormBuilder(initial, onDone, opts){
     const q = (sel, fn) => page.querySelectorAll(sel).forEach(el => fn(el, Number(el.dataset.i)));
     page.querySelector('#fbTitle').addEventListener('input', e => { form.title = e.target.value; });
     page.querySelector('#fbIntro').addEventListener('input', e => { form.intro = e.target.value; });
-    { const rb = page.querySelector('#fbRsvpBy'); if(rb) rb.addEventListener('input', () => { form.rsvpBy = rb.value; }); }
+    { const rb = page.querySelector('#fbRsvpBy'); if(rb) rb.addEventListener('input', () => { form.rsvpBy = rb.value; }); const ed = page.querySelector('#fbEvDesc'); if(ed) ed.addEventListener('input', () => { form.desc = ed.value; }); }
     const syncPay = () => { const p = { amount: page.querySelector('#fbPayAmt').value.trim(), link: page.querySelector('#fbPayLink').value.trim(), note: page.querySelector('#fbPayNote').value.trim() }; const ao = (form.payment || {}).addons; if(ao && ao.length) p.addons = ao; if(p.amount || p.link || p.note || p.addons) form.payment = p; else delete form.payment; };
     page.querySelector('#fbAoAdd').addEventListener('click', () => { syncPay(); form.payment = form.payment || {}; (form.payment.addons = form.payment.addons || []).push({ id: nid(), label: '', price: '' }); paint(); const l = page.querySelectorAll('.fb-ao-label'); if(l.length) l[l.length - 1].focus(); });
     page.querySelectorAll('.fb-ao-label').forEach(el => el.addEventListener('input', () => { form.payment.addons[Number(el.dataset.i)].label = el.value; }));
@@ -6264,7 +6275,7 @@ function clubCalForm(ev, presetDate){
     <input id="cfPlace" type="hidden" value="${escapeCm(ev ? ev.place : '')}">
     <div id="cfPlaceSlot"></div>
     <div id="cfPlaceChosen" class="ev-loc-chosen${ev && ev.place ? '' : ' empty'}" style="margin:0 0 8px;">${ev && ev.place ? '📍 ' + escapeCm(ev.place) : 'No place chosen yet'}</div>
-    <textarea id="cfDesc" maxlength="600" rows="3" placeholder="Details (optional)" style="${f}">${escapeCm(ev ? ev.desc : '')}</textarea>
+    <textarea id="cfDesc" maxlength="3000" rows="4" placeholder="Event description (optional) — shown at the top of the page" style="${f}">${escapeCm(ev ? ev.desc : '')}</textarea>
     ${ev ? '' : `<p class="idea-pop-h" style="margin:6px 0 4px;">👥 Who's going? (optional)</p>
       <div id="cfChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>
       <input id="cfAttSearch" type="search" placeholder="Search a member by name…" autocomplete="off" style="${f}margin-bottom:4px;">
@@ -6280,7 +6291,7 @@ function clubCalForm(ev, presetDate){
   const paintFormBtn = () => { formBtn.textContent = draftForm ? `✅ Form ready (${draftForm.fields.length} question${draftForm.fields.length === 1 ? '' : 's'}) — tap to edit · it saves with the event` : '📝 Create a form'; };
   paintFormBtn();
   if(ev && ev.hasForm && ev.canForm === false) formBtn.style.display = 'none'; // a club admin without access to this event's form can't see or change it
-  formBtn.addEventListener('click', () => openFormBuilder(draftForm, f => { draftForm = f; if(f && f.rsvpBy !== undefined){ wrap.querySelector('#cfRsvpBy').value = f.rsvpBy || ''; } paintFormBtn(); }, { rsvpBy: wrap.querySelector('#cfRsvpBy').value, showRsvpBy: true }));
+  formBtn.addEventListener('click', () => openFormBuilder(draftForm, f => { draftForm = f; if(f && f.rsvpBy !== undefined){ wrap.querySelector('#cfRsvpBy').value = f.rsvpBy || ''; } if(f && f.desc !== undefined){ wrap.querySelector('#cfDesc').value = f.desc || ''; } paintFormBtn(); }, { rsvpBy: wrap.querySelector('#cfRsvpBy').value, desc: wrap.querySelector('#cfDesc').value, showRsvpBy: true }));
   const picked = []; // {userId,name} or {name}
   if(!ev){
     const chips = wrap.querySelector('#cfChips'), search = wrap.querySelector('#cfAttSearch'), results = wrap.querySelector('#cfAttResults');
@@ -6300,7 +6311,7 @@ function clubCalForm(ev, presetDate){
   wrap.querySelector('#cfSave').addEventListener('click', async e => {
     const body = { title: wrap.querySelector('#cfTitle').value, date: wrap.querySelector('#cfDate').value, time: wrap.querySelector('#cfTime').value, place: wrap.querySelector('#cfPlace').value, rsvpBy: wrap.querySelector('#cfRsvpBy').value, desc: wrap.querySelector('#cfDesc').value };
     body.clubIds = [...wrap.querySelectorAll('.cf-club:checked')].map(x => x.value);
-    body.form = draftForm ? (() => { const c = { ...draftForm }; delete c.rsvpBy; return c; })() : null; // the date lives in the event's own field above
+    body.form = draftForm ? (() => { const c = { ...draftForm }; delete c.rsvpBy; delete c.desc; return c; })() : null; // the date lives in the event's own field above
     if(!ev) body.attendees = picked.map(a => a.userId ? { userId:a.userId } : { name:a.name });
     if(!body.clubIds.length){ wrap.querySelector('#cfMsg').textContent = 'Tick at least one club.'; return; }
     e.target.disabled = true;
@@ -8648,7 +8659,7 @@ function wireAdmEvents(){
     document.querySelectorAll('.ce-att').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) clubCalManage(e); }));
     document.querySelectorAll('.ce-form').forEach(b => b.addEventListener('click', () => {
       const e = find(b.dataset.ceid); if(!e) return;
-      openFormBuilder(e.form || null, async f => { try { const j = await clubCalAdminCall('/' + encodeURIComponent(e.id), 'PUT', { form: f }); const i = state.clubCal.findIndex(x => x.id === e.id); if(i >= 0) state.clubCal[i] = j.event; render(); } catch(err){ alert(err.message); } }, { rsvpBy: e.rsvpBy || '', showRsvpBy: true });
+      openFormBuilder(e.form || null, async f => { try { const j = await clubCalAdminCall('/' + encodeURIComponent(e.id), 'PUT', { form: f }); const i = state.clubCal.findIndex(x => x.id === e.id); if(i >= 0) state.clubCal[i] = j.event; render(); } catch(err){ alert(err.message); } }, { rsvpBy: e.rsvpBy || '', desc: e.desc || '', showRsvpBy: true });
     }));
     document.querySelectorAll('.ce-ans').forEach(b => b.addEventListener('click', () => {
       const e = find(b.dataset.ceid); if(!e) return;
