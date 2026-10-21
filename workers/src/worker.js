@@ -639,6 +639,46 @@ const sendPushToUser = async (env, userId, message) => {
   if (keep.length !== subs.length) await env.SITE_DATA.put(pushKey(userId), JSON.stringify(keep));
   return { sent, removed: subs.length - keep.length, devices: subs.length };
 };
+// ---- Steps challenge: biweekly rounds, per-person daily steps (synced from Apple Health / Health Connect by the native app), per-1,000-step pledges for a charity. ----
+// Daily rows live in D1 (free plan: 100k writes/day) — an hourly sync per person would blow through KV's 1k writes/day. Rounds are one small KV doc.
+let _stepsReady = null;
+const stepsEnsure = async (env) => {
+  if (!env.DB) return false;
+  if (!_stepsReady) _stepsReady = env.DB.batch([
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS steps_daily (user_id TEXT NOT NULL, day TEXT NOT NULL, steps INTEGER NOT NULL, source TEXT, updated INTEGER, PRIMARY KEY (user_id, day))"),
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS steps_day ON steps_daily (day)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS step_pledges (id TEXT PRIMARY KEY, round_id TEXT NOT NULL, name TEXT, user_id TEXT, per1000 REAL NOT NULL, cap REAL, at INTEGER)"),
+  ]).catch((e) => { _stepsReady = null; throw e; });
+  await _stepsReady;
+  return true;
+};
+const STEP_ROUNDS_KEY = "steprounds", STEP_MAX_PER_DAY = 60000;
+const readStepRounds = async (env) => { try { const a = JSON.parse((await env.SITE_DATA.get(STEP_ROUNDS_KEY)) || "[]"); return Array.isArray(a) ? a : []; } catch { return []; } };
+const cleanStepRound = (r) => {
+  if (!r || !isValidDateString(r.start) || !isValidDateString(r.end) || r.end < r.start) return null;
+  let url = ""; try { const u = new URL(String(r.charityUrl || "").trim()); if (u.protocol === "https:") url = u.href.slice(0, 500); } catch {}
+  return { id: /^[a-z0-9-]{3,40}$/.test(String(r.id || "")) ? String(r.id) : crypto.randomUUID().slice(0, 8), title: cleanCalText(r.title, 80) || "Steps round", start: r.start, end: r.end,
+    charity: cleanCalText(r.charity, 100), charityUrl: url, goal: Math.max(0, Math.min(100000000, Math.round(Number(r.goal) || 0))) };
+};
+// The round happening now; else the next one coming up; else the most recent finished one.
+const currentStepRound = (rounds, today) => rounds.find((r) => r.start <= today && today <= r.end) || rounds.filter((r) => r.start > today).sort((a, b) => a.start.localeCompare(b.start))[0] || rounds.slice().sort((a, b) => b.end.localeCompare(a.end))[0] || null;
+const stepRoundTotals = async (env, round) => {
+  const t = await env.DB.prepare("SELECT COALESCE(SUM(steps),0) AS s, COUNT(DISTINCT user_id) AS p FROM steps_daily WHERE day BETWEEN ? AND ?").bind(round.start, round.end).first();
+  const steps = (t && t.s) || 0, people = (t && t.p) || 0;
+  const pl = (await env.DB.prepare("SELECT per1000, cap FROM step_pledges WHERE round_id = ?").bind(round.id).all()).results || [];
+  let raised = 0; for (const x of pl) { const v = (x.per1000 * steps) / 1000; raised += x.cap ? Math.min(x.cap, v) : v; }
+  return { steps, people, raised: Math.round(raised * 100) / 100, pledges: pl.length };
+};
+let _stepsPublicMemo = { at: 0, data: null };
+const stepsPublicData = async (env) => {
+  if (_stepsPublicMemo.data && Date.now() - _stepsPublicMemo.at < 60000) return _stepsPublicMemo.data;
+  const rounds = (await readStepRounds(env)).sort((a, b) => b.start.localeCompare(a.start)), today = new Date().toISOString().slice(0, 10);
+  const cur = currentStepRound(rounds, today);
+  const data = { round: cur ? { id: cur.id, title: cur.title, start: cur.start, end: cur.end, charity: cur.charity, charityUrl: cur.charityUrl, goal: cur.goal, status: cur.end < today ? "finished" : cur.start > today ? "upcoming" : "live", ...(await stepRoundTotals(env, cur)) } : null, previous: [] };
+  for (const r of rounds.filter((x) => cur && x.id !== cur.id && x.end < today).slice(0, 6)) data.previous.push({ title: r.title, start: r.start, end: r.end, charity: r.charity, ...(await stepRoundTotals(env, r)) });
+  _stepsPublicMemo = { at: Date.now(), data };
+  return data;
+};
 // ---- Squads (separate from clubs): same member accounts, their own membership lists, requests and PRIVATE invite links ----
 const SQUAD_TITLES = { quran: "Quran", badminton: "Badminton", cowork: "Cowork", steps: "Steps" };
 // Squads no longer exist: each became a club (data/clubs.json). The old squad member lists are kept ONLY so existing members can confirm they want to stay (the /stay page).
@@ -2270,6 +2310,91 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       for (const sid of Object.keys(SQUAD_TITLES)) for (const uid of await readSquadMemberIds(env, sid)) seen.add(uid);
       for (const uid of seen) { const u = await readUser(env, uid); if (u && !u.stayConfirmedAt) stayTodo++; }
       return jsonResponse({ pendingRsvps, unpaid, tbdKeen, stayTodo }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    // ---- Steps challenge ----
+    if (path === "/api/steps/public" && request.method === "GET") {
+      if (!(await stepsEnsure(env))) return jsonResponse({ round: null, previous: [] }, 200, corsHeaders);
+      return jsonResponse(await stepsPublicData(env), 200, { ...corsHeaders, "Cache-Control": "public, max-age=60" });
+    }
+    if (path === "/api/me/steps" && (request.method === "GET" || request.method === "POST")) {
+      const meId = await memberIdFromRequest();
+      const me = meId ? await readUser(env, meId) : null;
+      if (!me) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
+      if (!(await stepsEnsure(env))) return jsonResponse({ error: "Steps aren't available yet" }, 503, corsHeaders);
+      const todayUtc = new Date().toISOString().slice(0, 10);
+      if (request.method === "POST") {
+        // Samples come from the native app reading Apple Health / Health Connect: [{day:'YYYY-MM-DD', steps, source:'apple'|'google'}] (the whole day's total, re-sent each hour).
+        let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+        const minDay = new Date(Date.now() - 8 * 86400000).toISOString().slice(0, 10), maxDay = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+        const stmts = [], now = Date.now();
+        for (const x of (Array.isArray(body.samples) ? body.samples : []).slice(0, 10)) {
+          const steps = Math.round(Number(x && x.steps)), day = String((x && x.day) || ""), src = x && x.source === "apple" ? "apple" : x && x.source === "google" ? "google" : "";
+          if (!isValidDateString(day) || day < minDay || day > maxDay || !src || !Number.isFinite(steps) || steps < 0) continue;
+          stmts.push(env.DB.prepare("INSERT INTO steps_daily (user_id, day, steps, source, updated) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, day) DO UPDATE SET steps = excluded.steps, source = excluded.source, updated = excluded.updated").bind(me.id, day, Math.min(steps, STEP_MAX_PER_DAY), src, now));
+        }
+        if (!stmts.length) return jsonResponse({ error: "No valid step data" }, 400, corsHeaders);
+        await env.DB.batch(stmts);
+        return jsonResponse({ ok: true, saved: stmts.length }, 200, corsHeaders);
+      }
+      const pub = await stepsPublicData(env), round = pub.round;
+      const out = { ...pub, mine: { round: 0, today: 0, lastSync: 0, rank: null }, leaderboard: [], pledges: [] };
+      const last = await env.DB.prepare("SELECT MAX(updated) AS u FROM steps_daily WHERE user_id = ?").bind(me.id).first(); out.mine.lastSync = (last && last.u) || 0;
+      if (round) {
+        const rows = (await env.DB.prepare("SELECT user_id, SUM(steps) AS s FROM steps_daily WHERE day BETWEEN ? AND ? GROUP BY user_id ORDER BY s DESC").bind(round.start, round.end).all()).results || [];
+        const idx = rows.findIndex((r) => r.user_id === me.id);
+        if (idx >= 0) { out.mine.round = rows[idx].s; out.mine.rank = idx + 1; }
+        const td = await env.DB.prepare("SELECT steps FROM steps_daily WHERE user_id = ? AND day = ?").bind(me.id, todayUtc).first(); out.mine.today = (td && td.steps) || 0;
+        for (const r of rows.slice(0, 30)) { const u = await readUser(env, r.user_id); out.leaderboard.push({ name: u ? (u.username || firstNameOnly(u.name)) : "member", steps: r.s, me: r.user_id === me.id }); }
+        const pl = (await env.DB.prepare("SELECT id, name, user_id, per1000, cap FROM step_pledges WHERE round_id = ? ORDER BY at").bind(round.id).all()).results || [];
+        out.pledges = pl.map((x) => ({ id: x.id, name: x.name, per1000: x.per1000, cap: x.cap, mine: x.user_id === me.id }));
+      }
+      return jsonResponse(out, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    if (path === "/api/me/steps/pledge" && (request.method === "POST" || request.method === "DELETE")) {
+      const meId = await memberIdFromRequest();
+      const me = meId ? await readUser(env, meId) : null;
+      if (!me) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
+      if (!(await stepsEnsure(env))) return jsonResponse({ error: "Steps aren't available yet" }, 503, corsHeaders);
+      const round = (await stepsPublicData(env)).round;
+      if (!round || round.status === "finished") return jsonResponse({ error: "There's no open round to pledge to" }, 400, corsHeaders);
+      await env.DB.prepare("DELETE FROM step_pledges WHERE round_id = ? AND user_id = ?").bind(round.id, me.id).run();
+      if (request.method === "POST") {
+        let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+        const per1000 = Math.round(Number(b.per1000) * 100) / 100, cap = b.cap === "" || b.cap == null ? null : Math.round(Number(b.cap) * 100) / 100;
+        if (!Number.isFinite(per1000) || per1000 <= 0 || per1000 > 25) return jsonResponse({ error: "Pledge between $0.01 and $25 per 1,000 steps" }, 400, corsHeaders);
+        if (cap !== null && (!Number.isFinite(cap) || cap <= 0 || cap > 5000)) return jsonResponse({ error: "The maximum must be between $1 and $5,000" }, 400, corsHeaders);
+        await env.DB.prepare("INSERT INTO step_pledges (id, round_id, name, user_id, per1000, cap, at) VALUES (?, ?, ?, ?, ?, ?, ?)").bind(crypto.randomUUID(), round.id, firstNameOnly(me.name), me.id, per1000, cap, Date.now()).run();
+      }
+      _stepsPublicMemo = { at: 0, data: null };
+      return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+    if (path === "/api/admin/steps" && request.method === "GET") {
+      if (!(await stepsEnsure(env))) return jsonResponse({ error: "No database attached" }, 503, corsHeaders);
+      const rounds = (await readStepRounds(env)).sort((a, b) => b.start.localeCompare(a.start)), out = [];
+      for (const r of rounds) out.push({ ...r, ...(await stepRoundTotals(env, r)), pledgeList: ((await env.DB.prepare("SELECT id, name, per1000, cap, user_id FROM step_pledges WHERE round_id = ? ORDER BY at").bind(r.id).all()).results || []).map((x) => ({ id: x.id, name: x.name, per1000: x.per1000, cap: x.cap, member: !!x.user_id })) });
+      return jsonResponse({ rounds: out }, 200, corsHeaders);
+    }
+    if (path === "/api/admin/step-rounds" && request.method === "PUT") {
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const rounds = (Array.isArray(b.rounds) ? b.rounds : []).slice(0, 60).map(cleanStepRound);
+      if (rounds.some((r) => !r)) return jsonResponse({ error: "Every round needs a start date and an end date after it" }, 400, corsHeaders);
+      await env.SITE_DATA.put(STEP_ROUNDS_KEY, JSON.stringify(rounds)); _stepsPublicMemo = { at: 0, data: null };
+      return jsonResponse({ ok: true, rounds }, 200, corsHeaders);
+    }
+    if (path === "/api/admin/step-pledges" && request.method === "POST") {
+      if (!(await stepsEnsure(env))) return jsonResponse({ error: "No database attached" }, 503, corsHeaders);
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const per1000 = Math.round(Number(b.per1000) * 100) / 100, cap = b.cap === "" || b.cap == null ? null : Math.round(Number(b.cap) * 100) / 100;
+      if (!(await readStepRounds(env)).some((r) => r.id === b.roundId) || !Number.isFinite(per1000) || per1000 <= 0 || per1000 > 100 || (cap !== null && !(cap > 0))) return jsonResponse({ error: "Check the round and amounts" }, 400, corsHeaders);
+      await env.DB.prepare("INSERT INTO step_pledges (id, round_id, name, user_id, per1000, cap, at) VALUES (?, ?, ?, NULL, ?, ?, ?)").bind(crypto.randomUUID(), String(b.roundId), cleanCalText(b.name, 40) || "Sponsor", per1000, cap, Date.now()).run();
+      _stepsPublicMemo = { at: 0, data: null };
+      return jsonResponse({ ok: true }, 201, corsHeaders);
+    }
+    const stepPledgeDel = path.match(/^\/api\/admin\/step-pledges\/([^/]+)\/?$/);
+    if (stepPledgeDel && request.method === "DELETE") {
+      if (!(await stepsEnsure(env))) return jsonResponse({ error: "No database attached" }, 503, corsHeaders);
+      await env.DB.prepare("DELETE FROM step_pledges WHERE id = ?").bind(decodeURIComponent(stepPledgeDel[1])).run(); _stepsPublicMemo = { at: 0, data: null };
+      return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     // Admin: who was in a squad and has / hasn't confirmed yet (to chase on WhatsApp)
     if (path === "/api/admin/stay-status" && request.method === "GET") {
