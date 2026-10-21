@@ -1,6 +1,22 @@
 {
   "updates": [
     {
+      "no": 23,
+      "date": "2026-10-21",
+      "title": "Faster login, cleaner calendar",
+      "items": [
+        {
+          "text": "✨ Logging in with your phone number is now instant (it used to take a long time)."
+        },
+        {
+          "text": "✨ A vote bubble and the real event it became are shown once on the calendar, not twice."
+        },
+        {
+          "text": "✨ Home now has a mini calendar of your clubs, and \"What's on today\" lives in the Calendar tab. Inside the 4DS app, the \"add to Home Screen\" step is gone."
+        }
+      ]
+    },
+    {
       "no": 22,
       "date": "2026-10-21",
       "title": "Your own home page",

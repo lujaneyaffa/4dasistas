@@ -312,6 +312,7 @@ const _snapAt = {};
 const saveSnapshot = async (env, key, data) => { if (Date.now() - (_snapAt[key] || 0) < 600000) return; _snapAt[key] = Date.now(); try { await env.SITE_DATA.put(key, JSON.stringify({ at: Date.now(), data })); } catch {} };
 
 const writeUser = async (env, user) => {
+  { const d = bmDigits(user.phone); if (d.length >= 7 && user.phoneIdx !== d) { await phoneIndexAdd(env, d, user.id); user.phoneIdx = d; } }
   if (await d1On(env)) { await env.DB.prepare("INSERT OR REPLACE INTO users (id, name, username, data) VALUES (?, ?, ?, ?)").bind(user.id, user.name || "", user.username || "", JSON.stringify(user)).run(); return; }
   await env.SITE_DATA.put(userKey(user.id), JSON.stringify(user), { metadata: { name: user.name, hasPhoto: !!user.photo } });
   if (!_userIdxSeen.has(user.id)) { _userIdxSeen.add(user.id); try { await addToIndex(env, USER_INDEX_KEY, user.id); } catch {} }
@@ -683,16 +684,25 @@ const stepsPublicData = async (env) => {
 };
 // ---- Badminton (merged in from the old Supabase "ladies-badminton" site). Rows are stored as the original JSON so the points logic ports unchanged; `uid` links a player to a 4DS account. ----
 // phone digits -> username (memoised ~10 min; refreshed at most once a minute on a miss). "ambiguous" when two accounts share a number.
-let _phoneMap = { at: 0, map: null };
-const usernameForPhone = async (env, digits) => {
-  for (let pass = 0; pass < 2; pass++) {
-    if (!_phoneMap.map || Date.now() - _phoneMap.at > 600000 || (pass === 1 && Date.now() - _phoneMap.at > 60000)) {
-      const m = new Map(); for (const u of await listAllUsers(env)) { const d = bmDigits(u.phone); if (d.length >= 7 && u.username) m.set(d, m.has(d) ? "ambiguous" : u.username); }
-      _phoneMap = { at: Date.now(), map: m };
-    }
-    const hit = _phoneMap.map.get(digits); if (hit || pass === 1) return hit || "";
+// PHONE INDEX: KV `phoneidx:<last-10-digits>` -> [user ids]. Logging in by phone used to scan EVERY account (17 s); now it's two reads. Kept up to date by writeUser; rebuilt by the daily cron / on first use.
+let _phoneMap = { at: 0, map: null }; // (legacy memo reset — harmless)
+const phoneIdxKey = (d) => `phoneidx:${d}`;
+const phoneIndexAdd = async (env, digits, userId) => {
+  try { const cur = JSON.parse((await env.SITE_DATA.get(phoneIdxKey(digits))) || "[]"); const list = Array.isArray(cur) ? cur : []; if (!list.includes(userId)) { list.push(userId); await env.SITE_DATA.put(phoneIdxKey(digits), JSON.stringify(list.slice(-5))); } } catch {}
+};
+const rebuildPhoneIndex = async (env) => {
+  let n = 0; for (const u of await listAllUsers(env)) { const d = bmDigits(u.phone); if (d.length >= 7) { await phoneIndexAdd(env, d, u.id); n++; } }
+  await env.SITE_DATA.put("phoneidx:built", String(Date.now())); return n;
+};
+const usernameForPhone = async (env, digits, ctx) => {
+  const raw = await env.SITE_DATA.get(phoneIdxKey(digits));
+  if (!raw) { // not indexed: if the index was never built, build it in the background (the next try works)
+    if (ctx && !(await env.SITE_DATA.get("phoneidx:built"))) ctx.waitUntil(rebuildPhoneIndex(env).catch(() => {}));
+    return "";
   }
-  return "";
+  let ids = []; try { ids = JSON.parse(raw); } catch {}
+  const hits = []; for (const id of ids) { const u = await readUser(env, id); if (u && bmDigits(u.phone) === digits && u.username && !hits.includes(u.username)) hits.push(u.username); }
+  return hits.length === 1 ? hits[0] : hits.length > 1 ? "ambiguous" : "";
 };
 const BM_TABLES = { players: "bm_players", games: "bm_games", attendance: "bm_attendance", past_points: "bm_past", session_rsvps: "bm_rsvps", tournament_interest: "bm_interest" };
 let _bmReady = null;
@@ -764,6 +774,13 @@ const bmMerge = async (env, keepId, dropId) => {
   stmts.push(bmSaveStmt(env, "players", keep.id, merged, keep.uid || drop.uid || null), env.DB.prepare("DELETE FROM bm_players WHERE id = ?").bind(drop.id));
   for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
   return true;
+};
+// A voted-on IDEA (the vote bubble on the calendar) and the real EVENT it turned into are the same activity: same day, same club, similar name ("Go karting" ≈ "Go-Karting Night").
+const actWords = (t) => String(t || "").toLowerCase().normalize("NFKD").replace(/[^a-z\s]/g, " ").split(/\s+/).filter((w) => w.length >= 3 && !["the", "and", "night", "day", "club", "event", "trip", "activity", "evening", "meet", "meetup", "hangout", "for", "our", "at"].includes(w));
+const sameActivity = (a, b) => {
+  const x = actWords(a), y = actWords(b); if (!x.length || !y.length) return false;
+  const jx = x.join(""), jy = y.join(""); if (jx === jy || jx.includes(jy) || jy.includes(jx)) return true; // "go karting" vs "gokarting"
+  return x.some((w) => w.length >= 4 && y.some((v) => v.length >= 4 && (v.includes(w) || w.includes(v) || (w.length >= 5 && v.length >= 5 && w.slice(0, 4) === v.slice(0, 4))))); // ("karting" ≈ "karts")
 };
 const BM_OWNER_ID = "a517d9bd-bc9c-4e59-b36d-503747621aa4", BM_COACH_EMAIL = "coach@4dasistas.ca", BM_BADMINTON_CLUB = "club-badminton";
 const BM_TBL = { players: "bm_players", games: "bm_games", attendance: "bm_attendance", past_points: "bm_past", session_rsvps: "bm_rsvps", tournament_interest: "bm_interest" };
@@ -1587,7 +1604,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       // A phone number works as a login name too (it's resolved to the account's username, so the same rate limits apply).
       { const rawU = String(body.username || "").trim();
         if (/^[\d\s().+-]{7,20}$/.test(rawU) && bmDigits(rawU).length >= 10) {
-          const r = await usernameForPhone(env, bmDigits(rawU));
+          const r = await usernameForPhone(env, bmDigits(rawU), ctx);
           if (r === "ambiguous") return jsonResponse({ error: "More than one account uses that number — please log in with your username" }, 400, corsHeaders);
           if (r) username = r;
         } }
@@ -1928,7 +1945,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           for (const c of roster) for (const i of await readClubIdeas(env, c.id)) if (i && /^\d{4}-\d{2}-\d{2}$/.test(i.date || "")) items.push({ id: `idea:${c.id}:${i.id}`, kind: "idea", clubId: c.id, clubIds: [c.id], clubTitle: c.title || "", title: i.title, emoji: i.emoji || "", date: i.date, time: "", done: !!i.done });
           _calIdeaCache = { at: Date.now(), items };
         }
-        const ideaItems = _calIdeaCache.items; // every dated event/idea, past ones too — the public calendar goes back to the very first event
+        // every dated event/idea, past ones too — the public calendar goes back to the very first event. An idea that already became a real event that day is shown once (as the event).
+        const ideaItems = _calIdeaCache.items.filter((i) => !events.some((e) => e.date === i.date && e.clubIds.some((c) => (i.clubIds || [i.clubId]).includes(c)) && sameActivity(e.title, i.title)));
         return jsonResponse({ events: events.concat(ideaItems).sort((a, b) => a.date.localeCompare(b.date)) }, 200, corsHeaders);
       }
       // PUBLIC (privacy-minimal): who attended a PAST event — first names only; people with a profile get an opaque id so their joined date + clubs can be looked up.
@@ -2982,7 +3000,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           if (fn === "signup_player") {
             const full = cleanCalText(a.p_full_name, 60), pin = String(a.p_pin || "").trim(), digits = bmDigits(a.p_phone), level = Math.round(Number(a.p_level));
             if (!full || !/^\d{4}$/.test(pin) || digits.length < 7 || !(level >= 1 && level <= 5)) return bmErr("Please fill in your name, phone, level and a 4-digit PIN");
-            const taken = await usernameForPhone(env, digits); if (taken) return bmErr("That phone number is already signed up");
+            const taken = await usernameForPhone(env, digits, ctx); if (taken) return bmErr("That phone number is already signed up");
             const made = await createMemberFromForm(env, ctx, request.headers.get("CF-Connecting-IP") || "unknown", { name: full, pin, phone: a.p_phone });
             if (made.error) return bmErr(made.error, made.status || 400);
             _phoneMap = { at: 0, map: null };
@@ -3013,7 +3031,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
             const e = needMember(); if (e) return e; const pl = await bmPlayerFor(env, meUser), patch = {};
             const user = { ...meUser };
             if (a.p_new_full_name) { const n = cleanCalText(a.p_new_full_name, 60); if (!n) return bmErr("Name is required"); patch.full_name = n; patch.name = firstNameOnly(n); user.name = n; }
-            if (a.p_new_phone) { const d = bmDigits(a.p_new_phone); if (d.length < 7) return bmErr("Enter a valid phone number"); const other = await usernameForPhone(env, d); if (other && other !== meUser.username) return bmErr("That phone number is already used"); patch.phone = d; patch.username = d; user.phone = sanitizePhone(a.p_new_phone) || user.phone; _phoneMap = { at: 0, map: null }; }
+            if (a.p_new_phone) { const d = bmDigits(a.p_new_phone); if (d.length < 7) return bmErr("Enter a valid phone number"); const other = await usernameForPhone(env, d, ctx); if (other && other !== meUser.username) return bmErr("That phone number is already used"); patch.phone = d; patch.username = d; user.phone = sanitizePhone(a.p_new_phone) || user.phone; _phoneMap = { at: 0, map: null }; }
             if (a.p_new_pin) { if (!/^\d{4}$/.test(String(a.p_new_pin))) return bmErr("New PIN must be exactly 4 digits"); user.pinHash = await sha256Hex(String(a.p_new_pin)); }
             await writeUser(env, user); await setPlayer(pl, patch);
             return jsonResponse({ data: null, error: null }, 200, corsHeaders);
@@ -4532,6 +4550,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
   },
 
   async scheduled(controller, env, ctx) {
+    ctx.waitUntil(rebuildPhoneIndex(env).catch((e) => console.log("phone index rebuild failed", e && e.message)));
     ctx.waitUntil((async () => { try { const claimed = await claimBackupSlot(env); console.log("daily backup slot", claimed ? "claimed — sending" : "already taken — skipping"); if (claimed) await sendBackupEmail(env, "Daily backup"); } catch (e) { console.error("Backup email failed", String(e)); } })()); // once a day; independent of the digest below
     if (!env.RESEND_API_KEY) return;
     let subscribers = JSON.parse((await env.SITE_DATA.get(SUBSCRIBER_INDEX_KEY)) || "[]");
