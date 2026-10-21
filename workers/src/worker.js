@@ -627,17 +627,19 @@ let _memberSearchCache = null;
 const NOTIF_CATS = ["reminders", "announcements", "clubs", "events"];
 // ---- Apple push (APNs) for the native iPhone app. Needs secrets APNS_KEY (the .p8 text), APNS_KEY_ID, APNS_TEAM_ID. The app's bundle id is the "topic". ----
 const APNS_TOPIC = "4DS";
-let _apnsJwt = { at: 0, jwt: "" };
-const apnsAuth = async (env) => {
-  if (_apnsJwt.jwt && Date.now() - _apnsJwt.at < 45 * 60000) return _apnsJwt.jwt;
+const _apnsJwt = { production: { at: 0, jwt: "" }, sandbox: { at: 0, jwt: "" } };
+// Apple issued two keys: APNS_KEY(+_ID) works on the SANDBOX gateway (builds installed from Xcode), APNS_KEY_PROD(+_ID_PROD) on PRODUCTION (TestFlight / App Store). A single "Sandbox & Production" key would serve both.
+const apnsAuth = async (env, which) => {
+  const cache = _apnsJwt[which], keyPem = which === "production" ? (env.APNS_KEY_PROD || env.APNS_KEY) : env.APNS_KEY, keyId = which === "production" ? (env.APNS_KEY_ID_PROD || env.APNS_KEY_ID) : env.APNS_KEY_ID;
+  if (cache.jwt && Date.now() - cache.at < 45 * 60000) return cache.jwt;
   const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   const enc = (o) => b64u(new TextEncoder().encode(JSON.stringify(o)));
-  const pem = String(env.APNS_KEY || "").replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  const pem = String(keyPem || "").replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
   const key = await crypto.subtle.importKey("pkcs8", Uint8Array.from(atob(pem), (c) => c.charCodeAt(0)), { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
-  const head = enc({ alg: "ES256", kid: env.APNS_KEY_ID }), body = enc({ iss: env.APNS_TEAM_ID, iat: Math.floor(Date.now() / 1000) });
+  const head = enc({ alg: "ES256", kid: keyId }), body = enc({ iss: env.APNS_TEAM_ID, iat: Math.floor(Date.now() / 1000) });
   const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, new TextEncoder().encode(`${head}.${body}`));
-  _apnsJwt = { at: Date.now(), jwt: `${head}.${body}.${b64u(sig)}` };
-  return _apnsJwt.jwt;
+  _apnsJwt[which] = { at: Date.now(), jwt: `${head}.${body}.${b64u(sig)}` };
+  return _apnsJwt[which].jwt;
 };
 // Sends one notification to every iPhone registered for this person. Tries production first, then the sandbox (a build installed from Xcode registers a sandbox token).
 const sendApns = async (env, userId, message) => {
@@ -645,11 +647,11 @@ const sendApns = async (env, userId, message) => {
   let tokens = []; try { await seenEnsure(env); tokens = (await env.DB.prepare("SELECT token FROM device_tokens WHERE user_id = ?").bind(userId).all()).results || []; } catch { return { sent: 0, devices: 0 }; }
   let sent = 0;
   for (const t of tokens) {
-    const jwt = await apnsAuth(env).catch(() => "");
-    if (!jwt) break;
     const payload = JSON.stringify({ aps: { alert: { title: message.title || "4DS", body: message.body || "" }, sound: "default" }, url: message.url || "/" });
     let done = false;
     for (const host of ["api.push.apple.com", "api.sandbox.push.apple.com"]) {
+      const jwt = await apnsAuth(env, host.includes("sandbox") ? "sandbox" : "production").catch(() => "");
+      if (!jwt) continue;
       try {
         const res = await fetch(`https://${host}/3/device/${t.token}`, { method: "POST", headers: { authorization: `bearer ${jwt}`, "apns-topic": APNS_TOPIC, "apns-push-type": "alert", "apns-priority": "10" }, body: payload });
         if (res.ok) { sent++; done = true; break; }
