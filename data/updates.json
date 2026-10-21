@@ -1,6 +1,22 @@
 {
   "updates": [
     {
+      "no": 21,
+      "date": "2026-10-21",
+      "title": "Easier to get around",
+      "items": [
+        {
+          "text": "✨ On phones, the main tabs are now a bar at the bottom of the screen, easy to reach with your thumb."
+        },
+        {
+          "text": "✨ A new “For you” list at the top of Clubs shows what needs you: availability to add, payments due, events that need a date, and your next events."
+        },
+        {
+          "text": "✨ The club calendar has a “My clubs / All clubs” switch, and you now get a quick confirmation after you RSVP, show interest or submit availability."
+        }
+      ]
+    },
+    {
       "no": 20,
       "date": "2026-10-21",
       "title": "Squads are now clubs",

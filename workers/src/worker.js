@@ -2207,6 +2207,25 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         return { stayClubs: await legacySquadClubsOf(env, me.id), stayDone: !!me.stayConfirmedAt };
       })()) }, 200, corsHeaders);
     }
+    // The signed-in member's "to-do" list for the Clubs home: next events they're going to, unpaid events, undated events waiting for their interest.
+    if (path === "/api/me/todo" && request.method === "GET") {
+      const meId = await memberIdFromRequest();
+      if (!meId) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      const today = new Date().toISOString().slice(0, 10), roster = await readClubRoster(env), mineClubs = [];
+      for (const c of roster) if ((await readClubMemberIds(env, c.id)).includes(meId)) mineClubs.push(c.id);
+      const title = (e) => calClubs(e).map((id) => (roster.find((c) => c.id === id) || {}).title).filter(Boolean).join(" × ");
+      const all = await readClubCal(env), next = [], unpaid = [], tbd = [];
+      for (const e of all) {
+        if (e.tbd) { if (calClubs(e).some((c) => mineClubs.includes(c)) && !(e.interest || []).some((i) => i.id === meId)) tbd.push({ id: e.id, title: e.title, clubTitle: title(e) }); continue; }
+        if (!e.date || e.date < today) continue;
+        const r = (e.rsvps || []).find((x) => x.id === meId);
+        if (!r || r.status !== "going") continue;
+        next.push({ id: e.id, title: e.title, date: e.date, time: e.time || "", place: e.place || "", clubTitle: title(e) });
+        if (e.form && e.form.payment && !r.paid) unpaid.push({ id: e.id, title: e.title, date: e.date, amount: (e.form.payment || {}).amount || "" });
+      }
+      next.sort((a, b) => a.date.localeCompare(b.date) || String(a.time).localeCompare(String(b.time)));
+      return jsonResponse({ next: next.slice(0, 3), unpaid: unpaid.slice(0, 5), tbd: tbd.slice(0, 5) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
     // ---- Squads became clubs: existing squad members log in on /#/stay and choose which of the four new clubs to stay in / join ----
     if (path === "/api/me/stay-clubs" && (request.method === "GET" || request.method === "POST")) {
       const meId = await memberIdFromRequest();
@@ -2237,6 +2256,20 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await writeUser(env, me);
       const out = []; for (const id of joined) { const c = roster.find((x) => x.id === id); if (c) out.push({ id, title: c.title, link: c.signup || "" }); }
       return jsonResponse({ ok: true, joined: out, requested }, 200, corsHeaders);
+    }
+    // Admin "Needs you" counts (main admin): RSVPs awaiting approval, unpaid sign-ups, undated events people are keen on, squad members who haven't confirmed.
+    if (path === "/api/admin/needs" && request.method === "GET") {
+      const today = new Date().toISOString().slice(0, 10);
+      let pendingRsvps = 0, unpaid = 0, tbdKeen = 0, stayTodo = 0;
+      for (const e of await readClubCal(env)) {
+        if (e.tbd) { if ((e.interest || []).length) tbdKeen++; continue; }
+        if (!e.date || e.date < today) continue;
+        for (const r of e.rsvps || []) { if (r.status === "pending") pendingRsvps++; else if (r.status === "going" && e.form && e.form.payment && !r.paid && !r.guest) unpaid++; }
+      }
+      const seen = new Set();
+      for (const sid of Object.keys(SQUAD_TITLES)) for (const uid of await readSquadMemberIds(env, sid)) seen.add(uid);
+      for (const uid of seen) { const u = await readUser(env, uid); if (u && !u.stayConfirmedAt) stayTodo++; }
+      return jsonResponse({ pendingRsvps, unpaid, tbdKeen, stayTodo }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     // Admin: who was in a squad and has / hasn't confirmed yet (to chase on WhatsApp)
     if (path === "/api/admin/stay-status" && request.method === "GET") {

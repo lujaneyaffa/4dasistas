@@ -1028,6 +1028,9 @@
   }
 
   /* ---- PHONES (<=700px): the four tabs live in a bottom bar (thumb reach). Icons + short labels; the search icon is the 5th item. ---- */
+  @media (pointer:coarse){
+    .calrs, .calwa, .fb-mini, .period-edit, .period-del, .stay-wa, .adm-need, .tbd-manage, .tbd-interest{ min-height:44px; min-width:44px; }
+  }
   @media (max-width:700px){
     .tabs{ position:fixed; left:0; right:0; bottom:0; top:auto; z-index:150; justify-content:space-around; gap:0; padding:4px 4px calc(4px + env(safe-area-inset-bottom, 0px)); background:#fef7f4; border-top:2px solid var(--brand-brown,#76220b); box-shadow:0 -2px 10px rgba(0,0,0,.08); overflow:visible; }
     .tabs > :first-child, .tabs > :last-child{ margin-left:0; margin-right:0; }
@@ -1493,7 +1496,7 @@ let state = {
   cmAdminAllMembers:null, cmAdminAllUsers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false, fallQuickLogin:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
-  stayInfo:null, stayLoading:false, stayStatus:null, eavClub:'mine', eavCache:{}, eavInflight:{}, pushRegistered:false, phoneConfirmed:true, myPhone:'', ideaAvail:null, ideaAvailOwner:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
+  stayInfo:null, stayLoading:false, stayStatus:null, myTodo:null, eavClub:'mine', eavCache:{}, eavInflight:{}, pushRegistered:false, phoneConfirmed:true, myPhone:'', ideaAvail:null, ideaAvailOwner:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
   publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
   myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, clubsLoginPrefill:false, cmAdminEventSugs:null, cmAdminResSugs:null, cmAdminMemberQuery:'', cmAdminMemberSort:'alpha',
   ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{}, iavEditing:false,
@@ -5689,18 +5692,20 @@ function clubCalGridHtml(list){
   </div>`;
 }
 function clubCalSectionHtml(compact){
-  const list = state.clubCal;
+  const sessC = getCmSession(), canMine = !!sessC && !calIsAdmin();
+  const mineOn = canMine && state.clubCalMine;
+  const list = (mineOn && state.clubCal) ? state.clubCal.filter(e => (e.clubIds || [e.clubId]).some(c => ((sessC && sessC.clubs) || []).includes(c))) : state.clubCal;
   const today = new Date().toISOString().slice(0, 10);
   const view = state.clubCalView === 'list' ? 'list' : 'cal';
   let body;
   if(state.clubCalError && !list) body = `<p class="av-msg" style="color:#c00;text-align:center;">${escapeCm(state.clubCalError)}</p>`;
   else if(!list) body = `<p class="av-msg" style="text-align:center;">Loading events…</p>`;
-  else if(!list.length && !calIsAdmin()) body = `<p class="av-msg" style="text-align:center;">No club events yet — check back soon!</p>`;
+  else if(!list.length && !calIsAdmin()) body = `<p class="av-msg" style="text-align:center;">${mineOn ? 'Nothing coming up for your clubs yet — switch to “All clubs” to see everything.' : 'No club events yet — check back soon!'}</p>`;
   else body = view === 'cal' ? clubCalGridHtml(list) : `<div class="cal-list">${list.map(e => clubCalRowHtml(e, today)).join('')}</div>`;
   const tog = (v, l) => `<button type="button" class="filter-chip${view === v ? ' active' : ''}" data-calview="${v}">${l}</button>`;
   return `<h3 class="clubs-popular-title">📅 CLUB CALENDAR</h3>
     ${compact ? '' : `<p class="ideas-hint" style="text-align:center;margin:0 0 8px;">Tap an event to see details and RSVP.</p>`}
-    <div style="display:flex;gap:8px;justify-content:center;margin:0 0 10px;flex-wrap:wrap;">${tog('cal', '📅 Calendar')}${tog('list', '📋 List')}${calIsAdmin() ? `<button type="button" class="club-guide-btn" id="calAddBtn" style="min-height:36px;padding:4px 16px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add event</button>` : ''}</div>
+    <div style="display:flex;gap:8px;justify-content:center;margin:0 0 10px;flex-wrap:wrap;">${tog('cal', '📅 Calendar')}${tog('list', '📋 List')}${canMine ? `<button type="button" class="filter-chip${mineOn ? ' active' : ''}" data-calmine="1">🙋 ${mineOn ? 'My clubs' : 'All clubs'}</button>` : ''}${calIsAdmin() ? `<button type="button" class="club-guide-btn" id="calAddBtn" style="min-height:36px;padding:4px 16px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add event</button>` : ''}</div>
     ${body}${clubCalTbdHtml()}`;
 }
 // "TO BE SCHEDULED": events with no date yet. Signed-in members of the club see them here and show interest (after confirming their availability); the admin manages them.
@@ -5726,7 +5731,7 @@ async function tbdShowInterest(id, on){
     const r = await fetch('/api/club-calendar/' + encodeURIComponent(id) + '/interest', { method: on ? 'POST' : 'DELETE', headers: ideaHeaders() });
     const d = await r.json().catch(() => ({}));
     if(!r.ok){ const e = new Error(d.error || 'Something went wrong'); e.needAvail = !!d.needAvail; throw e; }
-    ev.mine = on; ev.interested = d.interested; render();
+    ev.mine = on; ev.interested = d.interested; state.myTodo = null; render(); admToastLite(on ? '✓ Interest noted — we\'ll pick a date that works' : 'Interest removed');
   };
   if(!on){ try { await send(); } catch(err){ alert(err.message); } return; }
   if(!state.ideaAvailLoadedFor || state.ideaAvailOwner !== ideaOwnerKey()) await ideaAvailLoad();
@@ -5809,6 +5814,7 @@ function clubCalDayPopup(key){
 function wireClubCal(){
   clubCalLoad();
   document.querySelectorAll('.cal-row, .mc-ev').forEach(b => b.addEventListener('click', () => clubCalOpen(b.dataset.calid)));
+  document.querySelectorAll('[data-calmine]').forEach(b => b.addEventListener('click', () => { state.clubCalMine = !state.clubCalMine; render(); }));
   document.querySelectorAll('[data-calview]').forEach(b => b.addEventListener('click', () => { state.clubCalView = b.dataset.calview; render(); }));
   document.querySelectorAll('[data-calday]').forEach(b => b.addEventListener('click', () => clubCalDayPopup(b.dataset.calday)));
   document.querySelectorAll('[data-calnav]').forEach(b => b.addEventListener('click', () => {
@@ -5964,7 +5970,7 @@ async function clubCalMemberCard(box, id){
         e.target.disabled = true;
         try {
           const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/rsvp', { method: d.mine ? 'DELETE' : 'POST', headers: ideaHeaders() });
-          d.mine = r.mine; d.going = r.going; paint();
+          d.mine = r.mine; d.going = r.going; state.myTodo = null; paint(); admToastLite(r.mine ? (r.mine === 'going' ? "✓ You're going!" : '⏳ Request sent — an admin will approve it') : 'RSVP cancelled');
         } catch(err){ e.target.disabled = false; top.querySelector('.calRsvpMsg').textContent = err.message; }
       });
     };
@@ -6430,7 +6436,7 @@ function clubCalForm(ev, presetDate){
 function setClubsPage(page){
   const mine = (getCmSession() && getCmSession().clubs) || [];
   if(page === 'vote') state.ideasStatus = '';
-  state.clubsPage = page || '';
+  state.clubsPage = page || ''; if(!page) state.myTodo = null;
   if(page === 'avail'){ state.eavPeriod = null; state.pubPeriods = null; if(state.eavClub !== 'mine') state.eavClub = 'mine'; everyoneAvailLoad(); }
   if(page === 'cal') state.clubCal = null;
   if(page === 'vote'){ state.publicIdeasAll = null; state.publicIdeasAllError = ''; } // reload fresh, for this member's clubs only
@@ -6957,7 +6963,7 @@ function renderMyClubsSectionHtml(){
   { const an = state.availAnnounce; let seen = ''; try { seen = localStorage.getItem('availAnn') || ''; } catch {}
     if(an && an.id !== seen) annBanner = `<div class="av-waitlist" style="max-width:520px;margin:0 auto 14px;text-align:center;">📣 ${escapeCm(an.text)}${state.availDeadline ? ` <strong>Deadline: ${escapeCm(new Date(state.availDeadline + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' }))}</strong>` : ''} <button type="button" class="club-guide-btn" data-clubspage="avail" data-annid="${escapeCm(an.id)}" style="padding:6px 14px;font-size:13px;margin:6px 4px 0;">Add my availability</button><button type="button" class="av-link" id="availAnnDismiss" data-annid="${escapeCm(an.id)}" style="margin-top:6px;">Dismiss</button></div>`; }
   const stayBanner = state.stayDue ? `<div class="av-waitlist" style="max-width:520px;margin:0 auto 14px;text-align:center;">🪁 Squads are now clubs! <button type="button" class="club-guide-btn" onclick="location.hash='#/stay'" style="margin-top:6px;">Choose which to stay in →</button></div>` : '';
-  return `${topRow}${pendingBanner}${stayBanner}${annBanner}
+  return `${topRow}${pendingBanner}${stayBanner}${annBanner}${myTodoHtml()}
     <div class="clubs-big-btns">
       ${bigBtn('avail', '📅', 'Availability', 'Add yours &amp; see everyone\'s')}
       ${bigBtn('vote', '🗳️', 'Vote', myClubs.length > 1 ? 'All your clubs\' ideas in one place' : 'Vote on ideas for ' + escapeCm(myClubs[0].title))}
@@ -7187,6 +7193,34 @@ function iavLegendHtml(){
   const sw = c => `<i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${c};border:1px solid #0003;vertical-align:-1px;margin-right:4px;"></i>`;
   return `<p class="ideas-hint" style="text-align:left;">${sw('#d9f0d8')}Preferred &nbsp; ${sw('#f9dcdc')}Can't make it &nbsp; ${sw('#fff3cf')}Didn't fill in availability yet</p>`;
 }
+// "For you": what needs the signed-in member's attention, in priority order (top of the Clubs home).
+async function myTodoLoad(){
+  if(state.myTodoLoading || !getCmSession()) return; state.myTodoLoading = true;
+  try { state.myTodo = await cmApiRaw('/api/me/todo', { headers: ideaHeaders(), cache:'no-store' }); } catch { state.myTodo = { next:[], unpaid:[], tbd:[] }; }
+  state.myTodoLoading = false;
+  if(state.tab === 'clubs' && !state.clubsPage) render();
+}
+function myTodoHtml(){
+  if(!getCmSession()) return '';
+  if(!state.ideaAvailLoadedFor && !state.ideaAvailLoading && !state.ideaAvailError) ideaAvailLoad();
+  if(!state.myTodo){ myTodoLoad(); return ''; }
+  const t = state.myTodo, items = [], fmt = d => new Date(d + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' });
+  const dates = iavNext15Dates();
+  if(state.ideaAvailLoadedFor && dates.length && !dates.some(d => (state.ideaAvail && state.ideaAvail[d]) || (state.ideaAvailNo && state.ideaAvailNo[d])))
+    items.push(['📅', `<strong>Add your availability</strong> for ${escapeCm(fmt(AVAIL_PERIOD.start))} → ${escapeCm(fmt(AVAIL_PERIOD.end))}`, 'avail']);
+  (t.unpaid || []).forEach(e => items.push(['💳', `<strong>Payment due</strong> · ${escapeCm(e.title)}${e.amount ? ' (' + escapeCm(e.amount) + ')' : ''}`, 'event:' + e.id]));
+  (t.tbd || []).forEach(e => items.push(['🕒', `<strong>${escapeCm(e.title)}</strong> needs a date — show interest`, 'tbd']));
+  (t.next || []).forEach(e => items.push(['🎟️', `<strong>${escapeCm(e.title)}</strong> · ${escapeCm(fmt(e.date))}${e.time ? ' · ' + escapeCm(e.time) : ''}`, 'event:' + e.id]));
+  if(!items.length) return '';
+  return `<div class="panel-card" style="max-width:520px;margin:0 auto 14px;padding:12px 14px;"><p style="margin:0 0 6px;font-weight:800;font-size:15px;">✨ For you</p>${items.map(([ic, html, go]) => `<button type="button" class="todo-row" data-todogo="${escapeCm(go)}" style="display:flex;gap:10px;align-items:center;width:100%;min-height:44px;padding:8px 4px;border:none;border-top:1px solid rgba(0,0,0,.08);background:none;font:inherit;text-align:left;cursor:pointer;"><span style="font-size:20px;">${ic}</span><span style="flex:1;font-size:14px;">${html}</span><span style="color:#776867;">›</span></button>`).join('')}</div>`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-todogo]'); if(!b) return;
+  const go = b.dataset.todogo;
+  if(go === 'avail') location.hash = '#/clubs/availability';
+  else if(go === 'tbd') setClubsPage('cal');
+  else if(go.startsWith('event:')) clubCalOpen(go.slice(6));
+});
 // "Are you sure?" shown before availability is submitted: anything left yellow/empty = didn't fill in yet; red is the only way to say "can't".
 function confirmAvailSubmit(unsetCount, onConfirm){
   const { wrap, close } = ideaPopup(`
@@ -7297,6 +7331,7 @@ function ideaAvailScheduleSave(){
 async function availNagCheck(){
   try {
     if(state.availNagShown || !getCmSession() || state.cmAdminLoggedIn === true || document.querySelector('.avNagPop')) return;
+    if(document.querySelector('.mem-pop')){ if((state.availNagTries = (state.availNagTries || 0) + 1) < 6) setTimeout(availNagCheck, 5000); return; } // one pop-up at a time: wait until the current one is closed
     if(!iavNext15Dates().length) return; // period is over
     if(!state.ideaAvailLoadedFor || state.ideaAvailOwner !== ideaOwnerKey()){ await ideaAvailLoad(); if(!state.ideaAvailLoadedFor) return; }
     if(state.availNagShown || !getCmSession()) return;
@@ -7558,8 +7593,8 @@ function wireIdeaAvailGrid(){
       state.iavUnsetWarned = false;
       state.iavEditing = false;
       if(!state.ideaAvailSubmitted) state.ideaAvailDirty = true; // submitting an all-empty grid still registers you as available
-      ideaAvailSave();
-      render();
+      ideaAvailSave(); state.myTodo = null;
+      render(); admToastLite('✓ Availability submitted — thank you!');
     });
   });
   const box = document.getElementById('iavGridBox');
@@ -9916,11 +9951,24 @@ function renderClubAdminPanel(){
       <button class="club-guide-btn" id="cmAdminLogoutBtn" style="padding:6px 12px;font-size:12px;">Log Out</button>
     </div>
     ${lead ? `<p style="font-size:12px;color:#776867;margin:6px 0 0;">You manage: <strong>${adminClubs().map(c => escapeCm(c.title)).join(', ') || 'no clubs yet'}</strong>. Reminders only go to your clubs' members. Use "➕ New event" at the bottom of the page to add an official event.</p>` : ''}
+    ${lead ? '' : admNeedsHtml()}
     ${admGroupTilesHtml(lead, gsel)}
     ${gsel === 'clubs' ? clubsGrid : gsel === 'events' ? admCeHtml() : gsel === 'directory' ? directoryGrid : gsel === 'calendar' ? calendarGrid : gsel === 'settings' ? settingsGrid : profilesGrid}
   </div>`;
 }
 // Three big tiles at the top of the Admin page switch between its grids (Clubs / Notifications & team / Profiles).
+// "Needs you": everything waiting on the main admin, tappable, above the tiles.
+async function admNeedsLoad(){
+  if(state.admNeedsLoading) return; state.admNeedsLoading = true;
+  try { const r = await fetch('/api/admin/needs', { credentials:'include', cache:'no-store' }); state.admNeeds = r.ok ? await r.json() : { pendingRsvps:0, unpaid:0, tbdKeen:0, stayTodo:0 }; } catch { state.admNeeds = { pendingRsvps:0, unpaid:0, tbdKeen:0, stayTodo:0 }; }
+  state.admNeedsLoading = false; if(state.tab === 'admin') render();
+}
+function admNeedsHtml(){
+  if(!state.admNeeds){ admNeedsLoad(); return ''; }
+  const n = state.admNeeds, inbox = admInboxCount();
+  const chips = [[inbox, '🙋', 'requests & submissions', 'clubs'], [n.pendingRsvps, '⏳', 'RSVPs to approve', 'events'], [n.unpaid, '💳', 'unpaid sign-ups', 'events'], [n.tbdKeen, '🕒', 'undated events with interest', 'events'], [n.stayTodo, '🪁', 'squad members to confirm', 'clubs']].filter(c => c[0] > 0);
+  return `<div class="cp-box" style="margin:10px 0;padding:10px 12px;"><p style="margin:0 0 6px;font-weight:800;">${chips.length ? '🔔 Needs you' : '✅ Nothing needs you right now'}</p>${chips.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">${chips.map(([c, ic, l, g]) => `<button type="button" class="filter-chip adm-need" data-needgroup="${g}" style="min-height:40px;">${ic} <b>${c}</b> ${l}</button>`).join('')}</div>` : ''}<button type="button" class="adm-need-refresh" style="margin-top:6px;border:none;background:none;color:#776867;font-size:12px;text-decoration:underline;cursor:pointer;">↻ refresh</button></div>`;
+}
 function admGroupTilesHtml(lead, cur){
   const tile = (id, icon, title, hint, badge) => `<button type="button" class="adm-tile${cur === id ? ' on' : ''}" data-group="${id}" aria-pressed="${cur === id}"><span class="adm-tile-ic">${icon}</span><span class="adm-tile-t">${title}</span><span class="adm-tile-h">${hint}</span>${badge ? `<span class="adm-badge adm-tile-b">${badge}</span>` : ''}</button>`;
   return `<div class="adm-tiles" style="grid-template-columns:repeat(3, minmax(0,1fr));">
@@ -10548,6 +10596,8 @@ function wireClubAdminPanel(){
   wireD1Admin();
   wireFormImport();
   { const mb = document.getElementById('admMissingBtn'); if(mb) mb.addEventListener('click', startMissingDetailsReview); if(document.getElementById('calAddBtn') || document.querySelector('.cal-list')) wireClubCal(); }
+  document.querySelectorAll('.adm-need').forEach(b => b.addEventListener('click', () => { state.admGroup = b.dataset.needgroup; render(); window.scrollTo({ top:0, behavior:'smooth' }); }));
+  document.querySelectorAll('.adm-need-refresh').forEach(b => b.addEventListener('click', () => { state.admNeeds = null; render(); }));
   document.querySelectorAll('.adm-tile').forEach(b => b.addEventListener('click', () => { state.admGroup = b.dataset.group; render(); window.scrollTo({ top:0, behavior:'smooth' }); }));
   const reloadProfiles = document.getElementById('admReloadProfiles');
   if(reloadProfiles) reloadProfiles.addEventListener('click', async () => { reloadProfiles.disabled = true; reloadProfiles.textContent = 'Loading…'; await cmAdminLoadAllMembers(); render(); });
