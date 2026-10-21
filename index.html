@@ -3530,7 +3530,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         <p class="today-subscribe-status" id="todaySubscribeStatus"></p>
       </div></div>
     </section>`;
-    el.innerHTML = `${todaySection}<div class="home-quicklinks">${quickLinks.map((q, i) => `
+    el.innerHTML = `${myHomeHtml()}<div style="${homeHidden('whatson') ? 'display:none;' : ''}">${todaySection}</div><div class="home-quicklinks" style="${homeHidden('links') ? 'display:none;' : ''}">${quickLinks.map((q, i) => `
       <button type="button" class="club-guide-btn" data-hometab="${q.tab}" style="--dx:${[12,-10,9][i % 3]}px;--dy:${[-14,12,-11][i % 3]}px;--dur:${[5.2,6.4,5.8][i % 3]}s;--delay:${-i * 3}s;">${q.label}</button>`).join('')}</div>`;
     (function(){ // bubbles glide gently away from the pointer, like the club bubbles
       const box = document.querySelector('.home-quicklinks'); if(!box || !window.matchMedia('(hover:hover)').matches) return;
@@ -5153,7 +5153,7 @@ function resetUserScopedState(){
   Object.assign(state, {
     ideaAvail:null, ideaAvailNo:{}, ideaAvailSubmitted:false, ideaAvailOwner:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'',
     ideaAvailStatus:'', ideaAvailDirty:false, ideaAvailSaving:false, ideaAvailResave:false, iavEditing:false, iavUnsetWarned:false, availNagShown:false,
-    stepsData:null, myTodo:null, stayInfo:null, stayLoading:false, eavClub:'mine', eavCache:{}, eavInflight:{}, ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{},
+    homeHidden:null, homePrefsLoaded:false, stepsData:null, myTodo:null, stayInfo:null, stayLoading:false, eavClub:'mine', eavCache:{}, eavInflight:{}, ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{},
     pushRegistered:false, phoneConfirmed:true, myPhone:'', myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
     ideas:null, ideasError:'', ideasStatus:'',
   });
@@ -5749,7 +5749,7 @@ async function clubCalLoad(force){
     state.clubCalError = '';
   } catch { state.clubCalError = "Couldn't load the calendar — check your connection."; if(!state.clubCal) state.clubCal = []; }
   state.clubCalLoading = false;
-  if(state.tab === 'clubs' || state.tab === 'admin') render();
+  if(state.tab === 'clubs' || state.tab === 'admin' || state.tab === 'home') render();
 }
 function clubCalReload(){ state.clubCal = null; state.clubCalIsAdminData = false; clubCalLoad(); refreshClubCalItems(); render(); }
 function clubCalRowHtml(e, today){
@@ -7282,12 +7282,63 @@ function iavLegendHtml(){
   const sw = c => `<i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${c};border:1px solid #0003;vertical-align:-1px;margin-right:4px;"></i>`;
   return `<p class="ideas-hint" style="text-align:left;">${sw('#d9f0d8')}Preferred &nbsp; ${sw('#f9dcdc')}Can't make it &nbsp; ${sw('#fff3cf')}Didn't fill in availability yet</p>`;
 }
+/* ---- 🏠 The signed-in member's own home page: their clubs (always shown) plus extras they can hide. Choices are saved on their account. ---- */
+const HOME_SECTIONS = [['todo', '✨ For you (what needs your attention)'], ['events', '🗓️ Coming up in my clubs'], ['steps', '👟 Steps challenge'], ['badminton', '🏸 Badminton leaderboard'], ['whatson', "📅 What's on today"], ['links', '🔗 Travel · Add to Home Screen · About']];
+function homeHidden(k){
+  if(!getCmSession()) return false; // visitors see everything
+  if(!state.homeHidden){ try { state.homeHidden = JSON.parse(localStorage.getItem('homeHidden') || '[]'); } catch { state.homeHidden = []; } if(!state.homePrefsLoaded){ state.homePrefsLoaded = true; homePrefsLoad(); } }
+  return state.homeHidden.includes(k);
+}
+async function homePrefsLoad(){
+  try { const d = await cmApiRaw('/api/me/prefs', { headers: ideaHeaders(), cache:'no-store' }); state.homeHidden = d.hidden || []; try { localStorage.setItem('homeHidden', JSON.stringify(state.homeHidden)); } catch {} if(state.tab === 'home') render(); } catch {}
+}
+function homeCustomize(){
+  const hidden = new Set(state.homeHidden || []);
+  const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 6px;">Customize my home</h3><p class="ideas-hint" style="text-align:left;margin:0 0 8px;">Your clubs always show. Choose which extras you want:</p>
+    <label style="display:flex;gap:10px;align-items:center;min-height:44px;opacity:.6;"><input type="checkbox" checked disabled style="width:22px;height:22px;"> 🏛️ My clubs (always shown)</label>
+    ${HOME_SECTIONS.map(([k, l]) => `<label style="display:flex;gap:10px;align-items:center;min-height:44px;"><input type="checkbox" class="home-pref" value="${k}" ${hidden.has(k) ? '' : 'checked'} style="width:22px;height:22px;"> ${l}</label>`).join('')}
+    <button type="button" class="club-guide-btn" id="homePrefSave" style="width:100%;margin-top:10px;text-align:center;background:var(--brand-rose);color:#fff;min-height:44px;">Save</button>`);
+  wrap.querySelector('#homePrefSave').addEventListener('click', async () => {
+    state.homeHidden = [...wrap.querySelectorAll('.home-pref')].filter(c => !c.checked).map(c => c.value);
+    try { localStorage.setItem('homeHidden', JSON.stringify(state.homeHidden)); } catch {}
+    close(); render();
+    try { await cmApiRaw('/api/me/prefs', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ hidden: state.homeHidden }) }); } catch {}
+  });
+}
+function myHomeHtml(){
+  const sess = getCmSession(); if(!sess) return '';
+  const first = String(sess.name || '').split(' ')[0] || 'there';
+  const mine = (sess.clubs || []).map(id => clubsData.find(c => c.id === id)).filter(Boolean);
+  const cards = mine.length ? mine.map(c => { const col = clubCol(c.id); return `<button type="button" class="home-myclub" data-myclub="${escapeCm(c.id)}" style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:96px;flex:1 1 96px;max-width:150px;padding:10px 6px;border-radius:16px;border:2px solid ${col.fg};background:${col.bg};color:${col.fg};font:inherit;font-weight:800;cursor:pointer;">${c.logo ? `<img src="${escapeCm(c.logo)}" alt="" style="width:48px;height:48px;object-fit:contain;">` : `<span style="font-size:30px;">${escapeCm(c.emoji || '🏛️')}</span>`}<span style="font-size:13px;">${escapeCm(c.title)}</span></button>`; }).join('') : `<p class="ideas-hint" style="margin:0;">You're not in a club yet — <a href="#/clubs">pick one on the Clubs tab</a>.</p>`;
+  const inClub = id => (sess.clubs || []).includes(id);
+  const extras = [];
+  if(!homeHidden('todo')) extras.push(myTodoHtml());
+  if(!homeHidden('events') && mine.length){
+    if(!state.clubCal) clubCalLoad();
+    const today = new Date().toISOString().slice(0, 10);
+    const evs = (state.clubCal || []).filter(e => e.date >= today && !String(e.id).startsWith('idea:') && (e.clubIds || [e.clubId]).some(inClub)).slice(0, 3);
+    if(evs.length) extras.push(`<div class="panel-card" style="margin:0 0 12px;padding:12px 14px;"><p style="margin:0 0 6px;font-weight:800;">🗓️ Coming up in your clubs</p>${evs.map(e => `<button type="button" class="home-ev" data-calid="${escapeCm(e.id)}" style="display:flex;gap:10px;align-items:center;width:100%;min-height:44px;padding:6px 0;border:none;border-top:1px solid rgba(0,0,0,.08);background:none;font:inherit;text-align:left;cursor:pointer;"><span style="flex:1;font-size:14px;"><b>${escapeCm(e.title)}</b><br><small style="color:#776867;">${escapeCm(new Date(e.date + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' }))}${e.time ? ' · ' + escapeCm(e.time) : ''} · ${escapeCm(e.clubTitle || '')}</small></span><span style="color:#776867;">›</span></button>`).join('')}</div>`);
+  }
+  const tiles = [];
+  if(!homeHidden('steps')) tiles.push(['👟', 'Steps challenge', '/#/steps']);
+  if(!homeHidden('badminton') && inClub('club-badminton')) tiles.push(['🏸', 'Badminton', '/badminton']);
+  if(tiles.length) extras.push(`<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;">${tiles.map(([ic, l, href]) => `<a href="${href}" class="club-guide-btn" style="flex:1 1 140px;display:flex;gap:8px;align-items:center;justify-content:center;text-decoration:none;min-height:48px;">${ic} ${escapeCm(l)}</a>`).join('')}</div>`);
+  return `<div class="my-home" style="max-width:640px;margin:0 auto 16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;"><h3 style="margin:0;font-size:20px;">Hi ${escapeCm(first)} 👋</h3><button type="button" class="club-guide-btn" id="homeCustomize" style="min-height:40px;padding:6px 12px;font-size:13px;">⚙️ Customize</button></div>
+    <p style="margin:0 0 6px;font-weight:800;font-size:14px;">🏛️ Your clubs</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;">${cards}</div>${extras.join('')}</div>`;
+}
+document.addEventListener('click', e => {
+  const c = e.target.closest('.home-myclub'); if(c){ openClubIdeas(c.dataset.myclub); return; }
+  const v = e.target.closest('.home-ev'); if(v){ clubCalOpen(v.dataset.calid); return; }
+  if(e.target.closest('#homeCustomize')) homeCustomize();
+});
 // "For you": what needs the signed-in member's attention, in priority order (top of the Clubs home).
 async function myTodoLoad(){
   if(state.myTodoLoading || !getCmSession()) return; state.myTodoLoading = true;
   try { state.myTodo = await cmApiRaw('/api/me/todo', { headers: ideaHeaders(), cache:'no-store' }); } catch { state.myTodo = { next:[], unpaid:[], tbd:[] }; }
   state.myTodoLoading = false;
-  if(state.tab === 'clubs' && !state.clubsPage) render();
+  if((state.tab === 'clubs' && !state.clubsPage) || state.tab === 'home') render();
 }
 function myTodoHtml(){
   if(!getCmSession()) return '';
@@ -10643,7 +10694,8 @@ const BM_SB = { url:'https://zcahhfswtdrdmguppqtp.supabase.co', key:'sb_publisha
 async function bmFetchAll(table){
   const out = [];
   for(let off = 0; off < 20000; off += 1000){
-    const r = await fetch(`${BM_SB.url}/rest/v1/${table}?select=*&limit=1000&offset=${off}`, { headers:{ apikey:BM_SB.key, Authorization:'Bearer ' + BM_SB.key } });
+    const cols = table === 'players' ? 'id,name,full_name,nickname,username,phone,level,avatar_url,date_joined,active' : '*'; // (the PIN column is locked on the old site, so asking for * is refused)
+    const r = await fetch(`${BM_SB.url}/rest/v1/${table}?select=${cols}&limit=1000&offset=${off}`, { headers:{ apikey:BM_SB.key, Authorization:'Bearer ' + BM_SB.key } });
     if(!r.ok) throw new Error(table + ': ' + r.status);
     const rows = await r.json(); out.push(...rows); if(rows.length < 1000) break;
   }

@@ -1,6 +1,19 @@
 {
   "updates": [
     {
+      "no": 22,
+      "date": "2026-10-21",
+      "title": "Your own home page",
+      "items": [
+        {
+          "text": "✨ When you're signed in, Home now starts with your clubs (always shown), plus extras you can switch on or off with the Customize button — and your choices follow you to any device."
+        },
+        {
+          "text": "✨ Badminton now lives inside 4DS at 4dasistas.ca/badminton, with the same login as the rest of the site. The leaderboard is public (first names and last initials only)."
+        }
+      ]
+    },
+    {
       "no": 21,
       "date": "2026-10-21",
       "title": "Easier to get around",

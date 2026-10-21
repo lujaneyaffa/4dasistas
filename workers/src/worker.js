@@ -716,6 +716,14 @@ const isAdminRequest = async (env, request) => {
   const raw = await env.SITE_DATA.get(`session:${tok}`); if (!raw) return false;
   try { const sess = JSON.parse(raw); return !(sess.expiresAt && Date.now() > sess.expiresAt); } catch { return false; }
 };
+// A 4DS CLUB ADMIN of the Badminton club is the badminton coach too (same account, no separate login).
+const bmLeadIsCoach = async (env, request) => {
+  const m = (request.headers.get("Cookie") || "").match(/(?:^|;\s*)leadsession=([^;]+)/); if (!m) return false;
+  try {
+    const sess = JSON.parse((await env.SITE_DATA.get(`leadsession:${m[1]}`)) || "null"); if (!sess || (sess.expiresAt && Date.now() > sess.expiresAt)) return false;
+    const rec = JSON.parse((await env.SITE_DATA.get(`clublead:${sess.username}`)) || "null"); return !!rec && Array.isArray(rec.clubs) && rec.clubs.includes("club-badminton");
+  } catch { return false; }
+};
 const BM_OWNER_ID = "a517d9bd-bc9c-4e59-b36d-503747621aa4", BM_COACH_EMAIL = "coach@4dasistas.ca", BM_BADMINTON_CLUB = "club-badminton";
 const BM_TBL = { players: "bm_players", games: "bm_games", attendance: "bm_attendance", past_points: "bm_past", session_rsvps: "bm_rsvps", tournament_interest: "bm_interest" };
 const bmToronto = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
@@ -2319,6 +2327,19 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         return { stayClubs: await legacySquadClubsOf(env, me.id), stayDone: !!me.stayConfirmedAt };
       })()) }, 200, corsHeaders);
     }
+    // The member's customised home page: which optional sections they've hidden (their clubs always show). Kept on their account so it follows them between devices.
+    if (path === "/api/me/prefs" && (request.method === "GET" || request.method === "POST")) {
+      const meId = await memberIdFromRequest();
+      const me = meId ? await readUser(env, meId) : null;
+      if (!me) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      const KEYS = ["todo", "events", "whatson", "steps", "badminton", "links"];
+      if (request.method === "POST") {
+        let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+        const hidden = [...new Set((Array.isArray(b.hidden) ? b.hidden : []).map(String).filter((k) => KEYS.includes(k)))];
+        if (JSON.stringify(hidden) !== JSON.stringify(me.homeHidden || [])) { me.homeHidden = hidden; await writeUser(env, me); }
+      }
+      return jsonResponse({ hidden: Array.isArray(me.homeHidden) ? me.homeHidden : [] }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
     // The signed-in member's "to-do" list for the Clubs home: next events they're going to, unpaid events, undated events waiting for their interest.
     if (path === "/api/me/todo" && request.method === "GET") {
       const meId = await memberIdFromRequest();
@@ -2753,13 +2774,14 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const kioskKey = request.headers.get("X-Kiosk-Key") || "";
         let role = "anon";
         if (await isValidSession(getSessionToken(request))) role = "owner";
+        else if (await bmLeadIsCoach(env, request)) role = "coach";
         else if (coachTok && (await env.SITE_DATA.get(`bmcoach:${coachTok}`))) role = "coach";
         else if (meUser) role = "member";
         else if (await bmKioskOk(env, kioskKey)) role = "kiosk";
         const staff = role === "owner" || role === "coach";
         if (path === "/api/bm/session" && request.method === "POST") {
           if (role === "owner") return jsonResponse({ session: { user: { id: BM_OWNER_ID, email: "owner" }, access_token: "owner" } }, 200, corsHeaders);
-          if (role === "coach") return jsonResponse({ session: { user: { id: "coach", email: BM_COACH_EMAIL }, access_token: coachTok } }, 200, corsHeaders);
+          if (role === "coach") return jsonResponse({ session: { user: { id: "coach", email: BM_COACH_EMAIL }, access_token: coachTok || "lead" } }, 200, corsHeaders);
           return jsonResponse({ session: null }, 200, corsHeaders);
         }
         if (path === "/api/bm/auth" && request.method === "POST") {
@@ -2817,10 +2839,18 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
             return false;
           };
           if (op === "select") {
-            if (role === "anon") return jsonResponse({ data: [], error: null }, 200, corsHeaders);
+            // The leaderboard is PUBLIC: anyone can read players (first names / nicknames only, no photos), games, attendance and points. RSVPs and tournament interest need a login.
+            if (role === "anon" && (key === "session_rsvps" || key === "tournament_interest")) return jsonResponse({ data: [], error: null }, 200, corsHeaders);
+            // Public view: "Aya T." style names (first name + last initial); games are re-labelled the same way so the standings still line up.
+            const pubAbbr = (d) => { const parts = String(d.full_name || d.name || "Player").trim().split(/\s+/); return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : parts[0]; };
+            const pubNames = new Map(); if (role === "anon" && (key === "games" || key === "players")) for (const pr of (key === "players" ? rowsAll : await bmLoadRows(env, "players"))) for (const idv of [pr.row.name, pr.row.nickname, pr.row.full_name]) if (idv) pubNames.set(String(idv), pubAbbr(pr.row));
             let out = rowsAll.filter((r) => match(r.row)).map((r) => {
               const x = { ...r.row };
-              if (key === "players") { delete x.pin; if (!staff && !(memberId && r.uid === memberId)) { delete x.phone; x.username = "x:" + r.id; } }
+              if (key === "players") {
+                delete x.pin; if (!staff && !(memberId && r.uid === memberId)) { delete x.phone; x.username = "x:" + r.id; }
+                if (role === "anon") { delete x.nickname; x.full_name = x.name = pubAbbr(r.row); if (!String(x.avatar_url || "").startsWith("emoji:")) x.avatar_url = ""; }
+              }
+              if (role === "anon" && key === "games") { for (const f of ["winners", "losers"]) { const arr = Array.isArray(x[f]) ? x[f] : (() => { try { const j = JSON.parse(x[f]); return Array.isArray(j) ? j : null; } catch { return null; } })(); if (arr) x[f] = arr.map((v) => pubNames.get(String(v)) || v); } }
               if (key === "session_rsvps" || key === "tournament_interest") { if (!staff) { const own = x.username && meUser && bmDigits(meUser.phone) === bmDigits(x.username); if (!own) x.username = "x:" + (x.player_id || ""); } }
               return x;
             });
