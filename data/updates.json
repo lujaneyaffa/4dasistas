@@ -1,6 +1,19 @@
 {
   "updates": [
     {
+      "no": 20,
+      "date": "2026-10-21",
+      "title": "Squads are now clubs",
+      "items": [
+        {
+          "text": "✨ Quran, Badminton, Cowork and Steps are now full clubs, with their own events, calendar and availability. The Squads tab is gone — find them under Clubs."
+        },
+        {
+          "text": "✨ Everyone who was in a squad can log in and choose which of these clubs to stay in or join. There's no limit on how many clubs you can be in, but inactive members who don't communicate in the group will be removed."
+        }
+      ]
+    },
+    {
       "no": 19,
       "date": "2026-10-18",
       "title": "Events to be scheduled",

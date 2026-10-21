@@ -621,7 +621,7 @@ const createMemberFromForm = async (env, ctx, ip, input) => {
 };
 // People search (to sign in from a form): first name + last initial only, ≥3 letters, rate-limited, cached.
 let _memberSearchCache = null;
-const NOTIF_CATS = ["reminders", "announcements", "clubs", "squads", "events"];
+const NOTIF_CATS = ["reminders", "announcements", "clubs", "events"];
 const sendPushToUser = async (env, userId, message) => {
   if (message.cat) { const u = await readUser(env, userId); if (u && Array.isArray(u.notifOff) && u.notifOff.includes(message.cat)) return { sent: 0, removed: 0, devices: 0, muted: true }; }
   const subs = await readPushSubs(env, userId);
@@ -641,29 +641,14 @@ const sendPushToUser = async (env, userId, message) => {
 };
 // ---- Squads (separate from clubs): same member accounts, their own membership lists, requests and PRIVATE invite links ----
 const SQUAD_TITLES = { quran: "Quran", badminton: "Badminton", cowork: "Cowork", steps: "Steps" };
-const SQUAD_MAX_PENDING_PER_PERSON = 4;
+// Squads no longer exist: each became a club (data/clubs.json). The old squad member lists are kept ONLY so existing members can confirm they want to stay (the /stay page).
+const SQUAD_TO_CLUB = { quran: "club-quran", badminton: "club-badminton", cowork: "club-cowork", steps: "club-steps" };
+const legacySquadClubsOf = async (env, uid) => { const out = []; for (const sid of Object.keys(SQUAD_TITLES)) if ((await readSquadMemberIds(env, sid)).includes(uid)) out.push(SQUAD_TO_CLUB[sid]); return out; };
 const squadMembersKey = (id) => `squadmembers:${id}`;
 const squadReqKey = (id, uid) => `squadreq:${id}:${uid}`;
 const squadLinkKey = (id) => `squadlink:${id}`;
 const readSquadMemberIds = async (env, id) => { try { return JSON.parse((await env.SITE_DATA.get(squadMembersKey(id))) || "[]"); } catch { return []; } };
 const writeSquadMemberIds = (env, id, ids) => env.SITE_DATA.put(squadMembersKey(id), JSON.stringify(ids));
-const listSquadRequests = async (env) => {
-  const out = [];
-  for (const k of (await env.SITE_DATA.list({ prefix: "squadreq:" })).keys) {
-    const [, squadId, userId] = k.name.split(":");
-    let at = 0; try { at = JSON.parse((await env.SITE_DATA.get(k.name)) || "{}").at || 0; } catch {}
-    out.push({ squadId, userId, at });
-  }
-  return out;
-};
-const notifyAdminOfSquadRequest = (env, ctx, user, squadId) => {
-  if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
-  const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
-  const html = emailShell(env, { emoji: "🪁", title: "New squad request", preheader: `${user.name} → ${SQUAD_TITLES[squadId]}`,
-    body: `<p style="margin:0 0 6px"><strong>${escapeHtml(user.name)}</strong> <span style="color:#776867">@${escapeHtml(user.username)}</span> asked to join the</p><p style="margin:0 0 14px">${emailChip(escapeHtml(SQUAD_TITLES[squadId]))} squad.</p>${user.phone ? `<p style="margin:0 0 14px;color:#776867">📞 ${escapeHtml(user.phone)}</p>` : ""}<p style="margin:16px 0 4px">${emailBtn(origin + "/#/admin", "Open the admin page →")}</p>`,
-    footer: "Accept or decline under 📣 Notifications &amp; team → Squads." });
-  sendAdminEmail(env, ctx, `Squad request: ${user.name} → ${SQUAD_TITLES[squadId]}`, html);
-};
 const notifyAdminOfJoinRequest = (env, ctx, user, club) => {
   if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
   const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
@@ -2218,28 +2203,53 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       let notices = [];
       try { notices = JSON.parse((await env.SITE_DATA.get(`notice:${me.id}`)) || "[]"); } catch {}
       return jsonResponse({ ...publicUser(me), clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs), notices, push: (await readPushSubs(env, me.id)).length > 0, notifOff: Array.isArray(me.notifOff) ? me.notifOff : [], phone: me.phone || "", phoneConfirmed: !!(me.phoneConfirmedAt || me.phone), ...(await (async () => {
-        // squads: ids the member is IN (with that squad's private invite link) and ids still waiting for approval
-        const squads = [];
-        for (const id of Object.keys(SQUAD_TITLES)) if ((await readSquadMemberIds(env, id)).includes(me.id)) squads.push({ id, link: (await env.SITE_DATA.get(squadLinkKey(id))) || "" });
-        return { squads, squadPending: await (async () => { const out = []; for (const id of Object.keys(SQUAD_TITLES)) if (await env.SITE_DATA.get(squadReqKey(id, me.id))) out.push(id); return out; })() };
+        // Squads became clubs: which of the four new clubs this person was in as a squad, and whether they've confirmed yet (the /stay page)
+        return { stayClubs: await legacySquadClubsOf(env, me.id), stayDone: !!me.stayConfirmedAt };
       })()) }, 200, corsHeaders);
     }
-    // ---- Squads: a signed-in member requests to join one (an admin approves; then they get that squad's private invite link) ----
-    const squadReqMatch = path.match(/^\/api\/squads\/([a-z]+)\/request\/?$/);
-    if (squadReqMatch && request.method === "POST") {
-      const squadId = squadReqMatch[1];
-      if (!SQUAD_TITLES[squadId]) return jsonResponse({ error: "Unknown squad" }, 404, corsHeaders);
+    // ---- Squads became clubs: existing squad members log in on /#/stay and choose which of the four new clubs to stay in / join ----
+    if (path === "/api/me/stay-clubs" && (request.method === "GET" || request.method === "POST")) {
       const meId = await memberIdFromRequest();
       const me = meId ? await readUser(env, meId) : null;
-      if (!me) return jsonResponse({ error: "Please log in to request a squad" }, 401, corsHeaders);
-      if ((await readSquadMemberIds(env, squadId)).includes(me.id)) return jsonResponse({ error: "You're already in this squad" }, 409, corsHeaders);
-      const mine = []; for (const id of Object.keys(SQUAD_TITLES)) if (await env.SITE_DATA.get(squadReqKey(id, me.id))) mine.push({ squadId: id, userId: me.id });
-      if (!mine.some((r) => r.squadId === squadId)) {
-        if (mine.length >= SQUAD_MAX_PENDING_PER_PERSON) return jsonResponse({ error: "You already have several squad requests waiting" }, 429, corsHeaders);
-        await env.SITE_DATA.put(squadReqKey(squadId, me.id), JSON.stringify({ at: Date.now() }));
-        // No email for squad requests (Lujane: in-app only) — they show in the admin notifications bell and the Squads tab.
+      if (!me) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
+      const roster = await readClubRoster(env), ids = Object.values(SQUAD_TO_CLUB);
+      const had = await legacySquadClubsOf(env, me.id);
+      if (request.method === "GET") {
+        const pending = await pendingClubIdsFor(env, me.id);
+        const options = [];
+        for (const id of ids) { const c = roster.find((x) => x.id === id); if (c) options.push({ id, title: c.title, emoji: c.emoji || "", wasIn: had.includes(id), inClub: (await readClubMemberIds(env, id)).includes(me.id), pending: pending.includes(id) }); }
+        return jsonResponse({ name: me.name, options, confirmedAt: me.stayConfirmedAt || 0 }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
       }
-      return jsonResponse({ ok: true, pending: [...new Set([...mine.map((r) => r.squadId), squadId])] }, 200, corsHeaders);
+      let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const want = new Set((Array.isArray(body.clubs) ? body.clubs : []).map(String).filter((id) => ids.includes(id) && roster.some((c) => c.id === id)));
+      const joined = [], requested = [];
+      for (const id of want) {
+        const members = await readClubMemberIds(env, id);
+        if (members.includes(me.id)) { joined.push(id); continue; }
+        if (had.includes(id)) { await writeClubMemberIds(env, id, [...members, me.id]); joined.push(id); } // they were already in this group chat: no approval needed
+        else if (!(await env.SITE_DATA.get(joinReqKey(id, me.id)))) { // a new club for them: the usual join request
+          await env.SITE_DATA.put(joinReqKey(id, me.id), JSON.stringify({ at: Date.now() }));
+          const club = roster.find((c) => c.id === id); if (club) notifyAdminOfJoinRequest(env, ctx, me, club);
+          requested.push(id);
+        }
+      }
+      me.stayConfirmedAt = Date.now(); me.stayChoices = [...want];
+      await writeUser(env, me);
+      const out = []; for (const id of joined) { const c = roster.find((x) => x.id === id); if (c) out.push({ id, title: c.title, link: c.signup || "" }); }
+      return jsonResponse({ ok: true, joined: out, requested }, 200, corsHeaders);
+    }
+    // Admin: who was in a squad and has / hasn't confirmed yet (to chase on WhatsApp)
+    if (path === "/api/admin/stay-status" && request.method === "GET") {
+      const roster = await readClubRoster(env), seen = new Map();
+      for (const sid of Object.keys(SQUAD_TITLES)) for (const uid of await readSquadMemberIds(env, sid)) seen.set(uid, [...(seen.get(uid) || []), SQUAD_TO_CLUB[sid]]);
+      const people = [];
+      for (const [uid, had] of seen) {
+        const u = await readUser(env, uid); if (!u) continue;
+        const title = (id) => (roster.find((c) => c.id === id) || {}).title || id;
+        people.push({ id: u.id, name: u.name, username: u.username, phone: u.phone || "", had: had.map(title), confirmedAt: u.stayConfirmedAt || 0, chose: (u.stayChoices || []).map(title) });
+      }
+      people.sort((a, b) => (a.confirmedAt ? 1 : 0) - (b.confirmedAt ? 1 : 0) || String(a.name).localeCompare(String(b.name)));
+      return jsonResponse({ people }, 200, corsHeaders);
     }
     // A member logs out: invalidate their token on the server too (clearing it in the browser alone left it valid).
     if (path === "/api/logout" && request.method === "POST") {
@@ -3039,10 +3049,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const pendingByUser = {};
       for (const r of await listJoinRequests(env)) (pendingByUser[r.userId] = pendingByUser[r.userId] || []).push(r.clubId);
       const squadsByUser = {};
-      for (const sid of Object.keys(SQUAD_TITLES)) for (const uid of await readSquadMemberIds(env, sid)) (squadsByUser[uid] = squadsByUser[uid] || []).push(sid);
+      for (const sid of Object.keys(SQUAD_TITLES)) for (const uid of await readSquadMemberIds(env, sid)) (squadsByUser[uid] = squadsByUser[uid] || []).push(SQUAD_TO_CLUB[sid]);
       const out = [];
       for (const u of await listAllUsers(env)) {
-          if (u) out.push({ ...publicUser(u), waRemindedAt: u.waRemindedAt || 0, formRanked: (u.form && Array.isArray(u.form.ranked)) ? u.form.ranked : [], squads: squadsByUser[u.id] || [], phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: (await readPushSubs(env, u.id)).length > 0 });
+          if (u) out.push({ ...publicUser(u), waRemindedAt: u.waRemindedAt || 0, formRanked: (u.form && Array.isArray(u.form.ranked)) ? u.form.ranked : [], stayClubs: squadsByUser[u.id] || [], stayAt: u.stayConfirmedAt || 0, phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: (await readPushSubs(env, u.id)).length > 0 });
       }
       if (leadCtx) return jsonResponse({ users: out.filter((u) => (u.clubs || []).some((c) => leadCtx.clubs.includes(c))).map((u) => ({ ...u, clubs: u.clubs.filter((c) => leadCtx.clubs.includes(c)), pending: (u.pending || []).filter((c) => leadCtx.clubs.includes(c)) })) }, 200, corsHeaders);
       if (!leadCtx) saveSnapshot(env, "snap:adminUsers", out);
@@ -3070,63 +3080,6 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       }
       await env.SITE_DATA.put("meta:lastRemind:push", JSON.stringify({ at: Date.now(), sent, noPush, asked: ids.length, title }));
       return jsonResponse({ sent, noPush, removed, muted, asked: ids.length }, 200, corsHeaders);
-    }
-    // ---- Admin: squads (kept apart from the clubs tools) ----
-    if (path === "/api/admin/squad-requests" && request.method === "GET") {
-      const out = [];
-      for (const r of (await listSquadRequests(env)).sort((a, b) => a.at - b.at)) {
-        const user = await readUser(env, r.userId);
-        if (!user || !SQUAD_TITLES[r.squadId]) continue;
-        out.push({ squadId: r.squadId, squadTitle: SQUAD_TITLES[r.squadId], userId: r.userId, name: user.name, username: user.username, phone: user.phone || "", at: r.at });
-      }
-      return jsonResponse({ requests: out }, 200, corsHeaders);
-    }
-    const squadActMatch = path.match(/^\/api\/admin\/squad-requests\/([a-z]+)\/([^/]+)\/(accept|decline)\/?$/);
-    if (squadActMatch && request.method === "POST") {
-      const squadId = squadActMatch[1], userId = decodeURIComponent(squadActMatch[2]), accept = squadActMatch[3] === "accept";
-      if (!SQUAD_TITLES[squadId]) return jsonResponse({ error: "Unknown squad" }, 404, corsHeaders);
-      if (!(await env.SITE_DATA.get(squadReqKey(squadId, userId)))) return jsonResponse({ error: "That request is no longer pending" }, 404, corsHeaders);
-      if (accept) {
-        if (!(await readUser(env, userId))) { await env.SITE_DATA.delete(squadReqKey(squadId, userId)); return jsonResponse({ error: "That member no longer exists" }, 404, corsHeaders); }
-        const ids = await readSquadMemberIds(env, squadId);
-        if (!ids.includes(userId)) { ids.push(userId); await writeSquadMemberIds(env, squadId, ids); }
-      }
-      await env.SITE_DATA.delete(squadReqKey(squadId, userId));
-      try {
-        const noticeKey = `notice:${userId}`;
-        const existing = JSON.parse((await env.SITE_DATA.get(noticeKey)) || "[]");
-        existing.push({ id: crypto.randomUUID(), type: accept ? "squad-accepted" : "squad-declined", squadId, squadTitle: SQUAD_TITLES[squadId], at: Date.now() });
-        await env.SITE_DATA.put(noticeKey, JSON.stringify(existing.slice(-10)));
-        ctx.waitUntil(sendPushToUser(env, userId, accept ? { title: "You're in the squad! 🎉", body: `You were approved for the ${SQUAD_TITLES[squadId]} squad — open the Squads tab for your private link.`, url: "/#/squads", cat: "squads" } : { title: "Update on your squad request", body: `Your request for the ${SQUAD_TITLES[squadId]} squad wasn't approved this time.`, url: "/#/squads", cat: "squads" }).catch(() => {}));
-      } catch {}
-      return jsonResponse({ ok: true }, 200, corsHeaders);
-    }
-    if (path === "/api/admin/squads" && request.method === "GET") {
-      const out = [];
-      for (const id of Object.keys(SQUAD_TITLES)) {
-        const members = [];
-        for (const uid of await readSquadMemberIds(env, id)) { const u = await readUser(env, uid); if (u) members.push({ id: u.id, name: u.name, username: u.username, photo: u.photo || null }); }
-        out.push({ id, title: SQUAD_TITLES[id], link: (await env.SITE_DATA.get(squadLinkKey(id))) || "", members });
-      }
-      return jsonResponse({ squads: out }, 200, corsHeaders);
-    }
-    const squadAdminMatch = path.match(/^\/api\/admin\/squads\/([a-z]+)(?:\/members\/([^/]+))?\/?$/);
-    if (squadAdminMatch && SQUAD_TITLES[squadAdminMatch[1]]) {
-      const squadId = squadAdminMatch[1];
-      if (request.method === "PUT" && !squadAdminMatch[2]) {
-        let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
-        const raw = String(body.link || "").trim();
-        if (!raw) { await env.SITE_DATA.delete(squadLinkKey(squadId)); return jsonResponse({ ok: true, link: "" }, 200, corsHeaders); }
-        let link = ""; try { const u = new URL(raw); if (u.protocol === "https:") link = u.href.slice(0, 500); } catch {}
-        if (!link) return jsonResponse({ error: "The invite link must start with https://" }, 400, corsHeaders);
-        await env.SITE_DATA.put(squadLinkKey(squadId), link);
-        return jsonResponse({ ok: true, link }, 200, corsHeaders);
-      }
-      if (request.method === "DELETE" && squadAdminMatch[2]) {
-        const uid = decodeURIComponent(squadAdminMatch[2]);
-        await writeSquadMemberIds(env, squadId, (await readSquadMemberIds(env, squadId)).filter((x) => x !== uid));
-        return jsonResponse({ ok: true }, 200, corsHeaders);
-      }
     }
     // Admin: when did I last remind people? (shown as a disclaimer before sending another one)
     if (path === "/api/admin/reminders/last" && request.method === "GET") {
@@ -3207,7 +3160,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({
         id: user.id, name: user.name, username: user.username, photo: user.photo || null,
         phone: user.phone || "", createdAt: user.createdAt || 0, lastLoginAt: user.lastLoginAt || 0, lastSeenAt: user.lastSeenAt || 0, archived: user.archived || null, form: user.form || null,
-        squads: (await (async () => { const o = []; for (const sid of Object.keys(SQUAD_TITLES)) if ((await readSquadMemberIds(env, sid)).includes(user.id)) o.push(sid); return o; })()),
+        stayClubs: await legacySquadClubsOf(env, user.id), stayAt: user.stayConfirmedAt || 0,
         clubs: await allClubIdsContaining(env, user.id), pending: await pendingClubIdsFor(env, user.id), waitlist: Array.isArray(user.waitlist) ? user.waitlist : [],
       }, 200, corsHeaders);
     }
@@ -3237,13 +3190,12 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const sampleRes = { id: "sample-2", title: "Sweet Saffron Bakery", type: "cafes", city: "Mississauga", link: "https://instagram.com/sweetsaffron", comments: "Halal, woman-owned, does custom cakes.", at: Date.now() };
       let msg = null;
       if (kind === "join") { notifyAdminOfJoinRequest(penv, pctx, user, club); msg = cap[0]; }
-      else if (kind === "squad") { notifyAdminOfSquadRequest(penv, pctx, user, "quran"); msg = cap[0]; }
       else if (kind === "event") { await notifyAdminOfSuggestion(penv, pctx, "event", sampleEvent); msg = cap[0]; }
       else if (kind === "resource") { await notifyAdminOfSuggestion(penv, pctx, "resource", sampleRes); msg = cap[0]; }
       else if (kind === "backup") { await sendBackupEmail(penv, "Daily backup"); msg = cap[0]; }
       else if (kind === "digest") msg = { subject: "What's on today", html: digestEmailHtml(env, "Sunday, October 18", [{ title: "Pilates at the Lake", date: "Today · 10:00 AM", location: "Toronto" }, { title: "Sisters Quran circle", date: "Today · 7:30 PM", location: "Mississauga" }], "#", "#") };
       if (kind === "index" || !msg) {
-        const links = [["join", "🙋‍♀️ Join request"], ["squad", "🪁 Squad request"], ["event", "🗓️ Event submitted"], ["resource", "🛍️ Resource submitted"], ["backup", "🛟 Daily backup"], ["digest", "☀️ Daily digest (subscribers)"]];
+        const links = [["join", "🙋‍♀️ Join request"], ["event", "🗓️ Event submitted"], ["resource", "🛍️ Resource submitted"], ["backup", "🛟 Daily backup"], ["digest", "☀️ Daily digest (subscribers)"]];
         return new Response(`<!DOCTYPE html><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:Arial;background:#fef7f4;padding:24px"><h2 style="color:#76220b">Email previews</h2><p>Nothing is sent — these are examples with made-up people.</p>${links.map(([k, l]) => `<p><a href="?kind=${k}" style="color:#76220b;font-size:18px">${l}</a></p>`).join("")}</body>`, { headers: { "Content-Type": "text/html; charset=UTF-8", "Cache-Control": "no-store" } });
       }
       return new Response(msg.html, { headers: { "Content-Type": "text/html; charset=UTF-8", "Cache-Control": "no-store" } });
@@ -3296,7 +3248,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     // Wording of the WhatsApp messages the admin sends (availability reminder, notifications nudge, club accepted / declined). {first} {name} {club} are filled in.
-    const WA_KEYS = ["remind", "notif", "joinAccept", "joinDecline", "newPeriod", "welcome", "squadAccept", "eventRemind", "payRemind"];
+    const WA_KEYS = ["remind", "notif", "joinAccept", "joinDecline", "newPeriod", "welcome", "eventRemind", "payRemind", "stayRemind"];
     if (path === "/api/admin/wa-templates" && request.method === "GET") {
       let t = {}; try { t = JSON.parse((await env.SITE_DATA.get("watemplates")) || "{}") || {}; } catch {}
       return jsonResponse({ templates: t }, 200, corsHeaders);
@@ -3345,22 +3297,6 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await writeUser(env, user);
       await reserveUsername(env, username, user.id);
       return jsonResponse({ ok: true, id: user.id, username, name }, 201, corsHeaders);
-    }
-    // Admin: set which squads a person is in (adds/removes; asking and approval are skipped — this is the admin placing them).
-    const adminUserSquadsMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/squads\/?$/);
-    if (adminUserSquadsMatch && request.method === "PUT") {
-      const userId = decodeURIComponent(adminUserSquadsMatch[1]);
-      let body;
-      try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
-      if (!Array.isArray(body.squads)) return jsonResponse({ error: "squads must be an array" }, 400, corsHeaders);
-      if (!(await readUser(env, userId))) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
-      const want = new Set(body.squads.map(String).filter((id) => SQUAD_TITLES[id]));
-      for (const id of Object.keys(SQUAD_TITLES)) {
-        const ids = await readSquadMemberIds(env, id), has = ids.includes(userId);
-        if (want.has(id) && !has) { await writeSquadMemberIds(env, id, [...ids, userId]); await env.SITE_DATA.delete(squadReqKey(id, userId)).catch(() => {}); }
-        else if (!want.has(id) && has) await writeSquadMemberIds(env, id, ids.filter((x) => x !== userId));
-      }
-      return jsonResponse({ ok: true, squads: [...want] }, 200, corsHeaders);
     }
     const adminUserClubsMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/clubs\/?$/);
     if (adminUserClubsMatch && request.method === "PUT") {

@@ -342,9 +342,6 @@
   .cat-block .cat-desc{ font-size:13.5px; color:var(--muted); margin-bottom:14px; }
 
 .clubs-grid{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:14px; }
-.squad-card{ display:flex; flex-direction:column; }
-.squad-card .squad-action{ margin-top:auto; padding-top:14px; }
-.squad-card .squad-login-btn, .squad-card .squad-request-btn{ width:100%; max-width:260px; }
 .clubs-grid-row{ display:flex; gap:14px; overflow-x:auto; padding-bottom:6px; -webkit-overflow-scrolling:touch; }
 .clubs-grid-row .club-card{ flex:0 0 200px; width:200px; }
 /* centre the row of cards on wide screens; auto margins (not justify-content:center) so a row that overflows on a phone still starts at the left edge and scrolls */
@@ -946,7 +943,6 @@
     input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not(.hp-field), select, textarea{ font-size:16px !important; }
     #globalSearch{ min-height:24px; }
     .tab-btn .the{ display:none; } /* 5 tabs don't fit one phone-width row with "The " in front of each */
-    .squads-grid{ grid-template-columns:1fr; }
     .back-btn, .av-link{ min-height:44px; display:inline-flex; align-items:center; }
     .footer-admin-btn{ min-height:44px; padding-left:16px; padding-right:16px; }
     .idea-price-btn{ min-height:44px; }
@@ -1081,7 +1077,6 @@
   <a class="tab-btn active" data-tab="home" href="/">Home</a>
   <a class="tab-btn" data-tab="events" href="#/calendar"><span class="the">The </span>Calendar</a>
   <a class="tab-btn" data-tab="clubs" href="#/clubs"><span class="the">The </span>Clubs</a>
-  <a class="tab-btn" data-tab="squads" href="#/squads"><span class="the">The </span>Squads</a>
   <a class="tab-btn" data-tab="resources" href="#/resources"><span class="the">The </span>Directory</a>
   <div class="top-search-wrap" id="globalSearchShell" style="display:none;">
     <div class="top-search-shell">
@@ -1483,7 +1478,7 @@ let state = {
   cmAdminAllMembers:null, cmAdminAllUsers:null, cmAdminEditingId:null, cmAdminEditingClub:null, clubsLoginPickerOpen:false, fallQuickLogin:false,
   clubsMyClubsPickerOpen:false, cmSessionClubs:[],
   availClubId:null, availYear:today.getFullYear(), availMonth:today.getMonth(), availDays:{}, availLoadedFor:null, availLoading:false, availError:'', availDirty:false, availSaving:false, availResave:false, availEditDate:null, availStatus:'', availWelcome:'', clubsNotice:'', availEditing:false, ideasClubId:null, ideas:null, ideasError:'', ideasLoading:false, ideasStatus:'', ideasRenaming:false,
-  mySquads:[], squadPending:[], squadReqError:'', squadAdmin:null, squadAdminLoading:false, eavClub:'mine', eavCache:{}, eavInflight:{}, pushRegistered:false, phoneConfirmed:true, myPhone:'', ideaAvail:null, ideaAvailOwner:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
+  stayInfo:null, stayLoading:false, stayStatus:null, eavClub:'mine', eavCache:{}, eavInflight:{}, pushRegistered:false, phoneConfirmed:true, myPhone:'', ideaAvail:null, ideaAvailOwner:null, ideaAvailNo:{}, ideaAvailSubmitted:false, iavUnsetWarned:false, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'', ideaAvailStatus:'', ideaAvailSaving:false, ideaAvailDirty:false, ideaAvailResave:false,
   publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
   myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', cmAdminJoinRequests:null, clubsLoginPrefill:false, cmAdminEventSugs:null, cmAdminResSugs:null, cmAdminMemberQuery:'', cmAdminMemberSort:'alpha',
   ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{}, iavEditing:false,
@@ -1502,7 +1497,6 @@ const introText = {
   trips: "Women-friendly trips, retreats, and group travel beyond the GTA.",
   mosqueprograms: "Mosque events, prayers, classes, and community gatherings.",
   clubs: "Special-interest clubs the community runs together — sign up to join one.",
-  squads: "Smaller crews built around one regular thing — find yours.",
   resources: "A directory of Muslim women-owned and Muslim-supporting resources across the GTA.",
   home: "",
   travel: "Women-friendly trips, retreats, and group travel beyond the GTA.",
@@ -2578,8 +2572,8 @@ function renderHomescreenSlot(){
 }
 
 // Contribution pills above the footer: a pink "Submit an event" and an "Add a resource" on every page EXCEPT
-// the Clubs and Squads areas (and the two submit pages themselves).
-const NO_PILL_TABS = ['admin','clubs','squads','eventform','clubideas','clubmembers','clubstart','clubjoin','fallsignup','submitevent','submitresource'];
+// the Clubs area (and the two submit pages themselves).
+const NO_PILL_TABS = ['admin','clubs','stay','eventform','clubideas','clubmembers','clubstart','clubjoin','fallsignup','submitevent','submitresource'];
 function renderPageCta(){
   const slot = document.getElementById('pageCtaSlot');
   if(!slot) return;
@@ -2951,129 +2945,83 @@ function setupFallSignupForm(){
   });
 }
 
-const SQUADS = [
-  { id:'quran', logo:'assets/logos/squad-quran.png',     emoji:'📖', colour:'#e1eaf1', title:'Quran',     desc:'Recite, review and reflect together — a consistent circle for staying close to the Quran.' },
-  { id:'badminton', logo:'assets/logos/squad-badminton.png', emoji:'🏸', colour:'#eedcb1', title:'Badminton', desc:'Casual badminton plans, drop-ins, and games for girls who want to play, improve, and actually find people to play with.' },
-  { id:'cowork', logo:'assets/logos/squad-cowork.png',    emoji:'💻', colour:'#f6e3e9', title:'Cowork',    desc:'Casual co-working sessions for getting out of the house, getting things done, and having company while you work or study.' },
-  { id:'steps', logo:'assets/logos/squad-steps.png',     emoji:'👟', colour:'#f8efdb', title:'Steps',     desc:'Casual walks, step challenges, and meetups for anyone who wants a reason to compete in steps count.' },
-];
-function squadStatus(id){
-  const mine = (state.mySquads || []).find(x => x.id === id);
-  if(mine) return { kind:'in', link: mine.link || '' };
-  if((state.squadPending || []).includes(id)) return { kind:'pending' };
-  return { kind: getCmSession() ? 'can' : 'anon' };
-}
-function squadCardHtml(q){
-  const st = squadStatus(q.id);
-  const btn = 'min-height:46px;padding:10px 20px;border-radius:999px;border:2px solid #76220b;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;';
-  const action = st.kind === 'in'
-    ? `<div style="background:#d9f0d8;color:#2a7a4a;border-radius:14px;padding:10px 12px;font-weight:700;font-size:14px;">✅ You're already in this squad</div>
-       ${st.link ? `<a href="${escapeCm(st.link)}" target="_blank" rel="noopener" style="${btn}display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;background:#25D366;color:#fff;text-decoration:none;">💬 Open your private group</a>` : `<p style="font-size:12px;margin:8px 0 0;opacity:.85;">Your private invite link is coming — an admin will add it soon.</p>`}`
-    : st.kind === 'pending'
-      ? `<div style="background:#fff3cf;color:#6b5210;border-radius:14px;padding:10px 12px;font-weight:700;font-size:14px;">⏳ Request sent — waiting for approval</div>`
-      : st.kind === 'can'
-        ? `<button type="button" class="squad-request-btn" data-squad-id="${escapeCm(q.id)}" style="${btn}background:#ce8491;color:#fff;">Request to join</button>`
-        : ''; // logged out: no per-card button — the Log In / Sign Up buttons at the top of the Squads page are the way in
-  return `<div class="panel-card squad-card" style="background:#fbf0ee;color:#76220b;border:2px solid #ce8491;box-shadow:3px 3px 0 #ce8491;">
-    <div class="panel-top" style="flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;">
-      <div class="monogram" style="background:#fbf0ee;font-size:26px;">${q.logo ? `<img src="${q.logo}" alt="${escapeCm(q.title)} logo" style="background:#fbf0ee;">` : q.emoji}</div>
-      <div><h4 style="text-align:center;color:#76220b;">${escapeCm(q.title)}</h4></div>
-    </div>
-    <div class="panel-desc" style="color:#76220b;">${escapeCm(q.desc)}</div>
-    <div class="squad-action" style="text-align:center;">${action}</div>
-  </div>`;
-}
-
-
-// ---- Squads: member actions + a SEPARATE admin panel (requests, private invite links, members) ----
-async function squadRequest(id){
-  const session = getCmSession(); if(!session) return;
-  state.squadReqError = '';
-  if(!(state.squadPending || []).includes(id)) state.squadPending = (state.squadPending || []).concat(id); // show 'request sent' straight away
-  render();
-  try { await cmApiRaw('/api/squads/' + encodeURIComponent(id) + '/request', { method:'POST', headers:{ 'Authorization':'Bearer ' + session.token } }); }
-  catch(err){ state.squadPending = (state.squadPending || []).filter(x => x !== id); state.squadReqError = err.message; }
-  render();
-}
-async function loadSquadAdmin(){
-  if(state.squadAdminLoading) return;
-  state.squadAdminLoading = true;
-  const get = async u => { try { const r = await fetch(u, { credentials:'include' }); return r.ok ? await r.json() : null; } catch { return null; } };
-  const [rq, sq] = await Promise.all([get('/api/admin/squad-requests'), get('/api/admin/squads')]);
-  state.squadAdmin = { requests: ((rq && rq.requests) || []).filter(r => !admNotif.dismissed.has(`q:${r.squadId}:${r.userId}`)), squads: (sq && sq.squads) || [] };
-  state.squadAdminLoading = false;
-  if(state.tab === 'squads' || state.tab === 'admin') render();
-}
-function squadAdminHtml(){
-  const d = state.squadAdmin;
-  if(!d){ if(!state.squadAdminLoading) loadSquadAdmin(); return '<div class="cp-box" style="margin-top:20px;"><p class="av-msg">Loading squad admin…</p></div>'; }
-  const reqs = d.requests.length ? d.requests.map(r => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
-      <span><button type="button" class="adm-profile-link" data-user-id="${escapeCm(r.userId)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(r.name)}</button> <span style="color:#776867;font-size:12px;">${escapeCm(r.username)}</span><br>wants to join the <strong>${escapeCm(r.squadTitle)}</strong> squad</span>
-      <span style="display:flex;gap:6px;"><button type="button" class="club-guide-btn squad-act" data-act="accept" data-squad-id="${escapeCm(r.squadId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:#d9f0d8;text-align:center;">Accept</button><button type="button" class="club-guide-btn squad-act" data-act="decline" data-squad-id="${escapeCm(r.squadId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:#f9dcdc;text-align:center;">Decline</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No squad requests waiting.</p>';
-  const squads = d.squads.map(q => `<div style="padding:12px 0;border-top:1px solid rgba(0,0,0,0.1);">
-      <strong>${escapeCm(q.title)}</strong> <span style="color:#776867;font-size:12px;">· ${q.members.length} member${q.members.length === 1 ? '' : 's'}</span>
-      <div style="display:flex;gap:6px;margin:8px 0;"><input class="squad-link-input" data-squad-id="${escapeCm(q.id)}" type="url" placeholder="Private WhatsApp invite link (https://chat.whatsapp.com/…)" value="${escapeCm(q.link)}" style="flex:1;min-width:0;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;"><button type="button" class="club-guide-btn squad-link-save" data-squad-id="${escapeCm(q.id)}" style="padding:8px 14px;text-align:center;">Save</button></div>
-      <div style="font-size:13px;line-height:2;">${q.members.length ? q.members.map(m => `<span style="display:inline-flex;align-items:center;gap:4px;background:#f2d8d7;border-radius:999px;padding:2px 4px 2px 10px;margin:0 6px 6px 0;"><button type="button" class="adm-profile-link" data-user-id="${escapeCm(m.id)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;cursor:pointer;color:inherit;">${escapeCm(m.name)}</button><button type="button" class="squad-remove" data-squad-id="${escapeCm(q.id)}" data-user-id="${escapeCm(m.id)}" aria-label="Remove ${escapeCm(m.name)}" title="Remove from this squad" style="border:none;background:none;cursor:pointer;color:#76220b;font-size:16px;padding:2px 6px;">×</button></span>`).join('') : '<span style="color:#776867;">No members yet</span>'}</div>
-      <div class="squad-link-msg" data-squad-id="${escapeCm(q.id)}" style="font-size:12px;min-height:16px;"></div></div>`).join('');
-  return `<div class="cp-box" style="margin-top:22px;"><h3 style="margin:0 0 6px;">Squad admin</h3>
-    <p style="font-size:12px;color:#776867;margin:0 0 8px;">Separate from the clubs. Same accounts — a person can be in clubs and squads at once.</p>
-    <h4 style="margin:10px 0 4px;">Requests${d.requests.length ? ` (${d.requests.length})` : ''}</h4>${reqs}
-    <h4 style="margin:16px 0 0;">Squads &amp; private invite links</h4>${squads}</div>`;
-}
-// Hide the request's row THIS instant (a full re-render of the admin page with hundreds of profiles can take a moment), then re-render a tick later.
 function admHideRequestRows(attrs){
   const q = Object.keys(attrs).map(k => `[data-${k}="${String(attrs[k]).replace(/"/g, '\\"')}"]`).join('');
   document.querySelectorAll('button' + q).forEach(b => { const row = b.closest('div'); if(row) row.style.display = 'none'; });
 }
-async function admAnswerSquad(squadId, userId, action){
-  const key = `q:${squadId}:${userId}`;
-  const req = (admNotif.items.find(i => i.id === key) || {}).r || ((state.squadAdmin && state.squadAdmin.requests) || []).find(r => r.squadId === squadId && r.userId === userId);
-  const sqLink = ((state.squadAdmin && state.squadAdmin.squads || []).find(q => q.id === squadId) || {}).link || ''; // read BEFORE the list is reloaded
-  // INSTANT: the row disappears the moment you tap; the server call happens in the background and the row comes back only if it fails.
-  admHideRequestRows({ 'squad-id': squadId, 'user-id': userId });
-  const keepItems = admNotif.items, keepSquadReqs = state.squadAdmin ? state.squadAdmin.requests : null;
-  admNotif.dismissed.add(key);
-  admNotif.items = admNotif.items.filter(i => i.id !== key);
-  if(state.squadAdmin) state.squadAdmin.requests = state.squadAdmin.requests.filter(r => !(r.squadId === squadId && r.userId === userId));
-  admUpdateBell(); if(admNotif.panel) admRenderPanel();
-  setTimeout(() => { if(state.tab === 'squads' || state.tab === 'admin') render(); }, 30);
-  try {
-    const res = await fetch('/api/admin/squad-requests/' + encodeURIComponent(squadId) + '/' + encodeURIComponent(userId) + '/' + action, { method:'POST', credentials:'include' });
-    const data = await res.json().catch(() => ({}));
-    if(!res.ok && res.status !== 404) throw new Error(data.error || 'Could not update that request');
-    if(action === 'accept'){ state.squadAdmin = null; if(state.tab === 'squads') render(); } // member list changed: reload
-    admToast(`${action === 'accept' ? '✅ Accepted' : '❌ Declined'}${req ? ' · ' + escapeCm(req.name) + ' · ' + escapeCm(req.squadTitle) : ''} — they'll see it next time they open the app.`);
-    if(req && action === 'accept') admWaPrompt(`✅ ${req.name} joined ${req.squadTitle}!`, req.name, req.phone, waMsg('squadAccept', req.name, '', '', { link: sqLink, squad: req.squadTitle }));
-  } catch(err){
-    admNotif.dismissed.delete(key); admNotif.items = keepItems; if(state.squadAdmin && keepSquadReqs) state.squadAdmin.requests = keepSquadReqs;
-    admUpdateBell(); if(admNotif.panel) admRenderPanel(); if(state.tab === 'squads') render();
-    admToast('⚠️ ' + escapeCm(err.message) + ' — the request is back in the list.');
-  }
+
+/* ---- Squads became clubs: existing squad members log in on #/stay and choose which of the four new clubs to stay in / join ---- */
+async function stayLoad(){
+  if(state.stayLoading || !getCmSession()) return;
+  state.stayLoading = true;
+  try { state.stayInfo = await cmApiRaw('/api/me/stay-clubs', { headers: ideaHeaders() }); state.stayErr = ''; }
+  catch(err){ state.stayErr = err.message; if(/log in/i.test(err.message)){ try { localStorage.removeItem(cmSessionKey()); } catch {} } }
+  state.stayLoading = false;
+  if(state.tab === 'stay') render();
 }
-function wireSquadsPage(){
-  const sess = getCmSession();
-  if(sess && state.meLoadedFor !== sess.token) refreshMe();
-  document.querySelectorAll('.squad-request-btn').forEach(b => b.addEventListener('click', () => { if(!confirm('Only request this squad if you genuinely want to join it. Send the request?')) return; b.disabled = true; squadRequest(b.dataset.squadId); }));
-  document.querySelectorAll('.squad-login-btn').forEach(b => b.addEventListener('click', () => goLogin()));
-  const topLogin = document.getElementById('squadsLoginTop'); if(topLogin) topLogin.addEventListener('click', () => goLogin());
-  document.querySelectorAll('.squad-act').forEach(b => b.addEventListener('click', () => { b.disabled = true; admAnswerSquad(b.dataset.squadId, b.dataset.userId, b.dataset.act); }));
-  document.querySelectorAll('.adm-profile-link').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.userId)));
-  document.querySelectorAll('.squad-link-save').forEach(b => b.addEventListener('click', async () => {
-    const id = b.dataset.squadId, input = document.querySelector('.squad-link-input[data-squad-id="' + id + '"]'), msg = document.querySelector('.squad-link-msg[data-squad-id="' + id + '"]');
-    msg.style.color = '#373d3b'; msg.textContent = 'Saving…';
+function stayPageHtml(){
+  const wrapStyle = 'max-width:520px;margin:0 auto;';
+  const head = `<h3 class="clubs-popular-title">🪁 SQUADS ARE NOW CLUBS</h3>
+    <p style="${wrapStyle}text-align:center;margin:0 0 12px;line-height:1.5;">We've turned the squads into full clubs, so everything — events, calendar, availability — now lives in one place. Log in and tell us which of them you'd like to stay in or join 💛</p>`;
+  if(!getCmSession()){
+    return `${head}<div class="panel-card" style="${wrapStyle}padding:16px;">
+      <p style="font-size:14px;margin:0 0 10px;">Log in with your username and PIN first.</p>
+      <div id="stayLoginErr" style="color:#c00;font-size:13px;min-height:16px;margin-bottom:6px;"></div>
+      <input id="stayUser" placeholder="Username" autocapitalize="none" autocomplete="username" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;margin-bottom:8px;">
+      <input id="stayPin" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" placeholder="PIN" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;margin-bottom:10px;">
+      <button type="button" class="club-guide-btn" id="stayLoginBtn" style="width:100%;background:var(--brand-blush);">Log in</button>
+      <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;">Forgot your PIN? Message us and we'll reset it.</p></div>`;
+  }
+  if(!state.stayInfo){ if(!state.stayLoading) stayLoad(); return `${head}<p class="av-msg" style="text-align:center;">${state.stayErr ? escapeCm(state.stayErr) : 'Loading…'}</p>`; }
+  const d = state.stayInfo;
+  if(state.stayDone){
+    const joined = state.stayDone.joined || [], req = state.stayDone.requested || [];
+    return `<h3 class="clubs-popular-title">✅ ALL SET</h3><div class="panel-card" style="${wrapStyle}padding:16px;line-height:1.5;">
+      ${joined.length ? `<p style="margin:0 0 8px;"><strong>You're in:</strong></p>${joined.map(c => `<p style="margin:0 0 6px;">🏛️ ${escapeCm(c.title)}${c.link ? ` — <a href="${escapeCm(c.link)}" target="_blank" rel="noopener">open the group chat</a>` : ''}</p>`).join('')}` : '<p style="margin:0 0 8px;">You\'re not staying in any of them — no problem, you can always join a club later.</p>'}
+      ${req.length ? `<p style="margin:8px 0 0;">⏳ Your request${req.length > 1 ? 's' : ''} for the new club${req.length > 1 ? 's' : ''} you hadn't joined before ${req.length > 1 ? 'are' : 'is'} waiting for an admin's approval.</p>` : ''}
+      <button type="button" class="club-guide-btn" id="stayHome" style="width:100%;margin-top:14px;">Go to my clubs</button></div>`;
+  }
+  const cards = (d.options || []).map(o => {
+    const on = o.wasIn || o.inClub || o.pending, col = clubCol(o.id);
+    return `<label style="display:flex;align-items:center;gap:12px;padding:12px;margin:0 0 8px;border-radius:14px;border:2px solid ${col.fg};background:${col.bg};cursor:pointer;">
+      <input type="checkbox" class="stay-check" value="${escapeCm(o.id)}" ${on ? 'checked' : ''} style="width:22px;height:22px;flex:none;">
+      <span style="flex:1;font-weight:800;color:${col.fg};font-size:17px;">${escapeCm(o.emoji)} ${escapeCm(o.title)}</span>
+      <span style="font-size:12px;color:${col.fg};">${o.inClub ? 'already in' : o.wasIn ? 'your squad' : o.pending ? 'request sent' : ''}</span></label>`;
+  }).join('');
+  return `${head}<div style="${wrapStyle}">
+    <p style="font-weight:700;margin:0 0 8px;">Hi ${escapeCm(String(d.name || '').split(' ')[0])}! Which of these do you want to stay in / join?</p>
+    ${cards || '<p class="av-msg">The new clubs aren\'t set up yet — please check back soon.</p>'}
+    <div class="av-waitlist" style="margin:12px 0;line-height:1.5;">📌 There's <strong>no limit</strong> on how many clubs you can be in. Please note that <strong>inactive members who don't communicate in the group will be removed.</strong></div>
+    <div id="stayErr" style="color:#c00;font-size:13px;min-height:16px;margin-bottom:6px;">${escapeCm(state.stayErr || '')}</div>
+    <button type="button" class="club-guide-btn" id="staySubmit" style="width:100%;background:var(--brand-rose);color:#fff;">Confirm my choices</button>
+    <p class="ideas-hint" style="text-align:center;margin:8px 0 0;">Clubs you were already in as a squad are confirmed straight away; any other club you tick goes to an admin for approval.</p></div>`;
+}
+function wireStayPage(){
+  const lg = document.getElementById('stayLoginBtn');
+  if(lg){
+    const go = async () => {
+      const username = document.getElementById('stayUser').value.trim(), pin = document.getElementById('stayPin').value.trim(), err = document.getElementById('stayLoginErr');
+      if(!username || !pin){ err.textContent = 'Enter your username and PIN.'; return; }
+      lg.disabled = true;
+      try { const data = await cmApiRaw('/api/login', { method:'POST', body: JSON.stringify({ username, pin }) }); setCmSession(data); availReset(); state.cmSessionClubs = data.clubs || []; state.stayInfo = null; state.stayErr = ''; render(); }
+      catch(e){ lg.disabled = false; err.textContent = e.message; }
+    };
+    lg.addEventListener('click', go);
+    document.getElementById('stayPin').addEventListener('keydown', e => { if(e.key === 'Enter') go(); });
+    return;
+  }
+  const home = document.getElementById('stayHome'); if(home) home.addEventListener('click', () => { state.stayDone = null; state.stayDue = false; state.clubsPage = ''; goToTab('clubs'); });
+  const sub = document.getElementById('staySubmit');
+  if(sub) sub.addEventListener('click', async () => {
+    sub.disabled = true; state.stayErr = '';
     try {
-      const res = await fetch('/api/admin/squads/' + encodeURIComponent(id), { method:'PUT', headers:{ 'Content-Type':'application/json' }, credentials:'include', body: JSON.stringify({ link: input.value }) });
-      const d = await res.json(); if(!res.ok) throw new Error(d.error || 'Could not save');
-      msg.style.color = '#2a7a4a'; msg.textContent = d.link ? '✓ Saved — members of this squad now see this link.' : '✓ Link cleared.';
-      if(state.squadAdmin) state.squadAdmin.squads.forEach(q => { if(q.id === id) q.link = d.link; });
-    } catch(err){ msg.style.color = '#c00'; msg.textContent = err.message; }
-  }));
-  document.querySelectorAll('.squad-remove').forEach(b => b.addEventListener('click', async () => {
-    if(!confirm('Remove this person from the squad?')) return;
-    b.disabled = true;
-    await fetch('/api/admin/squads/' + encodeURIComponent(b.dataset.squadId) + '/members/' + encodeURIComponent(b.dataset.userId), { method:'DELETE', credentials:'include' });
-    state.squadAdmin = null; render();
-  }));
+      const clubs = [...document.querySelectorAll('.stay-check:checked')].map(c => c.value);
+      const r = await cmApiRaw('/api/me/stay-clubs', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ clubs }) });
+      state.stayDone = r; state.stayDue = false;
+      const cur = getCmSession(); if(cur){ try { const me = await cmApiRaw('/api/me', { headers: ideaHeaders() }); setCmSession(Object.assign({}, cur, { clubs: me.clubs || cur.clubs })); } catch {} }
+      render();
+    } catch(e){ sub.disabled = false; document.getElementById('stayErr').textContent = e.message; }
+  });
 }
 
 // An event's FORM is its own page (#/form/<id>): the event details, a copyable link, the form, how to pay.
@@ -3088,18 +3036,10 @@ function renderEventFormPage(el){
 function renderDirectory(){
   const el = document.getElementById('directory-view');
   if(state.tab === 'eventform'){ renderEventFormPage(el); return; }
-  if(state.tab === 'squads'){
+  if(state.tab === 'stay'){
     document.getElementById('resourcePagination').innerHTML = '';
-    el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="justify-content:center;gap:14px;margin-bottom:6px;">
-    <button type="button" class="club-guide-btn" id="squadsLoginTop" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;font-size:15px;text-align:center;">Log In</button>
-    <button class="fall-cta-btn join-club-btn" data-hometab="fallsignup" style="flex:0 0 140px;width:140px;aspect-ratio:auto;height:auto;padding:13px 10px;">Sign Up</button>
-    </div>`}<h3 class="clubs-popular-title">THE SQUADS</h3>
-      ${getCmSession() ? `<div class="av-waitlist" style="max-width:520px;margin:-2px auto 12px;text-align:center;">⚠️ <strong>Please only request a squad if you're genuinely interested in joining.</strong> An admin reviews every request and each squad is a small, active group.</div>` : ''}
-      ${getCmSession() ? '<p class="ideas-hint" style="text-align:center;margin:0 0 12px;">An admin approves it and you get that squad\'s private invite link right here.</p>' : ''}
-      ${state.squadReqError ? `<p style="color:#c00;text-align:center;font-size:13px;">${escapeCm(state.squadReqError)}</p>` : ''}
-      <div class="clubs-grid squads-grid">${SQUADS.map(q => squadCardHtml(q)).join('')}</div>
-      `;
-    wireSquadsPage();
+    el.innerHTML = stayPageHtml();
+    wireStayPage();
     return;
   }
   if(state.tab === 'admin'){
@@ -3112,7 +3052,6 @@ function renderDirectory(){
     if(!state.cmAdminOpen) openClubAdmin();
     el.innerHTML = renderClubAdminPanel();
     wireClubAdminPanel();
-    wireSquadsPage();
     return;
   }
   if(state.tab === 'travel'){
@@ -5083,7 +5022,7 @@ async function saveAboutEdit(){
 /* ============================================================
    MAIN RENDER
    ============================================================ */
-const DIRECTORY_TABS = ['admin','clubs','squads','eventform','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','submitevent','submitresource','clubmembers','clubideas'];
+const DIRECTORY_TABS = ['admin','clubs','stay','eventform','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','submitevent','submitresource','clubmembers','clubideas'];
 
 /* ============================================================
    CLUB MEMBERS SCHEDULE (private per-club sign-in + per-event availability)
@@ -5109,7 +5048,7 @@ function resetUserScopedState(){
   Object.assign(state, {
     ideaAvail:null, ideaAvailNo:{}, ideaAvailSubmitted:false, ideaAvailOwner:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'',
     ideaAvailStatus:'', ideaAvailDirty:false, ideaAvailSaving:false, ideaAvailResave:false, iavEditing:false, iavUnsetWarned:false, availNagShown:false,
-    mySquads:[], squadPending:[], squadReqError:'', eavClub:'mine', eavCache:{}, eavInflight:{}, ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{},
+    stayInfo:null, stayLoading:false, eavClub:'mine', eavCache:{}, eavInflight:{}, ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{},
     pushRegistered:false, phoneConfirmed:true, myPhone:'', myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
     ideas:null, ideasError:'', ideasStatus:'',
   });
@@ -6754,11 +6693,7 @@ function admToastLite(text){
 
 // "You're in!" / "not approved" messages from the admin, shown once and then cleared on the server.
 function showMemberNotices(notices, token){
-  const lines = notices.map(n => n.type === 'squad-accepted'
-    ? `<p style="margin:0 0 10px;font-size:16px;">🎉 <strong>You're in the ${escapeCm(n.squadTitle)} squad!</strong> Open the <strong>Squads</strong> tab for your private invite link.</p>`
-    : n.type === 'squad-declined'
-      ? `<p style="margin:0 0 10px;font-size:16px;">Your request for the <strong>${escapeCm(n.squadTitle)}</strong> squad wasn't approved this time.</p>`
-    : n.type === 'remind'
+  const lines = notices.map(n => n.type === 'remind'
     ? `<p style="margin:0 0 10px;font-size:16px;">📅 <strong>Please add your availability.</strong> It only takes a minute and helps us pick times that work for everyone. Anything you leave blank counts as "available, but not preferred".</p><button type="button" class="club-guide-btn" id="noticeAddAvail" style="width:100%;min-height:46px;background:#d9f0d8;text-align:center;margin-bottom:8px;">Add my availability</button>`
     : n.type === 'accepted'
     ? `<p style="margin:0 0 10px;font-size:16px;">🎉 <strong>You're in!</strong> Your request to join <strong>${escapeCm(n.clubTitle)}</strong> was approved.</p>`
@@ -6781,14 +6716,14 @@ async function refreshMe(){
     state.myPending = me.pending || [];
     state.pushRegistered = !!me.push; state.notifOff = me.notifOff || [];
     state.phoneConfirmed = !!me.phoneConfirmed; state.myPhone = me.phone || '';
-    state.mySquads = me.squads || []; state.squadPending = me.squadPending || [];
+    state.stayDue = !!(me.stayClubs && me.stayClubs.length && !me.stayDone);
     setCmSession(Object.assign({}, cur, { clubs: me.clubs || [], waitlist: me.waitlist || [] }));
     if(changed) state.publicIdeasAll = null;
     if(Array.isArray(me.notices) && me.notices.length) showMemberNotices(me.notices, cur.token);
   } catch(err){ /* e.g. expired session — keep what's cached, don't retry in a loop */ }
   state.meLoadedFor = session.token;
   state.meLoading = false;
-  if(state.tab === 'clubs' || state.tab === 'squads') render();
+  if(state.tab === 'clubs' || state.tab === 'stay') render();
   maybeShowPushGate();
 }
 async function requestToJoinClub(clubId){
@@ -6877,7 +6812,7 @@ function openSettingsPopup(){
     const denied = Notification.permission === 'denied', on = state.pushRegistered && Notification.permission === 'granted';
     box.innerHTML = `<p style="margin:0 0 8px;">${on ? '✅ Notifications are <strong>on</strong> for this account.' : denied ? '🚫 Notifications are blocked in your browser settings — allow them there, then come back.' : '🔕 Notifications are <strong>off</strong>.'}</p>
       ${denied ? '' : `<button type="button" id="stNotifBtn" style="${pill}">${on ? '🔕 Turn notifications off' : '🔔 Turn notifications on'}</button>`}<div id="stNotifMsg" style="font-size:13px;min-height:18px;margin-top:4px;color:#c00;"></div>`;
-    const CATS = [['reminders', '⏰ Availability reminders'], ['announcements', '📣 Announcements (new availability period, news)'], ['clubs', '🏛️ Club updates (requests approved or declined)'], ['squads', '🪁 Squad updates'], ['events', '📅 New club events']];
+    const CATS = [['reminders', '⏰ Availability reminders'], ['announcements', '📣 Announcements (new availability period, news)'], ['clubs', '🏛️ Club updates (requests approved or declined)'], ['events', '📅 New club events']];
     const offSet = new Set(state.notifOff || []);
     box.insertAdjacentHTML('beforeend', `<p class="ideas-hint" style="text-align:left;margin:12px 0 4px;">Choose what you hear about:</p>${CATS.map(([k, l]) => `<label style="display:flex;align-items:center;gap:10px;padding:7px 0;font-size:14px;"><input type="checkbox" class="stCat" data-cat="${k}" ${offSet.has(k) ? '' : 'checked'} style="width:20px;height:20px;"> ${l}</label>`).join('')}<div id="stCatMsg" style="font-size:12px;min-height:16px;color:#2a7a4a;"></div>`);
     box.querySelectorAll('.stCat').forEach(c => c.addEventListener('change', async () => {
@@ -7006,7 +6941,8 @@ function renderMyClubsSectionHtml(){
   let annBanner = '';
   { const an = state.availAnnounce; let seen = ''; try { seen = localStorage.getItem('availAnn') || ''; } catch {}
     if(an && an.id !== seen) annBanner = `<div class="av-waitlist" style="max-width:520px;margin:0 auto 14px;text-align:center;">📣 ${escapeCm(an.text)}${state.availDeadline ? ` <strong>Deadline: ${escapeCm(new Date(state.availDeadline + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' }))}</strong>` : ''} <button type="button" class="club-guide-btn" data-clubspage="avail" data-annid="${escapeCm(an.id)}" style="padding:6px 14px;font-size:13px;margin:6px 4px 0;">Add my availability</button><button type="button" class="av-link" id="availAnnDismiss" data-annid="${escapeCm(an.id)}" style="margin-top:6px;">Dismiss</button></div>`; }
-  return `${topRow}${pendingBanner}${annBanner}
+  const stayBanner = state.stayDue ? `<div class="av-waitlist" style="max-width:520px;margin:0 auto 14px;text-align:center;">🪁 Squads are now clubs! <button type="button" class="club-guide-btn" onclick="location.hash='#/stay'" style="margin-top:6px;">Choose which to stay in →</button></div>` : '';
+  return `${topRow}${pendingBanner}${stayBanner}${annBanner}
     <div class="clubs-big-btns">
       ${bigBtn('avail', '📅', 'Availability', 'Add yours &amp; see everyone\'s')}
       ${bigBtn('vote', '🗳️', 'Vote', myClubs.length > 1 ? 'All your clubs\' ideas in one place' : 'Vote on ideas for ' + escapeCm(myClubs[0].title))}
@@ -9086,8 +9022,6 @@ function admProfileEdit(wrap, u){
     <input id="apePin" type="password" autocomplete="new-password" inputmode="numeric" maxlength="4" placeholder="New 4-digit PIN (leave blank to keep)" style="${inp}">
     <p style="font-size:12px;color:var(--muted);margin:2px 0 4px;">Clubs:</p>
     <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:8px;">${adminClubs().map(c => `<label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:38px;"><input type="checkbox" class="ape-club" value="${escapeCm(c.id)}" ${mine.has(c.id) ? 'checked' : ''} style="width:20px;height:20px;"> ${escapeCm(c.title)}</label>`).join('')}</div>
-    ${(state.cmAdminLoggedIn === true && Array.isArray(u.squads)) ? `<p style="font-size:12px;color:var(--muted);margin:2px 0 4px;">Squads:</p>
-    <div style="display:flex;flex-direction:column;gap:2px;margin-bottom:8px;">${SQUADS.map(q => `<label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:38px;"><input type="checkbox" class="ape-squad" value="${escapeCm(q.id)}" ${u.squads.includes(q.id) ? 'checked' : ''} style="width:20px;height:20px;"> ${escapeCm(q.title)}</label>`).join('')}</div>` : ''}
     <div id="apeStatus" style="font-size:13px;color:#c00;min-height:18px;margin-bottom:6px;" aria-live="polite"></div>
     <div style="display:flex;gap:8px;margin-bottom:8px;">${btn('apeSave', '#d9f0d8', 'var(--charcoal)', 'Save')}${btn('apeCancel', 'transparent', 'var(--charcoal)', 'Cancel')}</div>
     <div style="display:flex;gap:8px;margin-bottom:8px;">${btn('apeArchive', '#fff3cf', 'var(--charcoal)', admIsArchived(u) ? '♻️ Restore from archive' : '📦 Archive')}${btn('apeReset', '#fff3cf', 'var(--charcoal)', '🔑 Reset PIN')}</div>
@@ -9113,7 +9047,6 @@ function admProfileEdit(wrap, u){
       // the club id in this URL is ignored by the server — it edits the person's global identity
       await j('/api/admin/club-members/club-cuisine/' + encodeURIComponent(u.id), jsonOpts('PUT', body));
       await j('/api/admin/users/' + encodeURIComponent(u.id) + '/clubs', jsonOpts('PUT', { clubs: [...card.querySelectorAll('.ape-club:checked')].map(c => c.value) }));
-      if(card.querySelector('.ape-squad')) await j('/api/admin/users/' + encodeURIComponent(u.id) + '/squads', jsonOpts('PUT', { squads: [...card.querySelectorAll('.ape-squad:checked')].map(c => c.value) })); state.squadAdmin = null;
       await refreshLists();
       wrap.remove(); openAdminProfile(u.id);
     } catch(err){ st.style.color = '#c00'; st.textContent = err.message; }
@@ -9159,7 +9092,6 @@ async function openAdminProfile(userId){
         ${u.form.lead ? `<div><strong>Interested in leading:</strong> ${escapeCm(u.form.lead)}</div>` : ''}
         <div style="margin-top:4px;"><strong>Comments:</strong> ${u.form.why ? `<span style="white-space:pre-wrap;">${escapeCm(u.form.why)}</span>` : '<span style="opacity:.7;">none left</span>'}</div>
       </div>` : ''}
-      ${Array.isArray(u.squads) ? row('Squads', u.squads.length ? u.squads.map(id => `<span style="display:inline-block;margin:2px 0 2px 4px;padding:3px 10px;border-radius:999px;background:#fbf0ee;color:#76220b;border:1.5px solid #ce8491;font-size:12px;font-weight:700;">${escapeCm((SQUADS.find(q => q.id === id) || {}).title || id)}</span>`).join('') : '<span style="color:var(--muted);">None</span>') : ''}
       ${(u.pending || []).length ? row('Requested', tags(u.pending)) : ''}
       ${(u.waitlist || []).filter(c => !(u.clubs || []).includes(c)).length ? row('Standby for', tags(u.waitlist.filter(c => !(u.clubs || []).includes(c)))) : ''}
       <p class="ideas-hint" style="margin:10px 0 0;">Sign-in times only start being recorded from now, so older members show "Not recorded yet" until they next sign in.</p>
@@ -9211,7 +9143,7 @@ function pushAdminHtml(){
       <option value="on">Everyone with notifications on (${on.length})</option>
       <option value="noavail">Haven't added availability yet</option>${clubOpts}
     </select>
-    <select id="pushCat" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;background:#fff;margin-bottom:8px;" title="People can turn each kind off in Settings"><option value="reminders">Kind: ⏰ Reminder</option><option value="announcements" selected>Kind: 📣 Announcement</option><option value="events">Kind: 📅 Event</option><option value="clubs">Kind: 🏛️ Club update</option><option value="squads">Kind: 🪁 Squad update</option></select>
+    <select id="pushCat" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;background:#fff;margin-bottom:8px;" title="People can turn each kind off in Settings"><option value="reminders">Kind: ⏰ Reminder</option><option value="announcements" selected>Kind: 📣 Announcement</option><option value="events">Kind: 📅 Event</option><option value="clubs">Kind: 🏛️ Club update</option></select>
     <input id="pushTitle" maxlength="80" placeholder="Title" value="📅 Add your availability" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;margin-bottom:8px;box-sizing:border-box;">
     <textarea id="pushBody" maxlength="240" rows="2" placeholder="Message" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;margin-bottom:8px;box-sizing:border-box;">Please add your availability so we can pick times that work for everyone.</textarea>
     <div id="pushLastLine" style="margin-bottom:8px;">${admLastRemindLine('push')}</div>
@@ -9302,20 +9234,20 @@ const WA_DEFAULTS = {
   remind: "Hi {first}! Quick reminder to add your availability on 4DASISTAS so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs",
   notif: "Hi {first}! Please open 4DASISTAS from your Home Screen and tap Allow notifications so we can send you reminders 💛 4dasistas.ca",
   joinAccept: "Hi {first}! 🎉 You're in — welcome to the {club} Club on 4DASISTAS! 💛\n\nJoin our group chat here: {link}\n\nA few good-to-knows 🌸\n• Aim to join at least 2 club activities a month (more if you're free!)\n• Use the group chat for plans, spontaneous ideas and \"who's in?\" messages\n• Bigger activities are usually 3–10 people — if it's full, spots are first come, first served\n• Plus-ones are welcome when there's space\n• Be welcoming to everyone — no cliques, exclusion, pressure or gatekeeping\n• If you become inactive we may free up your spot — you're always welcome back later\n\nPlease introduce yourself in the chat 👋 Your name, what you're into, and what you'd love to do with the club! Also add your availability and vote on ideas at 4dasistas.ca",
-  squadAccept: "Hi {first}! 🎉 Welcome to the {squad} squad on 4DASISTAS! 💛\n\nJoin the squad chat here: {link}\n\nThis is a casual, open group — not a full club 🌸\n• Drop a message whenever you're up for it — no pressure to reply every time, just genuine \"let's go\" energy\n• Keep it welcoming, respectful and positive — no negativity, cliques or excluding others; every level is welcome\n• Respect everyone's privacy — no screenshots or sharing personal info/photos outside the group without permission\n• Inactive members may be removed to keep spots open for others\n\nPlease introduce yourself in the chat 👋 Your name and what you're hoping to get out of the squad!",
   newPeriod: "Hi {first}! 🌸 A new availability period is open: {club}. Please add yours on 4DASISTAS{deadline} so we can pick times that work for everyone 💛 4dasistas.ca/#/clubs/availability",
   welcome: "Hi {first}! 🌸 Welcome to 4DASISTAS — we're so happy you're here! Log in with your username and PIN at 4dasistas.ca, add your availability, and say hi in your club 💛",
+  stayRemind: "Hi {first}! 🌸 The squads are now full clubs on 4DASISTAS! Please log in here and tell us which ones you want to stay in: {link}\n\nThere's no limit on how many clubs you can join — but inactive members who don't communicate in the group will be removed 💛",
   eventRemind: "Hi {first}! 🌸 Friendly reminder about {event} on {date}{time}{place} — we're looking forward to seeing you! 💛 4dasistas.ca/#/clubs",
   payRemind: "Hi {first}! 💳 A gentle reminder that your payment for {event} ({amount}) is still outstanding. Thank you! 💛",
   joinDecline: "Hi {first}, thanks for requesting the {club} club on 4DASISTAS. We couldn't approve it this time — message us if you have questions.",
 };
 function waMsg(key, name, club, deadline, extra){
   let t = (state.waTemplates && state.waTemplates[key]) || WA_DEFAULTS[key];
-  const link = (extra && extra.link) || '', squad = (extra && extra.squad) || '';
+  const link = (extra && extra.link) || '';
   if(!link) t = t.split('\n').filter(l => !l.includes('{link}')).join('\n').replace(/\n{3,}/g, '\n\n'); // no group link on file → drop that line
   const first = String(name || '').trim().split(/\s+/)[0] || 'there';
   const dl = deadline ? ' by ' + new Date(deadline + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric' }) : '';
-  return t.replace(/\{first\}/g, first).replace(/\{name\}/g, String(name || '')).replace(/\{club\}/g, club || 'the').replace(/\{squad\}/g, squad).replace(/\{link\}/g, link).replace(/\{deadline\}/g, dl);
+  return t.replace(/\{first\}/g, first).replace(/\{name\}/g, String(name || '')).replace(/\{club\}/g, club || 'the').replace(/\{link\}/g, link).replace(/\{deadline\}/g, dl);
 }
 // Per-person event reminders: {event} {date} {time} (" at 6pm") {place} (" at <place>") {amount}
 function waEventMsg(key, name, ev){
@@ -9336,7 +9268,7 @@ function waTemplatesAdminHtml(){
     ${f('welcome', '👋 Welcome a new member', 'The "💬 WhatsApp" buttons on a profile. Use {first} / {name}.')}
     ${f('newPeriod', '🗓️ New availability period', 'Offered when you open a new period. {club} = the dates, {deadline} = " by <day>" (blank if no deadline).')}
     ${f('joinAccept', '✅ Club request accepted — welcome + rules', 'Offered after you accept a club request. {club} = club, {link} = the club\'s WhatsApp group link.')}
-    ${f('squadAccept', '🪁 Squad request accepted — welcome + rules', 'Offered after you accept a squad request. {squad} = squad, {link} = the squad\'s WhatsApp invite link.')}
+    ${f('stayRemind', '🪁 Squads → clubs reminder', 'Sent from “Squads moving to clubs”. {link} = the confirm link.')}
     ${f('eventRemind', '📅 Event reminder (per person)', 'The 💬 button next to each attendee in an event. {event}, {date}, {time}, {place}.')}
     ${f('payRemind', '💳 Payment reminder (per person)', 'The 💳 button next to someone who hasn\'t paid. {event}, {amount}.')}
     ${f('joinDecline', '❌ Club request declined', 'Offered after you decline a join request.')}
@@ -9344,8 +9276,8 @@ function waTemplatesAdminHtml(){
     <span id="waTplStatus" style="font-size:12px;display:block;margin-top:6px;"></span></div>`;
 }
 /* ---- 💬 Send a WhatsApp message: pick the wording, then WHO gets it (one member, a club, a squad, everyone, people in no club) — each person with a number gets their own one-tap button. ---- */
-const WA_SEND = { tpl:'remind', text:null, aud:'club', club:'', squad:'', q:'', sent:{} };
-const WA_SEND_TPLS = [['remind', '⏰ Add your availability'], ['newPeriod', '🗓️ New availability period'], ['welcome', '👋 Welcome a new member'], ['notif', '🔔 Turn on notifications'], ['joinAccept', '✅ Club welcome + rules'], ['squadAccept', '🪁 Squad welcome + rules'], ['custom', '✍️ Write my own']];
+const WA_SEND = { tpl:'remind', text:null, aud:'club', club:'', q:'', sent:{} };
+const WA_SEND_TPLS = [['remind', '⏰ Add your availability'], ['newPeriod', '🗓️ New availability period'], ['welcome', '👋 Welcome a new member'], ['notif', '🔔 Turn on notifications'], ['joinAccept', '✅ Club welcome + rules'], ['custom', '✍️ Write my own']];
 function waSendTemplateText(){
   if(WA_SEND.tpl === 'custom') return '';
   return (state.waTemplates && state.waTemplates[WA_SEND.tpl]) || WA_DEFAULTS[WA_SEND.tpl] || '';
@@ -9357,17 +9289,14 @@ function waSendFill(text, u){
   const dl = state.availDeadline ? ' by ' + new Date(state.availDeadline + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric' }) : '';
   let link = '';
   if(WA_SEND.aud === 'club' && WA_SEND.club) link = (clubsData.find(c => c.id === WA_SEND.club) || {}).signup || '';
-  else if(WA_SEND.aud === 'squad' && WA_SEND.squad) link = (((state.squadAdmin && state.squadAdmin.squads) || []).find(q => q.id === WA_SEND.squad) || {}).link || '';
   let t = String(text);
   if(!link) t = t.split('\n').filter(l => !l.includes('{link}')).join('\n').replace(/\n{3,}/g, '\n\n');
-  const squadName = WA_SEND.aud === 'squad' && WA_SEND.squad ? ((SQUADS.find(q => q.id === WA_SEND.squad) || {}).title || '') : '';
-  return t.replace(/\{first\}/g, first).replace(/\{name\}/g, u.name || '').replace(/\{club\}/g, clubName).replace(/\{squad\}/g, squadName).replace(/\{link\}/g, link).replace(/\{deadline\}/g, dl);
+  return t.replace(/\{first\}/g, first).replace(/\{name\}/g, u.name || '').replace(/\{club\}/g, clubName).replace(/\{link\}/g, link).replace(/\{deadline\}/g, dl);
 }
 function waSendAudience(users){
   const live = users.filter(u => !admIsArchived(u));
   if(WA_SEND.aud === 'one'){ const q = WA_SEND.q.trim().toLowerCase(); return q.length < 2 ? [] : live.filter(u => String(u.name).toLowerCase().includes(q) || String(u.username || '').toLowerCase().includes(q)).slice(0, 12); }
   if(WA_SEND.aud === 'club') return WA_SEND.club ? live.filter(u => (u.clubs || []).includes(WA_SEND.club)) : [];
-  if(WA_SEND.aud === 'squad') return WA_SEND.squad ? live.filter(u => (u.squads || []).includes(WA_SEND.squad)) : [];
   if(WA_SEND.aud === 'noclub') return live.filter(u => !(u.clubs || []).length);
   return live;
 }
@@ -9375,7 +9304,7 @@ function waSendHtml(){
   if(WA_SEND.text === null) WA_SEND.text = waSendTemplateText();
   const sel = 'width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;background:#fff;margin-bottom:8px;';
   const users = Array.isArray(state.cmAdminAllUsers) ? state.cmAdminAllUsers : null;
-  const audOpts = [['club', '🏛️ A club'], ['one', '🙋 One member'], ['squad', '🪁 A squad'], ['noclub', '🆕 People not in a club yet'], ['all', '👥 Everyone']];
+  const audOpts = [['club', '🏛️ A club'], ['one', '🙋 One member'], ['noclub', '🆕 People not in a club yet'], ['all', '👥 Everyone']];
   let list = '';
   if(!users) list = '<p class="av-msg">Loading members…</p>';
   else {
@@ -9392,7 +9321,6 @@ function waSendHtml(){
     <label style="display:block;font-size:12px;font-weight:700;color:#776867;margin-bottom:3px;">2 · Send it to</label>
     <select id="waAud" style="${sel}">${audOpts.map(([k, l]) => `<option value="${k}" ${WA_SEND.aud === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
     ${WA_SEND.aud === 'club' ? `<select id="waClub" style="${sel}"><option value="">Pick a club…</option>${clubsData.map(c => `<option value="${escapeCm(c.id)}" ${WA_SEND.club === c.id ? 'selected' : ''}>${escapeCm(c.title)}</option>`).join('')}</select>` : ''}
-    ${WA_SEND.aud === 'squad' ? `<select id="waSquad" style="${sel}"><option value="">Pick a squad…</option>${SQUADS.map(q => `<option value="${escapeCm(q.id)}" ${WA_SEND.squad === q.id ? 'selected' : ''}>${escapeCm(q.title)}</option>`).join('')}</select>` : ''}
     ${WA_SEND.aud === 'one' ? `<input id="waQ" type="search" placeholder="Search a member by name…" value="${escapeCm(WA_SEND.q)}" autocomplete="off" style="${sel}">` : ''}
     ${list}</div>`;
 }
@@ -9414,7 +9342,6 @@ async function wireWaSend(){
   on('waText', 'input', e => { WA_SEND.text = e.target.value; box.querySelectorAll('.wa-send-go').forEach(a => { const u = (state.cmAdminAllUsers || []).find(x => x.id === a.dataset.uid); if(u) a.href = admWhatsAppLink(u.phone, waSendFill(WA_SEND.text, u)); }); });
   on('waAud', 'change', e => { WA_SEND.aud = e.target.value; WA_SEND.sent = {}; waSendRepaint(); });
   on('waClub', 'change', e => { WA_SEND.club = e.target.value; WA_SEND.sent = {}; waSendRepaint(); });
-  on('waSquad', 'change', e => { WA_SEND.squad = e.target.value; WA_SEND.sent = {}; waSendRepaint(); });
   on('waQ', 'input', e => { WA_SEND.q = e.target.value; waSendRepaint(); });
   box.querySelectorAll('.wa-send-go').forEach(a => a.addEventListener('click', () => { WA_SEND.sent[a.dataset.uid] = true; a.textContent = '✓ Opened'; a.style.background = '#f1f1f1'; }));
   on('waCopyNums', 'click', async () => {
@@ -9488,13 +9415,12 @@ async function admNotifPoll(){
   if(state.cmAdminLoggedIn !== true) return;
   admNotif.lastPoll = Date.now();
   const get = async u => { try { const r = await fetch(u, { credentials:'include' }); return r.ok ? await r.json() : null; } catch { return null; } };
-  const [j, e, rs, sq] = await Promise.all([get('/api/admin/join-requests'), get('/api/admin/event-suggestions'), get('/api/admin/resource-suggestions'), get('/api/admin/squad-requests')]);
-  if(!j && !e && !rs && !sq) return;
+  const [j, e, rs] = await Promise.all([get('/api/admin/join-requests'), get('/api/admin/event-suggestions'), get('/api/admin/resource-suggestions')]);
+  if(!j && !e && !rs) return;
   const items = [];
   ((j && j.requests) || []).forEach(r => items.push({ kind:'join', id:`j:${r.clubId}:${r.userId}`, at:r.at || 0, r }));
   ((e && e.suggestions) || []).forEach(x => items.push({ kind:'event', id:`e:${x.id}`, at:x.at || 0, x }));
   ((rs && rs.suggestions) || []).forEach(x => items.push({ kind:'resource', id:`r:${x.id}`, at:x.at || 0, x }));
-  ((sq && sq.requests) || []).forEach(r => items.push({ kind:'squad', id:`q:${r.squadId}:${r.userId}`, at:r.at || 0, r }));
   const fresh = items.filter(i => !admNotif.dismissed.has(i.id)).sort((a, b) => b.at - a.at);
   const firstPoll = admNotif.known === null;
   const newOnes = firstPoll ? [] : fresh.filter(i => !admNotif.known.has(i.id));
@@ -9510,8 +9436,7 @@ async function admNotifPoll(){
   if(admNotif.panel) admRenderPanel();
   if(newOnes.length){
     const i = newOnes[0];
-    const msg = i.kind === 'squad' ? `🔔 <strong>${escapeCm(i.r.name)}</strong> just requested the <strong>${escapeCm(i.r.squadTitle)}</strong> squad`
-      : i.kind === 'join' ? `🔔 <strong>${escapeCm(i.r.name)}</strong> just requested to join <strong>${escapeCm(i.r.clubTitle)}</strong>`
+    const msg = i.kind === 'join' ? `🔔 <strong>${escapeCm(i.r.name)}</strong> just requested to join <strong>${escapeCm(i.r.clubTitle)}</strong>`
       : i.kind === 'event' ? `🔔 New event submitted: <strong>${escapeCm(i.x.name)}</strong>` : `🔔 New resource submitted: <strong>${escapeCm(i.x.title)}</strong>`;
     admToast(msg + (newOnes.length > 1 ? `<br><span style="opacity:.85">+ ${newOnes.length - 1} more</span>` : '') + '<br><span style="font-size:13px;opacity:.85">Tap to review</span>', admOpenPanel);
   }
@@ -9530,11 +9455,6 @@ function admRenderPanel(){
   const rows = admNotif.items.map(i => {
     const isNew = i.at > admNotif.openedWithSeen;
     const dot = isNew ? '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#d93025;margin-right:6px;"></span>' : '';
-    if(i.kind === 'squad'){
-      const r = i.r;
-      return `<div style="padding:12px 0;border-top:1px solid #0001;">${dot}<button type="button" class="adm-profile-link" data-user-id="${escapeCm(r.userId)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(r.name)}</button> wants to join the <strong>${escapeCm(r.squadTitle)}</strong> squad <span style="font-size:12px;color:var(--muted);">· ${ago(r.at)}</span>
-        <div style="display:flex;gap:8px;margin-top:8px;"><button type="button" class="club-guide-btn adm-squad-act" data-act="accept" data-squad-id="${escapeCm(r.squadId)}" data-user-id="${escapeCm(r.userId)}" style="flex:1;padding:10px;background:#d9f0d8;text-align:center;">✅ Accept</button><button type="button" class="club-guide-btn adm-squad-act" data-act="decline" data-squad-id="${escapeCm(r.squadId)}" data-user-id="${escapeCm(r.userId)}" style="flex:1;padding:10px;background:#f9dcdc;text-align:center;">❌ Decline</button></div></div>`;
-    }
     if(i.kind === 'join'){
       const r = i.r;
       return `<div style="padding:12px 0;border-top:1px solid #0001;">${dot}<button type="button" class="adm-profile-link" data-user-id="${escapeCm(r.userId)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(r.name)}</button> wants to join <strong>${escapeCm(r.clubTitle)}</strong> <span style="font-size:12px;color:var(--muted);">· ${ago(r.at)}</span>
@@ -9548,7 +9468,6 @@ function admRenderPanel(){
     <p class="ideas-hint" style="margin:0 0 6px;text-align:left;">${admNotif.items.length ? 'Join requests and submitted events / resources.' : ''}</p>
     ${rows || '<p class="av-msg">Nothing waiting — you\'re all caught up. 🎉</p>'}`;
   card.querySelectorAll('.adm-profile-link').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.userId)));
-  card.querySelectorAll('.adm-squad-act').forEach(b => b.addEventListener('click', () => { b.disabled = true; admAnswerSquad(b.dataset.squadId, b.dataset.userId, b.dataset.act); }));
   card.querySelectorAll('.adm-join-act').forEach(b => b.addEventListener('click', () => { b.disabled = true; admAnswerJoin(b.dataset.clubId, b.dataset.userId, b.dataset.act); }));
 }
 function admOpenPanel(){
@@ -9894,7 +9813,7 @@ function renderClubAdminPanel(){
   }
   const clubId = state.cmAdminClub;
   const grp = state.admGroup === 'team' ? 'settings' : state.admGroup;
-  const allowedGroups = lead ? ['clubs', 'events', 'profiles'] : ['clubs', 'events', 'squads', 'directory', 'calendar', 'profiles', 'settings'];
+  const allowedGroups = lead ? ['clubs', 'events', 'profiles'] : ['clubs', 'events', 'directory', 'calendar', 'profiles', 'settings'];
   const gsel = allowedGroups.includes(grp) ? grp : 'clubs';
   // Club events + quick member (per club) — lives in the Clubs grid
   const clubToolsHtml = `
@@ -9938,10 +9857,10 @@ function renderClubAdminPanel(){
     ${inboxAdminHtml(lead)}
     ${lead ? admSec('periodsview', '🗂️ Availability periods — tap one to view it', `<div class="cp-box">${periodHistoryHtml(k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' })) || '<p class="av-msg">Loading…</p>'}</div>`, true) : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
     ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
+    ${lead ? '' : admSec('stay', '🪁→🏛️ Squads moving to clubs — confirm link', stayAdminHtml(), true)}
     ${lead ? '' : admSec('clublinks', '🔗 Club links (WhatsApp groups)', clubLinksHtml(), true)}
     ${lead ? '' : admSec('clubdir', '🏛️ Club directory (add / edit clubs)', clubDirListHtml(), false)}
   `;
-  const squadsGrid = lead ? '' : admSec('squads', '🪁 Squads — requests &amp; invite links', squadAdminHtml(), true, 'flat');
   const directoryGrid = lead ? '' : admSec('reslink', '🔗 Public “Add a resource” link', `<div class="cp-box">${calLinkRowHtml('', location.origin + '/#/add-resource', '🔗 Resources link:')}${calLinkRowHtml('', location.origin + '/#/submit-event', '🔗 Events link:')}<p class="ideas-hint" style="text-align:left;margin:0;">Share these with anyone who wants to suggest a business, resource or event — they don't need an account.</p></div>`, true, 'flat') + admSec('labels-res', '🏷️ Names of resource categories', labelsAdminHtml('resource'), true, 'flat');
   const calendarGrid = `
     <div style="text-align:center;margin:6px 0 12px;"><button type="button" class="club-guide-btn" id="admEvAdd" style="min-height:46px;padding:10px 26px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add event</button></div>
@@ -9967,14 +9886,13 @@ function renderClubAdminPanel(){
         <input id="cpName" placeholder="Name (first name + last initial, e.g. Amina K.)" style="padding:10px;border-radius:10px;border:2px solid var(--brand-brown);">
         <p style="font-size:11px;color:#776867;margin:0;">Their PIN starts as <strong>1234</strong> — they'll be asked to pick their own the first time they sign in.</p>
         <div class="cp-clubs">${adminClubChoices().map(c => `<label class="cp-club"><input type="checkbox" class="cp-club-check" value="${escapeCm(c.id)}"> ${escapeCm(c.title)}</label>`).join('')}</div>
-        ${lead ? '' : `<p style="font-size:11px;color:#776867;margin:4px 0 0;">Squads (optional — placed straight in, no request needed):</p><div class="cp-clubs">${SQUADS.map(q => `<label class="cp-club"><input type="checkbox" class="cp-squad-check" value="${escapeCm(q.id)}"> ${escapeCm(q.title)}</label>`).join('')}</div>`}
         <button class="club-guide-btn" id="cpCreateBtn" style="background:var(--blush);">Create profile</button>
         <span id="cpStatus" style="font-size:12px;color:#c00;"></span>
       </div>
     </div>
     `, false)}
     <h3 style="margin-top:24px;">Admin Profiles</h3>
-    <p style="font-size:11px;color:#776867;margin-top:-6px;">Search every profile. Open one to edit it, change its clubs and squads, archive or delete it.</p>
+    <p style="font-size:11px;color:#776867;margin-top:-6px;">Search every profile. Open one to edit it, change its clubs, archive or delete it.</p>
     <div style="margin:14px 0 26px;">${renderAdminAllMembersPanels()}</div>
   `;
   return `<div class="rules-content" style="max-width:920px;margin:16px auto;">
@@ -9984,20 +9902,18 @@ function renderClubAdminPanel(){
     </div>
     ${lead ? `<p style="font-size:12px;color:#776867;margin:6px 0 0;">You manage: <strong>${adminClubs().map(c => escapeCm(c.title)).join(', ') || 'no clubs yet'}</strong>. Reminders only go to your clubs' members. Use "➕ New event" at the bottom of the page to add an official event.</p>` : ''}
     ${admGroupTilesHtml(lead, gsel)}
-    ${gsel === 'clubs' ? clubsGrid : gsel === 'events' ? admCeHtml() : gsel === 'squads' ? squadsGrid : gsel === 'directory' ? directoryGrid : gsel === 'calendar' ? calendarGrid : gsel === 'settings' ? settingsGrid : profilesGrid}
+    ${gsel === 'clubs' ? clubsGrid : gsel === 'events' ? admCeHtml() : gsel === 'directory' ? directoryGrid : gsel === 'calendar' ? calendarGrid : gsel === 'settings' ? settingsGrid : profilesGrid}
   </div>`;
 }
 // Three big tiles at the top of the Admin page switch between its grids (Clubs / Notifications & team / Profiles).
 function admGroupTilesHtml(lead, cur){
   const tile = (id, icon, title, hint, badge) => `<button type="button" class="adm-tile${cur === id ? ' on' : ''}" data-group="${id}" aria-pressed="${cur === id}"><span class="adm-tile-ic">${icon}</span><span class="adm-tile-t">${title}</span><span class="adm-tile-h">${hint}</span>${badge ? `<span class="adm-badge adm-tile-b">${badge}</span>` : ''}</button>`;
-  const sqReqs = (state.squadAdmin && state.squadAdmin.requests) ? state.squadAdmin.requests.length : 0;
   return `<div class="adm-tiles" style="grid-template-columns:repeat(3, minmax(0,1fr));">
     ${tile('clubs', '🏛️', 'Clubs', 'Requests · events · availability', admInboxCount())}
     ${tile('events', '🎟️', 'Club Events', 'Edit · forms · answers', '')}
-    ${lead ? '' : tile('squads', '🪁', 'Squads', 'Requests · invite links', sqReqs || '')}
     ${lead ? '' : tile('directory', '📖', 'Directory', 'Resource names', '')}
     ${lead ? '' : tile('calendar', '📅', 'The Calendar', 'Main calendar', '')}
-    ${tile('profiles', '👥', 'Profiles', 'People · clubs · squads', '')}
+    ${tile('profiles', '👥', 'Profiles', 'People · clubs', '')}
     ${lead ? '' : tile('settings', '⚙️', 'Settings', 'Push · club admins · labels', '')}
   </div>`;
 }
@@ -10107,12 +10023,9 @@ async function cmAdminCreateProfile(){
       if(i === 0){ finalPin = data.pin || finalPin; finalUsername = data.username; userId = data.id; }
       done.push(clubIds[i]);
     }
-    const squadIds = [...document.querySelectorAll('.cp-squad-check:checked')].map(c => c.value);
-    if(squadIds.length && userId) await fetch('/api/admin/users/' + encodeURIComponent(userId) + '/squads', { method:'PUT', headers:{'Content-Type':'application/json'}, credentials:'include', body: JSON.stringify({ squads: squadIds }) }); state.squadAdmin = null;
     status.textContent = '';
     const clubNames = done.map(id => avClubTitle(id)).join(', ');
-    alert(`Created ${name} (${finalUsername}) with PIN ${finalPin} — they'll be asked to choose their own PIN the first time they sign in. Clubs: ${clubNames}.${squadIds.length ? ' Squads: ' + squadIds.map(id => (SQUADS.find(q => q.id === id) || {}).title || id).join(', ') + '.' : ''}`);
-    document.querySelectorAll('.cp-squad-check:checked').forEach(c => { c.checked = false; });
+    alert(`Created ${name} (${finalUsername}) with PIN ${finalPin} — they'll be asked to choose their own PIN the first time they sign in. Clubs: ${clubNames}.`);
     document.getElementById('cpName').value = '';
     document.querySelectorAll('.cp-club-check:checked').forEach(c => { c.checked = false; });
     await cmAdminLoadAllMembers();
@@ -10571,7 +10484,37 @@ function admAvailWire(){
   if(next) next.addEventListener('click', () => { if(admAvail.month < ADM_AVAIL_MAX_MONTH){ admAvail.month = admAvailShiftMonth(admAvail.month, 1); admAvail.day = null; admAvailRepaint(); } });
 }
 
+// Squads → clubs: the link to send, and who has / hasn't confirmed yet (with a one-tap WhatsApp reminder each).
+const STAY_LINK = 'https://4dasistas.ca/#/stay';
+async function loadStayAdmin(){
+  if(state.stayAdminLoading) return; state.stayAdminLoading = true;
+  try { const r = await fetch('/api/admin/stay-status', { credentials:'include', cache:'no-store' }); state.stayStatus = r.ok ? (await r.json()).people || [] : []; } catch { state.stayStatus = []; }
+  state.stayAdminLoading = false; if(state.tab === 'admin') render();
+}
+function stayAdminHtml(){
+  if(!state.stayStatus){ if(!state.stayAdminLoading) loadStayAdmin(); return '<p class="av-msg">Loading…</p>'; }
+  const ppl = state.stayStatus, done = ppl.filter(p => p.confirmedAt), todo = ppl.filter(p => !p.confirmedAt);
+  const row = p => `<div style="display:flex;align-items:center;gap:6px;padding:7px 0;border-top:1px solid rgba(0,0,0,.1);font-size:14px;"><span style="flex:1;min-width:0;"><button type="button" class="adm-profile-link" data-user-id="${escapeCm(p.id)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;">${escapeCm(p.name)}</button><br><small style="color:#776867;">was in: ${escapeCm(p.had.join(', '))}${p.confirmedAt ? ' · chose: ' + escapeCm(p.chose.join(', ') || 'none') : ''}</small></span>${p.confirmedAt ? '<span style="color:#2a7a4a;font-weight:700;">✓</span>' : `<button type="button" class="club-guide-btn stay-wa" data-stayid="${escapeCm(p.id)}" style="padding:6px 10px;font-size:13px;">💬 Remind</button>`}</div>`;
+  return `<div class="cp-box"><p style="font-size:13px;margin:0 0 8px;line-height:1.5;">Send this link to everyone who was in a squad. They log in, then pick which of the new clubs (Quran, Badminton, Cowork, Steps) they want to stay in or join. Clubs they were already in are confirmed right away.</p>
+    <div style="display:flex;gap:6px;"><input readonly id="stayLinkBox" value="${STAY_LINK}" style="flex:1;min-width:0;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:14px;"><button type="button" class="club-guide-btn" id="stayLinkCopy" style="padding:6px 14px;">Copy</button></div>
+    <p style="font-size:12px;color:#776867;margin:10px 0 4px;">Set each new club's WhatsApp group link under 🔗 Club links so confirmed members get it.</p>
+    <p style="margin:10px 0 2px;font-weight:700;">⏳ Not confirmed yet (${todo.length})</p>${todo.map(row).join('') || '<p class="av-msg">Everyone has confirmed 🎉</p>'}
+    <p style="margin:12px 0 2px;font-weight:700;">✅ Confirmed (${done.length})</p>${done.map(row).join('') || '<p class="av-msg">Nobody yet.</p>'}
+    <button type="button" class="club-guide-btn" id="stayRefresh" style="margin-top:10px;padding:6px 14px;font-size:13px;">↻ Refresh</button></div>`;
+}
+function wireStayAdmin(){
+  const cp = document.getElementById('stayLinkCopy');
+  if(cp) cp.addEventListener('click', async () => { try { await navigator.clipboard.writeText(STAY_LINK); cp.textContent = 'Copied ✓'; } catch { window.prompt('Copy this link:', STAY_LINK); } });
+  const rf = document.getElementById('stayRefresh'); if(rf) rf.addEventListener('click', () => { state.stayStatus = null; render(); });
+  document.querySelectorAll('.stay-wa').forEach(b => b.addEventListener('click', async () => {
+    const p = (state.stayStatus || []).find(x => x.id === b.dataset.stayid); if(!p) return;
+    let phone = p.phone;
+    if(!state.waTemplates) await loadWaTemplates();
+    admWaPrompt('💬 Remind ' + p.name, p.name, phone, waMsg('stayRemind', p.name, '', '', { link: STAY_LINK }), 'this reminder');
+  }));
+}
 function wireClubAdminPanel(){
+  wireStayAdmin();
   if(!state.cmAdminOpen) return;
   if(document.getElementById('admAvailBox')){ if(admAvail.people === null && !admAvail.loading) admAvailLoad(); admAvailWire(); }
   const cpBtn = document.getElementById('cpCreateBtn');
@@ -10767,7 +10710,7 @@ const LAST_TAB_STORAGE_KEY = 'lastAppState';
 // instead of the old #tab=events&cat=all&view=list&... query-string look. The full
 // state (filters, view mode, etc.) still round-trips through localStorage below —
 // only what's actually shown in the URL bar has been simplified.
-const TAB_SLUGS = { admin:'admin', events:'calendar', clubs:'clubs', squads:'squads', resources:'resources', travel:'travel', rules:'about', homescreen:'add-to-homescreen', subscribe:'subscribe', submitevent:'submit-event', submitresource:'add-resource' };
+const TAB_SLUGS = { admin:'admin', events:'calendar', clubs:'clubs', stay:'stay', resources:'resources', travel:'travel', rules:'about', homescreen:'add-to-homescreen', subscribe:'subscribe', submitevent:'submit-event', submitresource:'add-resource' };
 const SLUG_TO_TAB = Object.fromEntries(Object.entries(TAB_SLUGS).map(([tab, slug]) => [slug, tab]));
 /* Every page and sub-page has its own shareable link (all hash-based, so they work with the static host):
      #/calendar  #/calendar/sports  #/calendar/sports/badminton  #/calendar/activities/Mississauga
@@ -10815,7 +10758,8 @@ function applySlugParts(parts){
   const [slug, ...rest] = parts;
   // A shared FORM link (#/form/<event id>): land on Clubs and open that event's form straight away.
   if(slug === 'form' && rest[0]){ state.tab = 'eventform'; state.formEventId = safeDecode(rest[0]); return; }
-  let tab = SLUG_TO_TAB[slug] || slug;
+  let tab = slug === 'squads' ? 'clubs' : (SLUG_TO_TAB[slug] || slug); // squads no longer exist: old links land on Clubs
+  if(tab === 'stay'){ state.stayInfo = null; state.stayDone = null; state.stayErr = ''; }
   if(tab === 'clubs') state.clubsPage = ({ vote:'vote', availability:'avail', calendar:'cal' })[rest[0]] || '';
   if(tab === 'clubs' && rest[0]){
     const sub = rest[0];
