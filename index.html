@@ -10757,10 +10757,18 @@ async function bmMatchLoad(){
     <div style="max-height:55vh;overflow:auto;border:1px solid rgba(0,0,0,.12);border-radius:10px;">${list.map(p => { const sel = pre(p); return `<div style="padding:8px 10px;border-top:1px solid rgba(0,0,0,.08);"><div style="font-weight:700;font-size:14px;">${escapeCm(p.label)} <small style="font-weight:400;color:#776867;">${p.games} game${p.games === 1 ? '' : 's'}${p.level ? ' · level ' + p.level : ''}${p.hasPhone ? '' : ' · no phone'}</small></div>
       <select class="bm-pick" data-pid="${escapeCm(p.id)}" style="width:100%;padding:8px;border-radius:8px;border:2px solid var(--brand-brown);font-size:14px;margin-top:4px;">
         ${p.cands.map(c => opt('link:' + c.userId, `Same as 4DS member: ${c.name} (@${c.username})${c.taken ? ' — already has a badminton profile, will merge' : ''}`, sel === 'link:' + c.userId)).join('')}
-        ${p.dups.map(x => opt('merge:' + x.id, `Same person as old player: ${x.label} (${x.games} games)`, sel === 'merge:' + x.id)).join('')}
+        ${p.dups.map(x => opt('merge:' + x.id, `Merge into old profile “${x.label}” (${x.games} games) — keeps every season's history`, sel === 'merge:' + x.id)).join('')}
         ${opt('create', 'Create a new 4DS account for her', sel === 'create')}${opt('archive', 'Not playing — archive', false)}
-      </select></div>`; }).join('')}</div>
+      </select>
+      <input class="bm-find" data-pid="${escapeCm(p.id)}" type="search" placeholder="🔍 Can't see her? Search all 4DS members…" autocomplete="off" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,.25);font-size:14px;margin-top:4px;box-sizing:border-box;"></div>`; }).join('')}</div>
+    <p class="ideas-hint" style="text-align:left;margin:6px 0 0;">Merging combines games, points and attendance from <b>every season</b> into one profile, so players keep their full history.</p>
     <div style="display:flex;gap:8px;margin-top:8px;align-items:center;"><button type="button" class="club-guide-btn" id="bmApply" style="padding:6px 14px;background:var(--brand-rose);color:#fff;">Apply all</button><span id="bmApplyMsg" style="font-size:13px;"></span></div><div id="bmPins"></div>`;
+  const users = d.users || [];
+  box.querySelectorAll('.bm-find').forEach(inp => inp.addEventListener('input', () => {
+    const q = inp.value.trim().toLowerCase(), sel = inp.parentElement.querySelector('.bm-pick'); sel.querySelectorAll('option[data-found]').forEach(o => o.remove());
+    if(q.length < 2) return;
+    users.filter(u => `${u.name} ${u.username}`.toLowerCase().includes(q)).slice(0, 8).forEach((u, i) => { const o = document.createElement('option'); o.value = 'link:' + u.id; o.dataset.found = '1'; o.textContent = `Same as 4DS member: ${u.name} (@${u.username})`; sel.insertBefore(o, sel.firstChild); if(i === 0) sel.value = o.value; });
+  }));
   document.getElementById('bmApply').addEventListener('click', async () => {
     const msg = document.getElementById('bmApplyMsg'); msg.style.color = '#776867'; msg.textContent = 'Applying…';
     const acts = [...document.querySelectorAll('.bm-pick')].map(s => { const [k, v] = s.value.split(/:(.*)/s); return k === 'link' ? { playerId: s.dataset.pid, action:'link', userId: v } : k === 'merge' ? { playerId: s.dataset.pid, action:'merge', into: v } : { playerId: s.dataset.pid, action: k }; });

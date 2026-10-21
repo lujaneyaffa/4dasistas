@@ -732,7 +732,7 @@ const bmScore = (a, b, phoneA, phoneB) => {
   const x = bmParts(a), y = bmParts(b); let sc = 0;
   const pa = bmDigits(phoneA).slice(-7), pb = bmDigits(phoneB).slice(-7);
   if (pa.length === 7 && pa === pb) sc += 1;
-  if (x.first && x.first === y.first) { sc += 0.5; if (x.last && y.last) { if (x.last === y.last) sc += 0.5; else if (x.last[0] === y.last[0] && (x.last.length === 1 || y.last.length === 1)) sc += 0.4; else sc -= 0.6; } }
+  if (x.first && x.first === y.first) { sc += 0.5; if (x.last && y.last) { if (x.last === y.last) sc += 0.5; else if (x.last[0] === y.last[0] && (x.last.length === 1 || y.last.length === 1)) sc += 0.4; else sc -= 0.2; } } // (a different last name is only a weak hint — e.g. a maiden name — so same-first-name accounts are still offered, never pre-selected)
   return sc;
 };
 const bmMerge = async (env, keepId, dropId) => {
@@ -2798,12 +2798,12 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const out = [];
         for (const r of players.filter((x) => !x.uid)) {
           const ph = r.row.phone || r.row.username;
-          const cands = users.map((u) => ({ userId: u.id, name: u.name, username: u.username, score: bmScore(label(r), u.name, ph, u.phone), taken: linkedUids.has(u.id) })).filter((c) => c.score >= 0.5).sort((a, b) => b.score - a.score).slice(0, 4);
+          const cands = users.map((u) => ({ userId: u.id, name: u.name, username: u.username, score: bmScore(label(r), u.name, ph, u.phone), taken: linkedUids.has(u.id) })).filter((c) => c.score >= 0.3).sort((a, b) => b.score - a.score).slice(0, 5);
           const dups = players.filter((o) => o.id !== r.id && bmScore(label(r), label(o)) >= 0.9).map((o) => ({ id: o.id, label: label(o), games: gameCount.get(o.id) || 0, linked: !!o.uid })).slice(0, 4);
           out.push({ id: r.id, label: label(r), level: r.row.level || null, games: gameCount.get(r.id) || 0, hasPhone: bmDigits(ph).length >= 7, cands, dups });
         }
         out.sort((a, b) => a.label.localeCompare(b.label));
-        return jsonResponse({ unlinked: out, linked: players.length - out.length, total: players.length }, 200, corsHeaders);
+        return jsonResponse({ unlinked: out, linked: players.length - out.length, total: players.length, users: users.slice(0, 2000).map((u) => ({ id: u.id, name: u.name, username: u.username })) }, 200, corsHeaders);
       }
       if (path === "/api/admin/badminton/link" && request.method === "POST") {
         let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
