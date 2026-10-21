@@ -703,18 +703,42 @@ const bmEnsure = async (env) => {
     env.DB.prepare("CREATE INDEX IF NOT EXISTS bm_players_uid ON bm_players (uid)"),
     ...["bm_games", "bm_attendance", "bm_past", "bm_rsvps", "bm_interest"].map((t) => env.DB.prepare(`CREATE TABLE IF NOT EXISTS ${t} (id TEXT PRIMARY KEY, day TEXT, data TEXT NOT NULL)`)),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS bm_meta (k TEXT PRIMARY KEY, v TEXT)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS bm_files (path TEXT PRIMARY KEY, ctype TEXT, b64 TEXT NOT NULL, at INTEGER)"),
   ]).catch((e) => { _bmReady = null; throw e; });
   await _bmReady;
   return true;
 };
+// ---- Badminton compatibility layer: the ORIGINAL badminton app runs on 4DS (public/badminton.html + bm-shim.js, a stand-in for the Supabase client).
+// Tables hold the original JSON rows; this layer re-creates the old row-level rules (owner / coach / member / iPad kiosk). ----
+const isAdminRequest = async (env, request) => {
+  const m = (request.headers.get("Cookie") || "").match(/(?:^|;\s*)session=([^;]+)/), tok = m ? m[1] : null;
+  if (!tok) return false;
+  const raw = await env.SITE_DATA.get(`session:${tok}`); if (!raw) return false;
+  try { const sess = JSON.parse(raw); return !(sess.expiresAt && Date.now() > sess.expiresAt); } catch { return false; }
+};
+const BM_OWNER_ID = "a517d9bd-bc9c-4e59-b36d-503747621aa4", BM_COACH_EMAIL = "coach@4dasistas.ca", BM_BADMINTON_CLUB = "club-badminton";
+const BM_TBL = { players: "bm_players", games: "bm_games", attendance: "bm_attendance", past_points: "bm_past", session_rsvps: "bm_rsvps", tournament_interest: "bm_interest" };
+const bmToronto = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+const bmWeekIdOf = (day) => { const x = new Date(day + "T12:00:00Z"), n = x.getUTCDay(); x.setUTCDate(x.getUTCDate() + (n === 0 ? -6 : 1 - n)); return x.toISOString().slice(0, 10); };
+const bmLoadRows = async (env, key) => {
+  const res = (await env.DB.prepare(key === "players" ? "SELECT id, uid, data FROM bm_players" : `SELECT id, data FROM ${BM_TBL[key]}`).all()).results || [];
+  const out = []; for (const r of res) { try { out.push({ id: r.id, uid: r.uid || null, row: JSON.parse(r.data) }); } catch {} }
+  return out;
+};
+const bmSaveStmt = (env, key, id, row, uid) => key === "players"
+  ? env.DB.prepare("INSERT OR REPLACE INTO bm_players (id, uid, data) VALUES (?, ?, ?)").bind(id, uid ?? null, JSON.stringify(row))
+  : env.DB.prepare(`INSERT OR REPLACE INTO ${BM_TBL[key]} (id, day, data) VALUES (?, ?, ?)`).bind(id, bmDay(row), JSON.stringify(row));
 // The badminton player row for a 4DS member: the imported one (matched by phone) or a fresh one created on first use.
 const bmPlayerFor = async (env, user) => {
   const row = await env.DB.prepare("SELECT id, data FROM bm_players WHERE uid = ?").bind(user.id).first();
   if (row) return { id: row.id, data: JSON.parse(row.data) };
-  const data = { id: `u:${user.id}`, name: firstNameOnly(user.name), full_name: user.name, level: null, active: true, date_joined: new Date().toISOString().slice(0, 10) };
+  const digits = bmDigits(user.phone);
+  const data = { id: `u:${user.id}`, name: firstNameOnly(user.name), full_name: user.name, username: digits, phone: digits, level: null, active: true, date_joined: bmToronto() };
   await env.DB.prepare("INSERT OR IGNORE INTO bm_players (id, uid, data) VALUES (?, ?, ?)").bind(data.id, user.id, JSON.stringify(data)).run();
   return { id: data.id, data };
 };
+const bmKioskOk = async (env, key) => { if (!key) return false; const h = await env.SITE_DATA.get("bm:kioskkey"); return !!h && h === await sha256Hex("bmkiosk:" + String(key)); };
+const BM_HEARTS = ["❤️", "🧡", "💛", "💚", "💙", "💜", "🩷", "🤎"];
 const bmDigits = (p) => { const d = String(p || "").replace(/\D/g, ""); return d.length === 11 && d[0] === "1" ? d.slice(1) : d; };
 const bmDay = (r) => String((r && (r.session_date || r.played_at || r.day || r.date || r.created_at)) || "").slice(0, 10);
 const bmRowId = async (table, r, i) => String((r && r.id) || (await sha256Hex(table + JSON.stringify(r) + i)).slice(0, 24));
@@ -2171,6 +2195,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     // The "Submit an event" form can have extra questions + an intro, edited by the main admin (Admin → The Calendar → Event submission form).
     const readEventFormCfg = async () => { try { const c = JSON.parse((await env.SITE_DATA.get("evsubform")) || "{}") || {}; return { intro: String(c.intro || ""), form: c.form && c.form.fields ? c.form : null }; } catch { return { intro: "", form: null }; } };
     if (path === "/api/event-form-config" && request.method === "GET") return jsonResponse(await readEventFormCfg(), 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    // SECURITY: the admin routes between here and the main admin guard further down run BEFORE that guard, so they check the main-admin session themselves.
+    if ((path === "/api/admin/event-form-config" || path === "/api/admin/needs" || path === "/api/admin/steps" || path === "/api/admin/step-rounds" || path === "/api/admin/stay-status" || path.startsWith("/api/admin/step-pledges") || path.startsWith("/api/admin/badminton/")) && !(await isAdminRequest(env, request))) return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
     if (path === "/api/admin/event-form-config" && request.method === "PUT") {
       let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       const cfg = { intro: String(body.intro || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 500), form: sanitizeCalForm(body.form) };
