@@ -475,6 +475,8 @@ const buildBackup = async (env) => {
   await safe("club calendar forms", async () => { for (const e of await readClubCal(env)) if (e.form) { const r = await env.SITE_DATA.get(calFormKey(e.id)); if (r) calForms[e.id] = r; } });
   const squads = {};
   for (const sid of Object.keys(SQUAD_TITLES)) squads[sid] = { members: await safe(`squad ${sid}`, () => readSquadMemberIds(env, sid), []), link: (await safe(`squadlink ${sid}`, () => env.SITE_DATA.get(squadLinkKey(sid)), "")) || "" };
+  const steps = { daily: [], pledges: [] }; // steps challenge (D1): last 120 days of daily totals + every pledge
+  await safe("steps", async () => { if (await stepsEnsure(env)) { const cut = new Date(Date.now() - 120 * 86400000).toISOString().slice(0, 10); steps.daily = (await env.DB.prepare("SELECT user_id, day, steps, source FROM steps_daily WHERE day >= ? ORDER BY day").bind(cut).all()).results || []; steps.pledges = (await env.DB.prepare("SELECT id, round_id, name, user_id, per1000, cap, at FROM step_pledges").all()).results || []; } });
   const dump = async (prefix) => { const out = {}; for (const k of (await env.SITE_DATA.list({ prefix })).keys) { const v = await env.SITE_DATA.get(k.name); if (v) out[k.name] = v; } return out; };
   const joinRequests = await safe("join requests", () => dump("joinreq:"), {});
   const squadRequests = await safe("squad requests", () => dump("squadreq:"), {});
@@ -484,9 +486,9 @@ const buildBackup = async (env) => {
   const pushSubscriptions = {};
   for (const u of users) { const raw = await safe(`push ${u.id}`, () => env.SITE_DATA.get(pushKey(u.id)), null); if (raw) pushSubscriptions[u.id] = raw; }
   const settings = {};
-  for (const k of ["clubRoster", "clubcal", "labels", "evsubform", "availperiod", "availperiods", "availperiodsHidden", "watemplates", SUBSCRIBER_INDEX_KEY]) settings[k] = await safe(`setting ${k}`, () => env.SITE_DATA.get(k), null);
+  for (const k of ["clubRoster", "clubcal", "labels", "evsubform", "availperiod", "availperiods", "availperiodsHidden", "watemplates", "steprounds", SUBSCRIBER_INDEX_KEY]) settings[k] = await safe(`setting ${k}`, () => env.SITE_DATA.get(k), null);
   const counts = { users: users.length, availability: Object.keys(availability).length, clubs: clubIds.length, joinRequests: Object.keys(joinRequests).length, squadRequests: Object.keys(squadRequests).length, eventSubmissions: Object.keys(eventSubmissions).length, resourceSubmissions: Object.keys(resourceSubmissions).length, clubAdmins: Object.keys(clubAdmins).length };
-  return { version: 2, at: new Date().toISOString(), storage: (await d1On(env)) ? "d1" : "kv", counts, warnings, users, availability, clubMembers, ideas, clubEvents, clubEventResponses, calForms, squads, joinRequests, squadRequests, eventSubmissions, resourceSubmissions, clubAdmins, pushSubscriptions, settings };
+  return { version: 2, at: new Date().toISOString(), storage: (await d1On(env)) ? "d1" : "kv", counts, warnings, users, availability, clubMembers, ideas, clubEvents, clubEventResponses, calForms, squads, steps, joinRequests, squadRequests, eventSubmissions, resourceSubmissions, clubAdmins, pushSubscriptions, settings };
 };
 // The daily cron fired twice a few seconds apart (two near-identical emails). Whoever claims today's slot first sends; the other stops.
 // D1 gives an atomic "first one wins" (INSERT OR IGNORE); without D1 it falls back to a best-effort KV marker.
