@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>4DASISTAS</title>
@@ -1048,6 +1049,8 @@
     .category-row{ justify-content:flex-start; }
     .category-row > :first-child{ margin-left:auto; } .category-row > :last-child{ margin-right:auto; }
     .controls{ flex-wrap:wrap; overflow:visible; justify-content:center; row-gap:10px; }
+    .club-card h4{ font-size:clamp(12px,3.6vw,16px); letter-spacing:0; max-width:100%; overflow-wrap:anywhere; hyphens:auto; } /* a long club name must stay inside its bubble */
+    .clubs-big-btn .cbb-label, .clubs-big-btn .cbb-sub{ overflow-wrap:anywhere; }
     body{ padding-bottom:calc(66px + env(safe-area-inset-bottom, 0px)); }
     .av-sheet{ bottom:calc(64px + env(safe-area-inset-bottom, 0px)); }
     .update-banner{ bottom:calc(76px + env(safe-area-inset-bottom, 0px)); }
