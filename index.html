@@ -10713,6 +10713,10 @@ function bmImportHtml(){
     <p style="margin:0 0 4px;font-weight:700;">📦 Data now in 4DS</p><p style="font-size:13px;margin:0 0 8px;">${c.players ?? 0} players · ${c.games ?? 0} games · ${c.attendance ?? 0} attendance · ${c.past_points ?? 0} past points · ${c.session_rsvps ?? 0} RSVPs · ${c.tournament_interest ?? 0} tournament interest</p>
     <button type="button" class="club-guide-btn" id="bmDirect" style="padding:6px 14px;background:var(--brand-rose);color:#fff;">Import from the old site now</button> <small style="color:#776867;">(safe to repeat — it refreshes the copy)</small>
     <div id="bmMsg" style="font-size:13px;line-height:1.5;margin:8px 0;white-space:pre-wrap;"></div>
+    <hr style="border:none;border-top:1px solid rgba(0,0,0,.1);margin:10px 0;">
+    <p style="margin:0 0 4px;font-weight:700;">🔗 Match players with 4DS accounts</p><p style="font-size:12px;color:#776867;margin:0 0 6px;">Pairs each old badminton player with their 4DS account (by name and phone), merges duplicates, and makes accounts for the rest. Everything is pre-filled — review, then press Apply.</p>
+    <button type="button" class="club-guide-btn" id="bmMatchGo" style="padding:6px 14px;">Review matches</button>
+    <div id="bmMatchBox" style="margin-top:8px;"></div>
     ${st.photosToCopy ? `<p style="font-size:13px;margin:0 0 6px;">🖼️ ${st.photosToCopy} profile photo(s) still live on the old site. <button type="button" class="club-guide-btn" id="bmPhotos" style="padding:4px 12px;">Copy them over</button></p>` : ''}
     <hr style="border:none;border-top:1px solid rgba(0,0,0,.1);margin:10px 0;">
     <p style="margin:0 0 4px;font-weight:700;">🎽 Coach login ("Public admin")</p><p style="font-size:12px;color:#776867;margin:0 0 6px;">The coach logs in on the badminton page → Admin → Public admin with email <b>coach@4dasistas.ca</b> and this password. Can add only today's games and attendance. ${st.coachSet ? '✅ A password is set.' : '⚠️ Not set yet.'}</p>
@@ -10729,8 +10733,59 @@ async function bmCopyPhotos(msg){
     if(!d.left) break;
   }
 }
+async function bmMatchLoad(){
+  const box = document.getElementById('bmMatchBox'); box.textContent = 'Working it out…';
+  const r = await fetch('/api/admin/badminton/match-report', { credentials:'include', cache:'no-store' }); const d = await r.json().catch(() => ({}));
+  if(!r.ok){ box.textContent = d.error || 'Could not load'; return; }
+  const list = d.unlinked || [];
+  if(!list.length){ box.innerHTML = `<p style="color:#2a7a4a;font-weight:700;">✅ All ${d.total} players are matched to 4DS accounts.</p>`; return; }
+  // keeper among duplicates: most games, then the longest name, then id
+  const rank = p => [p.games, p.label.length, p.id];
+  const better = (a, b) => { const x = rank(a), y = rank(b); return x[0] !== y[0] ? x[0] > y[0] : x[1] !== y[1] ? x[1] > y[1] : x[2] < y[2]; };
+  const byId = new Map(list.map(p => [p.id, p]));
+  const pre = p => {
+    const top = p.cands[0], next = p.cands[1];
+    if(top && top.score >= 0.9 && !top.taken && (!next || top.score - next.score >= 0.3)) return 'link:' + top.userId;
+    if(top && top.score >= 0.9 && top.taken) return 'link:' + top.userId; // that account already has a player → same person, merged
+    const ds = p.dups.filter(x => x.linked || byId.has(x.id));
+    if(ds.length === 1){ const o = byId.get(ds[0].id) || { games: ds[0].games, label: ds[0].label, id: ds[0].id }; if(!better(p, o)) return 'merge:' + ds[0].id; }
+    return 'create';
+  };
+  state.bmMatch = list;
+  const opt = (v, l, sel) => `<option value="${escapeCm(v)}" ${sel ? 'selected' : ''}>${escapeCm(l)}</option>`;
+  box.innerHTML = `<p style="font-size:13px;margin:0 0 6px;">${list.length} old players still need a 4DS account (${d.linked} already matched). Check the pre-filled choices:</p>
+    <div style="max-height:55vh;overflow:auto;border:1px solid rgba(0,0,0,.12);border-radius:10px;">${list.map(p => { const sel = pre(p); return `<div style="padding:8px 10px;border-top:1px solid rgba(0,0,0,.08);"><div style="font-weight:700;font-size:14px;">${escapeCm(p.label)} <small style="font-weight:400;color:#776867;">${p.games} game${p.games === 1 ? '' : 's'}${p.level ? ' · level ' + p.level : ''}${p.hasPhone ? '' : ' · no phone'}</small></div>
+      <select class="bm-pick" data-pid="${escapeCm(p.id)}" style="width:100%;padding:8px;border-radius:8px;border:2px solid var(--brand-brown);font-size:14px;margin-top:4px;">
+        ${p.cands.map(c => opt('link:' + c.userId, `Same as 4DS member: ${c.name} (@${c.username})${c.taken ? ' — already has a badminton profile, will merge' : ''}`, sel === 'link:' + c.userId)).join('')}
+        ${p.dups.map(x => opt('merge:' + x.id, `Same person as old player: ${x.label} (${x.games} games)`, sel === 'merge:' + x.id)).join('')}
+        ${opt('create', 'Create a new 4DS account for her', sel === 'create')}${opt('archive', 'Not playing — archive', false)}
+      </select></div>`; }).join('')}</div>
+    <div style="display:flex;gap:8px;margin-top:8px;align-items:center;"><button type="button" class="club-guide-btn" id="bmApply" style="padding:6px 14px;background:var(--brand-rose);color:#fff;">Apply all</button><span id="bmApplyMsg" style="font-size:13px;"></span></div><div id="bmPins"></div>`;
+  document.getElementById('bmApply').addEventListener('click', async () => {
+    const msg = document.getElementById('bmApplyMsg'); msg.style.color = '#776867'; msg.textContent = 'Applying…';
+    const acts = [...document.querySelectorAll('.bm-pick')].map(s => { const [k, v] = s.value.split(/:(.*)/s); return k === 'link' ? { playerId: s.dataset.pid, action:'link', userId: v } : k === 'merge' ? { playerId: s.dataset.pid, action:'merge', into: v } : { playerId: s.dataset.pid, action: k }; });
+    const order = { link:0, create:1, merge:2, archive:3 }; acts.sort((a, b) => order[a.action] - order[b.action]);
+    let res = { linked:0, created:[], merged:0, archived:0, errors:[] };
+    try {
+      for(let i = 0; i < acts.length; i += 40){
+        const r = await fetch('/api/admin/badminton/link', { method:'POST', credentials:'include', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ actions: acts.slice(i, i + 40) }) }); const d = await r.json().catch(() => ({}));
+        if(!r.ok) throw new Error(d.error || 'Failed');
+        res.linked += d.linked; res.merged += d.merged; res.archived += d.archived; res.created.push(...d.created); res.errors.push(...d.errors);
+      }
+    } catch(e){ msg.style.color = '#c00'; msg.textContent = e.message; return; }
+    msg.style.color = '#2a7a4a'; msg.textContent = `Done ✓ linked ${res.linked} · merged ${res.merged} · new accounts ${res.created.length} · archived ${res.archived}${res.errors.length ? ' · problems: ' + res.errors.join('; ') : ''}`;
+    state.bmStatus = null;
+    if(res.created.length){
+      const text = p => `Hi ${p.name.split(' ')[0]}! 🏸 Ladies Badminton now lives inside 4DS. Log in at 4dasistas.ca/badminton with ${p.phone ? 'your phone number or ' : ''}your username "${p.username}" and this PIN: ${p.pin} (you'll choose your own PIN the first time). 💛`;
+      document.getElementById('bmPins').innerHTML = `<p style="font-weight:700;margin:10px 0 4px;">🔑 New accounts — send each person their login (shown once!)</p>${res.created.map((p, i) => `<div style="display:flex;gap:6px;align-items:center;padding:5px 0;border-top:1px solid rgba(0,0,0,.08);font-size:13px;"><span style="flex:1;">${escapeCm(p.name)} · @${escapeCm(p.username)} · PIN <b>${escapeCm(p.pin)}</b></span><button type="button" class="club-guide-btn bm-send" data-i="${i}" style="padding:4px 10px;font-size:12px;">💬 Send</button></div>`).join('')}<button type="button" class="club-guide-btn" id="bmCopyPins" style="margin-top:8px;padding:6px 12px;">Copy all logins</button>`;
+      document.querySelectorAll('.bm-send').forEach(b => b.addEventListener('click', () => { const p = res.created[Number(b.dataset.i)]; admWaPrompt('Send ' + p.name + ' their login', p.name, p.phone, text(p), 'their login'); }));
+      document.getElementById('bmCopyPins').addEventListener('click', async e => { try { await navigator.clipboard.writeText(res.created.map(p => `${p.name}\t${p.username}\t${p.pin}\t${p.phone}`).join('\n')); e.target.textContent = 'Copied ✓'; } catch { window.prompt('Copy:', res.created.map(p => `${p.name} ${p.username} ${p.pin}`).join('\n')); } });
+    }
+  });
+}
 function wireBmImport(){
   const go = document.getElementById('bmDirect'); if(!go) return;
+  const mg = document.getElementById('bmMatchGo'); if(mg) mg.addEventListener('click', bmMatchLoad);
   const setMsg = document.getElementById('bmSetMsg');
   const setSecret = async (path, inputId) => { const v = document.getElementById(inputId).value; try { const r = await fetch(path, { method:'PUT', credentials:'include', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ value: v }) }); const d = await r.json().catch(() => ({})); if(!r.ok) throw new Error(d.error || 'Failed'); setMsg.style.color = '#2a7a4a'; setMsg.textContent = 'Saved ✓'; document.getElementById(inputId).value = ''; state.bmStatus = null; } catch(e){ setMsg.style.color = '#c00'; setMsg.textContent = e.message; } };
   document.getElementById('bmCoachSet').addEventListener('click', () => setSecret('/api/admin/badminton/coach-password', 'bmCoachPw'));

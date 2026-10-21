@@ -724,6 +724,47 @@ const bmLeadIsCoach = async (env, request) => {
     const rec = JSON.parse((await env.SITE_DATA.get(`clublead:${sess.username}`)) || "null"); return !!rec && Array.isArray(rec.clubs) && rec.clubs.includes("club-badminton");
   } catch { return false; }
 };
+// ---- matching old badminton players to 4DS accounts (by name + phone), and merging duplicate players ----
+const bmLetters = (t) => String(t || "").toLowerCase().normalize("NFKD").replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+const bmParts = (name) => { const t = bmLetters(name).split(" ").filter(Boolean); return { first: t[0] || "", last: t.length > 1 ? t[t.length - 1] : "" }; };
+// 0..1.5: first names must agree; last name full match / same initial adds; a shared phone number (last 7 digits) is decisive.
+const bmScore = (a, b, phoneA, phoneB) => {
+  const x = bmParts(a), y = bmParts(b); let sc = 0;
+  const pa = bmDigits(phoneA).slice(-7), pb = bmDigits(phoneB).slice(-7);
+  if (pa.length === 7 && pa === pb) sc += 1;
+  if (x.first && x.first === y.first) { sc += 0.5; if (x.last && y.last) { if (x.last === y.last) sc += 0.5; else if (x.last[0] === y.last[0] && (x.last.length === 1 || y.last.length === 1)) sc += 0.4; else sc -= 0.6; } }
+  return sc;
+};
+const bmMerge = async (env, keepId, dropId) => {
+  const rows = await bmLoadRows(env, "players"), keep = rows.find((r) => r.id === keepId), drop = rows.find((r) => r.id === dropId);
+  if (!keep || !drop || keepId === dropId) return false;
+  const kn = keep.row.full_name || keep.row.name, idents = new Set([drop.row.id, drop.row.name, drop.row.nickname, drop.row.full_name].filter(Boolean).map(String));
+  const stmts = [];
+  for (const g of await bmLoadRows(env, "games")) {
+    let changed = false; const row = { ...g.row };
+    for (const f of ["winners", "losers"]) {
+      let arr = Array.isArray(row[f]) ? row[f] : (() => { try { const j = JSON.parse(row[f]); return Array.isArray(j) ? j : null; } catch { return null; } })(); if (!arr) continue;
+      const mapped = arr.map((v) => idents.has(String(v)) ? (String(v) === String(drop.row.id) ? keep.row.id : kn) : v);
+      const uniq = mapped.filter((v, i) => mapped.indexOf(v) === i); if (JSON.stringify(uniq) !== JSON.stringify(arr)) { row[f] = typeof g.row[f] === "string" ? JSON.stringify(uniq) : uniq; changed = true; }
+    }
+    if (changed) stmts.push(bmSaveStmt(env, "games", g.id, row, null));
+  }
+  const seen = new Set();
+  for (const key of ["attendance", "past_points", "session_rsvps", "tournament_interest"]) for (const r of await bmLoadRows(env, key)) {
+    if (r.row.player_id !== drop.row.id && r.row.player_id !== keep.row.id) continue;
+    const moved = { ...r.row, player_id: keep.row.id, ...(r.row.username && drop.row.username && r.row.username === drop.row.username ? { username: keep.row.username } : {}) };
+    const dk = `${key}|${moved.player_id}|${moved.session_date || ""}|${moved.week_number || ""}${key === "past_points" ? "|" + (moved.points || 0) : ""}`;
+    if (seen.has(dk) && key !== "past_points") { stmts.push(env.DB.prepare(`DELETE FROM ${BM_TBL[key]} WHERE id = ?`).bind(r.id)); continue; }
+    seen.add(dk); if (r.row.player_id === drop.row.id) stmts.push(bmSaveStmt(env, key, r.id, moved, null));
+  }
+  const merged = { ...drop.row, ...keep.row };
+  for (const k of ["avatar_url", "level", "phone", "username", "nickname"]) if (!keep.row[k] && drop.row[k]) merged[k] = drop.row[k];
+  if (drop.row.date_joined && (!keep.row.date_joined || drop.row.date_joined < keep.row.date_joined)) merged.date_joined = drop.row.date_joined;
+  merged.id = keep.row.id;
+  stmts.push(bmSaveStmt(env, "players", keep.id, merged, keep.uid || drop.uid || null), env.DB.prepare("DELETE FROM bm_players WHERE id = ?").bind(drop.id));
+  for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
+  return true;
+};
 const BM_OWNER_ID = "a517d9bd-bc9c-4e59-b36d-503747621aa4", BM_COACH_EMAIL = "coach@4dasistas.ca", BM_BADMINTON_CLUB = "club-badminton";
 const BM_TBL = { players: "bm_players", games: "bm_games", attendance: "bm_attendance", past_points: "bm_past", session_rsvps: "bm_rsvps", tournament_interest: "bm_interest" };
 const bmToronto = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
@@ -2748,6 +2789,53 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (v.length < 6 || v.length > 60) return jsonResponse({ error: "Use 6–60 characters" }, 400, corsHeaders);
         if (path.endsWith("coach-password")) await env.SITE_DATA.put("bm:coachpw", await sha256Hex("bmcoach:" + v)); else await env.SITE_DATA.put("bm:kioskkey", await sha256Hex("bmkiosk:" + v));
         return jsonResponse({ ok: true }, 200, corsHeaders);
+      }
+      if (path === "/api/admin/badminton/match-report" && request.method === "GET") {
+        const players = await bmLoadRows(env, "players"), users = await listAllUsers(env), games = await bmLoadRows(env, "games");
+        const label = (r) => r.row.full_name || r.row.name || r.id;
+        const gameCount = new Map(); for (const g of games) { const seen = new Set(); for (const f of ["winners", "losers"]) { let arr = Array.isArray(g.row[f]) ? g.row[f] : (() => { try { return JSON.parse(g.row[f]); } catch { return []; } })(); for (const v of arr || []) { const pl = players.find((q) => [q.row.id, q.row.name, q.row.nickname, q.row.full_name].filter(Boolean).map(String).includes(String(v))); if (pl && !seen.has(pl.id)) { seen.add(pl.id); gameCount.set(pl.id, (gameCount.get(pl.id) || 0) + 1); } } } }
+        const linkedUids = new Set(players.filter((r) => r.uid).map((r) => r.uid));
+        const out = [];
+        for (const r of players.filter((x) => !x.uid)) {
+          const ph = r.row.phone || r.row.username;
+          const cands = users.map((u) => ({ userId: u.id, name: u.name, username: u.username, score: bmScore(label(r), u.name, ph, u.phone), taken: linkedUids.has(u.id) })).filter((c) => c.score >= 0.5).sort((a, b) => b.score - a.score).slice(0, 4);
+          const dups = players.filter((o) => o.id !== r.id && bmScore(label(r), label(o)) >= 0.9).map((o) => ({ id: o.id, label: label(o), games: gameCount.get(o.id) || 0, linked: !!o.uid })).slice(0, 4);
+          out.push({ id: r.id, label: label(r), level: r.row.level || null, games: gameCount.get(r.id) || 0, hasPhone: bmDigits(ph).length >= 7, cands, dups });
+        }
+        out.sort((a, b) => a.label.localeCompare(b.label));
+        return jsonResponse({ unlinked: out, linked: players.length - out.length, total: players.length }, 200, corsHeaders);
+      }
+      if (path === "/api/admin/badminton/link" && request.method === "POST") {
+        let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+        const acts = (Array.isArray(b.actions) ? b.actions : []).slice(0, 120), result = { linked: 0, created: [], merged: 0, archived: 0, errors: [] };
+        const clubMembers = async (uid) => { const club = (await readClubRoster(env)).find((c) => c.id === BM_BADMINTON_CLUB); if (club) { const ids = await readClubMemberIds(env, club.id); if (!ids.includes(uid)) await writeClubMemberIds(env, club.id, [...ids, uid]); } };
+        for (const a of acts) {
+          try {
+            const pr = await env.DB.prepare("SELECT id, uid, data FROM bm_players WHERE id = ?").bind(String(a.playerId || "")).first(); if (!pr) { result.errors.push("Player not found"); continue; }
+            const d = JSON.parse(pr.data), nm = d.full_name || d.name || "Player";
+            if (a.action === "link") {
+              const user = await readUser(env, String(a.userId || "")); if (!user) { result.errors.push(nm + ": that 4DS account no longer exists"); continue; }
+              const other = await env.DB.prepare("SELECT id FROM bm_players WHERE uid = ? AND id != ?").bind(user.id, pr.id).first();
+              if (other) { await bmMerge(env, other.id, pr.id); result.merged++; await clubMembers(user.id); continue; } // that account already has a player: they're the same person
+              await env.DB.prepare("UPDATE bm_players SET uid = ? WHERE id = ?").bind(user.id, pr.id).run();
+              const ph = sanitizePhone(d.phone || d.username); if (ph && !user.phone) { user.phone = ph; await writeUser(env, user); } // so they can log in by phone too
+              await clubMembers(user.id); result.linked++;
+            } else if (a.action === "create") {
+              const name = sanitizePersonName(nm); if (!name) { result.errors.push("A name is missing"); continue; }
+              const username = await generateUniqueUsername(env, name), pin = String(1000 + Math.floor(Math.random() * 9000));
+              const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, createdAt: Date.now(), mustChangePin: true };
+              const ph = sanitizePhone(d.phone || d.username); if (ph) user.phone = ph;
+              await writeUser(env, user); await reserveUsername(env, username, user.id);
+              await env.DB.prepare("UPDATE bm_players SET uid = ? WHERE id = ?").bind(user.id, pr.id).run(); await clubMembers(user.id); _phoneMap = { at: 0, map: null };
+              result.created.push({ name, username, pin, phone: ph || "" });
+            } else if (a.action === "merge") {
+              if (await bmMerge(env, String(a.into || ""), pr.id)) result.merged++; else result.errors.push(nm + ": couldn't merge");
+            } else if (a.action === "archive") {
+              d.active = false; await env.DB.prepare("UPDATE bm_players SET data = ? WHERE id = ?").bind(JSON.stringify(d), pr.id).run(); result.archived++;
+            }
+          } catch (e) { result.errors.push(String(e && e.message || e).slice(0, 120)); }
+        }
+        return jsonResponse({ ok: true, ...result }, 200, corsHeaders);
       }
       if (path === "/api/admin/badminton/copy-photos" && request.method === "POST") { // copies up to 20 profile photos per call from the old Supabase storage into 4DS (the client loops until none are left)
         const rows = (await env.DB.prepare("SELECT id, uid, data FROM bm_players WHERE data LIKE '%supabase.co/storage/v1/object/public/profile-avatars/%' LIMIT 20").all()).results || [];
