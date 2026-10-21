@@ -6694,7 +6694,7 @@ function admToastLite(text){
 // "You're in!" / "not approved" messages from the admin, shown once and then cleared on the server.
 function showMemberNotices(notices, token){
   const lines = notices.map(n => n.type === 'remind'
-    ? `<p style="margin:0 0 10px;font-size:16px;">📅 <strong>Please add your availability.</strong> It only takes a minute and helps us pick times that work for everyone. Anything you leave blank counts as "available, but not preferred".</p><button type="button" class="club-guide-btn" id="noticeAddAvail" style="width:100%;min-height:46px;background:#d9f0d8;text-align:center;margin-bottom:8px;">Add my availability</button>`
+    ? `<p style="margin:0 0 10px;font-size:16px;">📅 <strong>Please add your availability.</strong> It only takes a minute and helps us pick times that work for everyone. Anything you leave blank shows as "didn't fill in availability yet".</p><button type="button" class="club-guide-btn" id="noticeAddAvail" style="width:100%;min-height:46px;background:#d9f0d8;text-align:center;margin-bottom:8px;">Add my availability</button>`
     : n.type === 'accepted'
     ? `<p style="margin:0 0 10px;font-size:16px;">🎉 <strong>You're in!</strong> Your request to join <strong>${escapeCm(n.clubTitle)}</strong> was approved.</p>`
     : `<p style="margin:0 0 10px;font-size:16px;">Your request to join <strong>${escapeCm(n.clubTitle)}</strong> wasn't approved this time. Questions? Message an admin on Instagram.</p>`).join('');
@@ -7170,14 +7170,14 @@ function iavCellClass(date, key){
 
 function iavLegendHtml(){
   const sw = c => `<i style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${c};border:1px solid #0003;vertical-align:-1px;margin-right:4px;"></i>`;
-  return `<p class="ideas-hint" style="text-align:left;">${sw('#d9f0d8')}Preferred &nbsp; ${sw('#f9dcdc')}Can't make it &nbsp; ${sw('#fff3cf')}Not filled — counts as available, just not your preferred time</p>`;
+  return `<p class="ideas-hint" style="text-align:left;">${sw('#d9f0d8')}Preferred &nbsp; ${sw('#f9dcdc')}Can't make it &nbsp; ${sw('#fff3cf')}Didn't fill in availability yet</p>`;
 }
-// "Are you sure?" shown before availability is submitted: anything left yellow/empty = free but NOT preferred; red is the only way to say "can't".
+// "Are you sure?" shown before availability is submitted: anything left yellow/empty = didn't fill in yet; red is the only way to say "can't".
 function confirmAvailSubmit(unsetCount, onConfirm){
   const { wrap, close } = ideaPopup(`
     <div style="font-size:38px;text-align:center;">🗓️</div>
     <h3 style="margin:4px 0 8px;text-align:center;">Are you sure you want to submit?</h3>
-    <p class="av-msg" style="margin:0 0 8px;line-height:1.55;">${unsetCount ? `You left <strong>${unsetCount} time${unsetCount === 1 ? '' : 's'}</strong> empty (yellow). ` : ''}Anything left <strong style="color:#a8851f;">empty</strong> counts as <strong>free</strong> — just not your <em>preferred</em> time.</p>
+    <p class="av-msg" style="margin:0 0 8px;line-height:1.55;">${unsetCount ? `You left <strong>${unsetCount} time${unsetCount === 1 ? '' : 's'}</strong> empty (yellow). ` : ''}Anything left <strong style="color:#a8851f;">empty</strong> shows as <strong>“didn't fill in availability yet”</strong> — mark it green if you're free, or red if you can't make it.</p>
     <p class="av-msg" style="margin:0 0 14px;line-height:1.55;background:#f9dcdc;color:#7a1f1a;border-radius:12px;padding:10px 12px;">🔴 <strong>If you can't make a time, you have to mark it red.</strong> Otherwise people will count on you.</p>
     <div style="display:flex;flex-direction:column;gap:8px;">
       <button type="button" class="club-guide-btn" id="avcGo" style="min-height:48px;background:#ce8491;color:#fff;">✓ Yes, submit</button>
@@ -7204,7 +7204,7 @@ function ideaAvailSectionHtml(me){
     <button type="button" class="iav-done-btn" id="iavDoneBtn">✓ Submit my availability</button>
     <div class="iav-grid-rows" id="iavGridBox">${iavGridRowsHtml(true)}</div>
     ${iavLegendHtml()}
-    <p class="ideas-hint">Tap a slot to cycle <strong style="color:#2a7a4a;">green</strong> (preferred) → <strong style="color:#b3261e;">red</strong> (can't) → <strong style="color:#a8851f;">yellow</strong> (not filled). Swipe across a row to paint it. <strong>Morning</strong> (${IAV_RANGES.morning}), <strong>Afternoon</strong> (${IAV_RANGES.afternoon}) or <strong>Evening</strong> (${IAV_RANGES.evening}). Tap a day's bottom button to set the whole day: green → red → not filled.</p>`;
+    <p class="ideas-hint">Tap a slot to cycle <strong style="color:#2a7a4a;">green</strong> (preferred) → <strong style="color:#b3261e;">red</strong> (can't) → <strong style="color:#a8851f;">yellow</strong> (didn't fill in yet). Swipe across a row to paint it. <strong>Morning</strong> (${IAV_RANGES.morning}), <strong>Afternoon</strong> (${IAV_RANGES.afternoon}) or <strong>Evening</strong> (${IAV_RANGES.evening}). Tap a day's bottom button to set the whole day: green → red → not filled.</p>`;
   else body = `
     <button type="button" class="iav-edit-btn" id="iavEditBtn" style="margin:0 0 10px;">✏️ Edit my availability</button>
     <div class="iav-grid-rows">${iavGridRowsHtml(false)}</div>
@@ -7232,7 +7232,7 @@ function iavOneGridHtml(dates, todayStr, editable){
       if(!iavPartsFor(d).includes(key)) return `<div class="iav-cell iav-na" aria-hidden="true"></div>`;
       const cls = iavCellClass(d, key);
       const type = editable ? ' type="button"' : '';
-      return `<${tag}${type} class="iav-cell ${cls}${editable ? '' : ' iav-readonly'}" data-date="${d}" data-part="${key}" aria-label="${label}, ${d}, ${({yes:'preferred',no:'not available',unset:'not filled (counts as available)'})[iavSlotState(d,key)]}"></${tag}>`;
+      return `<${tag}${type} class="iav-cell ${cls}${editable ? '' : ' iav-readonly'}" data-date="${d}" data-part="${key}" aria-label="${label}, ${d}, ${({yes:'preferred',no:'not available',unset:'didn\'t fill in availability yet'})[iavSlotState(d,key)]}"></${tag}>`;
     }).join('');
   });
   html += '<div class="iav-rowlabel">All day</div>';
@@ -7429,7 +7429,7 @@ function everyoneAvailSectionHtml(me, onlyClubId){
   else if(!state.ideaAvailAll) body = '';
   else body = `${eavBestWorstHtml()}${eavGridHtml()}
     <div class="eav-legend"><span><i class="eav-sw eav-sw-0"></i>Nobody</span><span><i class="eav-sw eav-sw-mid"></i>A few people</span><span><i class="eav-sw eav-sw-max"></i>Most people</span></div>
-    <p class="ideas-hint">${state.ideaAvailAllRespondents} ${state.ideaAvailAllRespondents === 1 ? 'person has' : 'people have'} added their availability so far. Darker green = more people available then (anything not marked red counts as available).${state.ideaAvailAllPeople ? ' Tap a square to see who by name.' : ''}</p>`;
+    <p class="ideas-hint">${state.ideaAvailAllRespondents} ${state.ideaAvailAllRespondents === 1 ? 'person has' : 'people have'} added their availability so far. Darker green = more people free then. Tap a square to see who prefers it and who hasn't filled in yet.${state.ideaAvailAllPeople ? ' Tap a square to see who by name.' : ''}</p>`;
   const sessClubs = ((getCmSession() || {}).clubs || []).filter(id => clubsData.some(c => c.id === id));
   const chips = (sessClubs.length > 1 && !onlyClubId) ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;" aria-label="Which club's availability to view">${[['mine', 'All my clubs']].concat(sessClubs.map(id => [id, (clubsData.find(c => c.id === id) || {}).title || id])).map(([id, title]) => {
     const col = id === 'mine' ? { bg:'#f2d8d7', fg:'#76220b' } : clubCol(id); const on = (state.eavClub || 'mine') === id;
@@ -7509,7 +7509,7 @@ function eavShowSlot(date, part){
     <h3 style="margin:4px 0 8px;">${escapeCm(label)}, ${escapeCm(monthNames[dt.getMonth()])} ${dt.getDate()}</h3>
     <p class="idea-pop-h">🟢 Preferred (${preferred.length})</p>
     <div class="idea-pop-names">${preferred.length ? chips(preferred) : '<span class="av-msg">Nobody picked this as preferred.</span>'}</div>
-    <p class="idea-pop-h" style="margin-top:10px;">🟡 Also available — not their preferred time (${available.length})</p>
+    <p class="idea-pop-h" style="margin-top:10px;">🟡 Didn't fill in availability yet (${available.length})</p>
     <div class="idea-pop-names">${available.length ? chips(available) : '<span class="av-msg">Nobody else.</span>'}</div>
     <p class="idea-pop-h" style="margin-top:10px;">🔴 Not available (${unavailable.length})</p>
     <div class="idea-pop-names">${unavailable.length ? redChips(unavailable) : '<span class="av-msg">Nobody marked this as unavailable.</span>'}</div>
@@ -10236,7 +10236,7 @@ function admSlotPopup(day, part){
     const no = p => ((p.no || {})[day] || []).includes(id), pf = p => ((p.days || {})[day] || []).includes(id);
     return `<div style="${parts.length > 1 ? 'margin-top:12px;padding-top:8px;border-top:1px solid #0001;' : ''}">${parts.length > 1 ? `<strong>${escapeCm(label)}</strong>` : ''}
       ${group('🟢', 'Preferred', scope.filter(p => !no(p) && pf(p)), '')}
-      ${group('🟡', 'Also free', inWin ? scope.filter(p => !no(p) && !pf(p)) : [], '')}
+      ${group('🟡', 'Didn\'t fill in availability yet', inWin ? scope.filter(p => !no(p) && !pf(p)) : [], '')}
       ${group('🔴', 'Can\'t', scope.filter(no), 'background:#d9534f;border-color:#b3261e;color:#fff;')}</div>`;
   }).join('');
   const { wrap } = ideaPopup(`<h3 style="margin:4px 0 4px;">${escapeCm(dayLabelsShort[dt.getDay()])} ${escapeCm(monthNames[dt.getMonth()])} ${dt.getDate()}${part ? ' · ' + escapeCm((ADM_PARTS.find(p => p[0] === part) || [0, part])[1]) : ''}</h3>${body}`);
@@ -10255,7 +10255,7 @@ function admModeAndBestHtml(scope){
   const label = id => (ADM_PARTS.find(p => p[0] === id) || [0, id])[1];
   const list = top.length ? top.map((r, i) => { const dt = new Date(r.k + 'T12:00:00'); return `<button type="button" class="adm-slot" data-day="${r.k}" data-part="${r.id}" style="display:block;width:100%;text-align:left;padding:9px 12px;margin-top:6px;border-radius:10px;border:1px solid #0000001a;background:#fff;cursor:pointer;font-family:inherit;color:#373d3b;font-size:14px;line-height:1.4;"><strong>${i + 1}. ${escapeCm(dayLabelsShort[dt.getDay()])} ${escapeCm(monthNames[dt.getMonth()].slice(0, 3))} ${dt.getDate()} · ${escapeCm(label(r.id))}</strong><br><span style="font-size:13px;">🟢 ${r.pref} prefer · 🟡 ${Math.max(0, r.avail - r.pref)} also free · 🔴 ${r.no} can't</span> <span style="font-size:12px;color:#76220b;font-weight:700;">· tap to see who</span></button>`; }).join('') : `<p class="av-msg" style="margin:8px 0 0;">${mode === 'pref' ? 'Nobody has picked a preferred time yet.' : 'No availability yet.'}</p>`;
   return `<div style="margin:0 0 14px;padding:12px;border-radius:14px;background:#fef7f4;border:2px solid #76220b22;">
-    <div style="display:flex;gap:8px;">${btn('pref', '🟢 Preferred times only')}${btn('avail', '🟡🟢 Everyone available')}</div>
+    <div style="display:flex;gap:8px;">${btn('pref', '🟢 Preferred times only')}${btn('avail', '🟡🟢 Include those who haven\'t filled in')}</div>
     <div style="font-weight:800;margin:12px 0 0;color:#76220b;">🏆 Best times — ${mode === 'pref' ? 'most people who prefer it' : 'most people free'}</div>${list}
     <p class="ideas-hint" style="margin:8px 0 0;text-align:left;">The calendar numbers below follow the button you picked. Tap a time (or a date) for the names.</p></div>`;
 }
@@ -10340,7 +10340,7 @@ function admAvailCalendarHtml(){
     detail = `<div style="margin-top:14px;padding:14px;border-radius:14px;background:#f2d8d7;color:#76220b;"><strong>${escapeCm(dayLabel)}</strong>${ADM_PARTS.filter(([id]) => id !== 'morning' || [0, 6].includes(dayDow)).map(([id, label]) => {
       const no = p => ((p.no || {})[admAvail.day] || []).includes(id), pref = p => ((p.days || {})[admAvail.day] || []).includes(id);
       const preferred = scope.filter(p => !no(p) && pref(p)), unavailable = scope.filter(no), available = inWin ? scope.filter(p => !no(p) && !pref(p)) : [];
-      return `<div style="margin-top:10px;padding-top:8px;border-top:1px solid #76220b22;"><span style="font-weight:700;">${label}</span>${line('🟢', 'Preferred', preferred)}${line('🟡', 'Also available', available)}${line('🔴', 'Not available', unavailable)}</div>`;
+      return `<div style="margin-top:10px;padding-top:8px;border-top:1px solid #76220b22;"><span style="font-weight:700;">${label}</span>${line('🟢', 'Preferred', preferred)}${line('🟡', 'Didn\'t fill in availability yet', available)}${line('🔴', 'Not available', unavailable)}</div>`;
     }).join('')}</div>`;
   }
   // One person selected: list every day + time they specifically marked as PREFERRED (and the ones they can't do).
@@ -10382,7 +10382,7 @@ function admAvailCalendarHtml(){
       ${navBtn('admAvPrev', '‹', atMin)}<strong style="font-size:20px;color:#76220b;">${escapeCm(monthName)}</strong>${navBtn('admAvNext', '›', atMax)}
     </div>
     <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;">${heads}${cells}</div>
-    <p class="ideas-hint" style="margin-top:8px;text-align:left;">${sel ? 'Green = preferred, red = can\'t, yellow = not filled (counts as available). M / A / E = morning / afternoon / evening.' : 'Big number = people free that day (darker = more). M / A / E = people free in the morning / afternoon / evening. Tap a day for names.'}</p>
+    <p class="ideas-hint" style="margin-top:8px;text-align:left;">${sel ? 'Green = preferred, red = can\'t, yellow = didn\'t fill in availability yet. M / A / E = morning / afternoon / evening.' : 'Big number = people free that day (darker = more). M / A / E = people free in the morning / afternoon / evening. Tap a day for names.'}</p>
     ${detail}`;
 }
 
