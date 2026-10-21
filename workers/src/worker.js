@@ -625,11 +625,48 @@ const createMemberFromForm = async (env, ctx, ip, input) => {
 // People search (to sign in from a form): first name + last initial only, ≥3 letters, rate-limited, cached.
 let _memberSearchCache = null;
 const NOTIF_CATS = ["reminders", "announcements", "clubs", "events"];
+// ---- Apple push (APNs) for the native iPhone app. Needs secrets APNS_KEY (the .p8 text), APNS_KEY_ID, APNS_TEAM_ID. The app's bundle id is the "topic". ----
+const APNS_TOPIC = "4DS";
+let _apnsJwt = { at: 0, jwt: "" };
+const apnsAuth = async (env) => {
+  if (_apnsJwt.jwt && Date.now() - _apnsJwt.at < 45 * 60000) return _apnsJwt.jwt;
+  const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const enc = (o) => b64u(new TextEncoder().encode(JSON.stringify(o)));
+  const pem = String(env.APNS_KEY || "").replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  const key = await crypto.subtle.importKey("pkcs8", Uint8Array.from(atob(pem), (c) => c.charCodeAt(0)), { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const head = enc({ alg: "ES256", kid: env.APNS_KEY_ID }), body = enc({ iss: env.APNS_TEAM_ID, iat: Math.floor(Date.now() / 1000) });
+  const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, new TextEncoder().encode(`${head}.${body}`));
+  _apnsJwt = { at: Date.now(), jwt: `${head}.${body}.${b64u(sig)}` };
+  return _apnsJwt.jwt;
+};
+// Sends one notification to every iPhone registered for this person. Tries production first, then the sandbox (a build installed from Xcode registers a sandbox token).
+const sendApns = async (env, userId, message) => {
+  if (!env.APNS_KEY || !env.APNS_KEY_ID || !env.APNS_TEAM_ID || !env.DB) return { sent: 0, devices: 0 };
+  let tokens = []; try { await seenEnsure(env); tokens = (await env.DB.prepare("SELECT token FROM device_tokens WHERE user_id = ?").bind(userId).all()).results || []; } catch { return { sent: 0, devices: 0 }; }
+  let sent = 0;
+  for (const t of tokens) {
+    const jwt = await apnsAuth(env).catch(() => "");
+    if (!jwt) break;
+    const payload = JSON.stringify({ aps: { alert: { title: message.title || "4DS", body: message.body || "" }, sound: "default" }, url: message.url || "/" });
+    let done = false;
+    for (const host of ["api.push.apple.com", "api.sandbox.push.apple.com"]) {
+      try {
+        const res = await fetch(`https://${host}/3/device/${t.token}`, { method: "POST", headers: { authorization: `bearer ${jwt}`, "apns-topic": APNS_TOPIC, "apns-push-type": "alert", "apns-priority": "10" }, body: payload });
+        if (res.ok) { sent++; done = true; break; }
+        const txt = await res.text().catch(() => ""), reason = (() => { try { return JSON.parse(txt).reason; } catch { return ""; } })();
+        if (res.status === 410 || reason === "Unregistered") { await env.DB.prepare("DELETE FROM device_tokens WHERE token = ?").bind(t.token).run(); done = true; break; }
+        if (reason !== "BadDeviceToken" && reason !== "DeviceTokenNotForTopic" && reason !== "BadEnvironmentKeyInToken") { console.error("APNs rejected", host, res.status, reason); done = true; break; } // (BadDeviceToken = wrong environment: try the other)
+      } catch (e) { console.error("APNs failed", String(e)); done = true; break; }
+    }
+  }
+  return { sent, devices: tokens.length };
+};
 const sendPushToUser = async (env, userId, message) => {
   if (message.cat) { const u = await readUser(env, userId); if (u && Array.isArray(u.notifOff) && u.notifOff.includes(message.cat)) return { sent: 0, removed: 0, devices: 0, muted: true }; }
+  const ap = await sendApns(env, userId, message);
   const subs = await readPushSubs(env, userId);
-  if (!subs.length || !env.VAPID_PRIVATE_JWK) return { sent: 0, removed: 0, devices: subs.length };
-  let sent = 0; const keep = [];
+  if (!subs.length || !env.VAPID_PRIVATE_JWK) return { sent: ap.sent, removed: 0, devices: subs.length + ap.devices };
+  let sent = ap.sent; const keep = [];
   for (const sub of subs) {
     try {
       await env.SITE_DATA.put(`pushmsg:${await endpointHash(sub.endpoint)}`, JSON.stringify({ title: message.title, body: message.body, url: message.url || "/", at: Date.now() }), { expirationTtl: 86400 });
@@ -640,7 +677,7 @@ const sendPushToUser = async (env, userId, message) => {
     } catch (e) { keep.push(sub); console.error("Push failed", String(e)); }
   }
   if (keep.length !== subs.length) await env.SITE_DATA.put(pushKey(userId), JSON.stringify(keep));
-  return { sent, removed: subs.length - keep.length, devices: subs.length };
+  return { sent, removed: subs.length - keep.length, devices: subs.length + ap.devices };
 };
 // ---- Steps challenge: biweekly rounds, per-person daily steps (synced from Apple Health / Health Connect by the native app), per-1,000-step pledges for a charity. ----
 // Daily rows live in D1 (free plan: 100k writes/day) — an hourly sync per person would blow through KV's 1k writes/day. Rounds are one small KV doc.
@@ -812,6 +849,8 @@ const seenEnsure = async (env) => {
   if (!_seenReady) _seenReady = env.DB.batch([
     env.DB.prepare("CREATE TABLE IF NOT EXISTS member_seen (user_id TEXT PRIMARY KEY, login_at INTEGER, seen_at INTEGER)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS rate_limits (k TEXT PRIMARY KEY, n INTEGER NOT NULL, exp INTEGER NOT NULL)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS device_tokens (token TEXT PRIMARY KEY, user_id TEXT NOT NULL, platform TEXT, at INTEGER)"),
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS device_tokens_user ON device_tokens (user_id)"),
   ]).catch((e) => { _seenReady = null; throw e; });
   await _seenReady; return true;
 };
@@ -2449,6 +2488,17 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       if (me.pinHash !== await sha256Hex(String(b.pin || "").trim())) return jsonResponse({ error: "That PIN isn't right" }, 403, corsHeaders);
       await eraseUserEverywhere(env, me);
+      return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+    // The native app registers its Apple push token here (stored in D1, no KV writes).
+    if (path === "/api/push/apns-register" && request.method === "POST") {
+      const meId = await memberIdFromRequest();
+      if (!meId) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const token = String(b.token || "").toLowerCase().replace(/[^0-9a-f]/g, "");
+      if (token.length < 32 || token.length > 200) return jsonResponse({ error: "Bad token" }, 400, corsHeaders);
+      if (!(await seenEnsure(env))) return jsonResponse({ error: "Not available" }, 503, corsHeaders);
+      await env.DB.prepare("INSERT INTO device_tokens (token, user_id, platform, at) VALUES (?, ?, 'ios', ?) ON CONFLICT(token) DO UPDATE SET user_id = excluded.user_id, at = excluded.at").bind(token, meId, Date.now()).run();
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     if (path === "/api/me/prefs" && (request.method === "GET" || request.method === "POST")) {

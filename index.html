@@ -5183,6 +5183,7 @@ function setCmSession(session){
   if(!prev || (session && prev.id !== session.id)) resetUserScopedState(); // a different person signed in on this browser
   localStorage.setItem(cmSessionKey(), JSON.stringify(session));
   setTimeout(availNagCheck, 1500); // new availability period not filled in yet? ask once per sign-in
+  setTimeout(nativePushInit, 2500);
   rememberLastLogin(session); // per-device only: lets the login page offer "Log in as <this device's last user>"
 }
 // "Log in as <name>": remembered in THIS browser only (localStorage is per-device, so it is never shown to other
@@ -6669,6 +6670,18 @@ function installGateSkipped(){ try { return Date.now() - Number(localStorage.get
 function pushSupported(){ return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
 function isMobileDevice(){ return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); }
 function isNativeApp(){ return !!(window.Capacitor && typeof Capacitor.isNativePlatform === 'function' && Capacitor.isNativePlatform()); }
+// Native iPhone app: ask for notification permission once signed in, hand the phone's Apple token to the server, and open the right page when a notification is tapped.
+let nativePushDone = false;
+async function nativePushInit(){
+  try {
+    if(nativePushDone || !isNativeApp() || !getCmSession()) return;
+    const P = window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications; if(!P) return;
+    nativePushDone = true;
+    P.addListener('registration', async tok => { try { await cmApiRaw('/api/push/apns-register', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ token: tok.value }) }); state.pushRegistered = true; } catch {} });
+    P.addListener('pushNotificationActionPerformed', a => { try { const u = a.notification && a.notification.data && a.notification.data.url; if(u && u !== '/') location.href = u.startsWith('/') ? u : '/'; } catch {} });
+    const perm = await P.requestPermissions(); if(perm && perm.receive === 'granted') await P.register();
+  } catch {}
+}
 function isStandaloneApp(){ return isNativeApp() || window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; } // inside the 4DS app there's nothing to "install"
 function urlB64ToUint8Array(b64){
   const pad = '='.repeat((4 - b64.length % 4) % 4), raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
@@ -6691,6 +6704,7 @@ async function pushEnable(){
 function pushGateMode(){
   const sess = getCmSession();
   if(!sess || state.meLoadedFor !== sess.token) return false; // wait until /api/me told us whether this person already registered
+  if(isNativeApp()) return false; // the app asks for notifications itself (nativePushInit)
   if(isMobileDevice() && !isStandaloneApp() && !installGateSkipped()) return 'install';
   if(!pushSupported()) return false;
   if(Notification.permission === 'granted' && state.pushRegistered) return false;
@@ -11926,6 +11940,7 @@ loadData().then(() => Promise.all([loadLabels(), loadAvailPeriod()])).then(() =>
   showLoadWarning();
   checkAdminSession();
   setTimeout(availNagCheck, 2500);
+  setTimeout(nativePushInit, 3500);
   const initId = eventIdFromHash();
   if(initId) renderDetail(initId);
 }).catch(err => {
