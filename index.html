@@ -10102,6 +10102,7 @@ function renderClubAdminPanel(){
     ${admSec('labels-ev', '🏷️ Names of event genres', labelsAdminHtml('event'), false)}
   `;
   const settingsGrid = lead ? '' : `
+    ${admSec('database', '🗄️ Database &amp; backups (move to D1)', d1AdminHtml(), true)}
     ${admSec('wasend', '💬 Send a WhatsApp message (pick who)', waSendHtml(), false)}
     ${admSec('watpl', '💬 WhatsApp messages — your wording', waTemplatesAdminHtml(), false)}
     ${lead ? '' : admSec('push', '📲 Push notifications', pushAdminHtml(), false)}
@@ -10924,6 +10925,7 @@ function wireStayAdmin(){
   }));
 }
 function wireClubAdminPanel(){
+  wireD1Admin();
   wireStayAdmin();
   wireBmImport();
   wireStepsAdmin();
