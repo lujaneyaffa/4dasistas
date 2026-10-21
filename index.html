@@ -42,7 +42,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/globe.gl"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Amiri:wght@700&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Amiri:wght@700&family=Aref+Ruqaa:wght@700&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap');
 
   :root{
     --cream: #fef7f4;
@@ -907,6 +907,11 @@
   .disclaimer{ font-size:11px; color:#fff7e6; max-width:440px; margin:0 auto; line-height:1.5; }
   .page-disclaimer{ max-width:760px; margin:20px auto 0; padding:0 20px; font-size:11px; color:var(--muted); line-height:1.5; text-align:center; }
   .footer-logo{ display:block; width:min(300px,80vw); height:120px; margin:0 auto; object-fit:cover; object-position:center 68%; image-rendering:auto; }
+  /* a much shorter footer: icons, one row of buttons, a small logo */
+  footer{ padding-top:10px !important; padding-bottom:calc(8px + env(safe-area-inset-bottom)) !important; margin-top:8px !important; }
+  footer .footer-logo{ height:34px !important; width:auto !important; max-width:170px; object-fit:contain !important; margin:4px auto 0 !important; }
+  footer .footer-btns{ margin:0 !important; }
+  footer .footer-admin-corner{ margin:8px 0 0 !important; }
 
   .suggest-btn{ display:inline-block; font-family:'Outfit','Inter',sans-serif; font-weight:600; font-size:13px; background:var(--blush); border:1.5px solid var(--charcoal); color:var(--charcoal); padding:9px 18px; border-radius:999px; cursor:pointer; margin-bottom:2px; text-decoration:none; }
   .hp-field{ position:absolute; left:-9999px; }
@@ -1215,7 +1220,9 @@
     <button type="button" class="footer-admin-btn" id="footerNewEventBtn" style="display:none;">➕ New event</button>
     <button type="button" class="footer-admin-btn footer-missing-btn" id="footerMissingDetailsBtn" style="display:none;">📋 Needs details</button>
     <button type="button" class="footer-admin-btn" id="footerAdminPageBtn" style="display:none;">🛠 Admin page</button>
-    <button type="button" class="footer-admin-btn" id="footerAdminBtn">🔒 Admin Login</button>
+    <button type="button" class="footer-admin-btn" id="footerAdminBtn" style="display:none !important;">🔒 Admin Login</button>
+    <button type="button" class="footer-admin-btn" id="footerSubmitEvent">➕ Submit an event</button>
+    <button type="button" class="footer-admin-btn" id="footerAddResource">➕ Add a resource</button>
   </div>
 </footer>
 
@@ -2608,15 +2615,10 @@ const NO_PILL_TABS = ['admin','clubs','stay','steps','badminton','eventform','cl
 function renderPageCta(){
   const slot = document.getElementById('pageCtaSlot');
   if(!slot) return;
-  if(NO_PILL_TABS.includes(state.tab)){ slot.style.display = 'none'; slot.innerHTML = ''; return; }
   const trip = pageCtaForTab();
-  const showTrip = trip && state.tab === 'travel';
+  if(NO_PILL_TABS.includes(state.tab) || !(trip && state.tab === 'travel')){ slot.style.display = 'none'; slot.innerHTML = ''; return; } // "Submit an event" / "Add a resource" now live in the footer
   slot.style.cssText = 'display:flex;flex-wrap:wrap;gap:12px;justify-content:center;';
-  slot.innerHTML = `<button type="button" class="add-resource-pill" id="pillSubmitEvent" style="background:#ce8491;color:#fff;border-color:#76220b;box-shadow:3px 3px 0 #76220b;cursor:pointer;">➕ Submit an event</button>
-    <button type="button" class="add-resource-pill" id="pillAddResource" style="cursor:pointer;">➕ Add a resource</button>
-    ${showTrip ? `<a class="add-resource-pill" href="${IG_DM_URL}" target="_blank" rel="noopener" title="${trip.title}">➕ ${trip.label}</a>` : ''}`;
-  document.getElementById('pillSubmitEvent').addEventListener('click', () => goToTab('submitevent'));
-  document.getElementById('pillAddResource').addEventListener('click', () => goToTab('submitresource'));
+  slot.innerHTML = `<a class="add-resource-pill" href="${IG_DM_URL}" target="_blank" rel="noopener" title="${trip.title}">➕ ${trip.label}</a>`;
 }
 
 function resAddBtnHtml(){
@@ -3163,7 +3165,7 @@ function renderDirectory(){
     document.getElementById('resourcePagination').innerHTML = '';
     if(!adminUiOn()){
       el.innerHTML = `<div class="rules-content" style="max-width:420px;margin:24px auto;text-align:center;"><h3>Admin</h3><p>Log in to see this page.</p><button type="button" class="club-guide-btn" id="admPageLogin" style="background:var(--blush);">🔒 Admin login</button></div>`;
-      document.getElementById('admPageLogin').addEventListener('click', () => document.getElementById('footerAdminBtn').click());
+      document.getElementById('admPageLogin').addEventListener('click', () => goLogin(true));
       return;
     }
     if(!state.cmAdminOpen) openClubAdmin();
@@ -3226,13 +3228,14 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
           }).join('')}
         ` : `<p style="font-size:13px;">You're not part of any club yet — ask an organizer to add you.</p>`}
       ` : `
-        <p style="font-size:13px;margin-bottom:10px;">Sign in with your username or phone number and your PIN.</p>
+        <p style="font-size:13px;margin-bottom:10px;">${state.clubsStaffLogin ? 'Admin or club admin: type <strong>admin</strong> for the main admin, or your club admin username, plus your password.' : 'Sign in with your username or phone number and your PIN.'}</p>
         <div id="clubsLoginError" style="color:#c00;font-size:13px;margin-bottom:8px;"></div>
         ${getLastLogin() ? `<p style="font-size:14px;margin:0 0 10px;text-align:center;">Welcome back, <strong>${escapeCm(getLastLogin().name || getLastLogin().username)}</strong> — just enter your PIN. <button type="button" id="clubsLoginForgetBtn" class="av-link" style="font-size:13px;">Not you?</button></p>` : ''}
-        <input id="clubsLoginUsername" value="${getLastLogin() ? escapeCm(getLastLogin().username) : ''}" placeholder="Username or phone number" autocapitalize="none" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);margin-bottom:10px;box-sizing:border-box;">
-        <input id="clubsLoginPin" type="password" autocomplete="current-password" placeholder="PIN" inputmode="numeric" maxlength="4" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);margin-bottom:10px;box-sizing:border-box;">
+        <input id="clubsLoginUsername" value="${state.clubsStaffLogin ? '' : (getLastLogin() ? escapeCm(getLastLogin().username) : '')}" placeholder="${state.clubsStaffLogin ? 'admin, or club admin username' : 'Username or phone number'}" autocapitalize="none" autocorrect="off" spellcheck="false" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);margin-bottom:10px;box-sizing:border-box;">
+        <input id="clubsLoginPin" type="password" autocomplete="current-password" placeholder="${state.clubsStaffLogin ? 'Password' : 'PIN'}" ${state.clubsStaffLogin ? 'autocapitalize="none" autocorrect="off" spellcheck="false"' : 'inputmode="numeric" maxlength="4"'} style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);margin-bottom:10px;box-sizing:border-box;">
         <button class="club-guide-btn" id="clubsLoginSubmitBtn" style="width:100%;background:var(--brand-blush);">Sign In</button>
         <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;">Forgot your PIN? An admin can reset it for you — just message us.</p>
+        <p style="margin:8px 0 0;text-align:center;"><button type="button" id="clubsStaffToggle" class="av-link" style="font-size:12px;">${state.clubsStaffLogin ? '← Back to member sign in' : 'Admin or club admin? Sign in here'}</button></p>
       `}
     </div>` : ''}
     ${anon ? `
@@ -3262,6 +3265,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       if(cpnSaveBtn) cpnSaveBtn.addEventListener('click', cmChoosePin);
       const loginForgetBtn = document.getElementById('clubsLoginForgetBtn');
       if(loginForgetBtn) loginForgetBtn.addEventListener('click', () => { try { localStorage.removeItem('lastLogin2'); } catch {} state.clubsLoginPrefill = false; render(); });
+      const staffToggle = document.getElementById('clubsStaffToggle'); if(staffToggle) staffToggle.addEventListener('click', () => { state.clubsStaffLogin = !state.clubsStaffLogin; render(); });
       const loginSubmitBtn = document.getElementById('clubsLoginSubmitBtn');
       if(loginSubmitBtn) loginSubmitBtn.addEventListener('click', cmGeneralLogin);
       document.querySelectorAll('.clubs-my-club-btn').forEach(btn => {
@@ -3483,7 +3487,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
     // only needs quick buttons for the two tabs that got demoted out of the nav.
     const quickLinks = [
       {tab:'travel', label: siteText.homeTileTravelTitle || 'Travel'},
-      {tab:'homescreen', label: 'Add to Home Screen'},
+      ...(isNativeApp() ? [] : [{tab:'homescreen', label: 'Add to Home Screen'}]),
       {tab:'rules', label: 'About'},
     ];
     const selectedToday = new Date(today);
@@ -6922,12 +6926,16 @@ function openSettingsPopup(){
     <p class="ideas-hint" style="text-align:left;margin:6px 0 0;">To join another club, send a request from the Clubs page — an admin approves it.</p>
     <p class="idea-pop-h">🔔 Notifications</p>
     <div id="stNotif"></div>
+    <p class="idea-pop-h">👋 Wave colour</p>
+    <div id="stWave" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">${WAVE_TONES.map((m, i) => `<button type="button" class="st-wave" data-i="${i}" aria-label="Wave colour ${i + 1}" style="width:46px;height:46px;border-radius:50%;border:2px solid var(--brand-brown);background:#fff;font-size:24px;cursor:pointer;">${'\u{1F44B}' + m}</button>`).join('')}</div>
     <p class="idea-pop-h">📄 About</p>
     <p style="margin:0 0 6px;font-size:14px;"><a href="/privacy" target="_blank" rel="noopener">Privacy policy</a> · <a href="/support" target="_blank" rel="noopener">Help &amp; contact</a></p>
     <p class="idea-pop-h" style="color:#b3261e;">⚠️ Delete my account</p>
     <p class="ideas-hint" style="text-align:left;margin:0 0 6px;">Permanently removes your profile, availability, RSVPs, step totals and club memberships. This can't be undone.</p>
     <div style="text-align:center;"><button type="button" id="stDelete" style="${pill}background:#fdecea;color:#b3261e;border-color:#b3261e;">Delete my account…</button></div>`);
   const status = wrap.querySelector('#epStatus');
+  wrap.querySelectorAll('.st-wave').forEach(b => b.addEventListener('click', () => { try { localStorage.setItem('waveTone', b.dataset.i); } catch {} wrap.querySelectorAll('.st-wave').forEach(x => x.style.background = x === b ? '#f2d8d7' : '#fff'); if(state.tab === 'home') render(); }));
+  { let cur = 0; try { cur = Number(localStorage.getItem('waveTone') || 0) || 0; } catch {} const cb = wrap.querySelector('.st-wave[data-i="' + cur + '"]'); if(cb) cb.style.background = '#f2d8d7'; }
   wrap.querySelector('#stDelete').addEventListener('click', () => {
     const pin = window.prompt('To delete your account, type your 4-digit PIN. This cannot be undone.');
     if(pin === null) return;
@@ -7326,7 +7334,8 @@ function iavLegendHtml(){
 /* ---- 🏠 The signed-in member's own home page: their clubs (always shown) plus extras they can hide. Choices are saved on their account. ---- */
 const HOME_SECTIONS = [['todo', '✨ For you (what needs your attention)'], ['minical', '🗓️ Mini calendar of my clubs'], ['events', '📋 Coming up in my clubs (list)'], ['steps', '👟 Steps challenge'], ['badminton', '🏸 Badminton leaderboard'], ['links', '🔗 Travel · Add to Home Screen · About']];
 function homeHidden(k){
-  if(!getCmSession()) return false; // visitors see everything
+  return false; // (the Customize switches were removed: Home always shows the same sections)
+  if(!getCmSession()) return false;
   if(!state.homeHidden){ try { state.homeHidden = JSON.parse(localStorage.getItem('homeHidden') || '[]'); } catch { state.homeHidden = []; } if(!state.homePrefsLoaded){ state.homePrefsLoaded = true; homePrefsLoad(); } }
   return state.homeHidden.includes(k);
 }
@@ -7346,6 +7355,8 @@ function homeCustomize(){
     try { await cmApiRaw('/api/me/prefs', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ hidden: state.homeHidden }) }); } catch {}
   });
 }
+const WAVE_TONES = ['', '\u{1F3FB}', '\u{1F3FC}', '\u{1F3FD}', '\u{1F3FE}', '\u{1F3FF}'];
+function waveEmoji(){ let i = 0; try { i = Number(localStorage.getItem('waveTone') || 0) || 0; } catch {} return '\u{1F44B}' + (WAVE_TONES[i] || ''); }
 function myHomeHtml(){
   const sess = getCmSession(); if(!sess) return '';
   const first = String(sess.name || '').split(' ')[0] || 'there';
@@ -7353,13 +7364,6 @@ function myHomeHtml(){
   const cards = mine.length ? mine.map(c => { const col = clubCol(c.id); return `<button type="button" class="home-myclub" data-myclub="${escapeCm(c.id)}" style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:96px;flex:1 1 96px;max-width:150px;padding:10px 6px;border-radius:16px;border:2px solid ${col.fg};background:${col.bg};color:${col.fg};font:inherit;font-weight:800;cursor:pointer;">${c.logo ? `<img src="${escapeCm(c.logo)}" alt="" style="width:48px;height:48px;object-fit:contain;">` : `<span style="font-size:30px;">${escapeCm(c.emoji || '🏛️')}</span>`}<span style="font-size:13px;">${escapeCm(c.title)}</span></button>`; }).join('') : `<p class="ideas-hint" style="margin:0;">You're not in a club yet — <a href="#/clubs">pick one on the Clubs tab</a>.</p>`;
   const inClub = id => (sess.clubs || []).includes(id);
   const extras = [];
-  if(!homeHidden('todo')) extras.push(myTodoHtml());
-  if(!homeHidden('events') && mine.length){
-    if(!state.clubCal) clubCalLoad();
-    const today = new Date().toISOString().slice(0, 10);
-    const evs = (state.clubCal || []).filter(e => e.date >= today && !String(e.id).startsWith('idea:') && (e.clubIds || [e.clubId]).some(inClub)).slice(0, 3);
-    if(evs.length) extras.push(`<div class="panel-card" style="margin:0 0 12px;padding:12px 14px;"><p style="margin:0 0 6px;font-weight:800;">🗓️ Coming up in your clubs</p>${evs.map(e => `<button type="button" class="home-ev" data-calid="${escapeCm(e.id)}" style="display:flex;gap:10px;align-items:center;width:100%;min-height:44px;padding:6px 0;border:none;border-top:1px solid rgba(0,0,0,.08);background:none;font:inherit;text-align:left;cursor:pointer;"><span style="flex:1;font-size:14px;"><b>${escapeCm(e.title)}</b><br><small style="color:#776867;">${escapeCm(new Date(e.date + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' }))}${e.time ? ' · ' + escapeCm(e.time) : ''} · ${escapeCm(e.clubTitle || '')}</small></span><span style="color:#776867;">›</span></button>`).join('')}</div>`);
-  }
   if(!homeHidden('minical') && mine.length){
     if(!state.clubCal) clubCalLoad();
     const myEvs = (state.clubCal || []).filter(e => (e.clubIds || [e.clubId]).some(inClub));
@@ -7370,7 +7374,7 @@ function myHomeHtml(){
   if(!homeHidden('badminton') && inClub('club-badminton')) tiles.push(['🏸', 'Badminton', '/badminton']);
   if(tiles.length) extras.push(`<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;">${tiles.map(([ic, l, href]) => href === 'cal-today' ? `<button type="button" class="club-guide-btn home-caltoday" style="flex:1 1 140px;display:flex;gap:8px;align-items:center;justify-content:center;min-height:48px;">${ic} ${escapeCm(l)}</button>` : `<a href="${href}" class="club-guide-btn" style="flex:1 1 140px;display:flex;gap:8px;align-items:center;justify-content:center;text-decoration:none;min-height:48px;">${ic} ${escapeCm(l)}</a>`).join('')}</div>`);
   return `<div class="my-home" style="max-width:640px;margin:0 auto 16px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;"><h3 style="margin:0;font-size:20px;">Hi ${escapeCm(first)} 👋</h3><button type="button" class="club-guide-btn" id="homeCustomize" style="min-height:40px;padding:6px 12px;font-size:13px;">⚙️ Customize</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;"><button type="button" id="homeGreeting" aria-label="Open my profile and settings" style="border:none;background:none;padding:6px 0;margin:0;font:inherit;font-size:22px;font-weight:800;text-align:left;cursor:pointer;color:inherit;">Hi ${escapeCm(first)} ${waveEmoji()}</button></div>
     <p style="margin:0 0 6px;font-weight:800;font-size:14px;">🏛️ Your clubs</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;">${cards}</div>${extras.join('')}</div>`;
 }
@@ -7384,7 +7388,7 @@ document.addEventListener('click', e => {
   }
   const c = e.target.closest('.home-myclub'); if(c){ openClubIdeas(c.dataset.myclub); return; }
   const v = e.target.closest('.home-ev'); if(v){ clubCalOpen(v.dataset.calid); return; }
-  if(e.target.closest('#homeCustomize')) homeCustomize();
+  if(e.target.closest('#homeGreeting')) openSettingsPopup();
 });
 // "For you": what needs the signed-in member's attention, in priority order (top of the Clubs home).
 async function myTodoLoad(){
@@ -8262,6 +8266,19 @@ async function cmGeneralLogin(){
   const username = document.getElementById('clubsLoginUsername').value.trim();
   const pin = document.getElementById('clubsLoginPin').value.trim();
   const errEl = document.getElementById('clubsLoginError');
+  if(state.clubsStaffLogin){ // main admin ("admin" + the admin password) or a club admin (username + password) — the same sign-in screen as everyone else
+    if(!username || !pin){ if(errEl) errEl.textContent = 'Enter your username and password.'; return; }
+    const main = username.toLowerCase() === 'admin';
+    try {
+      const res = await fetch(main ? '/api/admin/login' : '/api/clubadmin/login', { method:'POST', headers:{ 'Content-Type':'application/json' }, credentials:'include', body: JSON.stringify(main ? { password: pin } : { username, password: pin }) });
+      const d = await res.json().catch(() => ({})); if(!res.ok) throw new Error(d.error || 'Sign-in failed');
+      state.clubsStaffLogin = false;
+      if(main){ state.cmAdminLoggedIn = true; if(state.cmAdminOpenPending){ state.cmAdminOpenPending = false; await cmAdminLoadAllMembers(); } }
+      else { const sr = await (await fetch('/api/admin/session', { credentials:'include' })).json(); state.cmLead = sr.lead || null; state.cmAdminOpen = false; }
+      state.clubsLoginPickerOpen = false; goToTab('admin');
+    } catch(err){ if(errEl) errEl.textContent = err.message; }
+    return;
+  }
   if(!username || !pin){ if(errEl) errEl.textContent = 'Enter your username and PIN.'; return; }
   try {
     const data = await cmApiRaw('/api/login', { method:'POST', body: JSON.stringify({ username, pin }) });
@@ -11088,7 +11105,7 @@ function render(){
   const pageDisclaimer = document.getElementById('pageDisclaimer');
   if(pageDisclaimer) pageDisclaimer.style.display = state.tab === 'events' ? 'block' : 'none';
   renderHomescreenSlot();
-  document.getElementById('introLine').textContent = isDirectory ? introText[state.tab] : introText[state.categoryFilter];
+  document.getElementById('introLine').textContent = ''; // (the little tagline under each page title was removed)
 
   if(state.tab === 'resources'){
     renderResourceFilters();
@@ -11553,7 +11570,8 @@ updateTypeMultiUI();
 document.getElementById('detailCloseBtn').addEventListener('click', closeDetail);
 
 // Power-button account menu (top right): Log in / Sign up, or Log out.
-function goLogin(){
+function goLogin(staff){
+  state.clubsStaffLogin = !!staff;
   state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false;
   goToTab('clubs');
   setTimeout(() => { const f = document.getElementById(getLastLogin() ? 'clubsLoginPin' : 'clubsLoginUsername'); if(f) f.focus(); }, 120);
@@ -11754,6 +11772,26 @@ document.getElementById('footerAdminCancelBtn').addEventListener('click', () => 
 document.getElementById('footerAdminModalOverlay').addEventListener('click', e => {
   if(e.target.id === 'footerAdminModalOverlay') document.getElementById('footerAdminCancelBtn').click();
 });
+/* ---- First launch: a welcome screen like the iPhone's "hello" one — Bismillah in calligraphy, the 4DS pink ---- */
+function showWelcomeOnce(){
+  try { if(localStorage.getItem('welcomeSeen')) return; } catch {}
+  if(document.getElementById('welcomeScreen')) return;
+  const w = document.createElement('div'); w.id = 'welcomeScreen';
+  w.style.cssText = 'position:fixed;inset:0;z-index:30000;background:#ce8491;color:#fef7f4;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:calc(24px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));transition:opacity .6s ease;';
+  w.innerHTML = `<style>
+    @keyframes wlIn{ from{ opacity:0; transform:translateY(10px) scale(.98); filter:blur(6px); } to{ opacity:1; transform:none; filter:none; } }
+    #welcomeScreen .wl-bis{ font-family:'Aref Ruqaa','Amiri','Noto Naskh Arabic',serif; font-weight:700; font-size:clamp(40px,12vw,72px); line-height:1.5; direction:rtl; margin:0 0 18px; animation:wlIn 1.6s ease both; text-shadow:0 2px 0 rgba(118,34,11,.18); }
+    #welcomeScreen .wl-sub{ font-family:'Outfit','Inter',system-ui,sans-serif; font-size:19px; font-weight:600; letter-spacing:.02em; margin:0; opacity:0; animation:wlIn 1.2s ease 1.5s both; }
+    #welcomeScreen .wl-go{ position:absolute; left:50%; bottom:calc(36px + env(safe-area-inset-bottom)); transform:translateX(-50%); min-width:min(320px,80vw); min-height:52px; border-radius:999px; border:0; background:#fef7f4; color:#76220b; font:700 17px 'Outfit','Inter',system-ui,sans-serif; cursor:pointer; opacity:0; animation:wlIn .9s ease 2.4s both; }
+  </style>
+  <p class="wl-bis" lang="ar">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</p>
+  <p class="wl-sub">Welcome to 4DS</p>
+  <button type="button" class="wl-go" id="welcomeGo">Get started</button>`;
+  document.body.appendChild(w);
+  document.getElementById('welcomeGo').addEventListener('click', () => { try { localStorage.setItem('welcomeSeen', '1'); } catch {} w.style.opacity = '0'; setTimeout(() => w.remove(), 650); });
+}
+document.getElementById('footerSubmitEvent').addEventListener('click', () => goToTab('submitevent'));
+document.getElementById('footerAddResource').addEventListener('click', () => goToTab('submitresource'));
 document.getElementById('footerAdminForm').addEventListener('submit', async e => {
   e.preventDefault();
   const password = document.getElementById('footerAdminPassword').value;
@@ -11941,6 +11979,7 @@ loadData().then(() => Promise.all([loadLabels(), loadAvailPeriod()])).then(() =>
   checkAdminSession();
   setTimeout(availNagCheck, 2500);
   setTimeout(nativePushInit, 3500);
+  showWelcomeOnce();
   const initId = eventIdFromHash();
   if(initId) renderDetail(initId);
 }).catch(err => {

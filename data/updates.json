@@ -1,6 +1,22 @@
 {
   "updates": [
     {
+      "no": 24,
+      "date": "2026-10-21",
+      "title": "A cleaner app",
+      "items": [
+        {
+          "text": "✨ First time you open 4DS you now get a welcome screen with the Bismillah."
+        },
+        {
+          "text": "✨ Tap “Hi [your name]” on Home to open your profile and settings — you can even pick the colour of the wave. Home is simpler, and the footer is much shorter with Submit an event and Add a resource right in it."
+        },
+        {
+          "text": "✨ Admins now sign in from the same screen as everyone else (tap “Admin or club admin? Sign in here”)."
+        }
+      ]
+    },
+    {
       "no": 23,
       "date": "2026-10-21",
       "title": "Faster login, cleaner calendar",
