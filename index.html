@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>4DASISTAS</title>
@@ -68,6 +69,8 @@
   body{ min-height:100vh; min-height:100dvh; overscroll-behavior-y:none; }
   /* Never split a word letter-by-letter in labels: buttons and pills wrap only between words. */
   button, .club-guide-btn, .filter-chip, .tab-btn{ overflow-wrap:normal; word-break:normal; hyphens:manual; }
+  body{ overflow-wrap:break-word; } /* a long word/number can't push text out of its box */
+  button{ color:inherit; font-family:inherit; } /* iOS paints a button with no colour of its own system-blue — make it follow the surrounding text instead */
   body{ background:var(--cream); color:var(--charcoal); font-family:'Outfit','Inter',sans-serif; line-height:1.5; -webkit-font-smoothing:antialiased; touch-action:manipulation; }
   button{ font-family:inherit; }
   a{ color:inherit; }
@@ -386,7 +389,7 @@
   .mc-week span{ font-size:11px; font-weight:700; color:var(--muted); padding:2px 0; }
   .mc-day{ min-height:46px; min-width:0; height:auto; display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:1px; border:0; border-radius:10px; background:transparent; font:inherit; font-size:13px; color:var(--charcoal); padding:0; }
   .mc-n{ font-size:12px; line-height:1.1; text-align:center; }
-  .mc-day em{ display:block; font-style:normal; font-size:8.5px; line-height:1.15; font-weight:700; border:1px solid; border-radius:4px; padding:1px 2px; white-space:normal; overflow-wrap:break-word; word-break:normal; text-align:left; }
+  .mc-day em{ display:block; font-style:normal; font-size:8.5px; line-height:1.15; font-weight:700; border:1px solid; border-radius:4px; padding:1px 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; } /* one line + … : tap the day for the full name (wrapping a long title letter-by-letter in a 50px cell was unreadable) */
   .mc-day b{ font-size:8px; line-height:1; }
   .mc-agenda{ margin-top:10px; display:flex; flex-direction:column; gap:6px; border-top:2px dashed #f2d8d7; padding-top:8px; }
   .mc-ev{ display:flex; align-items:center; gap:8px; text-align:left; border:0; background:transparent; padding:2px 0; font:inherit; color:inherit; cursor:pointer; }
@@ -1040,6 +1043,11 @@
     .top-search-wrap{ flex:1 1 0; display:flex; align-items:center; justify-content:center; }
     .top-search-shell{ width:44px; height:44px; }
     :root{ --bar-h:56px; }
+    .pwr-btn{ position:absolute; } /* scrolls away with the header instead of floating over the page text */
+    /* a row that is wider than the screen must SCROLL from its left edge — "justify-content:center" on an overflowing row cuts off its first items for good */
+    .category-row{ justify-content:flex-start; }
+    .category-row > :first-child{ margin-left:auto; } .category-row > :last-child{ margin-right:auto; }
+    .controls{ flex-wrap:wrap; overflow:visible; justify-content:center; row-gap:10px; }
     body{ padding-bottom:calc(66px + env(safe-area-inset-bottom, 0px)); }
     .av-sheet{ bottom:calc(64px + env(safe-area-inset-bottom, 0px)); }
     .update-banner{ bottom:calc(76px + env(safe-area-inset-bottom, 0px)); }

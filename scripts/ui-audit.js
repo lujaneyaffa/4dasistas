@@ -6,7 +6,9 @@
   if(document.documentElement.scrollWidth > vw + 1) out.wide = { scrollWidth: document.documentElement.scrollWidth, viewport: vw };
   const visible = el => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el); return r.width > 2 && r.height > 2 && cs.visibility !== 'hidden' && cs.display !== 'none' && Number(cs.opacity) > 0.05; };
   const label = el => (el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '')) + ' "' + (el.innerText || '').trim().replace(/\s+/g, ' ').slice(0, 40) + '"';
-  const all = [...document.body.querySelectorAll('*')].filter(el => !['SCRIPT','STYLE','svg','path','IMG','INPUT','SELECT','TEXTAREA','OPTION'].includes(el.tagName) && visible(el));
+  const inFixed = el => { for(let n = el; n && n !== document.body; n = n.parentElement){ const p = getComputedStyle(n).position; if(p === 'fixed' || p === 'sticky') return true; } return false; };
+  const skip = el => !!el.closest('.leaflet-container, .mem-pop, .idea-pop-card, #pushGate, .mem-pop-card') || inFixed(el); // map pins, pop-ups and the fixed bottom bar legitimately sit on top of the page
+  const all = [...document.body.querySelectorAll('*')].filter(el => !['SCRIPT','STYLE','svg','path','IMG','INPUT','SELECT','TEXTAREA','OPTION'].includes(el.tagName) && visible(el) && !skip(el));
   // 1) clipped text: a box that hides overflow while its text is wider/taller than the box
   for(const el of all){
     const cs = getComputedStyle(el);
@@ -23,6 +25,9 @@
     if(!own.length) continue;
     const rng = document.createRange(); let rect = null;
     for(const n of own){ rng.selectNodeContents(n); for(const r of rng.getClientRects()){ if(r.width < 3 || r.height < 3) continue; rect = rect ? { left:Math.min(rect.left, r.left), top:Math.min(rect.top, r.top), right:Math.max(rect.right, r.right), bottom:Math.max(rect.bottom, r.bottom) } : { left:r.left, top:r.top, right:r.right, bottom:r.bottom }; } }
+    if(rect){ // clip to scroll / overflow-hidden ancestors: text scrolled out of view isn't overlapping anything
+      for(let n = el.parentElement; n && n !== document.body && rect; n = n.parentElement){ const cs = getComputedStyle(n); if(/(hidden|auto|scroll|clip)/.test(cs.overflowX + cs.overflowY)){ const b = n.getBoundingClientRect(); rect = { left:Math.max(rect.left, b.left), top:Math.max(rect.top, b.top), right:Math.min(rect.right, b.right), bottom:Math.min(rect.bottom, b.bottom) }; if(rect.right - rect.left < 3 || rect.bottom - rect.top < 3) rect = null; } }
+    }
     if(rect && rect.bottom > 0 && rect.top < window.innerHeight * 6) texts.push({ el, rect, z: 0 });
   }
   for(let i = 0; i < texts.length && i < 700; i++) for(let j = i + 1; j < texts.length && j < 700; j++){
