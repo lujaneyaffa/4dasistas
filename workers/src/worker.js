@@ -682,6 +682,18 @@ const stepsPublicData = async (env) => {
   return data;
 };
 // ---- Badminton (merged in from the old Supabase "ladies-badminton" site). Rows are stored as the original JSON so the points logic ports unchanged; `uid` links a player to a 4DS account. ----
+// phone digits -> username (memoised ~10 min; refreshed at most once a minute on a miss). "ambiguous" when two accounts share a number.
+let _phoneMap = { at: 0, map: null };
+const usernameForPhone = async (env, digits) => {
+  for (let pass = 0; pass < 2; pass++) {
+    if (!_phoneMap.map || Date.now() - _phoneMap.at > 600000 || (pass === 1 && Date.now() - _phoneMap.at > 60000)) {
+      const m = new Map(); for (const u of await listAllUsers(env)) { const d = bmDigits(u.phone); if (d.length >= 7 && u.username) m.set(d, m.has(d) ? "ambiguous" : u.username); }
+      _phoneMap = { at: Date.now(), map: m };
+    }
+    const hit = _phoneMap.map.get(digits); if (hit || pass === 1) return hit || "";
+  }
+  return "";
+};
 const BM_TABLES = { players: "bm_players", games: "bm_games", attendance: "bm_attendance", past_points: "bm_past", session_rsvps: "bm_rsvps", tournament_interest: "bm_interest" };
 let _bmReady = null;
 const bmEnsure = async (env) => {
@@ -694,6 +706,14 @@ const bmEnsure = async (env) => {
   ]).catch((e) => { _bmReady = null; throw e; });
   await _bmReady;
   return true;
+};
+// The badminton player row for a 4DS member: the imported one (matched by phone) or a fresh one created on first use.
+const bmPlayerFor = async (env, user) => {
+  const row = await env.DB.prepare("SELECT id, data FROM bm_players WHERE uid = ?").bind(user.id).first();
+  if (row) return { id: row.id, data: JSON.parse(row.data) };
+  const data = { id: `u:${user.id}`, name: firstNameOnly(user.name), full_name: user.name, level: null, active: true, date_joined: new Date().toISOString().slice(0, 10) };
+  await env.DB.prepare("INSERT OR IGNORE INTO bm_players (id, uid, data) VALUES (?, ?, ?)").bind(data.id, user.id, JSON.stringify(data)).run();
+  return { id: data.id, data };
 };
 const bmDigits = (p) => { const d = String(p || "").replace(/\D/g, ""); return d.length === 11 && d[0] === "1" ? d.slice(1) : d; };
 const bmDay = (r) => String((r && (r.session_date || r.played_at || r.day || r.date || r.created_at)) || "").slice(0, 10);
@@ -1489,9 +1509,16 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (path === "/api/login" && request.method === "POST") {
       let body;
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
-      const username = sanitizeUsername(body.username);
+      let username = sanitizeUsername(body.username);
       const pin = String(body.pin || "").trim();
-      if (!username || !pin) return jsonResponse({ error: "Username and PIN are required" }, 400, corsHeaders);
+      // A phone number works as a login name too (it's resolved to the account's username, so the same rate limits apply).
+      { const rawU = String(body.username || "").trim();
+        if (/^[\d\s().+-]{7,20}$/.test(rawU) && bmDigits(rawU).length >= 10) {
+          const r = await usernameForPhone(env, bmDigits(rawU));
+          if (r === "ambiguous") return jsonResponse({ error: "More than one account uses that number — please log in with your username" }, 400, corsHeaders);
+          if (r) username = r;
+        } }
+      if (!username || !pin) return jsonResponse({ error: "Username (or phone number) and PIN are required" }, 400, corsHeaders);
 
       // Usernames are now predictable (firstname.initial), and PINs are only 4 digits - without a
       // limit here, an unlimited number of guesses would make the PIN effectively no protection at
@@ -2442,15 +2469,37 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
       return jsonResponse({ ok: true, counts, matched: matched.length, unmatched }, 200, corsHeaders);
     }
-    // Badminton data for signed-in members (never phone numbers, usernames or PINs).
+    // Badminton data for signed-in members (never phone numbers, usernames or PINs). RSVP / interest rows are re-keyed by player id.
     if (path === "/api/badminton/data" && request.method === "GET") {
       const meId = await memberIdFromRequest();
       if (!meId) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
       if (!(await bmEnsure(env))) return jsonResponse({ error: "Badminton isn't available yet" }, 503, corsHeaders);
       const all = async (t) => ((await env.DB.prepare(`SELECT data FROM ${t}`).all()).results || []).map((r) => { try { return JSON.parse(r.data); } catch { return null; } }).filter(Boolean);
-      const pl = (await env.DB.prepare("SELECT uid, data FROM bm_players").all()).results || [];
-      const players = pl.map((r) => { try { const d = JSON.parse(r.data); delete d.phone; delete d.username; delete d.pin; return { ...d, mine: r.uid === meId }; } catch { return null; } }).filter(Boolean);
-      return jsonResponse({ players, games: await all("bm_games"), attendance: await all("bm_attendance"), past: await all("bm_past"), rsvps: await all("bm_rsvps"), interest: await all("bm_interest") }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      const pl = (await env.DB.prepare("SELECT id, uid, data FROM bm_players").all()).results || [];
+      const byUser = new Map(), players = []; let me = null;
+      for (const r of pl) { try { const d = JSON.parse(r.data); if (d.username) byUser.set(String(d.username), r.id); if (d.phone) byUser.set(String(d.phone), r.id); const mine = r.uid === meId; if (mine) me = r.id; delete d.phone; delete d.username; delete d.pin; players.push({ ...d, mine }); } catch {} }
+      const rekey = (rows) => { // imported rows (by username) first, then rows written here (by player id) — the newer ones win
+        const keyed = new Map();
+        for (const x of rows.slice().sort((p, q) => (p.player_id ? 1 : 0) - (q.player_id ? 1 : 0))) { const pid = x.player_id || byUser.get(String(x.username || "")); if (!pid) continue; const { username, ...rest } = x; keyed.set(`${pid}:${x.week_number || ""}`, { ...rest, player_id: pid }); }
+        return [...keyed.values()];
+      };
+      return jsonResponse({ me, players, games: await all("bm_games"), attendance: await all("bm_attendance"), past: await all("bm_past"), rsvps: rekey(await all("bm_rsvps")), interest: rekey(await all("bm_interest")) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    if ((path === "/api/badminton/rsvp" || path === "/api/badminton/interest") && request.method === "POST") {
+      const meId = await memberIdFromRequest();
+      const me = meId ? await readUser(env, meId) : null;
+      if (!me) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
+      if (!(await bmEnsure(env))) return jsonResponse({ error: "Badminton isn't available yet" }, 503, corsHeaders);
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const pl = await bmPlayerFor(env, me);
+      if (path === "/api/badminton/rsvp") {
+        const week = Math.round(Number(b.week)), status = ["yes", "maybe", "no"].includes(b.status) ? b.status : "";
+        if (!Number.isFinite(week) || week < 1 || week > 60 || !status) return jsonResponse({ error: "Pick Yes, Maybe or No" }, 400, corsHeaders);
+        await env.DB.prepare("INSERT OR REPLACE INTO bm_rsvps (id, day, data) VALUES (?, '', ?)").bind(`${pl.id}:${week}`, JSON.stringify({ player_id: pl.id, week_number: week, status })).run();
+      } else {
+        await env.DB.prepare("INSERT OR REPLACE INTO bm_interest (id, day, data) VALUES (?, '', ?)").bind(pl.id, JSON.stringify({ player_id: pl.id, interested: !!b.interested })).run();
+      }
+      return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     // Admin: who was in a squad and has / hasn't confirmed yet (to chase on WhatsApp)
     if (path === "/api/admin/stay-status" && request.method === "GET") {

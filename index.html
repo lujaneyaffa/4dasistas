@@ -2591,7 +2591,7 @@ function renderHomescreenSlot(){
 
 // Contribution pills above the footer: a pink "Submit an event" and an "Add a resource" on every page EXCEPT
 // the Clubs area (and the two submit pages themselves).
-const NO_PILL_TABS = ['admin','clubs','stay','steps','eventform','clubideas','clubmembers','clubstart','clubjoin','fallsignup','submitevent','submitresource'];
+const NO_PILL_TABS = ['admin','clubs','stay','steps','badminton','eventform','clubideas','clubmembers','clubstart','clubjoin','fallsignup','submitevent','submitresource'];
 function renderPageCta(){
   const slot = document.getElementById('pageCtaSlot');
   if(!slot) return;
@@ -2968,6 +2968,135 @@ function admHideRequestRows(attrs){
   document.querySelectorAll('button' + q).forEach(b => { const row = b.closest('div'); if(row) row.style.display = 'none'; });
 }
 
+/* ---- 🏸 Badminton (merged in from the old ladies-badminton site). Same points rules: from Oct 9 2026 each game gives every player 1 + their side's score; 10 for showing up; older weeks use the scaled 3/1 formula. ---- */
+const BM_SEASON_DATES = [[2026,10,9],[2026,10,16],[2026,10,22],[2026,10,29],[2026,11,5],[2026,11,13],[2026,11,20],[2026,11,26],[2026,12,3],[2026,12,11],[2026,12,17],[2026,12,24],[2026,12,31],[2027,1,7],[2027,1,14],[2027,1,22],[2027,1,28]];
+const BM_SEASON_START = new Date(2026, 9, 9, 0, 0, 0, 0), BM_SHOWUP = 10;
+const bmLocalDate = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const bmArr = v => { if(Array.isArray(v)) return v; try { const j = JSON.parse(v); return Array.isArray(j) ? j : []; } catch { return typeof v === 'string' ? v.split(',').map(x => x.trim()).filter(Boolean) : []; } };
+const bmName = p => (p && (p.nickname || p.name || p.full_name)) || 'Player';
+const bmFmt = n => (Math.round(n * 10) / 10).toString().replace(/\.0$/, '');
+const bmGt = g => new Date(g.played_at || Date.now());
+function bmWeekId(d){ const x = new Date(d); x.setHours(0,0,0,0); const n = x.getDay(); x.setDate(x.getDate() + (n === 0 ? -6 : 1 - n)); return bmLocalDate(x); }
+function bmWeekText(id){ const s0 = new Date(id + 'T00:00:00'); s0.setDate(s0.getDate() + 3); return s0.toLocaleDateString('en-CA', { month:'short', day:'numeric', year:'numeric' }); }
+function bmPoints(g){
+  const w = +g.winner_score, l = +g.loser_score;
+  if(!Number.isFinite(w) || !Number.isFinite(l)) return { w:0, l:0 };
+  if(bmGt(g) >= BM_SEASON_START) return { w:1 + w, l:1 + l };
+  const scale = Math.min(w, 21) / 21; return { w: Math.round(3 * scale * 2) / 2, l: w - l <= 3 ? Math.round(1 * scale * 2) / 2 : 0 };
+}
+function bmCtx(d){
+  const players = d.players || [], find = v => players.find(p => p.id === v || p.name === v || p.nickname === v || p.full_name === v);
+  return { d, players, find, games:(d.games || []).slice().sort((a, b) => bmGt(a) - bmGt(b)), past:d.past || [] };
+}
+function bmShowUp(c){
+  const k = bmLocalDate(BM_SEASON_START), m = {}, add = (id, day) => { (m[id] || (m[id] = new Set())).add(day); };
+  (c.d.attendance || []).forEach(a => { if(a.present && a.session_date >= k) add(a.player_id, a.session_date); });
+  c.games.filter(g => bmGt(g) >= BM_SEASON_START).forEach(g => { const day = bmLocalDate(bmGt(g)); bmArr(g.winners).concat(bmArr(g.losers)).forEach(v => { const p = c.find(v); if(p) add(p.id, day); }); });
+  return m;
+}
+function bmSeason(c){
+  const by = {}; c.players.forEach(p => by[p.id] = { p, wins:0, games:0, points:0 });
+  c.games.filter(g => bmGt(g) >= BM_SEASON_START).forEach(g => { const q = bmPoints(g);
+    bmArr(g.winners).concat(bmArr(g.losers)).forEach(v => { const p = c.find(v); if(p) by[p.id].games++; });
+    bmArr(g.winners).forEach(v => { const p = c.find(v); if(p){ by[p.id].wins++; by[p.id].points += q.w; } });
+    bmArr(g.losers).forEach(v => { const p = c.find(v); if(p) by[p.id].points += q.l; }); });
+  c.past.filter(x => new Date(x.session_date + 'T00:00:00') >= BM_SEASON_START).forEach(x => { if(by[x.player_id]) by[x.player_id].points += Number(x.points) || 0; });
+  const su = bmShowUp(c); Object.keys(by).forEach(id => { by[id].points += (su[id] ? su[id].size : 0) * BM_SHOWUP; by[id].days = su[id] ? su[id].size : 0; });
+  return by;
+}
+function bmWeek(c, week){
+  const by = {}; c.players.forEach(p => by[p.id] = { p, wins:0, games:0, points:0 });
+  c.games.filter(g => (g.week_id || bmWeekId(bmGt(g))) === week).forEach(g => { const q = bmPoints(g);
+    bmArr(g.winners).concat(bmArr(g.losers)).forEach(v => { const p = c.find(v); if(p) by[p.id].games++; });
+    bmArr(g.winners).forEach(v => { const p = c.find(v); if(p){ by[p.id].wins++; by[p.id].points += q.w; } });
+    bmArr(g.losers).forEach(v => { const p = c.find(v); if(p) by[p.id].points += q.l; }); });
+  c.past.filter(x => bmWeekId(new Date(x.session_date + 'T00:00:00')) === week).forEach(x => { if(by[x.player_id]) by[x.player_id].points += Number(x.points) || 0; });
+  return Object.values(by).filter(x => x.games || c.past.some(pp => pp.player_id === x.p.id && bmWeekId(new Date(pp.session_date + 'T00:00:00')) === week))
+    .map(x => ({ ...x, winPct: x.games ? x.wins / x.games : 0 })).sort((a, b) => (b.wins - a.wins) || (b.winPct - a.winPct) || (b.points - a.points) || (b.games - a.games) || bmName(a.p).localeCompare(bmName(b.p)));
+}
+async function bmLoad(){
+  if(state.bmLoading) return; state.bmLoading = true;
+  try { state.bm = await cmApiRaw('/api/badminton/data', { headers: ideaHeaders(), cache:'no-store' }); state.bmErr = ''; }
+  catch(err){ state.bmErr = err.message; }
+  state.bmLoading = false; if(state.tab === 'badminton') render();
+}
+const bmAv = p => !p ? '👤' : (p.avatar_url && p.avatar_url.indexOf('emoji:') === 0) ? escapeCm(p.avatar_url.slice(6)) : p.avatar_url ? `<img src="${escapeCm(p.avatar_url)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : '👤';
+function bmPageHtml(){
+  const head = `<button type="button" class="back-btn" onclick="location.hash='#/clubs'">← Back</button><h3 class="clubs-popular-title">🏸 LADIES BADMINTON</h3>`;
+  if(!getCmSession()) return `${head}<div class="panel-card" style="max-width:520px;margin:0 auto;padding:16px;text-align:center;"><p style="margin:0 0 10px;">Log in to see the leaderboard, games and your points.</p><button type="button" class="club-guide-btn" id="bmLogin" style="min-height:44px;">Log in</button></div>`;
+  if(!state.bm){ if(!state.bmLoading) bmLoad(); return `${head}<p class="av-msg" style="text-align:center;">${state.bmErr ? escapeCm(state.bmErr) : 'Loading…'}</p>`; }
+  const tab = state.bmTab || 'season', c = bmCtx(state.bm);
+  const tb = (k, l) => `<button type="button" class="filter-chip${tab === k ? ' active' : ''}" data-bmtab="${k}" style="min-height:40px;">${l}</button>`;
+  const body = tab === 'games' ? bmGamesHtml(c) : tab === 'schedule' ? bmScheduleHtml(c) : tab === 'tournament' ? bmTournamentHtml(c) : tab === 'archive' ? bmArchiveHtml(c) : bmSeasonHtml(c);
+  return `${head}<div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:0 0 12px;">${tb('season', '🏆 This season')}${tb('games', '🎮 Games')}${tb('schedule', '📅 Schedule &amp; RSVP')}${tb('tournament', '🥇 Tournaments')}${tb('archive', '📁 Archive')}</div><div style="max-width:620px;margin:0 auto;">${body}</div>`;
+}
+function bmRowHtml(x, i, me){
+  return `<button type="button" class="bm-row" data-bmpid="${escapeCm(x.p.id)}" style="display:flex;align-items:center;gap:10px;width:100%;min-height:52px;padding:8px 10px;border:none;border-top:1px solid rgba(0,0,0,.08);background:${me ? '#fef7f4' : 'none'};font:inherit;text-align:left;cursor:pointer;${me ? 'font-weight:800;' : ''}"><span style="width:26px;font-weight:800;">${i + 1}</span><span style="width:34px;height:34px;border-radius:50%;background:#f2d8d7;display:flex;align-items:center;justify-content:center;font-size:18px;flex:none;overflow:hidden;">${bmAv(x.p)}</span><span style="flex:1;min-width:0;">${escapeCm(bmName(x.p))}${me ? ' (you)' : ''}<br><small style="color:#776867;font-weight:400;">${x.wins}W · ${x.games} games${x.days != null ? ' · ' + x.days + ' night' + (x.days === 1 ? '' : 's') : ''}</small></span><span style="font-weight:800;">${bmFmt(x.points)}<small style="font-weight:400;color:#776867;"> pts</small></span></button>`;
+}
+function bmSeasonHtml(c){
+  const by = bmSeason(c), me = (c.d.me), list = c.players.filter(p => p.active !== false).map(p => by[p.id]).filter(x => x && (x.points || x.games || x.days)).sort((a, b) => (b.points - a.points) || (b.wins - a.wins) || (b.games - a.games) || bmName(a.p).localeCompare(bmName(b.p)));
+  const pod = list.slice(0, 3).map((x, i) => `<div style="flex:1;text-align:center;"><div style="font-size:26px;">${['🥇','🥈','🥉'][i]}</div><div style="width:52px;height:52px;margin:4px auto;border-radius:50%;background:#f2d8d7;display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;">${bmAv(x.p)}</div><div style="font-weight:800;font-size:14px;">${escapeCm(bmName(x.p))}</div><div style="font-size:12px;color:#776867;">${bmFmt(x.points)} pts</div></div>`).join('');
+  return `<div class="panel-card" style="padding:12px;">${list.length ? `<div style="display:flex;gap:6px;margin-bottom:8px;">${pod}</div>` : ''}<p class="ideas-hint" style="margin:0 0 6px;text-align:left;">Oct 2026 – Jan 2027 · 10 points for showing up, +1 per game, plus your side's score. Tap a player for their points.</p>${list.length ? list.map((x, i) => bmRowHtml(x, i, x.p.id === me)).join('') : '<p class="av-msg">No games recorded yet this season.</p>'}</div>`;
+}
+function bmBreakdown(pid){
+  const c = bmCtx(state.bm), p = c.players.find(x => x.id === pid); if(!p) return;
+  const k = bmLocalDate(BM_SEASON_START), su = bmShowUp(c)[pid], items = [];
+  (su ? [...su] : []).sort().forEach(d => items.push([d, '✅ Showed up', BM_SHOWUP]));
+  c.games.filter(g => bmGt(g) >= BM_SEASON_START).forEach(g => { const ws = bmArr(g.winners).map(v => c.find(v)).filter(Boolean), ls = bmArr(g.losers).map(v => c.find(v)).filter(Boolean), won = ws.some(x => x.id === pid), lost = ls.some(x => x.id === pid); if(!won && !lost) return; const q = bmPoints(g); const opp = (won ? ls : ws).map(bmName).join(' & '); items.push([bmLocalDate(bmGt(g)), `${won ? '🏆 Won' : 'Lost'} ${won ? g.winner_score + '–' + g.loser_score : g.loser_score + '–' + g.winner_score} vs ${opp || '?'}`, won ? q.w : q.l]); });
+  c.past.filter(x => x.player_id === pid && x.session_date >= k).forEach(x => items.push([x.session_date, 'Added points', Number(x.points) || 0]));
+  items.sort((a, b) => a[0].localeCompare(b[0]));
+  const total = items.reduce((t, i) => t + i[2], 0);
+  ideaPopup(`<h3 style="margin:4px 0 2px;">${escapeCm(bmName(p))}</h3><p class="ideas-hint" style="margin:0 0 8px;text-align:left;">${bmFmt(total)} points this season</p>${items.map(i => `<div style="display:flex;gap:8px;padding:6px 0;border-top:1px solid rgba(0,0,0,.08);font-size:14px;"><span style="width:62px;color:#776867;">${escapeCm(new Date(i[0] + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' }))}</span><span style="flex:1;">${escapeCm(i[1])}</span><b>+${bmFmt(i[2])}</b></div>`).join('') || '<p class="av-msg">No points yet.</p>'}`);
+}
+function bmGamesHtml(c){
+  const gs = c.games.filter(g => bmGt(g) >= BM_SEASON_START), days = {};
+  gs.forEach(g => { const d = bmLocalDate(bmGt(g)); (days[d] = days[d] || []).push(g); });
+  const keys = Object.keys(days).sort().reverse(); if(!keys.length) return '<div class="panel-card" style="padding:14px;"><p class="av-msg" style="margin:0;">No games yet this season.</p></div>';
+  const team = ids => bmArr(ids).map(v => { const p = c.find(v); return p ? bmName(p) : String(v); }).join(' &amp; ');
+  return keys.map(d => `<div class="panel-card" style="padding:12px;margin-bottom:10px;"><p style="margin:0 0 6px;font-weight:800;">${escapeCm(new Date(d + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'long', day:'numeric' }))} · ${days[d].length} game${days[d].length === 1 ? '' : 's'}</p>${days[d].sort((a, b) => bmGt(b) - bmGt(a)).map(g => `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(0,0,0,.08);font-size:14px;"><span style="flex:1;font-weight:700;">${team(g.winners)}</span><b style="white-space:nowrap;">${escapeCm(g.winner_score)}–${escapeCm(g.loser_score)}</b><span style="flex:1;text-align:right;">${team(g.losers)}</span></div>`).join('')}</div>`).join('');
+}
+function bmScheduleHtml(c){
+  const now = new Date(), nextIdx = BM_SEASON_DATES.findIndex(([y, m, d]) => now < new Date(y, m - 1, d, 20, 0, 0, 0)), me = c.d.me;
+  const rs = c.d.rsvps || [];
+  return `<div class="panel-card" style="padding:12px;"><p class="ideas-hint" style="margin:0 0 6px;text-align:left;">Thursdays 6–8 PM (a few Fridays — see dates). Tell us if you're coming.</p>${BM_SEASON_DATES.map(([y, m, d], i) => {
+    const wk = i + 1, dt = new Date(y, m - 1, d), cnt = { yes:0, maybe:0, no:0 }; rs.forEach(r => { if(r.week_number === wk && cnt[r.status] !== undefined) cnt[r.status]++; });
+    const mine = rs.find(r => r.player_id === me && r.week_number === wk), past = i < nextIdx || nextIdx === -1;
+    const b = (st, l) => `<button type="button" class="bm-rsvp filter-chip${mine && mine.status === st ? ' active' : ''}" data-bmwk="${wk}" data-bmst="${st}" style="min-height:40px;min-width:44px;">${l}</button>`;
+    return `<div style="padding:9px 0;border-top:1px solid rgba(0,0,0,.08);${i === nextIdx ? 'background:#fef7f4;' : ''}${past ? 'opacity:.55;' : ''}"><div style="display:flex;justify-content:space-between;gap:8px;"><b>${escapeCm(dt.toLocaleDateString('en-CA', { weekday:'long', month:'short', day:'numeric' }))}${dt.getDay() === 5 ? ' (Fri switch)' : ''}</b><small style="color:#776867;">Week ${wk}${i === nextIdx ? ' · next' : ''}</small></div><small style="color:#776867;">✓ ${cnt.yes} coming · ? ${cnt.maybe} maybe · ✕ ${cnt.no} no</small>${past ? '' : `<div style="display:flex;gap:6px;margin-top:6px;">${b('yes', '✓ Yes')}${b('maybe', '? Maybe')}${b('no', '✕ No')}</div>`}</div>`;
+  }).join('')}</div>`;
+}
+function bmTournamentHtml(c){
+  const me = c.d.me, mine = (c.d.interest || []).find(x => x.player_id === me), n = (c.d.interest || []).filter(x => x.interested).length;
+  return `<div class="panel-card" style="padding:16px;text-align:center;"><p style="margin:0 0 4px;font-size:34px;">🥇</p><p style="margin:0 0 10px;">Interested in a badminton tournament? Let us know and we'll plan one when there's enough interest.</p><p style="margin:0 0 10px;font-weight:800;">${n} player${n === 1 ? '' : 's'} interested so far</p><button type="button" class="club-guide-btn" id="bmInterest" style="min-height:44px;${mine && mine.interested ? 'background:#e6f4ea;border-color:#2a7a4a;' : 'background:var(--brand-rose);color:#fff;'}">${mine && mine.interested ? "✓ I'm interested — tap to undo" : "🙋 I'm interested"}</button></div>`;
+}
+function bmArchiveHtml(c){
+  const cur = bmWeekId(new Date()), k = bmLocalDate(BM_SEASON_START);
+  const weeks = [...new Set(c.games.map(g => g.week_id || bmWeekId(bmGt(g))).concat(c.past.map(x => bmWeekId(new Date(x.session_date + 'T00:00:00'))))) ].filter(w => w < bmWeekId(BM_SEASON_START)).sort().reverse();
+  if(!weeks.length) return '<div class="panel-card" style="padding:14px;"><p class="av-msg" style="margin:0;">No past seasons to show.</p></div>';
+  return `<p class="ideas-hint" style="text-align:center;margin:0 0 8px;">Weeks from earlier seasons.</p>` + weeks.map(w => { const top = bmWeek(c, w).slice(0, 3); return `<button type="button" class="panel-card bm-week" data-bmweek="${escapeCm(w)}" style="display:block;width:100%;text-align:left;padding:12px;margin-bottom:8px;cursor:pointer;font:inherit;"><b>📅 ${escapeCm(bmWeekText(w))}</b><div style="font-size:13px;color:#776867;margin-top:4px;">${top.length ? top.map((x, i) => ['🥇','🥈','🥉'][i] + ' ' + escapeCm(bmName(x.p)) + ' · ' + Math.round(x.winPct * 100) + '% win').join(' &nbsp; ') : 'No results'}</div></button>`; }).join('');
+}
+function bmShowWeek(w){
+  const c = bmCtx(state.bm), list = bmWeek(c, w);
+  ideaPopup(`<h3 style="margin:4px 0 8px;">${escapeCm(bmWeekText(w))}</h3>${list.map((x, i) => `<div style="display:flex;gap:8px;padding:7px 0;border-top:1px solid rgba(0,0,0,.08);font-size:14px;"><span style="width:24px;font-weight:800;">${i + 1}</span><span style="flex:1;">${escapeCm(bmName(x.p))}</span><span>${x.wins}W/${x.games}G · ${bmFmt(x.points)} pts</span></div>`).join('') || '<p class="av-msg">No results.</p>'}`);
+}
+function wireBmPage(){
+  const lg = document.getElementById('bmLogin'); if(lg) lg.addEventListener('click', () => goLogin());
+  document.querySelectorAll('[data-bmtab]').forEach(b => b.addEventListener('click', () => { state.bmTab = b.dataset.bmtab; render(); }));
+  document.querySelectorAll('.bm-row').forEach(b => b.addEventListener('click', () => bmBreakdown(b.dataset.bmpid)));
+  document.querySelectorAll('.bm-week').forEach(b => b.addEventListener('click', () => bmShowWeek(b.dataset.bmweek)));
+  document.querySelectorAll('.bm-rsvp').forEach(b => b.addEventListener('click', async () => {
+    try { await cmApiRaw('/api/badminton/rsvp', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ week: Number(b.dataset.bmwk), status: b.dataset.bmst }) });
+      const d = state.bm, me = d.me || null; let pid = me; if(!pid){ state.bm = null; render(); admToastLite('RSVP saved ✓'); return; }
+      d.rsvps = (d.rsvps || []).filter(r => !(r.player_id === pid && r.week_number === Number(b.dataset.bmwk))).concat({ player_id: pid, week_number: Number(b.dataset.bmwk), status: b.dataset.bmst }); render(); admToastLite('RSVP saved ✓'); }
+    catch(e){ alert(e.message); }
+  }));
+  const it = document.getElementById('bmInterest');
+  if(it) it.addEventListener('click', async () => {
+    const d = state.bm, me = d.me, mine = (d.interest || []).find(x => x.player_id === me), next = !(mine && mine.interested);
+    try { await cmApiRaw('/api/badminton/interest', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ interested: next }) }); state.bm = null; render(); admToastLite(next ? 'Marked as interested ✓' : 'Removed ✓'); } catch(e){ alert(e.message); }
+  });
+}
+
 /* ---- 👟 Steps challenge: biweekly rounds; steps sync from Apple Health / Health Connect inside the 4DS app (no manual entry); pledges are per 1,000 steps and paid to the charity directly. ---- */
 const stepsIsNativeApp = () => !!(window.Capacitor && typeof Capacitor.isNativePlatform === 'function' && Capacitor.isNativePlatform());
 async function stepsLoad(){
@@ -3064,7 +3193,7 @@ function stayPageHtml(){
     return `${head}<div class="panel-card" style="${wrapStyle}padding:16px;">
       <p style="font-size:14px;margin:0 0 10px;">Log in with your username and PIN first.</p>
       <div id="stayLoginErr" style="color:#c00;font-size:13px;min-height:16px;margin-bottom:6px;"></div>
-      <input id="stayUser" placeholder="Username" autocapitalize="none" autocomplete="username" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;margin-bottom:8px;">
+      <input id="stayUser" placeholder="Username or phone number" autocapitalize="none" autocomplete="username" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;margin-bottom:8px;">
       <input id="stayPin" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" placeholder="PIN" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;margin-bottom:10px;">
       <button type="button" class="club-guide-btn" id="stayLoginBtn" style="width:100%;background:var(--brand-blush);">Log in</button>
       <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;">Forgot your PIN? Message us and we'll reset it.</p></div>`;
@@ -3133,6 +3262,12 @@ function renderEventFormPage(el){
 function renderDirectory(){
   const el = document.getElementById('directory-view');
   if(state.tab === 'eventform'){ renderEventFormPage(el); return; }
+  if(state.tab === 'badminton'){
+    document.getElementById('resourcePagination').innerHTML = '';
+    el.innerHTML = bmPageHtml();
+    wireBmPage();
+    return;
+  }
   if(state.tab === 'steps'){
     document.getElementById('resourcePagination').innerHTML = '';
     el.innerHTML = stepsPageHtml();
@@ -3212,17 +3347,17 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
           }).join('')}
         ` : `<p style="font-size:13px;">You're not part of any club yet — ask an organizer to add you.</p>`}
       ` : `
-        <p style="font-size:13px;margin-bottom:10px;">Sign in with your username and the PIN an organizer gave you.</p>
+        <p style="font-size:13px;margin-bottom:10px;">Sign in with your username or phone number and your PIN.</p>
         <div id="clubsLoginError" style="color:#c00;font-size:13px;margin-bottom:8px;"></div>
         ${getLastLogin() ? `<p style="font-size:14px;margin:0 0 10px;text-align:center;">Welcome back, <strong>${escapeCm(getLastLogin().name || getLastLogin().username)}</strong> — just enter your PIN. <button type="button" id="clubsLoginForgetBtn" class="av-link" style="font-size:13px;">Not you?</button></p>` : ''}
-        <input id="clubsLoginUsername" value="${getLastLogin() ? escapeCm(getLastLogin().username) : ''}" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);margin-bottom:10px;box-sizing:border-box;">
+        <input id="clubsLoginUsername" value="${getLastLogin() ? escapeCm(getLastLogin().username) : ''}" placeholder="Username or phone number" autocapitalize="none" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);margin-bottom:10px;box-sizing:border-box;">
         <input id="clubsLoginPin" type="password" autocomplete="current-password" placeholder="PIN" inputmode="numeric" maxlength="4" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);margin-bottom:10px;box-sizing:border-box;">
         <button class="club-guide-btn" id="clubsLoginSubmitBtn" style="width:100%;background:var(--brand-blush);">Sign In</button>
         <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;">Forgot your PIN? An admin can reset it for you — just message us.</p>
       `}
     </div>` : ''}
     ${anon ? `
-    <p style="text-align:center;margin:0 0 12px;"><a href="#/steps" class="club-guide-btn" style="display:inline-block;text-decoration:none;padding:10px 18px;min-height:44px;">👟 Steps challenge — see the totals</a></p>
+    <p style="text-align:center;margin:0 0 12px;"><a href="#/steps" class="club-guide-btn" style="display:inline-block;text-decoration:none;padding:10px 18px;min-height:44px;">👟 Steps challenge — see the totals</a> <a href="#/badminton" class="club-guide-btn" style="display:inline-block;text-decoration:none;padding:10px 18px;min-height:44px;">🏸 Badminton leaderboard</a></p>
     <div class="clubs-grid clubs-grid-row">${clubsForGrid().map(c => clubCardHtml(c, false)).join('')}</div>
     <div class="club-cal-public" style="margin-top:22px;">${clubCalSectionHtml(true)}</div>
     <div class="public-ideas-section">${renderPublicIdeasFeedHtml()}</div>
@@ -5126,7 +5261,7 @@ async function saveAboutEdit(){
 /* ============================================================
    MAIN RENDER
    ============================================================ */
-const DIRECTORY_TABS = ['admin','clubs','stay','steps','eventform','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','submitevent','submitresource','clubmembers','clubideas'];
+const DIRECTORY_TABS = ['admin','clubs','stay','steps','badminton','eventform','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','submitevent','submitresource','clubmembers','clubideas'];
 
 /* ============================================================
    CLUB MEMBERS SCHEDULE (private per-club sign-in + per-event availability)
@@ -5152,7 +5287,7 @@ function resetUserScopedState(){
   Object.assign(state, {
     ideaAvail:null, ideaAvailNo:{}, ideaAvailSubmitted:false, ideaAvailOwner:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'',
     ideaAvailStatus:'', ideaAvailDirty:false, ideaAvailSaving:false, ideaAvailResave:false, iavEditing:false, iavUnsetWarned:false, availNagShown:false,
-    stepsData:null, myTodo:null, stayInfo:null, stayLoading:false, eavClub:'mine', eavCache:{}, eavInflight:{}, ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{},
+    bm:null, stepsData:null, myTodo:null, stayInfo:null, stayLoading:false, eavClub:'mine', eavCache:{}, eavInflight:{}, ideaAvailAll:null, ideaAvailAllRespondents:0, ideaAvailAllLoadedFor:null, ideaAvailAllLoading:false, ideaAvailAllError:'', ideaAvailAllPeople:null, ideaAvailAllPreferred:{}, ideaAvailAllUnavailable:{},
     pushRegistered:false, phoneConfirmed:true, myPhone:'', myPending:[], meLoadedFor:null, meLoading:false, joinReqError:'', publicIdeasAll:null, publicIdeasAllLoading:false, publicIdeasAllError:'',
     ideas:null, ideasError:'', ideasStatus:'',
   });
@@ -7052,6 +7187,7 @@ function renderMyClubsSectionHtml(){
   return `${topRow}${pendingBanner}${stayBanner}${annBanner}${myTodoHtml()}
     <div class="clubs-big-btns">
       ${bigBtn('avail', '📅', 'Availability', 'Add yours &amp; see everyone\'s')}
+      ${myClubs.some(c => c.id === 'club-badminton' || c === 'club-badminton') ? `<button type="button" class="club-guide-btn clubs-big-btn" onclick="location.hash='#/badminton'"><span class="cbb-emoji">🏸</span><span class="cbb-label">Badminton</span><span class="cbb-sub">Leaderboard, games &amp; RSVP</span></button>` : ''}
       <button type="button" class="club-guide-btn clubs-big-btn" onclick="location.hash='#/steps'"><span class="cbb-emoji">👟</span><span class="cbb-label">Steps challenge</span><span class="cbb-sub">Leaderboard &amp; charity pledges</span></button>
       ${bigBtn('vote', '🗳️', 'Vote', myClubs.length > 1 ? 'All your clubs\' ideas in one place' : 'Vote on ideas for ' + escapeCm(myClubs[0].title))}
     </div>
@@ -8223,10 +8359,10 @@ function renderClubMembersView(el){
       <button class="back-btn" data-hometab="clubs">← Back to GALS CLUBS</button>
       <div class="rules-content" style="max-width:420px;margin:0 auto;">
         <h2 style="margin-bottom:4px;">${title} — Club Members Schedule</h2>
-        <p class="rules-lead">Sign in with your username and the PIN an organizer gave you.</p>
+        <p class="rules-lead">Sign in with your username or phone number and your PIN.</p>
         ${state.cmError ? `<p style="color:#c00;margin-bottom:10px;">${escapeCm(state.cmError)}</p>` : ''}
         <div style="display:flex; flex-direction:column; gap:10px;">
-          <input id="cmUsernameLoginInput" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="padding:12px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;">
+          <input id="cmUsernameLoginInput" placeholder="Username or phone number" autocapitalize="none" style="padding:12px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;">
           <input id="cmPinInput" type="password" autocomplete="current-password" placeholder="PIN" inputmode="numeric" maxlength="4" style="padding:12px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;">
           <button class="club-guide-btn" id="cmSignInBtn" style="background:var(--brand-blush);">Sign In</button>
         </div>
@@ -9154,7 +9290,7 @@ function admProfileEdit(wrap, u){
   card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
     <h3 style="margin:0 0 10px;">Edit ${escapeCm(u.name)}</h3>
     <input id="apeName" value="${escapeCm(u.name)}" placeholder="Name" style="${inp}">
-    <input id="apeUser" value="${escapeCm(u.username)}" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="${inp}">
+    <input id="apeUser" value="${escapeCm(u.username)}" placeholder="Username or phone number" autocapitalize="none" style="${inp}">
     <input id="apePhone" type="tel" value="${escapeCm(u.phone || '')}" placeholder="Phone / WhatsApp number" style="${inp}">
     <input id="apePin" type="password" autocomplete="new-password" inputmode="numeric" maxlength="4" placeholder="New 4-digit PIN (leave blank to keep)" style="${inp}">
     <p style="font-size:12px;color:var(--muted);margin:2px 0 4px;">Clubs:</p>
@@ -9809,7 +9945,7 @@ function renderAdminAllMembersPanels(){
       const memberClubs = new Set(cmAdminMemberClubs(m.id));
       return `<div class="panel-card" style="text-align:left;">
         <input id="cmAdminEditName" value="${escapeCm(m.name)}" placeholder="Name" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--brand-brown);box-sizing:border-box;">
-        <input id="cmAdminEditUsername" value="${escapeCm(m.username)}" placeholder="Username (e.g. amina.k)" autocapitalize="none" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--brand-brown);box-sizing:border-box;">
+        <input id="cmAdminEditUsername" value="${escapeCm(m.username)}" placeholder="Username or phone number" autocapitalize="none" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--brand-brown);box-sizing:border-box;">
         <input id="cmAdminEditPhone" type="tel" value="${escapeCm(m.phone || '')}" placeholder="Phone / WhatsApp number" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--brand-brown);box-sizing:border-box;">
         <input id="cmAdminEditPin" type="password" autocomplete="new-password" placeholder="New 4-digit PIN (leave blank to keep current)" inputmode="numeric" maxlength="4" style="width:100%;padding:8px;margin-bottom:6px;border-radius:8px;border:2px solid var(--brand-brown);box-sizing:border-box;">
         <p style="font-size:11px;color:#776867;margin:6px 0 4px;">Clubs this member belongs to:</p>
@@ -10640,14 +10776,39 @@ function admAvailWire(){
 const BM_EXPORT_SNIPPET = `(async()=>{const c=window.supabase.createClient('https://zcahhfswtdrdmguppqtp.supabase.co','sb_publishable_CeiB5DOuyX7xKdK87tK2QQ_5Y9phmOs');const o={};for(const t of ['players','games','attendance','past_points','session_rsvps','tournament_interest']){const r=await c.from(t).select('*');o[t]=r.error?null:r.data;if(r.error)console.warn(t,r.error.message)}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(o)],{type:'application/json'}));a.download='badminton-export.json';a.click()})()`;
 function bmImportHtml(){
   return `<div class="cp-box"><p style="font-size:13px;margin:0 0 8px;line-height:1.5;">Moves the old badminton site's players, games, points, RSVPs and attendance into 4DS. PINs are never copied (players will use their 4DS login).</p>
+    <div style="margin:0 0 10px;padding:10px;border-radius:10px;background:#fef7f4;border:2px solid #f2d8d7;"><p style="font-size:13px;margin:0 0 6px;"><strong>Easiest:</strong> pull everything the old site shows publicly straight from here — no file, no console.</p><button type="button" class="club-guide-btn" id="bmDirect" style="padding:6px 14px;background:var(--brand-rose);color:#fff;">Import from the old site now</button></div>
+    <p style="font-size:12px;color:#776867;margin:0 0 6px;">If the tool below says some tables couldn't be read (usually past points), use the file method for those:</p>
     <ol style="font-size:13px;line-height:1.6;margin:0 0 8px;padding-left:18px;"><li>Open <strong>ladies-badminton.lujane.workers.dev</strong> and <strong>log in as the Owner admin</strong> (so the points history can be read).</li><li>Open the browser console (Safari: Develop → Show JavaScript Console; Chrome: ⌥⌘J), paste this and press Enter. A file downloads:</li></ol>
     <div style="display:flex;gap:6px;margin-bottom:8px;"><input readonly id="bmSnippet" value="${escapeCm(BM_EXPORT_SNIPPET)}" style="flex:1;min-width:0;padding:8px;border-radius:8px;border:2px solid var(--brand-brown);font-size:12px;"><button type="button" class="club-guide-btn" id="bmSnippetCopy" style="padding:6px 12px;">Copy</button></div>
     <p style="font-size:13px;margin:0 0 6px;">3. Choose that file here:</p>
     <input type="file" id="bmFile" accept="application/json,.json" style="margin-bottom:8px;"><div><button type="button" class="club-guide-btn" id="bmGo" style="padding:6px 14px;background:var(--brand-rose);color:#fff;">Import</button></div>
     <div id="bmMsg" style="font-size:13px;line-height:1.5;margin-top:8px;white-space:pre-wrap;"></div></div>`;
 }
+const BM_SB = { url:'https://zcahhfswtdrdmguppqtp.supabase.co', key:'sb_publishable_CeiB5DOuyX7xKdK87tK2QQ_5Y9phmOs' };
+async function bmFetchAll(table){
+  const out = [];
+  for(let off = 0; off < 20000; off += 1000){
+    const r = await fetch(`${BM_SB.url}/rest/v1/${table}?select=*&limit=1000&offset=${off}`, { headers:{ apikey:BM_SB.key, Authorization:'Bearer ' + BM_SB.key } });
+    if(!r.ok) throw new Error(table + ': ' + r.status);
+    const rows = await r.json(); out.push(...rows); if(rows.length < 1000) break;
+  }
+  return out;
+}
 function wireBmImport(){
   const cp = document.getElementById('bmSnippetCopy'); if(!cp) return;
+  document.getElementById('bmDirect').addEventListener('click', async () => {
+    const msg = document.getElementById('bmMsg'); msg.style.color = '#776867'; msg.textContent = 'Reading the old site…';
+    const body = {}, bad = [];
+    for(const t of ['players','games','attendance','past_points','session_rsvps','tournament_interest']){ try { body[t] = await bmFetchAll(t); } catch(e){ body[t] = null; bad.push(e.message); } }
+    if(body.players === null || body.games === null){ msg.style.color = '#c00'; msg.textContent = 'Could not read the players or games (' + bad.join('; ') + '). Use the file method below.'; return; }
+    try {
+      const r = await fetch('/api/admin/badminton/import', { method:'POST', credentials:'include', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) }); const d = await r.json().catch(() => ({}));
+      if(!r.ok) throw new Error(d.error || 'Import failed');
+      const c = d.counts || {};
+      msg.style.color = '#2a7a4a';
+      msg.textContent = `Imported ✓  players ${c.players ?? '—'} · games ${c.games ?? '—'} · attendance ${c.attendance ?? '—'} · past points ${c.past_points ?? '—'} · RSVPs ${c.session_rsvps ?? '—'} · tournament interest ${c.tournament_interest ?? '—'}\nMatched to 4DS accounts by phone: ${d.matched}\nNot matched yet (${(d.unmatched || []).length}): ${(d.unmatched || []).join(', ') || 'none'}${bad.length ? '\n\nCould NOT read (use the file method): ' + bad.join('; ') : ''}`;
+    } catch(e){ msg.style.color = '#c00'; msg.textContent = e.message; }
+  });
   cp.addEventListener('click', async () => { try { await navigator.clipboard.writeText(BM_EXPORT_SNIPPET); cp.textContent = 'Copied ✓'; } catch { document.getElementById('bmSnippet').select(); } });
   document.getElementById('bmGo').addEventListener('click', async () => {
     const msg = document.getElementById('bmMsg'), f = document.getElementById('bmFile').files[0];
@@ -10934,7 +11095,7 @@ const LAST_TAB_STORAGE_KEY = 'lastAppState';
 // instead of the old #tab=events&cat=all&view=list&... query-string look. The full
 // state (filters, view mode, etc.) still round-trips through localStorage below —
 // only what's actually shown in the URL bar has been simplified.
-const TAB_SLUGS = { admin:'admin', events:'calendar', clubs:'clubs', stay:'stay', steps:'steps', resources:'resources', travel:'travel', rules:'about', homescreen:'add-to-homescreen', subscribe:'subscribe', submitevent:'submit-event', submitresource:'add-resource' };
+const TAB_SLUGS = { admin:'admin', events:'calendar', clubs:'clubs', stay:'stay', steps:'steps', badminton:'badminton', resources:'resources', travel:'travel', rules:'about', homescreen:'add-to-homescreen', subscribe:'subscribe', submitevent:'submit-event', submitresource:'add-resource' };
 const SLUG_TO_TAB = Object.fromEntries(Object.entries(TAB_SLUGS).map(([tab, slug]) => [slug, tab]));
 /* Every page and sub-page has its own shareable link (all hash-based, so they work with the static host):
      #/calendar  #/calendar/sports  #/calendar/sports/badminton  #/calendar/activities/Mississauga
@@ -10984,6 +11145,7 @@ function applySlugParts(parts){
   if(slug === 'form' && rest[0]){ state.tab = 'eventform'; state.formEventId = safeDecode(rest[0]); return; }
   let tab = slug === 'squads' ? 'clubs' : (SLUG_TO_TAB[slug] || slug); // squads no longer exist: old links land on Clubs
   if(tab === 'steps'){ state.stepsData = null; }
+  if(tab === 'badminton'){ state.bm = null; }
   if(tab === 'stay'){ state.stayInfo = null; state.stayDone = null; state.stayErr = ''; }
   if(tab === 'clubs') state.clubsPage = ({ vote:'vote', availability:'avail', calendar:'cal' })[rest[0]] || '';
   if(tab === 'clubs' && rest[0]){
