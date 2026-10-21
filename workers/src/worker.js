@@ -805,6 +805,30 @@ const eraseUserEverywhere = async (env, user) => {
   await releaseUsername(env, user.username);
   await deleteUser(env, userId); // their login stops working because the user no longer exists
 };
+// ---- KV WRITES ARE THE SCARCE THING (free plan: 1,000/day). "Last seen", login time and login-attempt counters used to be KV writes on every visit/login; they now live in D1 (100k writes/day). ----
+let _seenReady = null;
+const seenEnsure = async (env) => {
+  if (!env.DB) return false;
+  if (!_seenReady) _seenReady = env.DB.batch([
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS member_seen (user_id TEXT PRIMARY KEY, login_at INTEGER, seen_at INTEGER)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS rate_limits (k TEXT PRIMARY KEY, n INTEGER NOT NULL, exp INTEGER NOT NULL)"),
+  ]).catch((e) => { _seenReady = null; throw e; });
+  await _seenReady; return true;
+};
+const _touched = new Map();
+const touchMember = async (env, userId, login) => {
+  try {
+    if (!(await seenEnsure(env))) return false;
+    if (!login && Date.now() - (_touched.get(userId) || 0) < 600000) return true; // at most every 10 min per person per server instance
+    _touched.set(userId, Date.now()); const now = Date.now();
+    await env.DB.prepare("INSERT INTO member_seen (user_id, login_at, seen_at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET seen_at = excluded.seen_at" + (login ? ", login_at = excluded.login_at" : "")).bind(userId, login ? now : 0, now).run();
+    return true;
+  } catch { return false; }
+};
+const seenMap = async (env) => { const m = new Map(); try { if (await seenEnsure(env)) for (const r of (await env.DB.prepare("SELECT user_id, login_at, seen_at FROM member_seen").all()).results || []) m.set(r.user_id, { login: r.login_at || 0, seen: r.seen_at || 0 }); } catch {} return m; };
+const seenOf = (m, u) => ({ lastLoginAt: Math.max(u.lastLoginAt || 0, (m.get(u.id) || {}).login || 0), lastSeenAt: Math.max(u.lastSeenAt || 0, (m.get(u.id) || {}).seen || 0) });
+// attempt counters: returns the NEW count for this key (D1), or null when D1 isn't available
+const rateTouch = async (env, key, ttlSec) => { try { if (!(await seenEnsure(env))) return null; const r = await env.DB.prepare("INSERT INTO rate_limits (k, n, exp) VALUES (?, 1, ?) ON CONFLICT(k) DO UPDATE SET n = CASE WHEN exp < ? THEN 1 ELSE n + 1 END, exp = CASE WHEN exp < ? THEN excluded.exp ELSE exp END RETURNING n").bind(key, Date.now() + ttlSec * 1000, Date.now(), Date.now()).first(); return r ? r.n : null; } catch { return null; } };
 const BM_OWNER_ID = "a517d9bd-bc9c-4e59-b36d-503747621aa4", BM_COACH_EMAIL = "coach@4dasistas.ca", BM_BADMINTON_CLUB = "club-badminton";
 const BM_TBL = { players: "bm_players", games: "bm_games", attendance: "bm_attendance", past_points: "bm_past", session_rsvps: "bm_rsvps", tournament_interest: "bm_interest" };
 const bmToronto = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
@@ -1642,6 +1666,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const hourSlot = Math.floor(Date.now() / 3600000);
       const loginIpKey = `loginrate:ip:${ip}:${hourSlot}`;
       const loginUserKey = `loginrate:user:${username}:${hourSlot}`;
+      const nIp = await rateTouch(env, loginIpKey, 3700), nUser = nIp === null ? null : await rateTouch(env, loginUserKey, 3700);
+      if (nIp !== null && nUser !== null) { // D1 counters (no KV writes)
+        if (nIp > LOGIN_MAX_ATTEMPTS_PER_IP_PER_HOUR) return jsonResponse({ error: "Too many login attempts from this connection — please try again in an hour" }, 429, corsHeaders);
+        if (nUser > LOGIN_MAX_ATTEMPTS_PER_USERNAME_PER_HOUR) return jsonResponse({ error: "Too many attempts for this account — please try again in an hour, or ask an admin to reset your PIN" }, 429, corsHeaders);
+      } else {
       const [loginIpCount, loginUserCount] = await Promise.all([env.SITE_DATA.get(loginIpKey), env.SITE_DATA.get(loginUserKey)]);
       if (Number(loginIpCount || 0) >= LOGIN_MAX_ATTEMPTS_PER_IP_PER_HOUR) {
         return jsonResponse({ error: "Too many login attempts from this connection — please try again in an hour" }, 429, corsHeaders);
@@ -1653,6 +1682,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         env.SITE_DATA.put(loginIpKey, String(Number(loginIpCount || 0) + 1), { expirationTtl: 3700 }),
         env.SITE_DATA.put(loginUserKey, String(Number(loginUserCount || 0) + 1), { expirationTtl: 3700 }),
       ]);
+      }
 
       const userId = await findUserIdByUsername(env, username);
       const user = userId ? await readUser(env, userId) : null;
@@ -1661,7 +1691,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       }
       user.lastLoginAt = Date.now();
       user.lastSeenAt = user.lastLoginAt;
-      await writeUser(env, user);
+      if (!(await touchMember(env, user.id, true))) await writeUser(env, user); // (D1 when available — no KV write)
       const token = await createMemberSession(env, user.id);
       const clubs = await allClubIdsContaining(env, user.id);
       return jsonResponse({ ...publicUser(user), clubs, waitlist: visibleWaitlist(user, clubs), token }, 200, corsHeaders);
@@ -2400,7 +2430,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const me = meId ? await readUser(env, meId) : null;
       if (!me) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
       // "last active" for the admin profile view — written at most once an hour per person (KV writes are limited)
-      if (!me.lastSeenAt || Date.now() - me.lastSeenAt > 3600000) { me.lastSeenAt = Date.now(); await writeUser(env, me); }
+      if (!(await touchMember(env, me.id, false)) && (!me.lastSeenAt || Date.now() - me.lastSeenAt > 6 * 3600000)) { me.lastSeenAt = Date.now(); await writeUser(env, me); } // D1 first; the KV fallback is throttled to every 6 h
       const clubs = await allClubIdsContaining(env, me.id);
       let notices = [];
       try { notices = JSON.parse((await env.SITE_DATA.get(`notice:${me.id}`)) || "[]"); } catch {}
@@ -3440,10 +3470,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // Admin: manage club members / reset PINs (session-cookie gated above)
     if (path === "/api/admin/club-members" && request.method === "GET") {
+      const SEEN = await seenMap(env);
       const out = {};
       for (const clubId of await clubIdList(env)) {
         if (leadCtx && !leadCtx.clubs.includes(clubId)) continue;
-        out[clubId] = (await resolveClubMembers(env, clubId)).map((u) => ({ ...publicUser(u), phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0 })); // phone + activity: admin-only
+        out[clubId] = (await resolveClubMembers(env, clubId)).map((u) => ({ ...publicUser(u), phone: u.phone || "", createdAt: u.createdAt || 0, ...seenOf(SEEN, u) })); // phone + activity: admin-only
       }
       return jsonResponse(out, 200, corsHeaders);
     }
@@ -3709,6 +3740,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     // Admin: change which clubs a member belongs to (add/remove any number at once)
     // Admin: EVERY profile, whether or not they're in a club yet (club-members only lists club members).
     if (path === "/api/admin/users" && request.method === "GET") {
+      const SEEN = await seenMap(env);
       try {
       const clubsByUser = {};
       for (const clubId of await clubIdList(env)) {
@@ -3720,7 +3752,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       for (const sid of Object.keys(SQUAD_TITLES)) for (const uid of await readSquadMemberIds(env, sid)) (squadsByUser[uid] = squadsByUser[uid] || []).push(SQUAD_TO_CLUB[sid]);
       const out = [];
       for (const u of await listAllUsers(env)) {
-          if (u) out.push({ ...publicUser(u), waRemindedAt: u.waRemindedAt || 0, formRanked: (u.form && Array.isArray(u.form.ranked)) ? u.form.ranked : [], stayClubs: squadsByUser[u.id] || [], stayAt: u.stayConfirmedAt || 0, phone: u.phone || "", createdAt: u.createdAt || 0, lastLoginAt: u.lastLoginAt || 0, lastSeenAt: u.lastSeenAt || 0, archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: (await readPushSubs(env, u.id)).length > 0 });
+          if (u) out.push({ ...publicUser(u), waRemindedAt: u.waRemindedAt || 0, formRanked: (u.form && Array.isArray(u.form.ranked)) ? u.form.ranked : [], stayClubs: squadsByUser[u.id] || [], stayAt: u.stayConfirmedAt || 0, phone: u.phone || "", createdAt: u.createdAt || 0, ...seenOf(SEEN, u), archived: u.archived || null, clubs: clubsByUser[u.id] || [], pending: pendingByUser[u.id] || [], push: (await readPushSubs(env, u.id)).length > 0 });
       }
       if (leadCtx) return jsonResponse({ users: out.filter((u) => (u.clubs || []).some((c) => leadCtx.clubs.includes(c))).map((u) => ({ ...u, clubs: u.clubs.filter((c) => leadCtx.clubs.includes(c)), pending: (u.pending || []).filter((c) => leadCtx.clubs.includes(c)) })) }, 200, corsHeaders);
       if (!leadCtx) saveSnapshot(env, "snap:adminUsers", out);
@@ -3822,12 +3854,13 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     // Admin: one person's full profile (phone, joined, clubs, pending requests, last sign-in / activity)
     const adminUserProfileMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/profile\/?$/);
     if (adminUserProfileMatch && request.method === "GET") {
+      const SEEN = await seenMap(env);
       const userId = decodeURIComponent(adminUserProfileMatch[1]);
       const user = await readUser(env, userId);
       if (!user) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
       return jsonResponse({
         id: user.id, name: user.name, username: user.username, photo: user.photo || null,
-        phone: user.phone || "", createdAt: user.createdAt || 0, lastLoginAt: user.lastLoginAt || 0, lastSeenAt: user.lastSeenAt || 0, archived: user.archived || null, form: user.form || null,
+        phone: user.phone || "", createdAt: user.createdAt || 0, ...seenOf(SEEN, user), archived: user.archived || null, form: user.form || null,
         stayClubs: await legacySquadClubsOf(env, user.id), stayAt: user.stayConfirmedAt || 0,
         clubs: await allClubIdsContaining(env, user.id), pending: await pendingClubIdsFor(env, user.id), waitlist: Array.isArray(user.waitlist) ? user.waitlist : [],
       }, 200, corsHeaders);
@@ -4584,7 +4617,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
   },
 
   async scheduled(controller, env, ctx) {
-    ctx.waitUntil(rebuildPhoneIndex(env).catch((e) => console.log("phone index rebuild failed", e && e.message)));
+    ctx.waitUntil((async () => { try { if (!(await env.SITE_DATA.get("phoneidx:built"))) await rebuildPhoneIndex(env); if (await seenEnsure(env)) await env.DB.prepare("DELETE FROM rate_limits WHERE exp < ?").bind(Date.now()).run(); } catch (e) { console.log("maintenance failed", e && e.message); } })());
     ctx.waitUntil((async () => { try { const claimed = await claimBackupSlot(env); console.log("daily backup slot", claimed ? "claimed — sending" : "already taken — skipping"); if (claimed) await sendBackupEmail(env, "Daily backup"); } catch (e) { console.error("Backup email failed", String(e)); } })()); // once a day; independent of the digest below
     if (!env.RESEND_API_KEY) return;
     let subscribers = JSON.parse((await env.SITE_DATA.get(SUBSCRIBER_INDEX_KEY)) || "[]");
