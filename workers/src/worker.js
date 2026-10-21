@@ -2495,38 +2495,6 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
       return jsonResponse({ ok: true, counts, matched: matched.length, unmatched }, 200, corsHeaders);
     }
-    // Badminton data for signed-in members (never phone numbers, usernames or PINs). RSVP / interest rows are re-keyed by player id.
-    if (path === "/api/badminton/data" && request.method === "GET") {
-      const meId = await memberIdFromRequest();
-      if (!meId) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
-      if (!(await bmEnsure(env))) return jsonResponse({ error: "Badminton isn't available yet" }, 503, corsHeaders);
-      const all = async (t) => ((await env.DB.prepare(`SELECT data FROM ${t}`).all()).results || []).map((r) => { try { return JSON.parse(r.data); } catch { return null; } }).filter(Boolean);
-      const pl = (await env.DB.prepare("SELECT id, uid, data FROM bm_players").all()).results || [];
-      const byUser = new Map(), players = []; let me = null;
-      for (const r of pl) { try { const d = JSON.parse(r.data); if (d.username) byUser.set(String(d.username), r.id); if (d.phone) byUser.set(String(d.phone), r.id); const mine = r.uid === meId; if (mine) me = r.id; delete d.phone; delete d.username; delete d.pin; players.push({ ...d, mine }); } catch {} }
-      const rekey = (rows) => { // imported rows (by username) first, then rows written here (by player id) — the newer ones win
-        const keyed = new Map();
-        for (const x of rows.slice().sort((p, q) => (p.player_id ? 1 : 0) - (q.player_id ? 1 : 0))) { const pid = x.player_id || byUser.get(String(x.username || "")); if (!pid) continue; const { username, ...rest } = x; keyed.set(`${pid}:${x.week_number || ""}`, { ...rest, player_id: pid }); }
-        return [...keyed.values()];
-      };
-      return jsonResponse({ me, players, games: await all("bm_games"), attendance: await all("bm_attendance"), past: await all("bm_past"), rsvps: rekey(await all("bm_rsvps")), interest: rekey(await all("bm_interest")) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
-    }
-    if ((path === "/api/badminton/rsvp" || path === "/api/badminton/interest") && request.method === "POST") {
-      const meId = await memberIdFromRequest();
-      const me = meId ? await readUser(env, meId) : null;
-      if (!me) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
-      if (!(await bmEnsure(env))) return jsonResponse({ error: "Badminton isn't available yet" }, 503, corsHeaders);
-      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
-      const pl = await bmPlayerFor(env, me);
-      if (path === "/api/badminton/rsvp") {
-        const week = Math.round(Number(b.week)), status = ["yes", "maybe", "no"].includes(b.status) ? b.status : "";
-        if (!Number.isFinite(week) || week < 1 || week > 60 || !status) return jsonResponse({ error: "Pick Yes, Maybe or No" }, 400, corsHeaders);
-        await env.DB.prepare("INSERT OR REPLACE INTO bm_rsvps (id, day, data) VALUES (?, '', ?)").bind(`${pl.id}:${week}`, JSON.stringify({ player_id: pl.id, week_number: week, status })).run();
-      } else {
-        await env.DB.prepare("INSERT OR REPLACE INTO bm_interest (id, day, data) VALUES (?, '', ?)").bind(pl.id, JSON.stringify({ player_id: pl.id, interested: !!b.interested })).run();
-      }
-      return jsonResponse({ ok: true }, 200, corsHeaders);
-    }
     // Admin: who was in a squad and has / hasn't confirmed yet (to chase on WhatsApp)
     if (path === "/api/admin/stay-status" && request.method === "GET") {
       const roster = await readClubRoster(env), seen = new Map();
@@ -2735,6 +2703,247 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return new Response(JSON.stringify({ ok: true }), { status: 200, headers });
     }
 
+    // ================= Badminton compatibility layer (see BM_* helpers): serves the ORIGINAL badminton app that now lives at /badminton.html =================
+    if (path.startsWith("/api/bm/") || path.startsWith("/api/admin/badminton/") || path.startsWith("/storage/v1/object/public/profile-avatars/")) {
+      if (!(await bmEnsure(env))) return jsonResponse({ error: "Badminton isn't available yet" }, 503, corsHeaders);
+      const bmErr = (m, st = 400) => jsonResponse({ error: { message: m } }, st, corsHeaders);
+      // Public photos (profile pictures are public, as they were on the old site).
+      if (path.startsWith("/storage/v1/object/public/profile-avatars/") && request.method === "GET") {
+        const fp = decodeURIComponent(path.slice("/storage/v1/object/public/profile-avatars/".length));
+        const f = await env.DB.prepare("SELECT ctype, b64 FROM bm_files WHERE path = ?").bind(fp).first();
+        if (!f) return new Response("Not found", { status: 404, headers: corsHeaders });
+        const bin = Uint8Array.from(atob(f.b64), (c) => c.charCodeAt(0));
+        return new Response(bin, { status: 200, headers: { ...corsHeaders, "Content-Type": f.ctype || "image/jpeg", "Cache-Control": "public, max-age=3600" } });
+      }
+      // ---- main admin: coach password, iPad kiosk key, status, copy photos over from the old site ----
+      if (path === "/api/admin/badminton/status" && request.method === "GET") {
+        const t = async (k) => (await env.DB.prepare(`SELECT COUNT(*) AS n FROM ${BM_TBL[k]}`).first()).n;
+        const left = (await env.DB.prepare("SELECT COUNT(*) AS n FROM bm_players WHERE data LIKE '%supabase.co/storage%'").first()).n;
+        return jsonResponse({ coachSet: !!(await env.SITE_DATA.get("bm:coachpw")), kioskSet: !!(await env.SITE_DATA.get("bm:kioskkey")), photosToCopy: left, counts: { players: await t("players"), games: await t("games"), attendance: await t("attendance"), past_points: await t("past_points"), session_rsvps: await t("session_rsvps"), tournament_interest: await t("tournament_interest") } }, 200, corsHeaders);
+      }
+      if ((path === "/api/admin/badminton/coach-password" || path === "/api/admin/badminton/kiosk-key") && request.method === "PUT") {
+        let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+        const v = String(b.value || "").trim();
+        if (v.length < 6 || v.length > 60) return jsonResponse({ error: "Use 6–60 characters" }, 400, corsHeaders);
+        if (path.endsWith("coach-password")) await env.SITE_DATA.put("bm:coachpw", await sha256Hex("bmcoach:" + v)); else await env.SITE_DATA.put("bm:kioskkey", await sha256Hex("bmkiosk:" + v));
+        return jsonResponse({ ok: true }, 200, corsHeaders);
+      }
+      if (path === "/api/admin/badminton/copy-photos" && request.method === "POST") { // copies up to 20 profile photos per call from the old Supabase storage into 4DS (the client loops until none are left)
+        const rows = (await env.DB.prepare("SELECT id, uid, data FROM bm_players WHERE data LIKE '%supabase.co/storage/v1/object/public/profile-avatars/%' LIMIT 20").all()).results || [];
+        let copied = 0, failed = 0;
+        for (const r of rows) {
+          const d = JSON.parse(r.data), m = String(d.avatar_url || "").match(/^https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1\/object\/public\/profile-avatars\/(.+)$/);
+          if (!m) continue;
+          try {
+            const resp = await fetch(d.avatar_url); if (!resp.ok) throw new Error("fetch " + resp.status);
+            const buf = new Uint8Array(await resp.arrayBuffer()); if (buf.length > 2500000) throw new Error("too big");
+            let bin = ""; for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
+            const path2 = decodeURIComponent(m[1]).replace(/[^\w./@-]/g, "_");
+            await env.DB.prepare("INSERT OR REPLACE INTO bm_files (path, ctype, b64, at) VALUES (?, ?, ?, ?)").bind(path2, resp.headers.get("content-type") || "image/jpeg", btoa(bin), Date.now()).run();
+            d.avatar_url = "/storage/v1/object/public/profile-avatars/" + path2; copied++;
+          } catch { d.avatar_url = ""; failed++; } // an unreachable photo falls back to the player's heart
+          await env.DB.prepare("UPDATE bm_players SET data = ? WHERE id = ?").bind(JSON.stringify(d), r.id).run();
+        }
+        return jsonResponse({ ok: true, copied, failed, left: (await env.DB.prepare("SELECT COUNT(*) AS n FROM bm_players WHERE data LIKE '%supabase.co/storage%'").first()).n }, 200, corsHeaders);
+      }
+      if (path.startsWith("/api/bm/")) {
+        const memberId = await memberIdFromRequest();
+        const meUser = memberId ? await readUser(env, memberId) : null;
+        const coachTok = request.headers.get("X-BM-Coach") || "";
+        const kioskKey = request.headers.get("X-Kiosk-Key") || "";
+        let role = "anon";
+        if (await isValidSession(getSessionToken(request))) role = "owner";
+        else if (coachTok && (await env.SITE_DATA.get(`bmcoach:${coachTok}`))) role = "coach";
+        else if (meUser) role = "member";
+        else if (await bmKioskOk(env, kioskKey)) role = "kiosk";
+        const staff = role === "owner" || role === "coach";
+        if (path === "/api/bm/session" && request.method === "POST") {
+          if (role === "owner") return jsonResponse({ session: { user: { id: BM_OWNER_ID, email: "owner" }, access_token: "owner" } }, 200, corsHeaders);
+          if (role === "coach") return jsonResponse({ session: { user: { id: "coach", email: BM_COACH_EMAIL }, access_token: coachTok } }, 200, corsHeaders);
+          return jsonResponse({ session: null }, 200, corsHeaders);
+        }
+        if (path === "/api/bm/auth" && request.method === "POST") {
+          if (!ideaRateOk(request.headers.get("CF-Connecting-IP") || "x")) return bmErr("Too many tries — wait a minute", 429);
+          let b; try { b = await request.json(); } catch { return bmErr("Invalid request"); }
+          const email = String(b.email || "").trim().toLowerCase(), pw = String(b.password || "");
+          if (email === BM_COACH_EMAIL) { // the "Public admin" (the coach): today's games & attendance only
+            const h = await env.SITE_DATA.get("bm:coachpw");
+            if (!h || h !== await sha256Hex("bmcoach:" + pw)) return bmErr("Invalid login credentials", 401);
+            const tok = crypto.randomUUID() + crypto.randomUUID();
+            await env.SITE_DATA.put(`bmcoach:${tok}`, "1", { expirationTtl: 43200 });
+            return jsonResponse({ session: { user: { id: "coach", email: BM_COACH_EMAIL }, access_token: tok } }, 200, corsHeaders);
+          }
+          if (!env.ADMIN_PASSWORD || pw !== env.ADMIN_PASSWORD) return bmErr("Invalid login credentials", 401); // "Owner admin" = the 4DS main admin password
+          const tok = await createSession(), headers = new Headers({ "Content-Type": "application/json", ...corsHeaders });
+          headers.set("Set-Cookie", setSessionCookie(tok));
+          return new Response(JSON.stringify({ session: { user: { id: BM_OWNER_ID, email: "owner" }, access_token: "owner" } }), { status: 200, headers });
+        }
+        if (path === "/api/bm/logout" && request.method === "POST") { if (coachTok) await env.SITE_DATA.delete(`bmcoach:${coachTok}`).catch(() => {}); return jsonResponse({ ok: true }, 200, corsHeaders); }
+        if (path === "/api/bm/notify" && request.method === "POST") {
+          if (!ideaRateOk(request.headers.get("CF-Connecting-IP") || "x")) return bmErr("Slow down", 429);
+          let b; try { b = await request.json(); } catch { return bmErr("Invalid request"); }
+          const f = b.fields && typeof b.fields === "object" ? b.fields : {};
+          sendAdminEmail(env, ctx, String(b.subject || "Badminton").slice(0, 120), `<p style="font-family:Arial,sans-serif">${Object.entries(f).slice(0, 12).map(([k, v]) => `<strong>${escapeHtml(String(k).slice(0, 30))}:</strong> ${escapeHtml(String(v).slice(0, 200))}`).join("<br>")}</p>`);
+          return jsonResponse({ ok: true }, 200, corsHeaders);
+        }
+        if (path === "/api/bm/upload" && request.method === "POST") {
+          if (role === "anon") return bmErr("Please log in first", 401);
+          const fp = String(url.searchParams.get("path") || "");
+          if (!/^self\/[\w.@-]{1,120}$/.test(fp)) return bmErr("Bad file name");
+          const ctype = (request.headers.get("Content-Type") || "").split(";")[0].trim();
+          if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(ctype)) return bmErr("Photos only (JPG, PNG, WebP or GIF)");
+          const buf = new Uint8Array(await request.arrayBuffer());
+          if (!buf.length || buf.length > 2500000) return bmErr("That photo is too big");
+          let bin = ""; for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
+          await env.DB.prepare("INSERT OR REPLACE INTO bm_files (path, ctype, b64, at) VALUES (?, ?, ?, ?)").bind(fp, ctype, btoa(bin), Date.now()).run();
+          return jsonResponse({ data: { path: fp }, error: null }, 200, corsHeaders);
+        }
+        // ---- generic table access (a tiny PostgREST): the old row-level rules, re-created ----
+        if (path === "/api/bm/q" && request.method === "POST") {
+          let b; try { b = await request.json(); } catch { return bmErr("Invalid request"); }
+          const key = String(b.table || ""); if (!BM_TBL[key]) return bmErr("Unknown table", 404);
+          const op = String(b.op || "select"), today = bmToronto();
+          const filters = Array.isArray(b.filters) ? b.filters : [];
+          const cmp = (v, f) => { const a = v == null ? "" : String(v), x = f.val == null ? "" : String(f.val); switch (f.op) { case "eq": return a === x; case "neq": return a !== x; case "in": return (Array.isArray(f.val) ? f.val : []).map(String).includes(a); case "gt": return a > x; case "gte": return a >= x; case "lt": return a < x; case "lte": return a <= x; default: return false; } };
+          const match = (row) => filters.every((f) => cmp(row[f.col], f));
+          const rowsAll = await bmLoadRows(env, key);
+          const isToday = (row) => { const d = key === "games" ? (row.played_at ? bmToronto(new Date(row.played_at)) : "") : String(row.session_date || ""); return d === today; };
+          const canWrite = (action, row) => { // action: insert | update | delete
+            if (role === "owner") return true;
+            if (role !== "coach") return false;
+            if (action === "delete") return false;
+            if (key === "players") return true;
+            if (key === "games" || key === "attendance") return isToday(row);
+            return false;
+          };
+          if (op === "select") {
+            if (role === "anon") return jsonResponse({ data: [], error: null }, 200, corsHeaders);
+            let out = rowsAll.filter((r) => match(r.row)).map((r) => {
+              const x = { ...r.row };
+              if (key === "players") { delete x.pin; if (!staff && !(memberId && r.uid === memberId)) { delete x.phone; x.username = "x:" + r.id; } }
+              if (key === "session_rsvps" || key === "tournament_interest") { if (!staff) { const own = x.username && meUser && bmDigits(meUser.phone) === bmDigits(x.username); if (!own) x.username = "x:" + (x.player_id || ""); } }
+              return x;
+            });
+            for (const o of (Array.isArray(b.order) ? b.order : []).slice().reverse()) out.sort((p, q) => { const a = p[o.col], c = q[o.col]; const r = a == null ? (c == null ? 0 : -1) : c == null ? 1 : (typeof a === "number" && typeof c === "number" ? a - c : String(a).localeCompare(String(c))); return o.asc === false ? -r : r; });
+            if (b.limit) out = out.slice(0, Math.min(5000, Number(b.limit) || 5000));
+            if (b.single || b.maybe) { if (b.single && out.length !== 1) return jsonResponse({ data: null, error: { message: "JSON object requested, multiple (or no) rows returned" } }, 200, corsHeaders); return jsonResponse({ data: out[0] || null, error: null }, 200, corsHeaders); }
+            return jsonResponse({ data: out, error: null }, 200, corsHeaders);
+          }
+          const stmts = []; let result = [];
+          if (op === "insert" || op === "upsert") {
+            const list = (Array.isArray(b.payload) ? b.payload : [b.payload]).filter((x) => x && typeof x === "object").slice(0, 500);
+            const conflict = op === "upsert" ? String(b.onConflict || "").split(",").map((x) => x.trim()).filter(Boolean) : [];
+            for (const raw of list) {
+              const row = { ...raw }; delete row.pin;
+              const existing = conflict.length ? rowsAll.find((r) => conflict.every((c) => String(r.row[c]) === String(row[c]))) : null;
+              if (existing) { const merged = { ...existing.row, ...row }; if (!canWrite("update", merged) || !canWrite("update", existing.row)) return bmErr("Not allowed (public admin can only change today)", 403); stmts.push(bmSaveStmt(env, key, existing.id, merged, existing.uid)); result.push(merged); continue; }
+              if (!canWrite("insert", row)) return bmErr(role === "anon" ? "Please log in" : "Not allowed (public admin can only add today's games and attendance)", 403);
+              if (key === "games") { if (!row.played_at) row.played_at = new Date().toISOString(); row.week_id = row.week_id || bmWeekIdOf(bmToronto(new Date(row.played_at))); }
+              if (key === "players") { row.active = row.active !== false; row.date_joined = row.date_joined || today; }
+              row.id = row.id || (key === "attendance" ? `${row.player_id}:${row.session_date}` : crypto.randomUUID());
+              stmts.push(bmSaveStmt(env, key, String(row.id), row, null)); result.push(row);
+            }
+          } else if (op === "update") {
+            const patch = { ...(b.payload || {}) }; delete patch.pin; delete patch.id;
+            for (const r of rowsAll.filter((x) => match(x.row))) { const merged = { ...r.row, ...patch }; if (!canWrite("update", r.row) || !canWrite("update", merged)) return bmErr("Not allowed (public admin can only change today)", 403); stmts.push(bmSaveStmt(env, key, r.id, merged, r.uid)); result.push(merged); }
+          } else if (op === "delete") {
+            if (role !== "owner") return bmErr("Owner admin only", 403);
+            for (const r of rowsAll.filter((x) => match(x.row))) { stmts.push(env.DB.prepare(`DELETE FROM ${BM_TBL[key]} WHERE id = ?`).bind(r.id)); result.push(r.row); }
+          } else return bmErr("Unsupported");
+          for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
+          return jsonResponse({ data: b.returning ? result : null, error: null }, 200, corsHeaders);
+        }
+        // ---- the old database functions ----
+        if (path === "/api/bm/rpc" && request.method === "POST") {
+          let b; try { b = await request.json(); } catch { return bmErr("Invalid request"); }
+          const fn = String(b.name || ""), a = b.args || {}, today = bmToronto();
+          const needMember = () => meUser ? null : bmErr("Please log in again", 401);
+          const asRow = (pl) => ({ id: pl.id, name: pl.data.name, full_name: pl.data.full_name, username: pl.data.username, level: pl.data.level ?? null, avatar_url: pl.data.avatar_url || null });
+          const setPlayer = async (pl, patch) => { const d = { ...pl.data, ...patch }; await env.DB.prepare("UPDATE bm_players SET data = ? WHERE id = ?").bind(JSON.stringify(d), pl.id).run(); return d; };
+          if (fn === "login_player" || fn === "whoami") { const e = needMember(); if (e) return e; return jsonResponse({ data: [asRow(await bmPlayerFor(env, meUser))], error: null }, 200, corsHeaders); }
+          if (fn === "signup_player") {
+            const full = cleanCalText(a.p_full_name, 60), pin = String(a.p_pin || "").trim(), digits = bmDigits(a.p_phone), level = Math.round(Number(a.p_level));
+            if (!full || !/^\d{4}$/.test(pin) || digits.length < 7 || !(level >= 1 && level <= 5)) return bmErr("Please fill in your name, phone, level and a 4-digit PIN");
+            const taken = await usernameForPhone(env, digits); if (taken) return bmErr("That phone number is already signed up");
+            const made = await createMemberFromForm(env, ctx, request.headers.get("CF-Connecting-IP") || "unknown", { name: full, pin, phone: a.p_phone });
+            if (made.error) return bmErr(made.error, made.status || 400);
+            _phoneMap = { at: 0, map: null };
+            const club = (await readClubRoster(env)).find((c) => c.id === BM_BADMINTON_CLUB);
+            if (club) { const ids = await readClubMemberIds(env, club.id); if (!ids.includes(made.user.id)) await writeClubMemberIds(env, club.id, [...ids, made.user.id]); }
+            const pl = await bmPlayerFor(env, made.user); await setPlayer(pl, { level });
+            return jsonResponse({ data: { token: made.token }, error: null }, 200, corsHeaders);
+          }
+          if (fn === "set_my_rsvp" || fn === "set_tournament_interest") {
+            const e = needMember(); if (e) return e; const pl = await bmPlayerFor(env, meUser);
+            if (fn === "set_my_rsvp") {
+              const week = Math.round(Number(a.p_week)), status = ["yes", "maybe", "no"].includes(a.p_status) ? a.p_status : "";
+              if (!(week >= 1 && week <= 60) || !status) return bmErr("Pick Yes, Maybe or No");
+              await env.DB.prepare("INSERT OR REPLACE INTO bm_rsvps (id, day, data) VALUES (?, '', ?)").bind(`${pl.id}:${week}`, JSON.stringify({ username: pl.data.username, player_id: pl.id, week_number: week, status })).run();
+              await env.DB.prepare("DELETE FROM bm_rsvps WHERE id != ? AND json_extract(data, '$.username') = ? AND json_extract(data, '$.week_number') = ?").bind(`${pl.id}:${week}`, pl.data.username || "~", week).run();
+            } else {
+              await env.DB.prepare("INSERT OR REPLACE INTO bm_interest (id, day, data) VALUES (?, '', ?)").bind(pl.id, JSON.stringify({ username: pl.data.username, player_id: pl.id, interested: !!a.p_interested })).run();
+              await env.DB.prepare("DELETE FROM bm_interest WHERE id != ? AND json_extract(data, '$.username') = ?").bind(pl.id, pl.data.username || "~").run();
+            }
+            return jsonResponse({ data: null, error: null }, 200, corsHeaders);
+          }
+          if (fn === "set_player_avatar") {
+            const e = needMember(); if (e) return e; const pl = await bmPlayerFor(env, meUser), u = String(a.p_avatar_url || "");
+            const m = u.match(/\/storage\/v1\/object\/public\/profile-avatars\/(self\/[\w.@-]+)$/); if (!m) return bmErr("That picture isn't allowed");
+            await setPlayer(pl, { avatar_url: "/storage/v1/object/public/profile-avatars/" + m[1] }); return jsonResponse({ data: null, error: null }, 200, corsHeaders);
+          }
+          if (fn === "update_my_profile") {
+            const e = needMember(); if (e) return e; const pl = await bmPlayerFor(env, meUser), patch = {};
+            const user = { ...meUser };
+            if (a.p_new_full_name) { const n = cleanCalText(a.p_new_full_name, 60); if (!n) return bmErr("Name is required"); patch.full_name = n; patch.name = firstNameOnly(n); user.name = n; }
+            if (a.p_new_phone) { const d = bmDigits(a.p_new_phone); if (d.length < 7) return bmErr("Enter a valid phone number"); const other = await usernameForPhone(env, d); if (other && other !== meUser.username) return bmErr("That phone number is already used"); patch.phone = d; patch.username = d; user.phone = sanitizePhone(a.p_new_phone) || user.phone; _phoneMap = { at: 0, map: null }; }
+            if (a.p_new_pin) { if (!/^\d{4}$/.test(String(a.p_new_pin))) return bmErr("New PIN must be exactly 4 digits"); user.pinHash = await sha256Hex(String(a.p_new_pin)); }
+            await writeUser(env, user); await setPlayer(pl, patch);
+            return jsonResponse({ data: null, error: null }, 200, corsHeaders);
+          }
+          if (fn === "admin_delete_player") {
+            if (role !== "owner") return bmErr("Owner admin only", 403);
+            const id = String(a.p_player_id || ""); if (!id) return bmErr("No player");
+            await env.DB.batch([env.DB.prepare("DELETE FROM bm_players WHERE id = ?").bind(id), env.DB.prepare("DELETE FROM bm_attendance WHERE json_extract(data, '$.player_id') = ?").bind(id), env.DB.prepare("DELETE FROM bm_past WHERE json_extract(data, '$.player_id') = ?").bind(id), env.DB.prepare("DELETE FROM bm_rsvps WHERE json_extract(data, '$.player_id') = ?").bind(id), env.DB.prepare("DELETE FROM bm_interest WHERE json_extract(data, '$.player_id') = ?").bind(id)]);
+            return jsonResponse({ data: null, error: null }, 200, corsHeaders);
+          }
+          if (fn.startsWith("kiosk_")) {
+            if (!(await bmKioskOk(env, String(a.p_key || "")))) return bmErr("This iPad is not set up as the kiosk", 403);
+            if (fn === "kiosk_ping") return jsonResponse({ data: true, error: null }, 200, corsHeaders);
+            const playerRow = async (id) => { const r = await env.DB.prepare("SELECT id, data FROM bm_players WHERE id = ?").bind(String(id)).first(); return r ? { id: r.id, data: JSON.parse(r.data) } : null; };
+            if (fn === "kiosk_check_in") {
+              const pl = await playerRow(a.p_player_id); if (!pl) return bmErr("Player not found");
+              const day = String(a.p_date || ""); if (day !== today) return bmErr("The kiosk can only check people in for today");
+              await env.DB.prepare("INSERT OR REPLACE INTO bm_attendance (id, day, data) VALUES (?, ?, ?)").bind(`${pl.id}:${day}`, day, JSON.stringify({ id: `${pl.id}:${day}`, player_id: pl.id, session_date: day, present: !!a.p_present })).run();
+              await env.DB.prepare("DELETE FROM bm_attendance WHERE id != ? AND json_extract(data, '$.player_id') = ? AND json_extract(data, '$.session_date') = ?").bind(`${pl.id}:${day}`, pl.id, day).run();
+              return jsonResponse({ data: null, error: null }, 200, corsHeaders);
+            }
+            if (fn === "kiosk_record_game") {
+              const w = (Array.isArray(a.p_winner_ids) ? a.p_winner_ids : []).map(String), l = (Array.isArray(a.p_loser_ids) ? a.p_loser_ids : []).map(String), ws = Math.round(Number(a.p_winner_score)), ls = Math.round(Number(a.p_loser_score));
+              if (!((w.length === 1 && l.length === 1) || (w.length === 2 && l.length === 2)) || new Set([...w, ...l]).size !== w.length + l.length) return bmErr("Pick a winner and a loser (1v1 or 2v2)");
+              if (!Number.isFinite(ws) || !Number.isFinite(ls) || ws <= ls || ws < 11 || ws > 60 || ls < 0) return bmErr("The winning score must be at least 11 and higher than the losing score");
+              for (const id of [...w, ...l]) if (!(await playerRow(id))) return bmErr("Player not found");
+              if (String(a.p_date || "") !== today) return bmErr("The kiosk can only record today's games");
+              const game = { id: crypto.randomUUID(), winners: w, losers: l, played_at: new Date().toISOString(), week_id: bmWeekIdOf(today), winner_score: ws, loser_score: ls };
+              await env.DB.prepare("INSERT INTO bm_games (id, day, data) VALUES (?, ?, ?)").bind(game.id, today, JSON.stringify(game)).run();
+              return jsonResponse({ data: game.id, error: null }, 200, corsHeaders);
+            }
+            if (fn === "kiosk_undo_game") {
+              const g = await env.DB.prepare("SELECT id, data FROM bm_games WHERE id = ?").bind(String(a.p_game_id || "")).first(); if (!g) return jsonResponse({ data: false, error: null }, 200, corsHeaders);
+              const d = JSON.parse(g.data); if (!d.played_at || Date.now() - new Date(d.played_at).getTime() > 30 * 60000) return jsonResponse({ data: false, error: null }, 200, corsHeaders); // only a game just recorded
+              await env.DB.prepare("DELETE FROM bm_games WHERE id = ?").bind(g.id).run(); return jsonResponse({ data: true, error: null }, 200, corsHeaders);
+            }
+            if (fn === "kiosk_set_avatar") {
+              const pl = await playerRow(a.p_player_id); if (!pl) return bmErr("Player not found");
+              const av = String(a.p_avatar || "").replace(/^https?:\/\/[^/]+(?=\/storage\/)/, ""), ok = BM_HEARTS.map((h) => "emoji:" + h).includes(av) || av.startsWith(`/storage/v1/object/public/profile-avatars/self/kiosk-${pl.id}-`);
+              if (!ok) return bmErr("That picture is not allowed");
+              await setPlayer(pl, { avatar_url: av }); return jsonResponse({ data: null, error: null }, 200, corsHeaders);
+            }
+          }
+          return bmErr("Unknown function " + fn, 404);
+        }
+        return bmErr("Not found", 404);
+      }
+    }
     // ---- Club leads: a scoped admin that can only manage the clubs they were assigned ----
     const getLeadToken = (req) => {
       const m = (req.headers.get("Cookie") || "").match(/(?:^|;\s*)leadsession=([^;]+)/);
