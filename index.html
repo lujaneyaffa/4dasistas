@@ -6905,8 +6905,21 @@ function openSettingsPopup(){
     <div style="display:flex;flex-wrap:wrap;gap:6px;">${myClubs.length ? myClubs.map(c => `<span style="padding:5px 12px;border-radius:999px;border:2px solid ${clubCol(c.id).fg};background:${clubCol(c.id).bg};color:${clubCol(c.id).fg};font-weight:700;font-size:13px;">${c.emoji ? escapeCm(c.emoji) + ' ' : ''}${escapeCm(c.title)}</span>`).join('') : '<span class="av-msg">Not in a club yet — ask to join one on the Clubs page.</span>'}</div>
     <p class="ideas-hint" style="text-align:left;margin:6px 0 0;">To join another club, send a request from the Clubs page — an admin approves it.</p>
     <p class="idea-pop-h">🔔 Notifications</p>
-    <div id="stNotif"></div>`);
+    <div id="stNotif"></div>
+    <p class="idea-pop-h">📄 About</p>
+    <p style="margin:0 0 6px;font-size:14px;"><a href="/privacy" target="_blank" rel="noopener">Privacy policy</a> · <a href="/support" target="_blank" rel="noopener">Help &amp; contact</a></p>
+    <p class="idea-pop-h" style="color:#b3261e;">⚠️ Delete my account</p>
+    <p class="ideas-hint" style="text-align:left;margin:0 0 6px;">Permanently removes your profile, availability, RSVPs, step totals and club memberships. This can't be undone.</p>
+    <div style="text-align:center;"><button type="button" id="stDelete" style="${pill}background:#fdecea;color:#b3261e;border-color:#b3261e;">Delete my account…</button></div>`);
   const status = wrap.querySelector('#epStatus');
+  wrap.querySelector('#stDelete').addEventListener('click', () => {
+    const pin = window.prompt('To delete your account, type your 4-digit PIN. This cannot be undone.');
+    if(pin === null) return;
+    if(!window.confirm('Delete your 4DS account and everything linked to it for good?')) return;
+    cmApiRaw('/api/me/delete-account', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ pin }) })
+      .then(() => { try { localStorage.removeItem(cmSessionKey()); localStorage.removeItem('homeHidden'); } catch {} close(); alert('Your account has been deleted.'); location.href = '/'; })
+      .catch(e => { status.textContent = e.message; });
+  });
   const userEl = wrap.querySelector('#stUser'), pinRow = wrap.querySelector('#stPinRow');
   userEl.addEventListener('input', () => { pinRow.style.display = userEl.value.trim().toLowerCase() !== session.username ? '' : 'none'; });
   wrap.querySelector('#epPinBtn').addEventListener('click', () => { close(); openChangePinPopup(); });

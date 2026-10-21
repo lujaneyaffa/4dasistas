@@ -782,6 +782,29 @@ const sameActivity = (a, b) => {
   const jx = x.join(""), jy = y.join(""); if (jx === jy || jx.includes(jy) || jy.includes(jx)) return true; // "go karting" vs "gokarting"
   return x.some((w) => w.length >= 4 && y.some((v) => v.length >= 4 && (v.includes(w) || w.includes(v) || (w.length >= 5 && v.length >= 5 && w.slice(0, 4) === v.slice(0, 4))))); // ("karting" ≈ "karts")
 };
+// Delete a person and everything tied to their account (used by "Delete my account" in the app; Apple requires it).
+const eraseUserEverywhere = async (env, user) => {
+  const userId = user.id;
+  for (const clubId of await clubIdList(env)) { const ids = await readClubMemberIds(env, clubId); if (ids.includes(userId)) await writeClubMemberIds(env, clubId, ids.filter((id) => id !== userId)); }
+  for (const k of (await env.SITE_DATA.list({ prefix: "joinreq:" })).keys) if (k.name.split(":")[2] === userId) await env.SITE_DATA.delete(k.name);
+  await deleteIaDoc(env, `m:${userId}`); _ideaAvailMemo = { at: 0, people: null };
+  await env.SITE_DATA.delete(pushKey(userId));
+  for (const sid of Object.keys(SQUAD_TITLES)) { await writeSquadMemberIds(env, sid, (await readSquadMemberIds(env, sid)).filter((x) => x !== userId)); await env.SITE_DATA.delete(squadReqKey(sid, userId)); }
+  try { // club events: RSVPs, interest and their form answers
+    const cal = await readClubCal(env); let changed = false;
+    for (const e of cal) { const n = (e.rsvps || []).length, i = (e.interest || []).length; e.rsvps = (e.rsvps || []).filter((r) => r.id !== userId); if (e.interest) e.interest = e.interest.filter((x) => x.id !== userId); if (e.rsvps.length !== n || (e.interest || []).length !== i) changed = true;
+      if (e.form) { const raw = await env.SITE_DATA.get(calFormKey(e.id)); if (raw) { const m = JSON.parse(raw); if (m[userId]) { delete m[userId]; await env.SITE_DATA.put(calFormKey(e.id), JSON.stringify(m)); } } } }
+    if (changed) await writeClubCal(env, cal);
+  } catch {}
+  if (env.DB) { try { // steps + badminton: their step rows and pledges go; their badminton games stay as an anonymous "Former player" so other people's scores don't change
+    await stepsEnsure(env); await env.DB.batch([env.DB.prepare("DELETE FROM steps_daily WHERE user_id = ?").bind(userId), env.DB.prepare("DELETE FROM step_pledges WHERE user_id = ?").bind(userId)]);
+    await bmEnsure(env); const pr = await env.DB.prepare("SELECT id, data FROM bm_players WHERE uid = ?").bind(userId).first();
+    if (pr) { const d = JSON.parse(pr.data); await env.DB.prepare("UPDATE bm_players SET uid = NULL, data = ? WHERE id = ?").bind(JSON.stringify({ id: d.id, name: "Former player", full_name: "Former player", level: d.level || null, active: false, date_joined: d.date_joined || "" }), pr.id).run(); }
+  } catch {} }
+  const dg = bmDigits(user.phone); if (dg.length >= 7) { try { const cur = JSON.parse((await env.SITE_DATA.get(phoneIdxKey(dg))) || "[]").filter((x) => x !== userId); await env.SITE_DATA.put(phoneIdxKey(dg), JSON.stringify(cur)); } catch {} }
+  await releaseUsername(env, user.username);
+  await deleteUser(env, userId); // their login stops working because the user no longer exists
+};
 const BM_OWNER_ID = "a517d9bd-bc9c-4e59-b36d-503747621aa4", BM_COACH_EMAIL = "coach@4dasistas.ca", BM_BADMINTON_CLUB = "club-badminton";
 const BM_TBL = { players: "bm_players", games: "bm_games", attendance: "bm_attendance", past_points: "bm_past", session_rsvps: "bm_rsvps", tournament_interest: "bm_interest" };
 const bmToronto = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
@@ -2387,6 +2410,17 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       })()) }, 200, corsHeaders);
     }
     // The member's customised home page: which optional sections they've hidden (their clubs always show). Kept on their account so it follows them between devices.
+    // "Delete my account" (in the app's Edit profile): needs their PIN; removes the profile and everything linked to it.
+    if (path === "/api/me/delete-account" && request.method === "POST") {
+      const meId = await memberIdFromRequest();
+      const me = meId ? await readUser(env, meId) : null;
+      if (!me) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      if (!ideaRateOk(request.headers.get("CF-Connecting-IP") || "x")) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      if (me.pinHash !== await sha256Hex(String(b.pin || "").trim())) return jsonResponse({ error: "That PIN isn't right" }, 403, corsHeaders);
+      await eraseUserEverywhere(env, me);
+      return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
     if (path === "/api/me/prefs" && (request.method === "GET" || request.method === "POST")) {
       const meId = await memberIdFromRequest();
       const me = meId ? await readUser(env, meId) : null;
