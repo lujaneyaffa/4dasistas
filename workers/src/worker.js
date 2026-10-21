@@ -681,6 +681,23 @@ const stepsPublicData = async (env) => {
   _stepsPublicMemo = { at: Date.now(), data };
   return data;
 };
+// ---- Badminton (merged in from the old Supabase "ladies-badminton" site). Rows are stored as the original JSON so the points logic ports unchanged; `uid` links a player to a 4DS account. ----
+const BM_TABLES = { players: "bm_players", games: "bm_games", attendance: "bm_attendance", past_points: "bm_past", session_rsvps: "bm_rsvps", tournament_interest: "bm_interest" };
+let _bmReady = null;
+const bmEnsure = async (env) => {
+  if (!env.DB) return false;
+  if (!_bmReady) _bmReady = env.DB.batch([
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS bm_players (id TEXT PRIMARY KEY, uid TEXT, data TEXT NOT NULL)"),
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS bm_players_uid ON bm_players (uid)"),
+    ...["bm_games", "bm_attendance", "bm_past", "bm_rsvps", "bm_interest"].map((t) => env.DB.prepare(`CREATE TABLE IF NOT EXISTS ${t} (id TEXT PRIMARY KEY, day TEXT, data TEXT NOT NULL)`)),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS bm_meta (k TEXT PRIMARY KEY, v TEXT)"),
+  ]).catch((e) => { _bmReady = null; throw e; });
+  await _bmReady;
+  return true;
+};
+const bmDigits = (p) => { const d = String(p || "").replace(/\D/g, ""); return d.length === 11 && d[0] === "1" ? d.slice(1) : d; };
+const bmDay = (r) => String((r && (r.session_date || r.played_at || r.day || r.date || r.created_at)) || "").slice(0, 10);
+const bmRowId = async (table, r, i) => String((r && r.id) || (await sha256Hex(table + JSON.stringify(r) + i)).slice(0, 24));
 // ---- Squads (separate from clubs): same member accounts, their own membership lists, requests and PRIVATE invite links ----
 const SQUAD_TITLES = { quran: "Quran", badminton: "Badminton", cowork: "Cowork", steps: "Steps" };
 // Squads no longer exist: each became a club (data/clubs.json). The old squad member lists are kept ONLY so existing members can confirm they want to stay (the /stay page).
@@ -2397,6 +2414,43 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!(await stepsEnsure(env))) return jsonResponse({ error: "No database attached" }, 503, corsHeaders);
       await env.DB.prepare("DELETE FROM step_pledges WHERE id = ?").bind(decodeURIComponent(stepPledgeDel[1])).run(); _stepsPublicMemo = { at: 0, data: null };
       return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+    // ---- Badminton import (main admin): one-time move of the old site's tables. Replaces what's stored; players are matched to 4DS accounts by phone number. ----
+    if (path === "/api/admin/badminton/import" && request.method === "POST") {
+      if (!(await bmEnsure(env))) return jsonResponse({ error: "No database attached" }, 503, corsHeaders);
+      let body; try { body = await request.json(); } catch { return jsonResponse({ error: "That file isn't valid" }, 400, corsHeaders); }
+      const counts = {}, now = Date.now();
+      for (const [key, table] of Object.entries(BM_TABLES)) {
+        const rows = Array.isArray(body[key]) ? body[key] : null;
+        if (!rows) { counts[key] = null; continue; } // table not in the file: leave what's stored
+        const prepared = [];
+        for (let i = 0; i < rows.length; i++) {
+          const r = rows[i]; if (!r || typeof r !== "object") continue;
+          const id = await bmRowId(table, r, i);
+          if (key === "players") { const { pin, ...safe } = r; prepared.push(env.DB.prepare("INSERT OR REPLACE INTO bm_players (id, uid, data) VALUES (?, (SELECT uid FROM bm_players WHERE id = ?), ?)").bind(id, id, JSON.stringify(safe))); } // (a PIN, if the file had one, is never stored)
+          else prepared.push(env.DB.prepare(`INSERT OR REPLACE INTO ${table} (id, day, data) VALUES (?, ?, ?)`).bind(id, bmDay(r), JSON.stringify(r)));
+        }
+        if (key !== "players") await env.DB.prepare(`DELETE FROM ${table}`).run();
+        for (let i = 0; i < prepared.length; i += 50) await env.DB.batch(prepared.slice(i, i + 50));
+        counts[key] = prepared.length;
+      }
+      await env.DB.prepare("INSERT OR REPLACE INTO bm_meta (k, v) VALUES ('imported_at', ?)").bind(String(now)).run();
+      // Match players to 4DS accounts by phone number (last 10 digits).
+      const byPhone = new Map(); for (const u of await listAllUsers(env)) { const d = bmDigits(u.phone); if (d.length >= 7) byPhone.set(d, u); }
+      const pl = (await env.DB.prepare("SELECT id, uid, data FROM bm_players").all()).results || [], matched = [], unmatched = [], stmts = [];
+      for (const r of pl) { let d; try { d = JSON.parse(r.data); } catch { continue; } const u = byPhone.get(bmDigits(d.phone || d.username)); if (u) { matched.push(d.full_name || d.name); if (r.uid !== u.id) stmts.push(env.DB.prepare("UPDATE bm_players SET uid = ? WHERE id = ?").bind(u.id, r.id)); } else if (!r.uid) unmatched.push(d.full_name || d.name || r.id); }
+      for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
+      return jsonResponse({ ok: true, counts, matched: matched.length, unmatched }, 200, corsHeaders);
+    }
+    // Badminton data for signed-in members (never phone numbers, usernames or PINs).
+    if (path === "/api/badminton/data" && request.method === "GET") {
+      const meId = await memberIdFromRequest();
+      if (!meId) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
+      if (!(await bmEnsure(env))) return jsonResponse({ error: "Badminton isn't available yet" }, 503, corsHeaders);
+      const all = async (t) => ((await env.DB.prepare(`SELECT data FROM ${t}`).all()).results || []).map((r) => { try { return JSON.parse(r.data); } catch { return null; } }).filter(Boolean);
+      const pl = (await env.DB.prepare("SELECT uid, data FROM bm_players").all()).results || [];
+      const players = pl.map((r) => { try { const d = JSON.parse(r.data); delete d.phone; delete d.username; delete d.pin; return { ...d, mine: r.uid === meId }; } catch { return null; } }).filter(Boolean);
+      return jsonResponse({ players, games: await all("bm_games"), attendance: await all("bm_attendance"), past: await all("bm_past"), rsvps: await all("bm_rsvps"), interest: await all("bm_interest") }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     // Admin: who was in a squad and has / hasn't confirmed yet (to chase on WhatsApp)
     if (path === "/api/admin/stay-status" && request.method === "GET") {

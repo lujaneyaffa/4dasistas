@@ -9994,6 +9994,7 @@ function renderClubAdminPanel(){
     ${inboxAdminHtml(lead)}
     ${lead ? admSec('periodsview', '🗂️ Availability periods — tap one to view it', `<div class="cp-box">${periodHistoryHtml(k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' })) || '<p class="av-msg">Loading…</p>'}</div>`, true) : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
     ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
+    ${lead ? '' : admSec('bmimport', '🏸 Badminton — move the old site over', bmImportHtml(), false)}
     ${lead ? '' : admSec('stepsadm', '👟 Steps challenge — rounds &amp; pledges', stepsAdminHtml(), false)}
     ${lead ? '' : admSec('stay', '🪁→🏛️ Squads moving to clubs — confirm link', stayAdminHtml(), true)}
     ${lead ? '' : admSec('clublinks', '🔗 Club links (WhatsApp groups)', clubLinksHtml(), true)}
@@ -10635,6 +10636,33 @@ function admAvailWire(){
   if(next) next.addEventListener('click', () => { if(admAvail.month < ADM_AVAIL_MAX_MONTH){ admAvail.month = admAvailShiftMonth(admAvail.month, 1); admAvail.day = null; admAvailRepaint(); } });
 }
 
+// 🏸 Badminton import: upload the JSON file exported from the old badminton site (see the snippet below); players are matched to 4DS accounts by phone number.
+const BM_EXPORT_SNIPPET = `(async()=>{const c=window.supabase.createClient('https://zcahhfswtdrdmguppqtp.supabase.co','sb_publishable_CeiB5DOuyX7xKdK87tK2QQ_5Y9phmOs');const o={};for(const t of ['players','games','attendance','past_points','session_rsvps','tournament_interest']){const r=await c.from(t).select('*');o[t]=r.error?null:r.data;if(r.error)console.warn(t,r.error.message)}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(o)],{type:'application/json'}));a.download='badminton-export.json';a.click()})()`;
+function bmImportHtml(){
+  return `<div class="cp-box"><p style="font-size:13px;margin:0 0 8px;line-height:1.5;">Moves the old badminton site's players, games, points, RSVPs and attendance into 4DS. PINs are never copied (players will use their 4DS login).</p>
+    <ol style="font-size:13px;line-height:1.6;margin:0 0 8px;padding-left:18px;"><li>Open <strong>ladies-badminton.lujane.workers.dev</strong> and <strong>log in as the Owner admin</strong> (so the points history can be read).</li><li>Open the browser console (Safari: Develop → Show JavaScript Console; Chrome: ⌥⌘J), paste this and press Enter. A file downloads:</li></ol>
+    <div style="display:flex;gap:6px;margin-bottom:8px;"><input readonly id="bmSnippet" value="${escapeCm(BM_EXPORT_SNIPPET)}" style="flex:1;min-width:0;padding:8px;border-radius:8px;border:2px solid var(--brand-brown);font-size:12px;"><button type="button" class="club-guide-btn" id="bmSnippetCopy" style="padding:6px 12px;">Copy</button></div>
+    <p style="font-size:13px;margin:0 0 6px;">3. Choose that file here:</p>
+    <input type="file" id="bmFile" accept="application/json,.json" style="margin-bottom:8px;"><div><button type="button" class="club-guide-btn" id="bmGo" style="padding:6px 14px;background:var(--brand-rose);color:#fff;">Import</button></div>
+    <div id="bmMsg" style="font-size:13px;line-height:1.5;margin-top:8px;white-space:pre-wrap;"></div></div>`;
+}
+function wireBmImport(){
+  const cp = document.getElementById('bmSnippetCopy'); if(!cp) return;
+  cp.addEventListener('click', async () => { try { await navigator.clipboard.writeText(BM_EXPORT_SNIPPET); cp.textContent = 'Copied ✓'; } catch { document.getElementById('bmSnippet').select(); } });
+  document.getElementById('bmGo').addEventListener('click', async () => {
+    const msg = document.getElementById('bmMsg'), f = document.getElementById('bmFile').files[0];
+    if(!f){ msg.style.color = '#c00'; msg.textContent = 'Choose the exported file first.'; return; }
+    msg.style.color = '#776867'; msg.textContent = 'Importing…';
+    try {
+      const body = await f.text(); JSON.parse(body);
+      const r = await fetch('/api/admin/badminton/import', { method:'POST', credentials:'include', headers:{ 'Content-Type':'application/json' }, body }); const d = await r.json().catch(() => ({}));
+      if(!r.ok) throw new Error(d.error || 'Import failed');
+      const c = d.counts || {};
+      msg.style.color = '#2a7a4a';
+      msg.textContent = `Imported ✓  players ${c.players ?? '—'} · games ${c.games ?? '—'} · attendance ${c.attendance ?? '—'} · past points ${c.past_points ?? '—'} · RSVPs ${c.session_rsvps ?? '—'} · tournament interest ${c.tournament_interest ?? '—'}\nMatched to 4DS accounts by phone: ${d.matched}\nNot matched yet (${(d.unmatched || []).length}): ${(d.unmatched || []).join(', ') || 'none'}`;
+    } catch(e){ msg.style.color = '#c00'; msg.textContent = e.message; }
+  });
+}
 // 👟 Steps challenge admin: biweekly rounds (dates, charity, goal) + sponsor pledges, with live totals.
 async function loadStepsAdmin(){
   if(state.stepsAdminLoading) return; state.stepsAdminLoading = true;
@@ -10707,6 +10735,7 @@ function wireStayAdmin(){
 }
 function wireClubAdminPanel(){
   wireStayAdmin();
+  wireBmImport();
   wireStepsAdmin();
   if(!state.cmAdminOpen) return;
   if(document.getElementById('admAvailBox')){ if(admAvail.people === null && !admAvail.loading) admAvailLoad(); admAvailWire(); }
