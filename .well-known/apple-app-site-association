@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appIDs": ["9FRKF98748.4DS"],
+        "components": [
+          { "/": "/api/*", "exclude": true },
+          { "/": "/badminton*", "exclude": true },
+          { "/": "/*" }
+        ]
+      }
+    ]
+  }
+}

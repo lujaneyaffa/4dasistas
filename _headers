@@ -12,3 +12,7 @@
 # Self-hosted CMS bundle - pinned bytes, safe to cache forever
 /admin/vendor/decap-cms.js
   Cache-Control: public, max-age=31536000, immutable
+
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+  Cache-Control: public, max-age=3600

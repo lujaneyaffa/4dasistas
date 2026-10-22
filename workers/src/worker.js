@@ -645,9 +645,10 @@ const apnsAuth = async (env, which) => {
 const sendApns = async (env, userId, message) => {
   if (!env.APNS_KEY || !env.APNS_KEY_ID || !env.APNS_TEAM_ID || !env.DB) return { sent: 0, devices: 0 };
   let tokens = []; try { await seenEnsure(env); tokens = (await env.DB.prepare("SELECT token FROM device_tokens WHERE user_id = ?").bind(userId).all()).results || []; } catch { return { sent: 0, devices: 0 }; }
-  let sent = 0;
+  let sent = 0, badge = 1;
+  try { const r = await env.DB.prepare("INSERT INTO badge_counts (user_id, n) VALUES (?, 1) ON CONFLICT(user_id) DO UPDATE SET n = n + 1 RETURNING n").bind(userId).first(); if (r && r.n) badge = r.n; } catch {} // the number on the app icon = unread notifications
   for (const t of tokens) {
-    const payload = JSON.stringify({ aps: { alert: { title: message.title || "4DS", body: message.body || "" }, sound: "default" }, url: message.url || "/" });
+    const payload = JSON.stringify({ aps: { alert: { title: message.title || "4DS", body: message.body || "" }, sound: "default", badge }, url: message.url || "/" });
     let done = false;
     for (const host of ["api.push.apple.com", "api.sandbox.push.apple.com"]) {
       const jwt = await apnsAuth(env, host.includes("sandbox") ? "sandbox" : "production").catch(() => "");
@@ -890,6 +891,7 @@ const seenEnsure = async (env) => {
     env.DB.prepare("CREATE TABLE IF NOT EXISTS rate_limits (k TEXT PRIMARY KEY, n INTEGER NOT NULL, exp INTEGER NOT NULL)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS device_tokens (token TEXT PRIMARY KEY, user_id TEXT NOT NULL, platform TEXT, at INTEGER)"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS device_tokens_user ON device_tokens (user_id)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS badge_counts (user_id TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0)"),
   ]).catch((e) => { _seenReady = null; throw e; });
   await _seenReady; return true;
 };
@@ -2558,6 +2560,30 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ hidden: Array.isArray(me.homeHidden) ? me.homeHidden : [] }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     // The signed-in member's "to-do" list for the Clubs home: next events they're going to, unpaid events, undated events waiting for their interest.
+    if (path === "/api/me/badge/clear" && request.method === "POST") {
+      const meId = await memberIdFromRequest();
+      if (!meId) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      try { await seenEnsure(env); await env.DB.prepare("INSERT INTO badge_counts (user_id, n) VALUES (?, 0) ON CONFLICT(user_id) DO UPDATE SET n = 0").bind(meId).run(); } catch {}
+      return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+    // The app asks this on launch: if its build number is below minBuild it shows a polite "please update" screen. Edited by the main admin (Admin page → 📲 Require app update).
+    if (path === "/api/app-config" && request.method === "GET") {
+      let c = {}; try { c = JSON.parse((await env.SITE_DATA.get("appconfig")) || "{}"); } catch {}
+      return jsonResponse({ minBuild: Number(c.minBuild) || 0, storeUrl: c.storeUrl || "https://apps.apple.com/app/id6825452884", message: c.message || "" }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    // "Add to my calendar": a one-event .ics for a club-calendar event (opened in the phone's own calendar sheet)
+    { const icsM = path.match(/^\/api\/event-ics\/([^/]+)\/?$/);
+      if (icsM && request.method === "GET") {
+        const ev = (await readClubCal(env)).find((e) => e.id === decodeURIComponent(icsM[1]));
+        if (!ev || !ev.date) return new Response("Event not found", { status: 404 });
+        const esc = (s) => String(s || "").replace(/\\/g, "\\\\").replace(/[,;]/g, (m) => "\\" + m).replace(/\r?\n/g, "\\n");
+        const d0 = ev.date.replace(/-/g, ""), tm = String(ev.time || "").match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+        let dt, dtEnd;
+        if (tm) { let h = Number(tm[1]) % 12 + (/pm/i.test(tm[3]) ? 12 : 0); const mi = tm[2] || "00", h2 = (h + 2) % 24, pad = (n) => String(n).padStart(2, "0"); dt = `DTSTART;TZID=America/Toronto:${d0}T${pad(h)}${mi}00`; dtEnd = `DTEND;TZID=America/Toronto:${d0}T${pad(h2)}${mi}00`; }
+        else { const nx = new Date(ev.date + "T12:00:00Z"); nx.setUTCDate(nx.getUTCDate() + 1); dt = `DTSTART;VALUE=DATE:${d0}`; dtEnd = `DTEND;VALUE=DATE:${nx.toISOString().slice(0, 10).replace(/-/g, "")}`; }
+        const body = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//4DS//EN", "BEGIN:VEVENT", `UID:${esc(ev.id)}@4dasistas.ca`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`, dt, dtEnd, `SUMMARY:${esc(ev.title)}`, ev.place ? `LOCATION:${esc(ev.place)}` : "", `DESCRIPTION:${esc((ev.desc || "") + "\n\nhttps://4dasistas.ca")}`, "END:VEVENT", "END:VCALENDAR"].filter(Boolean).join("\r\n");
+        return new Response(body, { headers: { "Content-Type": "text/calendar; charset=utf-8", "Content-Disposition": `inline; filename="event.ics"`, "Cache-Control": "no-store" } });
+      } }
     // ---- Event reviews: members rate an activity they attended with hearts (1-5) and leave a comment; the main admin reads them ----
     if (path === "/api/me/reviews" && (request.method === "GET" || request.method === "POST")) {
       const meId = await memberIdFromRequest();
@@ -3482,7 +3508,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/club-cal") || path.startsWith("/api/admin/event-form") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/reviews") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup") || path.startsWith("/api/admin/wa-templates") || path.startsWith("/api/admin/email-preview");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/club-cal") || path.startsWith("/api/admin/event-form") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/reviews") || path.startsWith("/api/admin/app-config") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup") || path.startsWith("/api/admin/wa-templates") || path.startsWith("/api/admin/email-preview");
 
     if (requiresAuth && !leadCtx) {
       const token = getSessionToken(request);
@@ -3715,6 +3741,16 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
 
+    if (path === "/api/admin/app-config" && (request.method === "GET" || request.method === "PUT")) {
+      if (leadCtx) return jsonResponse({ error: "Main admin only" }, 403, corsHeaders);
+      let c = {}; try { c = JSON.parse((await env.SITE_DATA.get("appconfig")) || "{}"); } catch {}
+      if (request.method === "PUT") {
+        let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+        c.minBuild = Math.max(0, Math.round(Number(body.minBuild) || 0)); if (body.message !== undefined) c.message = String(body.message || "").slice(0, 200);
+        await env.SITE_DATA.put("appconfig", JSON.stringify(c));
+      }
+      return jsonResponse({ minBuild: Number(c.minBuild) || 0, message: c.message || "" }, 200, corsHeaders);
+    }
     if (path === "/api/admin/reviews" && request.method === "GET") {
       if (leadCtx) return jsonResponse({ error: "Main admin only" }, 403, corsHeaders);
       if (!env.DB) return jsonResponse({ reviews: [] }, 200, corsHeaders);

@@ -3361,8 +3361,9 @@ function renderDirectory(){
       return;
     }
     if(!state.cmAdminOpen) openClubAdmin();
-    el.innerHTML = (state.cmAdminLoggedIn === true ? '<div style="text-align:center;margin:0 0 10px;"><button type="button" id="admReviewsBtn" class="club-guide-btn" style="min-height:46px;background:#f2d8d7;border-color:#ce8491;color:#76220b;">💗 Event reviews</button></div>' : '') + renderClubAdminPanel();
+    el.innerHTML = (state.cmAdminLoggedIn === true ? '<div style="text-align:center;margin:0 0 10px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;"><button type="button" id="admGateBtn" class="club-guide-btn" style="min-height:46px;">📲 Require app update</button><button type="button" id="admReviewsBtn" class="club-guide-btn" style="min-height:46px;background:#f2d8d7;border-color:#ce8491;color:#76220b;">💗 Event reviews</button></div>' : '') + renderClubAdminPanel();
     { const rb = document.getElementById('admReviewsBtn'); if(rb) rb.addEventListener('click', openAdminReviews); }
+    { const gb = document.getElementById('admGateBtn'); if(gb) gb.addEventListener('click', openAdminGate); }
     wireClubAdminPanel();
     return;
   }
@@ -6261,8 +6262,10 @@ async function clubCalMemberCard(box, id){
         ${d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}
         <p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} ${past ? 'attended' : 'going'}${past || d.inClub || d.form ? '' : ' · you\'re not in this club, so an admin approves your RSVP'}</p>
         ${d.form ? `<p style="margin:6px 0;font-weight:700;">${past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going" : d.mine === 'pending' ? '⏳ Requested — waiting for approval' : d.closed ? '🔒 Sign-ups are closed' : 'Fill in the form below to sign up 👇'}</p>${d.mine && !past ? '<button type="button" class="av-link calRsvpBtn">Cancel my RSVP</button>' : ''}` : `<button type="button" class="club-guide-btn calRsvpBtn" ${(d.closed || past) && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>`}
-        <div class="calRsvpMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>`;
+        <div class="calRsvpMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>
+        ${(!past && d.mine === 'going') ? '<button type="button" class="club-guide-btn calAddCal" style="width:100%;min-height:46px;margin-top:4px;">📆 Add to my calendar</button>' : ''}`;
       wireCalCopy(top);
+      { const ac = top.querySelector('.calAddCal'); if(ac) ac.addEventListener('click', () => openEventIcs(d.id)); }
       const rsvpBtn = top.querySelector('.calRsvpBtn'); // (an event with a form has no RSVP button until you've signed up — only a 'Cancel my RSVP' link)
       if(rsvpBtn) rsvpBtn.addEventListener('click', async e => {
         e.target.disabled = true;
@@ -7656,6 +7659,14 @@ function openReviewPopup(ev, prev, done){
     catch(err){ msg.style.color = '#c00'; msg.textContent = err.message; e.target.disabled = false; }
   });
 }
+
+// main admin: make old app versions show a "please update" screen (set the minimum build number; 0 turns it off)
+async function openAdminGate(){
+  let cur = { minBuild: 0 }; try { cur = await (await fetch('/api/admin/app-config', { credentials:'include', cache:'no-store' })).json(); } catch {}
+  const v = window.prompt('Lowest app build number allowed to keep running (the build you upload to the App Store). Anyone below it sees a "please update" screen. Type 0 to switch the gate off.\n\nCurrently: ' + (cur.minBuild || 0), String(cur.minBuild || 0));
+  if(v === null) return; const n = Math.max(0, Math.round(Number(v) || 0));
+  try { const r = await fetch('/api/admin/app-config', { method:'PUT', credentials:'include', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ minBuild: n }) }); if(!r.ok) throw new Error('Could not save'); admToastLite(n ? 'Apps below build ' + n + ' must update' : 'Update gate is off'); } catch(e){ alert(e.message); }
+}
 // main admin: read the reviews members have left
 async function openAdminReviews(){
   const { wrap } = ideaPopup('<h3 style="margin:0 0 8px;text-align:center;">💗 Event reviews</h3><div id="arBody"><p class="av-msg" style="text-align:center;">Loading…</p></div>');
@@ -7799,6 +7810,47 @@ function goBadminton(){
   setTimeout(() => { location.href = '/badminton'; }, 60);
 }
 document.addEventListener('click', e => { const a = e.target.closest('a[href="/badminton"],[data-href="/badminton"]'); if(a){ e.preventDefault(); e.stopPropagation(); goBadminton(); } }, true);
+
+/* ---- Native app extras: links that open the app, event reminders, the unread badge, the "please update" gate ---- */
+function openEventIcs(id){
+  const url = location.origin + '/api/event-ics/' + encodeURIComponent(id);
+  try { const B = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Browser; if(B && B.open){ B.open({ url }); return; } } catch {}
+  window.open(url, '_blank');
+}
+function showUpdateGate(cfg){
+  if(document.getElementById('updateGate')) return;
+  const d = document.createElement('div'); d.id = 'updateGate';
+  d.style.cssText = 'position:fixed;inset:0;z-index:60000;background:#fef7f4;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px;text-align:center;box-sizing:border-box;';
+  d.innerHTML = `<div style="font-size:56px;">✨</div><h2 style="margin:8px 0 6px;font-family:'Sacramento','Snell Roundhand',cursive;font-size:46px;font-weight:400;background:linear-gradient(90deg,#e3a3ad,#ce8491 38%,#a8505f 75%,#76220b);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">Time for an update</h2><p style="max-width:320px;margin:0 0 18px;color:#776867;line-height:1.5;">${escapeCm(cfg.message || 'A new version of 4DS is ready with improvements. Please update to keep going.')}</p><button type="button" id="ugBtn" class="club-guide-btn" style="min-height:54px;min-width:220px;background:#ce8491;color:#fff;border-color:#76220b;font-size:17px;">Update 4DS</button>`;
+  document.body.appendChild(d);
+  d.querySelector('#ugBtn').addEventListener('click', () => { const B = Capacitor.Plugins && Capacitor.Plugins.Browser; if(B && B.open) B.open({ url: cfg.storeUrl }); else window.open(cfg.storeUrl, '_blank'); });
+}
+async function scheduleEventReminders(list){
+  try {
+    if(!isNativeApp()) return; const LN = Capacitor.Plugins && Capacitor.Plugins.LocalNotifications; if(!LN) return;
+    let perm = await LN.checkPermissions(); if(perm.display === 'prompt') perm = await LN.requestPermissions(); if(perm.display !== 'granted') return;
+    const pend = await LN.getPending(); const mine = ((pend && pend.notifications) || []).filter(n => n.id >= 700000000).map(n => ({ id: n.id })); if(mine.length) await LN.cancel({ notifications: mine });
+    const now = Date.now(), items = [], hash = s => { let h = 0; for(const c of String(s)) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h % 1000000; };
+    (list || []).forEach(e => {
+      const [y, m, dd] = String(e.date).split('-').map(Number); if(!y) return;
+      let at = new Date(y, m - 1, dd, 8, 0, 0); const tm = String(e.time || '').match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+      if(tm){ const h = Number(tm[1]) % 12 + (/pm/i.test(tm[3]) ? 12 : 0), start = new Date(y, m - 1, dd, h, Number(tm[2] || 0)), two = new Date(start.getTime() - 2 * 3600000); if(two.getTime() > at.getTime()) at = two; }
+      if(at.getTime() <= now) return;
+      items.push({ id: 700000000 + hash(e.id), title: 'Coming up: ' + e.title, body: (e.time ? 'Today at ' + e.time : "Today — you're going") + ' 💗', schedule: { at } });
+    });
+    if(items.length) await LN.schedule({ notifications: items });
+  } catch {}
+}
+async function nativeAppExtras(){
+  if(!isNativeApp()) return;
+  const P = (window.Capacitor && Capacitor.Plugins) || {};
+  try { if(P.App) P.App.addListener('appUrlOpen', d => { try { const u = new URL(d.url); if(!/(^|\.)4dasistas\.ca$/.test(u.hostname)) return; if(u.pathname === '/' || u.pathname === ''){ if(u.hash) location.hash = u.hash; else goToTab('home'); } else location.href = u.pathname + u.search + u.hash; } catch {} }); } catch {}
+  try { const info = P.App && await P.App.getInfo(); const cfg = await (await fetch('/api/app-config', { cache:'no-store' })).json(); if(info && cfg.minBuild && Number(info.build) < Number(cfg.minBuild)) showUpdateGate(cfg); } catch {}
+  const clearBadge = () => { try { if(getCmSession()){ cmApiRaw('/api/me/badge/clear', { method:'POST', headers: ideaHeaders() }).catch(() => {}); if(P.Badge && P.Badge.clear) P.Badge.clear(); } } catch {} };
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') clearBadge(); });
+  setTimeout(clearBadge, 2500);
+}
+setTimeout(nativeAppExtras, 800);
 // One "Contribute" button: pick whether you're sending in an event or adding a resource.
 function openContributeChooser(){
   const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 4px;text-align:center;">Contribute</h3><p class="ideas-hint" style="text-align:center;margin:0 0 10px;">Help the community grow 💛</p>
@@ -7839,7 +7891,7 @@ document.addEventListener('click', e => {
 async function myTodoLoad(){
   if(state.myTodoLoading || !getCmSession()) return; state.myTodoLoading = true;
   try { state.myTodo = await cmApiRaw('/api/me/todo', { headers: ideaHeaders(), cache:'no-store' }); } catch { state.myTodo = { next:[], unpaid:[], tbd:[] }; }
-  state.myTodoLoading = false;
+  state.myTodoLoading = false; scheduleEventReminders((state.myTodo && state.myTodo.next) || []);
   if((state.tab === 'clubs' && !state.clubsPage) || state.tab === 'home' || state.tab === 'notifications') render();
 }
 function myTodoHtml(){
