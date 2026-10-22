@@ -3106,7 +3106,30 @@ async function stepsNativeSync(force){
     stepsSyncAt = Date.now(); return true;
   } catch(e){ if(force) alert('Could not read your steps: ' + (e && e.message ? e.message : e)); return false; } finally { stepsSyncBusy = false; }
 }
+// In the app: when a challenge is running that you can take part in, ask once per round (a native sheet, not buried in a tab).
+async function stepsPromptOnce(){
+  try {
+    if(!stepsIsNativeApp() || !getCmSession() || document.getElementById('stepsPrompt')) return;
+    const d = await cmApiRaw('/api/me/steps', { headers: ideaHeaders(), cache:'no-store' }); const r = d && d.round;
+    if(!r || r.status === 'finished') return;
+    const key = 'stepsPrompted:' + (r.id || r.title || r.start); let seen = ''; try { seen = localStorage.getItem(key) || ''; } catch {}
+    if(seen) return;
+    const m = d.mine || {}; if(m.joined && m.source) { try { localStorage.setItem(key, '1'); } catch {} return; }
+    const w = document.createElement('div'); w.id = 'stepsPrompt';
+    w.style.cssText = 'position:fixed;inset:0;z-index:29000;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:16px calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));box-sizing:border-box;';
+    w.innerHTML = `<div style="background:#fff;border-radius:22px;padding:22px 20px;width:100%;max-width:420px;text-align:center;"><div style="font-size:40px;">👟</div><h3 style="margin:6px 0;">${escapeCm(r.title || 'Steps challenge')} is on!</h3><p style="margin:0 0 14px;font-size:14px;line-height:1.5;color:#5b4b49;">${m.joined ? 'Connect your phone\'s health data so your steps count automatically.' : 'Join in and connect your phone\'s health data — your steps count automatically.'}</p><button type="button" id="spYes" class="club-guide-btn" style="width:100%;min-height:50px;background:var(--brand-rose);color:#fff;margin-bottom:8px;">${m.joined ? 'Connect health data' : 'Join &amp; connect'}</button><button type="button" id="spNo" style="border:none;background:none;min-height:44px;font:inherit;color:#776867;">Not now</button></div>`;
+    document.body.appendChild(w);
+    const done = () => { try { localStorage.setItem(key, '1'); } catch {} w.remove(); };
+    document.getElementById('spNo').addEventListener('click', done);
+    document.getElementById('spYes').addEventListener('click', async () => {
+      done();
+      try { if(!m.joined) await cmApiRaw('/api/me/steps/join', { method:'POST', headers: ideaHeaders() }); } catch {}
+      await stepsNativeSync(true); state.stepsData = null; location.hash = '#/steps'; stepsLoad();
+    });
+  } catch {}
+}
 if(stepsIsNativeApp()){
+  setTimeout(() => stepsPromptOnce(), 5000);
   setTimeout(() => stepsNativeSync(), 3000);
   setInterval(() => stepsNativeSync(), 60 * 60000);
   document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') stepsNativeSync(); });
@@ -11908,27 +11931,35 @@ document.getElementById('footerAdminModalOverlay').addEventListener('click', e =
 function showWelcomeOnce(){
   try { if(localStorage.getItem('welcomeSeen')) return; } catch {}
   if(document.getElementById('welcomeScreen')) return;
+  const hellos = [['hello','Dancing Script','ltr'], ['السلام عليكم','Aref Ruqaa','rtl'], ['bonjour','Dancing Script','ltr'], ['hola','Dancing Script','ltr'], ['مرحبا','Aref Ruqaa','rtl'], ['salaam','Dancing Script','ltr'], ['hello','Dancing Script','ltr']];
   const w = document.createElement('div'); w.id = 'welcomeScreen';
-  w.style.cssText = 'position:fixed;inset:0;z-index:30000;background:#ce8491;color:#fef7f4;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(24px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));transition:opacity .7s ease;';
+  w.style.cssText = 'position:fixed;inset:0;z-index:30000;background:#fef7f4;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(24px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));box-sizing:border-box;transition:opacity .6s ease;';
   w.innerHTML = `<style>
     @property --wl { syntax:'<percentage>'; inherits:false; initial-value:0%; }
-    @keyframes wlWrite { from { --wl:0%; } to { --wl:118%; } }
-    @keyframes wlFadeOut { to { opacity:0; } }
+    @keyframes wlWrite { from { --wl:0%; } to { --wl:120%; } }
     @keyframes wlFadeIn { from { opacity:0; } to { opacity:1; } }
-    #welcomeScreen .wl-stage{ display:grid; place-items:center; width:100%; max-width:760px; }
-    #welcomeScreen .wl-word{ grid-area:1 / 1; text-align:center; width:100%; line-height:1.4; --wl:0%; }
-    #welcomeScreen .wl-ar{ font-family:'Aref Ruqaa','Amiri','Noto Naskh Arabic',serif; font-weight:700; font-size:clamp(40px,11vw,84px); direction:rtl;
-      -webkit-mask-image:linear-gradient(to left,#000 calc(var(--wl) - 14%),transparent var(--wl)); mask-image:linear-gradient(to left,#000 calc(var(--wl) - 14%),transparent var(--wl));
-      animation:wlWrite 3.4s cubic-bezier(.45,.05,.35,1) .5s both, wlFadeOut .9s ease 5.1s both; }
-    #welcomeScreen .wl-en{ font-family:'Dancing Script','Snell Roundhand',cursive; font-weight:600; font-size:clamp(46px,13vw,96px);
-      -webkit-mask-image:linear-gradient(to right,#000 calc(var(--wl) - 14%),transparent var(--wl)); mask-image:linear-gradient(to right,#000 calc(var(--wl) - 14%),transparent var(--wl));
-      animation:wlWrite 2.4s cubic-bezier(.45,.05,.35,1) 6.1s both; }
-    #welcomeScreen .wl-go{ margin-top:64px; min-width:min(300px,80vw); min-height:52px; border-radius:999px; border:0; background:#fef7f4; color:#76220b; font:700 17px 'Outfit','Inter',system-ui,sans-serif; cursor:pointer; opacity:0; animation:wlFadeIn .8s ease 3.2s both; }
+    #welcomeScreen .wl-stage{ flex:1; display:flex; align-items:center; justify-content:center; width:100%; }
+    #welcomeScreen .wl-word{ text-align:center; line-height:1.5; padding:0 .2em; font-size:clamp(64px,19vw,132px); font-weight:600; --wl:0%;
+      background:linear-gradient(100deg,#e8a87c 0%,#ce8491 38%,#a86aa6 70%,#6f7fd1 100%); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent;
+      -webkit-mask-image:linear-gradient(to right,#000 calc(var(--wl) - 16%),transparent var(--wl)); mask-image:linear-gradient(to right,#000 calc(var(--wl) - 16%),transparent var(--wl));
+      animation:wlWrite 1.9s cubic-bezier(.4,.1,.3,1) both; }
+    #welcomeScreen .wl-word[dir=rtl]{ -webkit-mask-image:linear-gradient(to left,#000 calc(var(--wl) - 16%),transparent var(--wl)); mask-image:linear-gradient(to left,#000 calc(var(--wl) - 16%),transparent var(--wl)); font-size:clamp(52px,15vw,104px); }
+    #welcomeScreen .wl-go{ margin-bottom:8px; min-width:min(300px,80vw); min-height:52px; border-radius:999px; border:0; background:#ce8491; color:#fff; font:600 17px 'Outfit','Inter',system-ui,sans-serif; cursor:pointer; opacity:0; animation:wlFadeIn .8s ease 2.2s both; }
+    #welcomeScreen .wl-sub{ margin:0 0 18px; color:#9a7a76; font:500 14px 'Outfit','Inter',system-ui,sans-serif; opacity:0; animation:wlFadeIn .8s ease 2.2s both; }
   </style>
-  <div class="wl-stage"><div class="wl-word wl-ar" lang="ar">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</div><div class="wl-word wl-en">Welcome to 4DS</div></div>
-  <button type="button" class="wl-go" id="welcomeGo" data-center="1">Get started</button>`;
+  <div class="wl-stage"><div class="wl-word" id="wlWord"></div></div>
+  <p class="wl-sub">Welcome to 4DS</p>
+  <button type="button" class="wl-go" id="welcomeGo">Get started</button>`;
   document.body.appendChild(w);
-  document.getElementById('welcomeGo').addEventListener('click', () => { try { localStorage.setItem('welcomeSeen', '1'); } catch {} w.style.opacity = '0'; setTimeout(() => w.remove(), 750); });
+  const el = document.getElementById('wlWord'); let n = 0, dead = false;
+  const show = () => {
+    if(dead) return; const h = hellos[n % hellos.length]; n++;
+    el.style.opacity = '1'; el.style.transition = ''; el.style.animation = 'none'; el.textContent = h[0]; el.dir = h[2]; el.style.fontFamily = `'${h[1]}','Snell Roundhand','Amiri',cursive,serif`;
+    void el.offsetWidth; el.style.animation = '';
+    setTimeout(() => { if(dead) return; el.style.transition = 'opacity .5s ease'; el.style.opacity = '0'; setTimeout(show, 550); }, 3000);
+  };
+  show();
+  document.getElementById('welcomeGo').addEventListener('click', () => { dead = true; try { localStorage.setItem('welcomeSeen', '1'); } catch {} w.style.opacity = '0'; setTimeout(() => w.remove(), 650); });
 }
 document.getElementById('footerSubmitEvent').addEventListener('click', () => goToTab('submitevent'));
 document.getElementById('footerAddResource').addEventListener('click', () => goToTab('submitresource'));

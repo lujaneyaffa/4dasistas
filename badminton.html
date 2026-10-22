@@ -539,5 +539,6 @@ async function addPlayerTool(){if(!await admin())return alert('Admin login requi
 function loop(){const apb=$('profileAddPlayerBtn');if(apb&&apb.dataset.bound!=='1'){apb.onclick=addPlayerTool;apb.dataset.bound='1'}const dgb=$('deleteGameBtn');if(dgb&&dgb.dataset.bound!=='1'){dgb.onclick=deleteGame;dgb.dataset.bound='1'}if($('history')&&!historyInstalled)historyView();gameRecords()}
 setInterval(loop,800);if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loop);else loop();
 })();
+document.addEventListener('error',function(e){var i=e.target;if(!i||i.tagName!=='IMG'||!i.closest('.avatar,.pod,.lb'))return;var h=document.createElement('span');h.className='blank';h.style.cssText='display:flex;align-items:center;justify-content:center;font-size:22px;width:100%;height:100%';h.textContent='💗';i.replaceWith(h)},true);
 </script></body>
 </html>
