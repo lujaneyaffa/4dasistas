@@ -11908,6 +11908,7 @@ document.getElementById('categoryRow').addEventListener('click', e => {
     return;
   }
   if(btn.dataset.catfilter === 'activities' || btn.dataset.catfilter === 'clubs') state.view = 'calendar';
+  if(btn.dataset.catfilter === 'clubs') state.calViewMode = 'month'; // the 4DS Clubs calendar always opens on the month, never on 'what's on today'
   state.categoryFilter = btn.dataset.catfilter;
   state.page = 1;
   render();
