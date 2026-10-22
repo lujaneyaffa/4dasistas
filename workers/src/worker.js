@@ -932,7 +932,8 @@ const bmPlayerFor = async (env, user) => {
   await env.DB.prepare("INSERT OR IGNORE INTO bm_players (id, uid, data) VALUES (?, ?, ?)").bind(data.id, user.id, JSON.stringify(data)).run();
   return { id: data.id, data };
 };
-const bmKioskOk = async (env, key) => { if (!key) return false; const h = await env.SITE_DATA.get("bm:kioskkey"); return !!h && h === await sha256Hex("bmkiosk:" + String(key)); };
+// The iPad kiosk is protected by one fixed password (4ds1234, any capitalisation, no token / key to generate).
+const bmKioskOk = async (env, key) => String(key || "").toUpperCase().replace(/[^A-Z0-9]/g, "") === "4DS1234";
 const BM_HEARTS = ["❤️", "🧡", "💛", "💚", "💙", "💜", "🩷", "🤎"];
 const bmDigits = (p) => { const d = String(p || "").replace(/\D/g, ""); return d.length === 11 && d[0] === "1" ? d.slice(1) : d; };
 const bmDay = (r) => String((r && (r.session_date || r.played_at || r.day || r.date || r.created_at)) || "").slice(0, 10);

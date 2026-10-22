@@ -11290,8 +11290,7 @@ function bmImportHtml(){
     <hr style="border:none;border-top:1px solid rgba(0,0,0,.1);margin:10px 0;">
     <p style="margin:0 0 4px;font-weight:700;">🎽 Coach login ("Public admin")</p><p style="font-size:12px;color:#776867;margin:0 0 6px;">The coach logs in on the badminton page → Admin → Public admin with email <b>coach@4dasistas.ca</b> and this password. Can add only today's games and attendance. ${st.coachSet ? '✅ A password is set.' : '⚠️ Not set yet.'}</p>
     <div style="display:flex;gap:6px;margin-bottom:10px;"><input id="bmCoachPw" type="text" placeholder="New coach password (6+ characters)" autocomplete="off" style="${inp}flex:1;min-width:0;"><button type="button" class="club-guide-btn" id="bmCoachSet" style="padding:6px 12px;">Set</button></div>
-    <p style="margin:0 0 4px;font-weight:700;">📱 iPad kiosk key</p><p style="font-size:12px;color:#776867;margin:0 0 6px;">Open <b>4dasistas.ca/badminton#kiosk</b> on the iPad and type this key once. ${st.kioskSet ? '✅ A key is set.' : '⚠️ Not set yet.'}</p>
-    <div style="display:flex;gap:6px;"><input id="bmKioskKey" type="text" placeholder="New kiosk key (6+ characters)" autocomplete="off" style="${inp}flex:1;min-width:0;"><button type="button" class="club-guide-btn" id="bmKioskSet" style="padding:6px 12px;">Set</button></div>
+    <p style="margin:0 0 4px;font-weight:700;">📱 iPad kiosk</p><p style="font-size:12px;color:#776867;margin:0 0 6px;">Open <b>4dasistas.ca/badminton#kiosk</b> on the iPad and type the password <b>4ds1234</b> once. There is no key to generate any more.</p>
     <div id="bmSetMsg" style="font-size:13px;min-height:16px;margin-top:6px;"></div></div>`;
 }
 async function bmCopyPhotos(msg){
@@ -11366,7 +11365,6 @@ function wireBmImport(){
   const setMsg = document.getElementById('bmSetMsg');
   const setSecret = async (path, inputId) => { const v = document.getElementById(inputId).value; try { const r = await fetch(path, { method:'PUT', credentials:'include', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ value: v }) }); const d = await r.json().catch(() => ({})); if(!r.ok) throw new Error(d.error || 'Failed'); setMsg.style.color = '#2a7a4a'; setMsg.textContent = 'Saved ✓'; document.getElementById(inputId).value = ''; state.bmStatus = null; } catch(e){ setMsg.style.color = '#c00'; setMsg.textContent = e.message; } };
   document.getElementById('bmCoachSet').addEventListener('click', () => setSecret('/api/admin/badminton/coach-password', 'bmCoachPw'));
-  document.getElementById('bmKioskSet').addEventListener('click', () => setSecret('/api/admin/badminton/kiosk-key', 'bmKioskKey'));
   const ph = document.getElementById('bmPhotos'); if(ph) ph.addEventListener('click', async () => { const msg = document.getElementById('bmMsg'); msg.style.color = '#776867'; msg.textContent = 'Copying photos…'; try { await bmCopyPhotos(msg); state.bmStatus = null; render(); } catch(e){ msg.style.color = '#c00'; msg.textContent = e.message; } });
   go.addEventListener('click', async () => {
     const msg = document.getElementById('bmMsg'); msg.style.color = '#776867'; msg.textContent = 'Reading the old site…';
