@@ -7154,6 +7154,7 @@ function openSettingsPopup(){
   // Notifications: on / off for this account (turning on registers THIS device; it needs a tap because the browser asks permission).
   const paintNotif = () => {
     const box = wrap.querySelector('#stNotif');
+    if(isNativeApp()){ box.innerHTML = `<p class="av-msg" style="margin:0 0 6px;">Notifications for events, clubs and reminders come to this phone.</p><button type="button" id="stNativePush" style="${pill}">🔔 Turn on notifications</button>`; const nb = box.querySelector('#stNativePush'); if(nb) nb.addEventListener('click', async () => { nativePushDone = false; await nativePushInit(); nb.textContent = '✅ Asked — check your phone settings if you said no'; }); return; }
     if(!pushSupported()){ box.innerHTML = `<p class="av-msg">This browser can't receive notifications${isMobileDevice() && !isStandaloneApp() ? ' — add 4DASISTAS to your Home Screen first, then open it from there' : ''}.</p>`; return; }
     const denied = Notification.permission === 'denied', on = state.pushRegistered && Notification.permission === 'granted';
     box.innerHTML = `<p style="margin:0 0 8px;">${on ? '✅ Notifications are <strong>on</strong> for this account.' : denied ? '🚫 Notifications are blocked in your browser settings — allow them there, then come back.' : '🔕 Notifications are <strong>off</strong>.'}</p>
@@ -7741,6 +7742,7 @@ function notificationsCardHtml(){
 // ---- A quick run-through for anyone new (or new to this version) — shown once, can be skipped ----
 function showTourOnce(){
   try { if(localStorage.getItem('tourSeen') === '2' || document.getElementById('tourCard') || document.getElementById('welcomeScreen')) return; } catch {}
+  if(document.querySelector('.mem-pop')){ setTimeout(showTourOnce, 4000); return; } // wait until other popups (what's new) are closed
   const phone = window.matchMedia('(max-width:700px)').matches, where = phone ? 'bar at the bottom' : 'bar on the left';
   const steps = [['🏠', 'Home', `Your starting point — your clubs, what needs you, and events you can join.`], ['📅', 'Calendar', phone ? 'Opens on what\'s on today. Every event, trip and 4DS club gathering lives here.' : 'Every event, trip and 4DS club gathering — switch between day, week and month.'], ['🏆', 'Leaderboards', 'The live badminton podium and the steps challenge podium — who\'s winning right now.'], ['🔎', 'Search', 'Find anything fast. The directory of women-owned spots is right here too.'], ['👤', 'Profile', 'Your settings, activities you attended (leave a 💗 review!), and your clubs.']];
   let n = 0; const w = document.createElement('div'); w.id = 'tourCard';
@@ -12234,7 +12236,7 @@ function showWelcomeOnce(){
       animation:wlDraw 3.1s cubic-bezier(.45,.05,.3,1) .35s forwards, wlFill .9s ease 3.2s forwards; }
     #welcomeScreen .wl-go{ margin-bottom:8px; min-width:min(300px,80vw); min-height:52px; border-radius:999px; border:0; background:#ce8491; color:#fff; font:600 17px 'Outfit','Inter',system-ui,sans-serif; cursor:pointer; opacity:0; animation:wlFadeIn .8s ease 3.4s both; }
   </style>
-  <div class="wl-stage"><svg viewBox="0 0 700 260" role="img" aria-label="salaam"><defs><linearGradient id="wlg" gradientUnits="userSpaceOnUse" x1="120" x2="580" y1="0" y2="0"><stop offset="0" stop-color="#e8a87c"/><stop offset=".4" stop-color="#ce8491"/><stop offset=".72" stop-color="#a86aa6"/><stop offset="1" stop-color="#6f7fd1"/></linearGradient></defs><text x="350" y="185" id="wlText" xml:space="preserve">&#160;&#160;salaam&#160;&#160;</text></svg></div>
+  <div class="wl-stage"><svg viewBox="0 0 700 260" role="img" aria-label="salaam"><defs><linearGradient id="wlg" gradientUnits="userSpaceOnUse" x1="120" x2="580" y1="0" y2="0"><stop offset="0" stop-color="#e3a3ad"/><stop offset=".38" stop-color="#ce8491"/><stop offset=".75" stop-color="#a8505f"/><stop offset="1" stop-color="#76220b"/></linearGradient></defs><text x="350" y="185" id="wlText" xml:space="preserve">&#160;&#160;salaam&#160;&#160;</text></svg></div>
   ${isNativeApp() && !getCmSession() ? '<button type="button" class="wl-go" id="welcomeGo" data-act="register">Create an account</button><button type="button" class="wl-go wl-guest" id="welcomeGuest" style="background:none;color:#9a7a76;margin-top:4px;">Continue as a guest</button>' : '<button type="button" class="wl-go" id="welcomeGo">Get started</button>'}`;
   document.body.appendChild(w);
   try { const tx = document.getElementById('wlText'); const len = Math.ceil(tx.getComputedTextLength() * 2.2); tx.style.setProperty('--len', len); } catch {}
