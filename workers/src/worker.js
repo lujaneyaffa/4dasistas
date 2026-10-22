@@ -2697,7 +2697,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const me = meId ? await readUser(env, meId) : null;
       if (!me) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
       if (!(await stepsEnsure(env))) return jsonResponse({ error: "Steps aren't available yet" }, 503, corsHeaders);
-      const todayUtc = new Date().toISOString().slice(0, 10);
+      const todayUtc = bmToronto(); // 'today' is the member's Toronto day (the UTC date flips at ~8pm and showed 0)
       if (request.method === "POST") {
         // Samples come from the native app reading Apple Health / Health Connect: [{day:'YYYY-MM-DD', steps, source:'apple'|'google'}] (the whole day's total, re-sent each hour).
         let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
@@ -2714,7 +2714,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         await env.DB.prepare("INSERT OR IGNORE INTO step_sources (user_id, source, at) VALUES (?, ?, ?)").bind(me.id, stmts.length ? (body.samples[0] && body.samples[0].source === "google" ? "google" : "apple") : "apple", Date.now()).run();
         return jsonResponse({ ok: true, saved: stmts.length }, 200, corsHeaders);
       }
-      try { const sr0 = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(me.id).first(); if (sr0 && sr0.source === "googlehealth") { const lu = await env.DB.prepare("SELECT MAX(updated) AS u FROM steps_daily WHERE user_id = ?").bind(me.id).first(); if (!lu || !lu.u || Date.now() - lu.u > 15 * 60000) await ghSync(env, me.id); } } catch {}
+      try { const sr0 = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(me.id).first(); if (sr0 && sr0.source === "googlehealth") { const lu = await env.DB.prepare("SELECT MAX(updated) AS u FROM steps_daily WHERE user_id = ?").bind(me.id).first(); if (url.searchParams.get("sync") === "1" || !lu || !lu.u || Date.now() - lu.u > 2 * 60000) await ghSync(env, me.id); } } catch (e) { if (url.searchParams.get("sync") === "1") return jsonResponse({ error: String((e && e.message) || e) }, 502, corsHeaders); }
       const pub = await stepsPublicData(env), round = pub.round;
       const out = { ...pub, mine: { round: 0, today: 0, lastSync: 0, rank: null, joined: false, source: "" }, leaderboard: [], pledges: [] };
       { const sr = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(me.id).first(); out.mine.source = (sr && sr.source) || ""; }

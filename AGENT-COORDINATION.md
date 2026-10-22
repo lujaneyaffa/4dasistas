@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-22 · Claude · Steps sync fixes: app syncs at most every 2 min (was 50 min — that's why 3.9k showed as 300), re-syncs every time the Steps page opens / app returns to front, every 10 min while open; new "🔄 Sync now" button + "Last synced" for every source (Google Health sync-now surfaces real errors via GET /api/me/steps?sync=1); Google Health auto-sync throttle 2 min; 'today' now uses the Toronto date (UTC flipped at ~8pm and showed 0); Apple Health hint (it only counts iPhone/Apple Watch). Cache v209.
+
 - 2026-10-22 · Claude · White-screen protection: (1) index.html has a boot watchdog (inline script right after <body>): if the page code hasn't rendered within 9s it clears the service worker + caches and reloads once by itself, then shows a "one moment — Refresh" card instead of a blank page; (2) NEW RULE for every agent: run `sh scripts/predeploy.sh` BEFORE `wrangler deploy` (syntax-checks every inline script, worker.js, service-worker.js — refuses on error) and `sh scripts/postdeploy-check.sh` AFTER (live site + new SW version). Never push a half-edited index.html. Cache v208.
 
 - 2026-10-22 · Claude · Logged-in Home: greeting is now "Asalamu Aleykum, <name>" in the welcome script font + gradient; Notifications card has no ribbons / corner sparkle+heart; a club board opened from Home now has a Back that returns to Home (was looping back to the same board for 1-club members, so Back seemed dead); the round + / profile button hides while any pop-up (.mem-pop, tour, event detail) is open. Cache v207.

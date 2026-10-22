@@ -3154,6 +3154,7 @@ async function stepsLoad(){
   if(state.stepsLoading) return; state.stepsLoading = true;
   try {
     const sess = getCmSession();
+    if(sess && stepsIsNativeApp()) { try { await stepsNativeSync(); } catch {} } // fresh totals every time the page opens
     state.stepsData = sess ? await cmApiRaw('/api/me/steps', { headers: ideaHeaders(), cache:'no-store' }) : await cmApiRaw('/api/steps/public');
     state.stepsData._member = !!sess; state.stepsErr = '';
   } catch(err){ state.stepsErr = err.message; if(!state.stepsData) state.stepsData = { round:null, previous:[] }; }
@@ -3189,6 +3190,8 @@ function stepsPageHtml(){
     : `<button type="button" class="club-guide-btn" id="stepsJoin" style="width:100%;min-height:48px;margin-bottom:10px;background:var(--brand-rose);color:#fff;">🙋 Join this challenge</button>`;
   html += `<div class="panel-card" style="${wrap}padding:14px;margin-top:12px;"><p style="margin:0 0 8px;font-weight:800;">Your steps</p>${joinBox}
     <div style="display:flex;gap:10px;text-align:center;"><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${stepsFmt(m.today)}</div><small>today</small></div><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${stepsFmt(m.round)}</div><small>this round</small></div><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${m.rank ? '#' + m.rank : '—'}</div><small>rank</small></div></div>
+    <p style="margin:10px 0 0;text-align:center;font-size:12px;color:#776867;">${synced ? 'Last synced ' + escapeCm(synced) : 'Not synced yet'} · <button type="button" id="stepsSyncBtn" style="border:none;background:none;text-decoration:underline;cursor:pointer;color:#76220b;font-weight:700;">🔄 Sync now</button></p>
+    ${src === 'apple' ? '<p class="ideas-hint" style="margin:6px 0 0;text-align:center;">🍎 Apple Health only counts what your iPhone or Apple Watch records. If your steps come from a Pixel Watch / Fitbit / Google account, pick Google Health below.</p>' : ''}
     <p style="margin:12px 0 6px;font-weight:700;font-size:14px;">Where do your steps come from?</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">${srcBtn('apple', '🍎 Apple Health')}${srcBtn('googlehealth', '🟢 Google Health')}${/android/i.test(plat) ? srcBtn('google', '🤖 Health Connect') : ''}</div>
     <p class="ideas-hint" style="margin:8px 0 0;text-align:left;">${src === 'googlehealth'
@@ -3211,6 +3214,7 @@ function wireStepsPage(){
   const sj = document.getElementById('stepsJoin'); if(sj) sj.addEventListener('click', async () => { sj.disabled = true; try { await cmApiRaw('/api/me/steps/join', { method:'POST', headers: ideaHeaders() }); state.stepsData = null; render(); admToastLite("✓ You're in!"); } catch(e){ sj.disabled = false; alert(e.message); } });
   const sl = document.getElementById('stepsLeave'); if(sl) sl.addEventListener('click', async () => { if(!confirm('Leave this challenge?')) return; try { await cmApiRaw('/api/me/steps/join', { method:'DELETE', headers: ideaHeaders() }); state.stepsData = null; render(); } catch(e){ alert(e.message); } });
   const lg = document.getElementById('stepsLogin'); if(lg) lg.addEventListener('click', () => goLogin());
+  const sb = document.getElementById('stepsSyncBtn'); if(sb) sb.addEventListener('click', async () => { sb.textContent = 'Syncing…'; sb.disabled = true; try { const src = (state.stepsData && state.stepsData.mine && state.stepsData.mine.source) || ''; if(src === 'googlehealth') await cmApiRaw('/api/me/steps?sync=1', { headers: ideaHeaders(), cache:'no-store' }); else await stepsNativeSync(true); } catch(e){ alert(e.message || 'Could not sync'); } state.stepsData = null; render(); });
   const sn = document.getElementById('stepsSyncNow'); if(sn) sn.addEventListener('click', async () => { sn.textContent = 'Syncing…'; await stepsNativeSync(true); state.stepsData = null; render(); });
   const pl = document.getElementById('stepsPledge');
   if(pl) pl.addEventListener('click', async () => {
@@ -3233,7 +3237,7 @@ async function stepsFitbitConnect(){
 }
 async function stepsNativeSync(force){
   if(!stepsIsNativeApp() || stepsSyncBusy || !getCmSession() || (state.stepsData && state.stepsData.mine && state.stepsData.mine.source === 'googlehealth')) return false;
-  if(!force && Date.now() - stepsSyncAt < 50 * 60000) return false;
+  if(!force && Date.now() - stepsSyncAt < 2 * 60000) return false;
   const H = window.Capacitor.Plugins && window.Capacitor.Plugins.Health; if(!H) return false;
   stepsSyncBusy = true;
   try {
@@ -3273,8 +3277,8 @@ async function stepsPromptOnce(){
 if(stepsIsNativeApp()){
   setTimeout(() => stepsPromptOnce(), 5000);
   setTimeout(() => stepsNativeSync(), 3000);
-  setInterval(() => stepsNativeSync(), 60 * 60000);
-  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible'){ stepsNativeSync(); if(state.tab === 'steps'){ state.stepsData = null; render(); } } });
+  setInterval(() => stepsNativeSync(), 10 * 60000);
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible'){ stepsNativeSync().then(() => { if(state.tab === 'steps'){ state.stepsData = null; render(); } }); } });
 }
 
 /* ---- Squads became clubs: existing squad members log in on #/stay and choose which of the four new clubs to stay in / join ---- */
