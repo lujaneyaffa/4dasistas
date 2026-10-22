@@ -3335,7 +3335,8 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       } else {
         wireMyClubsSection();
         if(!state.clubsPage || state.clubsPage === 'cal') wireClubCal();
-        if(state.clubsPage === 'vote'){
+        const votingMine = myClubs.filter(c => !isCommunityClub(c.id));
+  if(state.clubsPage === 'vote'){
           wireIdeaAddForm('vote');
           const vcs = document.getElementById('voteClubSel');
           if(vcs) vcs.addEventListener('change', () => {
@@ -6599,7 +6600,25 @@ function setClubsPage(page){
   render();
   window.scrollTo({ top:0, behavior:'smooth' });
 }
+// Quran, Badminton, Cowork and Steps are community groups (chat + events), NOT idea / vote / availability clubs.
+const COMMUNITY_CLUB_IDS = ['club-quran', 'club-badminton', 'club-cowork', 'club-steps'];
+const isCommunityClub = id => COMMUNITY_CLUB_IDS.includes(id);
+function hasVotingClub(){ return ((getCmSession() || {}).clubs || []).some(id => !isCommunityClub(id)); }
+function openCommunityClub(id){
+  const c = clubsData.find(x => x.id === id); if(!c) return;
+  const col = clubCol(id), today = new Date().toISOString().slice(0, 10);
+  if(!state.clubCal) clubCalLoad();
+  const evs = (state.clubCal || []).filter(e => e.date >= today && !String(e.id).startsWith('idea:') && (e.clubIds || [e.clubId]).includes(id)).slice(0, 4);
+  const link = id === 'club-badminton' ? ['🏸 Open Badminton', '/badminton'] : id === 'club-steps' ? ['👟 Open the Steps challenge', '#/steps'] : null;
+  const { wrap, close } = ideaPopup(`<div style="text-align:center;">${c.logo ? `<img src="${escapeCm(c.logo)}" alt="" style="width:86px;height:86px;object-fit:contain;border-radius:50%;background:${col.bg};">` : `<div style="font-size:48px;">${escapeCm(c.emoji || '')}</div>`}<h3 style="margin:8px 0 4px;">${escapeCm(c.title)}</h3></div>
+    <p style="margin:0 0 10px;font-size:14px;line-height:1.5;text-align:center;">${escapeCm(c.desc || '')}</p>
+    ${link ? `<a class="club-guide-btn" href="${link[1]}" style="display:block;text-align:center;text-decoration:none;min-height:48px;line-height:30px;margin-bottom:8px;">${link[0]}</a>` : ''}
+    ${c.signup ? `<a class="club-guide-btn" href="${escapeCm(c.signup)}" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;min-height:48px;line-height:30px;margin-bottom:8px;background:#25a244;color:#fff;">💬 Open the group chat</a>` : '<p class="ideas-hint" style="text-align:center;">The group chat link will be added soon.</p>'}
+    <p class="idea-pop-h">📅 Coming up</p>${evs.length ? evs.map(e => `<button type="button" class="cc-ev" data-calid="${escapeCm(e.id)}" style="display:block;width:100%;text-align:left;border:none;border-top:1px solid rgba(0,0,0,.08);background:none;padding:9px 0;font:inherit;cursor:pointer;min-height:44px;"><b>${escapeCm(e.title)}</b><br><small style="color:#776867;">${escapeCm(new Date(e.date + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' }))}${e.time ? ' · ' + escapeCm(e.time) : ''}</small></button>`).join('') : '<p class="av-msg">Nothing scheduled yet.</p>'}`);
+  wrap.querySelectorAll('.cc-ev').forEach(b => b.addEventListener('click', () => { close(); clubCalOpen(b.dataset.calid); }));
+}
 function openClubIdeas(clubId){
+  if(isCommunityClub(clubId)){ openCommunityClub(clubId); return; }
   state.tab = 'clubideas';
   state.ideasClubId = clubId;
   state.ideas = null; state.ideasError = ''; state.ideasStatus = ''; state.ideasRenaming = false;
@@ -7130,11 +7149,12 @@ function renderMyClubsSectionHtml(){
   // Two separate pages so everything isn't dumped on one screen: Vote (the club bubbles → idea boards) and Availability.
   if(state.clubsPage === 'vote'){
     // The add-an-idea fields are right here (pick the club if you're in several) — no extra press — then every idea from your clubs to vote on.
-    if(!myClubs.some(c => c.id === state.voteClub)) state.voteClub = myClubs[0].id;
+    const vc = votingMine.length ? votingMine : myClubs;
+    if(!vc.some(c => c.id === state.voteClub)) state.voteClub = vc[0].id;
     state.ideasClubId = state.voteClub;
     return `<button type="button" class="back-btn" data-clubspage="">← Back</button>
-    <p class="ideas-hint" style="text-align:center;margin:0 0 6px;">Add an idea${myClubs.length === 1 ? ' to <strong>' + escapeCm(myClubs[0].title) + '</strong>' : ''}:</p>
-    <div style="max-width:520px;margin:0 auto;">${ideaAddFormHtml(state.voteClub, myClubs)}</div>
+    <p class="ideas-hint" style="text-align:center;margin:0 0 6px;">Add an idea${vc.length === 1 ? ' to <strong>' + escapeCm(vc[0].title) + '</strong>' : ''}:</p>
+    <div style="max-width:520px;margin:0 auto;">${ideaAddFormHtml(state.voteClub, vc)}</div>
     <div class="ideas-status" id="ideasStatus" aria-live="polite" style="text-align:center;">${escapeCm(state.ideasStatus || '')}</div>
     ${renderPublicIdeasFeedHtml('🗳️ VOTE', 'Every idea from your clubs is here — tap a bubble to vote. Each bubble shows which club it\'s from.', 'No ideas yet — add the first one above!')}
     <p style="text-align:center;margin:12px 0 0;"><button type="button" class="av-link club-card" data-club-id="${escapeCm(state.voteClub)}">Open the ${escapeCm(avClubTitle(state.voteClub))} board →</button></p>`;
@@ -7150,12 +7170,12 @@ function renderMyClubsSectionHtml(){
     if(an && an.id !== seen) annBanner = `<div class="av-waitlist" style="max-width:520px;margin:0 auto 14px;text-align:center;">📣 ${escapeCm(an.text)}${state.availDeadline ? ` <strong>Deadline: ${escapeCm(new Date(state.availDeadline + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' }))}</strong>` : ''} <button type="button" class="club-guide-btn" data-clubspage="avail" data-annid="${escapeCm(an.id)}" style="padding:6px 14px;font-size:13px;margin:6px 4px 0;">Add my availability</button><button type="button" class="av-link" id="availAnnDismiss" data-annid="${escapeCm(an.id)}" style="margin-top:6px;">Dismiss</button></div>`; }
   const stayBanner = state.stayDue ? `<div class="av-waitlist" style="max-width:520px;margin:0 auto 14px;text-align:center;">🪁 Squads are now clubs! <button type="button" class="club-guide-btn" onclick="location.hash='#/stay'" style="margin-top:6px;">Choose which to stay in →</button></div>` : '';
   return `${topRow}${pendingBanner}${stayBanner}${annBanner}${myTodoHtml()}
-    <div class="clubs-big-btns">
+    ${votingMine.length ? `<div class="clubs-big-btns">
       ${bigBtn('avail', '📅', 'Availability', 'Add yours &amp; see everyone\'s')}
-      ${bigBtn('vote', '🗳️', 'Vote', myClubs.length > 1 ? 'All your clubs\' ideas in one place' : 'Vote on ideas for ' + escapeCm(myClubs[0].title))}
-    </div>
+      ${bigBtn('vote', '🗳️', 'Vote', votingMine.length > 1 ? 'All your clubs\' ideas in one place' : 'Vote on ideas for ' + escapeCm(votingMine[0].title))}
+    </div>` : ''}
     <h3 class="clubs-popular-title" style="margin:16px 0 2px;">CLUBS YOU'RE IN</h3>
-    <p class="ideas-hint" style="text-align:center;margin:0 0 4px;">Tap a club to see its ideas and who's free.</p>
+    <p class="ideas-hint" style="text-align:center;margin:0 0 4px;">${votingMine.length ? "Tap a club to see its ideas and who's free." : 'Tap a group to open it.'}</p>
     <div class="club-bubbles">${myClubs.map((c, i) => clubBubbleHtml(c, i)).join('')}</div>
     <div style="margin-top:18px;">${clubCalSectionHtml(true)}</div>
     ${requestSection}`;
@@ -7407,7 +7427,7 @@ function homeCustomize(){
 function homeIsSignedIn(){ return !!getCmSession() || state.cmAdminLoggedIn === true || !!state.cmLead; }
 function homeGridHtml(){
   const pal = [['#f2d8d7', '#76220b'], ['#d6e8f7', '#4c6a82'], ['#ffefb7', '#a8851f'], ['#e2ddf4', '#6b5aa8'], ['#deebd1', '#4a7a3a'], ['#fbf0ee', '#8a4a63'], ['#f8efdb', '#8a6a2f'], ['#e1eaf1', '#4c6a82']];
-  const items = [['events', '📅', 'Calendar'], ['clubs', '🏛️', 'Clubs'], ['resources', '📖', 'Directory'], ['travel', '✈️', 'Travel'], ['badminton', '🏸', 'Badminton'], ['steps', '👟', 'Steps'], ['rules', 'ℹ️', 'About'], ['submit', '➕', 'Submit']];
+  const items = [['events', '📅', 'Calendar'], ['clubs', '🏛️', 'Clubs'], ['resources', '📖', 'Directory'], ['travel', '✈️', 'Travel'], ['badminton', '🏸', 'Badminton'], ['steps', '👟', 'Steps'], ['rules', 'ℹ️', 'About'], ['submit', '➕', 'Contribute']];
   const bubbles = items.map(([k, ic, l], i) => {
     const [bg, fg] = pal[i % pal.length], dx = [12, -10, 9, -12, 10][i % 5], dy = [-14, 12, -10, 13, -12][i % 5];
     const attr = k === 'submit' ? 'id="homeSubmitTile"' : k === 'badminton' ? 'data-href="/badminton"' : k === 'steps' ? 'data-href="#/steps"' : `data-hometab="${k}"`;
@@ -7436,14 +7456,15 @@ function placeSearchBar(){
   if(state.tab === 'home' && slot){ if(shell.parentElement !== slot){ slot.appendChild(shell); } shell.classList.add('in-home'); }
   else if(nav && shell.parentElement !== nav){ nav.appendChild(shell); shell.classList.remove('in-home'); }
 }
-document.addEventListener('click', e => {
-  if(!e.target.closest('#homeSubmitTile')) return;
-  const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 10px;text-align:center;">Submit</h3>
+// One "Contribute" button: pick whether you're sending in an event or adding a resource.
+function openContributeChooser(){
+  const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 4px;text-align:center;">Contribute</h3><p class="ideas-hint" style="text-align:center;margin:0 0 10px;">Help the community grow 💛</p>
     <button type="button" class="club-guide-btn" id="hsEvent" style="width:100%;min-height:52px;margin-bottom:8px;text-align:center;">📅 Submit an event</button>
     <button type="button" class="club-guide-btn" id="hsRes" style="width:100%;min-height:52px;text-align:center;">📖 Add a resource</button>`);
   wrap.querySelector('#hsEvent').addEventListener('click', () => { close(); goToTab('submitevent'); });
   wrap.querySelector('#hsRes').addEventListener('click', () => { close(); goToTab('submitresource'); });
-});
+}
+document.addEventListener('click', e => { if(e.target.closest('#homeSubmitTile')) openContributeChooser(); });
 const WAVE_TONES = ['', '\u{1F3FB}', '\u{1F3FC}', '\u{1F3FD}', '\u{1F3FE}', '\u{1F3FF}'];
 function waveEmoji(){ let i = 0; try { i = Number(localStorage.getItem('waveTone') || 0) || 0; } catch {} return '\u{1F44B}' + (WAVE_TONES[i] || ''); }
 function myHomeHtml(){
@@ -7490,7 +7511,7 @@ function myTodoHtml(){
   if(!state.myTodo){ myTodoLoad(); return ''; }
   const t = state.myTodo, items = [], fmt = d => new Date(d + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' });
   const dates = iavNext15Dates();
-  if(state.ideaAvailLoadedFor && dates.length && !dates.some(d => (state.ideaAvail && state.ideaAvail[d]) || (state.ideaAvailNo && state.ideaAvailNo[d])))
+  if(hasVotingClub() && state.ideaAvailLoadedFor && dates.length && !dates.some(d => (state.ideaAvail && state.ideaAvail[d]) || (state.ideaAvailNo && state.ideaAvailNo[d])))
     items.push(['📅', `<strong>Add your availability</strong> for ${escapeCm(fmt(AVAIL_PERIOD.start))} → ${escapeCm(fmt(AVAIL_PERIOD.end))}`, 'avail']);
   (t.unpaid || []).forEach(e => items.push(['💳', `<strong>Payment due</strong> · ${escapeCm(e.title)}${e.amount ? ' (' + escapeCm(e.amount) + ')' : ''}`, 'event:' + e.id]));
   (t.tbd || []).forEach(e => items.push(['🕒', `<strong>${escapeCm(e.title)}</strong> needs a date — show interest`, 'tbd']));
@@ -7614,7 +7635,7 @@ function ideaAvailScheduleSave(){
 // When a member signs in (or opens the app) and hasn't filled in the CURRENT availability period, ask once to do it now.
 async function availNagCheck(){
   try {
-    if(state.availNagShown || !getCmSession() || state.cmAdminLoggedIn === true || document.querySelector('.avNagPop')) return;
+    if(state.availNagShown || !getCmSession() || !hasVotingClub() || state.cmAdminLoggedIn === true || document.querySelector('.avNagPop')) return;
     if(document.querySelector('.mem-pop')){ if((state.availNagTries = (state.availNagTries || 0) + 1) < 6) setTimeout(availNagCheck, 5000); return; } // one pop-up at a time: wait until the current one is closed
     if(!iavNext15Dates().length) return; // period is over
     if(!state.ideaAvailLoadedFor || state.ideaAvailOwner !== ideaOwnerKey()){ await ideaAvailLoad(); if(!state.ideaAvailLoadedFor) return; }
@@ -7764,7 +7785,7 @@ function everyoneAvailSectionHtml(me, onlyClubId){
   else body = `${eavBestWorstHtml()}${eavGridHtml()}
     <div class="eav-legend"><span><i class="eav-sw eav-sw-0"></i>Nobody</span><span><i class="eav-sw eav-sw-mid"></i>A few people</span><span><i class="eav-sw eav-sw-max"></i>Most people</span></div>
     <p class="ideas-hint">${state.ideaAvailAllRespondents} ${state.ideaAvailAllRespondents === 1 ? 'person has' : 'people have'} added their availability so far. Darker green = more people free then. Tap a square to see who prefers it and who hasn't filled in yet.${state.ideaAvailAllPeople ? ' Tap a square to see who by name.' : ''}</p>`;
-  const sessClubs = ((getCmSession() || {}).clubs || []).filter(id => clubsData.some(c => c.id === id));
+  const sessClubs = ((getCmSession() || {}).clubs || []).filter(id => clubsData.some(c => c.id === id) && !isCommunityClub(id));
   const chips = (sessClubs.length > 1 && !onlyClubId) ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px;" aria-label="Which club's availability to view">${[['mine', 'All my clubs']].concat(sessClubs.map(id => [id, (clubsData.find(c => c.id === id) || {}).title || id])).map(([id, title]) => {
     const col = id === 'mine' ? { bg:'#f2d8d7', fg:'#76220b' } : clubCol(id); const on = (state.eavClub || 'mine') === id;
     return `<button type="button" class="eav-club-chip" data-club="${escapeCm(id)}" style="min-height:40px;padding:8px 16px;border-radius:999px;border:2px solid ${on ? col.fg : 'transparent'};background:${col.bg};color:${col.fg};font-weight:700;font-size:14px;cursor:pointer;">${escapeCm(title)}</button>`; }).join('')}</div>` : '';
@@ -11811,7 +11832,7 @@ function renderNavAuth(){
   const sess = getCmSession();
   const staff = state.cmAdminLoggedIn === true ? 'an admin' : (state.cmLead ? 'a club admin' : '');
   const newsBtn = '<button type="button" data-pwr="whatsnew">✨ What\'s new</button>';
-  const moreItems = `<div class="pwr-sep">More</div><button type="button" data-pwr="submitevent">➕ Submit an event</button><button type="button" data-pwr="addresource">➕ Add a resource</button>${adminUiOn() ? '<button type="button" data-pwr="newevent">➕ New event (admin)</button>' : ''}<button type="button" data-pwr="findus" aria-expanded="false">🔗 Find us on…</button><div class="pwr-social" id="pwrSocial" hidden><a href="https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS" target="_blank" rel="noopener">💬 WhatsApp</a><a href="https://www.instagram.com/4dasistas.ca/" target="_blank" rel="noopener">📸 Instagram</a><a href="https://www.tiktok.com/@4dasistas" target="_blank" rel="noopener">🎵 TikTok</a></div>`;
+  const moreItems = `<div class="pwr-sep">More</div><button type="button" data-pwr="contribute">➕ Contribute</button>${adminUiOn() ? '<button type="button" data-pwr="newevent">➕ New event (admin)</button>' : ''}<button type="button" data-pwr="findus" aria-expanded="false">🔗 Find us on…</button><div class="pwr-social" id="pwrSocial" hidden><a href="https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS" target="_blank" rel="noopener">💬 WhatsApp</a><a href="https://www.instagram.com/4dasistas.ca/" target="_blank" rel="noopener">📸 Instagram</a><a href="https://www.tiktok.com/@4dasistas" target="_blank" rel="noopener">🎵 TikTok</a></div>`;
   const staffPage = staff ? '<button type="button" data-pwr="adminpage">🛠 Admin page</button>' : '';
   const staffOut = staff ? `<button type="button" data-pwr="${state.cmAdminLoggedIn === true ? 'adminout' : 'leadout'}">Log out of ${state.cmAdminLoggedIn === true ? 'admin' : 'club admin'}</button>` : '';
   const warn = staff ? `<div class="pwr-hi" style="background:#fff3cf;color:#6b5210;border-radius:10px;padding:8px;line-height:1.4;">⚠️ You're currently logged in as ${staff}</div>` : '';
@@ -11833,8 +11854,7 @@ function renderNavAuth(){
     if(k === 'whatsnew') showWhatsNew(true);
     else if(k === 'settings') openSettingsPopup();
     else if(k === 'adminpage') goToTab('admin');
-    else if(k === 'submitevent') goToTab('submitevent');
-    else if(k === 'addresource') goToTab('submitresource');
+    else if(k === 'contribute') openContributeChooser();
     else if(k === 'newevent'){ const nb = document.getElementById('footerNewEventBtn'); if(nb) nb.click(); }
     else if(k === 'login') goLogin();
     else if(k === 'signup') goSignup();

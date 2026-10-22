@@ -874,6 +874,8 @@ const seenMap = async (env) => { const m = new Map(); try { if (await seenEnsure
 const seenOf = (m, u) => ({ lastLoginAt: Math.max(u.lastLoginAt || 0, (m.get(u.id) || {}).login || 0), lastSeenAt: Math.max(u.lastSeenAt || 0, (m.get(u.id) || {}).seen || 0) });
 // attempt counters: returns the NEW count for this key (D1), or null when D1 isn't available
 const rateTouch = async (env, key, ttlSec) => { try { if (!(await seenEnsure(env))) return null; const r = await env.DB.prepare("INSERT INTO rate_limits (k, n, exp) VALUES (?, 1, ?) ON CONFLICT(k) DO UPDATE SET n = CASE WHEN exp < ? THEN 1 ELSE n + 1 END, exp = CASE WHEN exp < ? THEN excluded.exp ELSE exp END RETURNING n").bind(key, Date.now() + ttlSec * 1000, Date.now(), Date.now()).first(); return r ? r.n : null; } catch { return null; } };
+// The four former squads are community groups (WhatsApp chat + events), NOT idea/vote/availability clubs: they never count towards who's "waiting to vote" or whose availability is shown.
+const COMMUNITY_CLUBS = new Set(["club-quran", "club-badminton", "club-cowork", "club-steps"]);
 const BM_OWNER_ID = "a517d9bd-bc9c-4e59-b36d-503747621aa4", BM_COACH_EMAIL = "coach@4dasistas.ca", BM_BADMINTON_CLUB = "club-badminton";
 const BM_TBL = { players: "bm_players", games: "bm_games", attendance: "bm_attendance", past_points: "bm_past", session_rsvps: "bm_rsvps", tournament_interest: "bm_interest" };
 const bmToronto = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
@@ -2267,6 +2269,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const mine = new Set();
         const peerClubs = {};
         for (const clubId of await clubIdList(env)) {
+          if (COMMUNITY_CLUBS.has(clubId)) continue; // not a vote / availability club
           const ids = await readClubMemberIds(env, clubId);
           if (ids.includes(myId)) mine.add(clubId);
           for (const uid of ids) (peerClubs[uid] = peerClubs[uid] || new Set()).add(clubId);
@@ -2291,6 +2294,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (qs && qe && /^\d{4}-\d{2}-\d{2}$/.test(qs) && /^\d{4}-\d{2}-\d{2}$/.test(qe) && (await listAvailPeriods(env)).periods.some((h) => h.start === qs && h.end === qe)) { viewPeriod = { start: qs, end: qe }; viewPast = true; }
       const windowDates = availPeriodDates(viewPeriod, viewPast); // the fixed period the main admin opened (nothing outside it is assumed free)
       const bump = (map, date, part) => { const slot = (map[date] = map[date] || { morning: 0, afternoon: 0, evening: 0 }); slot[part]++; };
+      // Only people who actually answered something in THIS period count as having voted — an old answer from an earlier period doesn't (that is why "4 of 15 haven't voted" was wrong).
+      people = people.filter((p) => windowDates.some((d) => (p.days[d] || []).length || (p.no[d] || []).length));
       for (const p of people) {
         const dates = new Set([...windowDates, ...Object.keys(p.days), ...Object.keys(p.no)]);
         for (const date of dates) {
