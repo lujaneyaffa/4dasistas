@@ -3099,7 +3099,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       // ---- main admin: coach password, iPad kiosk key, status, copy photos over from the old site ----
       if (path === "/api/admin/badminton/status" && request.method === "GET") {
         const t = async (k) => (await env.DB.prepare(`SELECT COUNT(*) AS n FROM ${BM_TBL[k]}`).first()).n;
-        const left = (await env.DB.prepare("SELECT COUNT(*) AS n FROM bm_players WHERE data LIKE '%supabase.co/storage%'").first()).n;
+        const left = (await env.DB.prepare("SELECT COUNT(*) AS n FROM bm_players WHERE json_extract(data, '$.avatar_url') LIKE 'https://%supabase.co/%' AND json_extract(data, '$._cf') IS NULL").first()).n;
         return jsonResponse({ coachSet: !!(await env.SITE_DATA.get("bm:coachpw")), kioskSet: !!(await env.SITE_DATA.get("bm:kioskkey")), photosToCopy: left, counts: { players: await t("players"), games: await t("games"), attendance: await t("attendance"), past_points: await t("past_points"), session_rsvps: await t("session_rsvps"), tournament_interest: await t("tournament_interest") } }, 200, corsHeaders);
       }
       if ((path === "/api/admin/badminton/coach-password" || path === "/api/admin/badminton/kiosk-key") && request.method === "PUT") {
@@ -3158,7 +3158,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       }
       if (path === "/api/admin/badminton/copy-photos" && request.method === "POST") { // copies ONE profile photo per call from the old Supabase storage into 4DS (small CPU budget per request); the client loops until none are left
         try {
-          const row = await env.DB.prepare("SELECT id, data FROM bm_players WHERE data LIKE '%supabase.co/storage/v1/object/public/profile-avatars/%' AND data NOT LIKE '%\"_cf\":true%' LIMIT 1").first();
+          const row = await env.DB.prepare("SELECT id, data FROM bm_players WHERE json_extract(data, '$.avatar_url') LIKE 'https://%supabase.co/%' AND json_extract(data, '$._cf') IS NULL LIMIT 1").first();
           let copied = 0, failed = 0, why = "";
           if (row) {
             const d = JSON.parse(row.data), m = String(d.avatar_url || "").match(/^https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1\/object\/public\/profile-avatars\/(.+)$/);
@@ -3173,7 +3173,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
             } catch (e) { d._cf = true; failed = 1; why = String(e && e.message || e).slice(0, 80); } // keep the old link (so nothing is lost) but don't retry it forever
             await env.DB.prepare("UPDATE bm_players SET data = ? WHERE id = ?").bind(JSON.stringify(d), row.id).run();
           }
-          const left = (await env.DB.prepare("SELECT COUNT(*) AS n FROM bm_players WHERE data LIKE '%supabase.co/storage%' AND data NOT LIKE '%\"_cf\":true%'").first()).n;
+          const left = (await env.DB.prepare("SELECT COUNT(*) AS n FROM bm_players WHERE json_extract(data, '$.avatar_url') LIKE 'https://%supabase.co/%' AND json_extract(data, '$._cf') IS NULL").first()).n;
           return jsonResponse({ ok: true, copied, failed, why, left }, 200, corsHeaders);
         } catch (e) { return jsonResponse({ error: "Photo copy hit a snag: " + String(e && e.message || e).slice(0, 120) }, 500, corsHeaders); }
       }
