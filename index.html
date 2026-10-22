@@ -975,7 +975,8 @@
   footer .footer-logo{ height:120px !important; width:min(300px,80vw) !important; object-fit:cover !important; object-position:center 68% !important; margin:0 auto !important; } /* the original, readable size */
   footer .footer-admin-corner{ display:none !important; }
   footer .footer-btns{ display:flex !important; align-items:center; flex-wrap:wrap; gap:10px; justify-content:center; } footer .find-us{ width:100%; text-align:center; font:700 13px 'Outfit',sans-serif; letter-spacing:.08em; text-transform:uppercase; color:#fef7f4; margin:0 0 2px; opacity:.9; }
-  .mail-btn{ display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:50%; background:#ce8491; border:2px solid #fef7f4; } .mail-btn svg{ width:20px; height:20px; }
+  .mail-btn{ display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:50%; background:#76220b; border:none; } .mail-btn svg{ width:17px; height:17px; }
+  footer .footer-btns{ margin:8px 0 4px !important; } footer .footer-btns .wa-btn, footer .footer-btns .ig-btn, footer .footer-btns .tiktok-btn{ width:36px !important; height:36px !important; } footer .footer-btns .wa-btn svg, footer .footer-btns .ig-btn svg, footer .footer-btns .tiktok-btn svg{ width:17px !important; height:17px !important; }
 
   .suggest-btn{ display:inline-block; font-family:'Outfit','Inter',sans-serif; font-weight:600; font-size:13px; background:var(--blush); border:1.5px solid var(--charcoal); color:var(--charcoal); padding:9px 18px; border-radius:999px; cursor:pointer; margin-bottom:2px; text-decoration:none; }
   .hp-field{ position:absolute; left:-9999px; }
@@ -1330,6 +1331,7 @@
 
 
 <footer>
+  <img class="footer-logo" src="assets/OFFICIAL%20LOGO.png" alt="Not a cult (Yet)">
   <div class="footer-btns">
     <div class="find-us">Find us on</div>
     <a class="wa-btn" href="https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS" target="_blank" rel="noopener" aria-label="Join the WhatsApp community">
@@ -1343,7 +1345,6 @@
     </a>
     <a class="mail-btn" href="mailto:admin@4dasistas.ca" aria-label="Email admin@4dasistas.ca"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></svg></a>
   </div>
-  <img class="footer-logo" src="assets/OFFICIAL%20LOGO.png" alt="Not a cult (Yet)">
   <div class="footer-admin-corner">
     <button type="button" class="footer-admin-btn" id="footerNewEventBtn" style="display:none;">➕ New event</button>
     <button type="button" class="footer-admin-btn footer-missing-btn" id="footerMissingDetailsBtn" style="display:none;">📋 Needs details</button>
