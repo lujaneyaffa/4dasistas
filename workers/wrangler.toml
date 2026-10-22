@@ -1,27 +1,42 @@
+# MIRROR of ../wrangler.toml so that deploying from this folder can never strip the site's static files (assets) off the Worker.
+# Preferred: run `sh scripts/deploy.sh` from the repo root.
+# Deploys the whole site (index.html, data/*.json, calendar.ics, assets/, admin/)
+# as static assets on the existing "4dasistas" Worker that 4dasistas.ca points to.
+#
+# Connect this repo in the Cloudflare dashboard under Workers & Pages so every
+# push to main deploys automatically — see AGENT-COORDINATION.md for the
+# one-time setup steps.
+# Build command: python3 scripts/build_content.py && python3 scripts/generate_calendar.py
+#   (build_content.py merges the per-entry data/calendar/*.json and
+#   data/resources/*.json files the CMS writes into the aggregate data/*.json
+#   files this site actually reads — skip it and new CMS entries never show up)
+# Deploy command: npx wrangler deploy
+
 name = "4dasistas"
 main = "src/worker.js"
-compatibility_date = "2024-01-01"
+compatibility_date = "2026-08-21"
 
-[triggers]
-crons = ["0 13 * * *"] # 9:00 AM America/Toronto during daylight time
-
-# KV namespace for storing site data
-# Create with: wrangler kv namespace create SITE_DATA
-[[kv_namespaces]]
-binding = "SITE_DATA"
-id = "f70e43c88d1043439e400e127faaf90e"
-# Route API calls through this Worker while the main site remains on Netlify.
 routes = [
 	{ pattern = "4dasistas.ca/api/*", zone_name = "4dasistas.ca" },
 	{ pattern = "www.4dasistas.ca/api/*", zone_name = "4dasistas.ca" }
 ]
 
-# Environment variables
+[triggers]
+crons = ["0 13 * * *"]
+
+[[kv_namespaces]]
+binding = "SITE_DATA"
+id = "f70e43c88d1043439e400e127faaf90e"
+
 [vars]
 SITE_ORIGIN = "https://4dasistas.ca"
 FROM_EMAIL = "4DASISTAS <updates@4dasistas.ca>"
 
-# D1 (SQLite) database for profiles + availability. Used only after the admin presses 'Move to D1' (Admin → Notifications & team → Database).
+[assets]
+directory = ".."
+binding = "ASSETS"   # lets the Worker read the site's own files (e.g. data/clubs.json) without calling its own public URL (that times out)
+
+# D1 (SQLite) database for profiles + availability — used once the admin presses "Move to D1" (Admin → Notifications & team → Database).
 [[d1_databases]]
 binding = "DB"
 database_name = "4dasistas-db"
