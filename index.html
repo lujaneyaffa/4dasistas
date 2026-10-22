@@ -1170,6 +1170,12 @@
   .spod{ width:31%; text-align:center; } .spav{ width:62px; height:62px; border-radius:50%; margin:0 auto 6px; background:rgba(118,34,11,.1); border:2px solid #d9a441; display:flex; align-items:center; justify-content:center; font-size:26px; }
   .spname{ font-size:13px; font-weight:700; overflow-wrap:anywhere; } .spbase{ margin-top:6px; border-radius:10px 10px 0 0; background:rgba(206,132,145,.18); display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:22px; } .spbase small{ font-size:11px; color:#5b4b49; font-weight:700; }
   .spod.one .spbase{ height:90px; } .spod.two .spbase{ height:68px; } .spod.three .spbase{ height:56px; }
+
+  /* Directory list view (website): equal-height panels, content aligned the same in every card, buttons centred at the bottom */
+  #directory-view.res-list-grid{ align-items:stretch !important; max-width:1100px; margin-left:auto; margin-right:auto; justify-content:center; }
+  #directory-view.res-list-grid > .panel-card{ display:flex; flex-direction:column; text-align:left; min-width:0; }
+  #directory-view.res-list-grid > .panel-card .panel-links{ margin-top:auto; padding-top:10px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+  #directory-view.res-list-grid > .panel-card .panel-top{ align-items:center; }
 </style>
 </head>
 <body>
