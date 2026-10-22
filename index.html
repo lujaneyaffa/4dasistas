@@ -127,6 +127,7 @@
   }
   .pf-row{ display:flex; align-items:center; gap:12px; width:100%; min-height:52px; padding:10px 14px; border:none; border-bottom:1px solid rgba(0,0,0,.07); background:none; font:inherit; font-weight:600; text-align:left; cursor:pointer; color:inherit; text-decoration:none; box-sizing:border-box; }
   .pf-card{ background:#fff; border-radius:18px; overflow:hidden; margin:0 0 14px; box-shadow:0 2px 10px rgba(0,0,0,.05); }
+  @media (max-width:700px){ .sp-grid{ display:flex; flex-direction:column; } .sp-grid .sp-sec[data-sp=dir]{ order:-1; } .sp-grid .home-search{ order:-2; } }
   .sp-sec{ background:#fff; border-radius:18px; margin:0 0 12px; box-shadow:0 2px 10px rgba(0,0,0,.05); }
   .sp-sec > summary{ list-style:none; padding:14px 16px; font-weight:800; cursor:pointer; display:flex; justify-content:space-between; align-items:center; min-height:48px; }
   .sp-sec > summary::-webkit-details-marker{ display:none; }
@@ -1199,7 +1200,8 @@
 <nav class="tabs" id="tabs">
   <a class="tab-btn active" data-tab="home" href="/" aria-label="Home"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10.8 12 3.6l8.5 7.2V20a1 1 0 0 1-1 1H15v-6.2H9V21H4.5a1 1 0 0 1-1-1z"/></svg><span class="tl">Home</span></a>
   <a class="tab-btn" data-tab="events" href="#/calendar" aria-label="Calendar"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span class="tl"><span class="the">The </span>Calendar</span></a>
-  <a class="tab-btn" data-tab="clubs" href="#/clubs" aria-label="Clubs"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.3"/><path d="M2.8 20c0-3.5 2.8-6 6.2-6s6.2 2.5 6.2 6z"/><path d="M15.6 5.4a3.2 3.2 0 0 1 0 6.2M17 14.4c2.5.5 4.2 2.6 4.2 5.6h-3"/></svg><span class="tl"><span class="the">The </span>Clubs</span></a>
+  <a class="tab-btn" data-tab="trophy" href="#/leaderboards" aria-label="Leaderboards"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 5.5H5v1.5a3 3 0 0 0 3 3M16 5.5h3v1.5a3 3 0 0 1-3 3M12 13v4M8.5 20h7M10 17h4"/></svg><span class="tl">Leaderboards</span></a>
+  <a class="tab-btn dt-only" data-tab="clubs" href="#/clubs" aria-label="4DS Clubs"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.3"/><path d="M2.8 20c0-3.5 2.8-6 6.2-6s6.2 2.5 6.2 6z"/><path d="M15.6 5.4a3.2 3.2 0 0 1 0 6.2M17 14.4c2.5.5 4.2 2.6 4.2 5.6h-3"/></svg><span class="tl">4DS Clubs</span></a>
   <a class="tab-btn dt-only" data-tab="resources" href="#/resources" aria-label="Directory"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5zM13 4h5.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H13z"/></svg><span class="tl"><span class="the">The </span>Directory</span></a>
   <div class="top-search-wrap" id="globalSearchShell" style="display:none;">
     <div class="top-search-shell">
@@ -1209,7 +1211,7 @@
     <div class="search-suggestions" id="searchSuggestions" style="display:none;"></div>
   </div>
   <a class="tab-btn ph-only" data-tab="search" href="#/search" aria-label="Search"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.6"/><path d="m20.5 20.5-4.7-4.7"/></svg><span class="tl">Search</span></a>
-  <a class="tab-btn dt-only" data-act="notif" href="#" aria-label="Notifications"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg><span class="tl">Notifications</span></a>
+  <a class="tab-btn dt-only" data-tab="notifications" href="#/notifications" aria-label="Notifications"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg><span class="tl">Notifications</span></a>
   <a class="tab-btn" data-tab="profile" href="#/profile" aria-label="Profile" id="tabProfile"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4.2"/><path d="M4 21c0-4.3 3.6-7.3 8-7.3s8 3 8 7.3z"/></svg><span class="tl">Profile</span></a>
 </nav>
 <div id="dualBanner" style="display:none;"></div>
@@ -1964,7 +1966,7 @@ function itemsForCategoryBase(cat){
     });
     return out;
   }
-  if(cat === 'all') return EVENT_ITEMS;
+  if(cat === 'all') return [...EVENT_ITEMS, ...CLUB_CAL_ITEMS]; // 4DS club events are public and live on the big calendar too
   if(cat === 'clubs') return CLUB_CAL_ITEMS.filter(i => (state.clubEvFilter || 'all') === 'all' || (i.clubIds || []).includes(state.clubEvFilter));
   if(cat === 'sports'){
     const matchesSportFilter = e => normalizeSportKey(e.sportKey) === state.sportFilter
@@ -2546,7 +2548,7 @@ const categoryList = [
   {key:'functions', label:'Functions', bg:'#fdf0f2', fg:'#373d3b'},
   {key:'trips', label:'Trips', bg:'#eedcb1', fg:'#373d3b'},
   {key:'mosqueprograms', label:'Knowledge', bg:'#fad8c1', fg:'#373d3b'},
-  {key:'clubs', label:'Clubs', bg:'#f6d4de', fg:'#373d3b'},
+  {key:'clubs', label:'4DS Clubs', bg:'#f6d4de', fg:'#373d3b'},
 ];
 
 // Categories that have no physical storefront to plot, so the Directory hides the
@@ -3117,12 +3119,12 @@ function stepsPageHtml(){
   html += `<div class="panel-card" style="${wrap}padding:14px;margin-top:12px;"><p style="margin:0 0 8px;font-weight:800;">Your steps</p>${joinBox}
     <div style="display:flex;gap:10px;text-align:center;"><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${stepsFmt(m.today)}</div><small>today</small></div><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${stepsFmt(m.round)}</div><small>this round</small></div><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${m.rank ? '#' + m.rank : '—'}</div><small>rank</small></div></div>
     <p style="margin:12px 0 6px;font-weight:700;font-size:14px;">Where do your steps come from?</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">${srcBtn('apple', '🍎 Apple Health')}${srcBtn('google', '🟢 Health Connect (Android)')}${srcBtn('fitbit', '⌚ Fitbit / Google account')}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">${srcBtn('apple', '🍎 Apple Health')}${srcBtn('google', '🟢 Google Health')}</div>
     <p class="ideas-hint" style="margin:8px 0 0;text-align:left;">${src === 'fitbit'
       ? `Steps come from your Fitbit / Google account — it works on any phone, even an iPhone.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''} <button type="button" id="stepsFitbit" class="adm-need-refresh" style="border:none;background:none;text-decoration:underline;cursor:pointer;">${synced ? 'Reconnect / sync now' : 'Connect Fitbit'}</button>`
       : native
-      ? ((src === 'apple' && !/ios/i.test(plat)) || (src === 'google' && /ios/i.test(plat)) ? `⚠️ ${src === 'apple' ? 'Apple Health only exists on an iPhone' : 'Health Connect only exists on an Android phone'} — pick another source, like Fitbit.` : src ? `Steps sync from ${src === 'apple' ? 'Apple Health' : 'Health Connect'} about every hour.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''} <button type="button" id="stepsSyncNow" class="adm-need-refresh" style="border:none;background:none;text-decoration:underline;cursor:pointer;">Connect &amp; sync now</button>` : 'Pick where your steps live, then tap Connect — Fitbit works even on an iPhone.')
-      : `Pick where your steps live. Apple Health &amp; Health Connect sync inside the <strong>4DS app</strong>; Fitbit / Google works anywhere. There's no typing steps in.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''}`}</p></div>`;
+      ? ((src === 'apple' && !/ios/i.test(plat)) || (src === 'google' && /ios/i.test(plat)) ? `⚠️ ${src === 'apple' ? 'Apple Health only exists on an iPhone' : 'Health Connect only exists on an Android phone'} — pick the one that matches this phone.` : src ? `Steps sync from ${src === 'apple' ? 'Apple Health' : 'Health Connect'} about every hour.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''} <button type="button" id="stepsSyncNow" class="adm-need-refresh" style="border:none;background:none;text-decoration:underline;cursor:pointer;">Connect &amp; sync now</button>` : 'Pick the one this phone uses, then tap Connect.')
+      : `Steps only come from the <strong>4DS app</strong> — Apple Health on an iPhone or Google Health (Health Connect) on an Android. There's no typing them in.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''}`}</p></div>`;
   const mine = (d.pledges || []).find(p => p.mine);
   html += `<div class="panel-card" style="${wrap}padding:14px;margin-top:12px;"><p style="margin:0 0 6px;font-weight:800;">💛 Your pledge</p>
     ${mine ? `<p style="margin:0 0 8px;">You pledged <strong>${stepsMoney(mine.per1000)}</strong> per 1,000 steps${mine.cap ? ` (up to ${stepsMoney(mine.cap)})` : ''}. <button type="button" id="stepsPledgeDel" style="border:none;background:none;text-decoration:underline;cursor:pointer;">Remove</button></p>` : ''}
@@ -3291,6 +3293,8 @@ function renderDirectory(){
   const el = document.getElementById('directory-view');
   if(state.tab === 'eventform'){ renderEventFormPage(el); return; }
   if(state.tab === 'badminton'){ location.replace('/badminton'); return; } // the badminton app is its own page now
+  if(state.tab === 'trophy'){ document.getElementById('resourcePagination').innerHTML = ''; el.innerHTML = '<div style="max-width:640px;margin:0 auto;"></div>'; return; }
+  if(state.tab === 'notifications'){ document.getElementById('resourcePagination').innerHTML = ''; el.innerHTML = notificationsPageHtml(); return; }
   if(state.tab === 'search'){ document.getElementById('resourcePagination').innerHTML = ''; el.innerHTML = searchPageHtml(); wireSearchPage(); return; }
   if(state.tab === 'profile'){ document.getElementById('resourcePagination').innerHTML = ''; el.innerHTML = profilePageHtml(); return; }
   if(state.tab === 'steps'){
@@ -5289,7 +5293,7 @@ async function saveAboutEdit(){
 /* ============================================================
    MAIN RENDER
    ============================================================ */
-const DIRECTORY_TABS = ['search','profile','admin','clubs','stay','steps','badminton','eventform','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','submitevent','submitresource','clubmembers','clubideas'];
+const DIRECTORY_TABS = ['trophy','notifications','search','profile','admin','clubs','stay','steps','badminton','eventform','resources','home','travel','rules','clubstart','clubjoin','fallsignup','homescreen','subscribe','submitevent','submitresource','clubmembers','clubideas'];
 
 /* ============================================================
    CLUB MEMBERS SCHEDULE (private per-club sign-in + per-event availability)
@@ -5870,7 +5874,7 @@ async function refreshClubCalItems(){
     if(!r.ok) return;
     CLUB_CAL_ITEMS = ((await r.json()).events || []).map(e => ({ id:'clubcal:' + e.id, title:(e.kind === 'idea' && e.emoji ? e.emoji + ' ' : '') + e.title, tag:'Club', section:'clubevents', calDate:e.date, eventDate:e.date, date:calDateLabel(e.date), time:e.time || '', allDay:!e.time, virtual:false,
       location:e.clubTitle ? e.clubTitle + ' club' : 'Club event', desc:'', clubCal:true, clubIds:e.clubIds || [e.clubId] }));
-    if(state.tab === 'events' && state.categoryFilter === 'clubs') render();
+    if(state.tab === 'events' && (state.categoryFilter === 'clubs' || state.categoryFilter === 'all')) render();
   } catch {}
 }
 // 👥 Who attended a PAST event (public): first names only; tap a name for the date they joined + their clubs.
@@ -7560,7 +7564,7 @@ function profilePageHtml(){
     : `<div style="text-align:center;padding:14px 0;"><div style="font-size:46px;">👤</div><h2 style="margin:6px 0;">Your profile</h2><p class="ideas-hint">Log in to see your clubs, activity and settings.</p><button type="button" class="club-guide-btn" data-pf="login" style="background:var(--brand-rose);color:#fff;min-height:48px;width:min(280px,100%);">Log in</button><br><button type="button" class="club-guide-btn" data-pf="signup" style="min-height:48px;width:min(280px,100%);margin-top:8px;">Sign up</button></div>`;
   const warn = staff ? `<div class="av-waitlist" style="margin:0 0 12px;text-align:center;">⚠️ You're currently logged in as ${staff}</div>` : '';
   return `<div class="pf-wrap" style="max-width:560px;margin:0 auto;padding:6px 4px 24px;"><div class="pf-head">${head}</div><div class="pf-body">${warn}
-    ${sess ? `<div class="pf-card">${row('settings', '⚙️', 'Settings &amp; profile')}${row('attended', '🏅', 'Activities I attended')}${row('steps', '👟', 'Steps challenge')}${row('badminton', '🏸', 'Badminton')}</div>` : ''}
+    ${sess ? `<div class="pf-card">${row('settings', '⚙️', 'Settings &amp; profile')}${row('attended', '🏅', 'Activities I attended')}${row('steps', '👟', 'Steps challenge')}${row('badminton', '🏸', 'Badminton')}${row('clubs', '🏛️', '4DS Clubs')}</div>` : `<div class="pf-card">${row('clubs', '🏛️', '4DS Clubs')}</div>`}
     <div class="pf-card">${row('contribute', '➕', 'Contribute (event or resource)')}${row('whatsnew', '✨', "What's new")}${row('about', 'ℹ️', 'About 4DS')}${row('privacy', '📄', 'Privacy &amp; help')}</div>
     ${staff ? `<div class="pf-card">${row('adminpage', '🛠', 'Admin page')}${row(state.cmAdminLoggedIn === true ? 'adminout' : 'leadout', '🚪', 'Log out of ' + (state.cmAdminLoggedIn === true ? 'admin' : 'club admin'))}</div>` : ''}
     ${sess ? `<div class="pf-card">${row('out', '↩️', 'Log out')}</div>` : ''}</div></div>`;
@@ -7638,7 +7642,7 @@ function hapticTick(kind){
 function mountLeaderboards(){
   const host = document.getElementById('directory-view'); if(!host || host.querySelector('#lbBox')) return;
   const box = document.createElement('div'); box.id = 'lbBox'; box.style.cssText = 'max-width:640px;margin:18px auto 0;';
-  box.innerHTML = `<h3 class="clubs-popular-title">🏆 LEADERBOARDS</h3><div class="lb-cols"><div class="panel-card" style="padding:12px 14px;margin:0 0 12px;" id="lbSteps"><p style="margin:0 0 6px;font-weight:800;">👟 Steps challenge</p><p class="av-msg" style="margin:0;">Loading…</p></div>
+  box.innerHTML = `<h3 class="clubs-popular-title" style="margin-top:6px;">🏆 LEADERBOARDS</h3><div class="lb-cols"><div class="panel-card" style="padding:12px 14px;margin:0 0 12px;" id="lbSteps"><p style="margin:0 0 6px;font-weight:800;">👟 Steps challenge</p><p class="av-msg" style="margin:0;">Loading…</p></div>
     <div class="panel-card" style="padding:10px 6px;margin:0 0 12px;"><p style="margin:0 0 4px 8px;font-weight:800;">🏸 Badminton <a href="/badminton" style="font-weight:600;font-size:13px;margin-left:6px;">open →</a></p><iframe id="lbBm" title="Badminton leaderboard" src="/badminton?lb=1" loading="lazy" style="width:100%;height:520px;border:0;background:transparent;" data-noptr="1"></iframe></div></div>`;
   host.appendChild(box);
   const paint = d => {
@@ -7649,6 +7653,15 @@ function mountLeaderboards(){
   else cmApiRaw(getCmSession() ? '/api/me/steps' : '/api/steps/public', getCmSession() ? { headers: ideaHeaders(), cache:'no-store' } : {}).then(d => { state.lbSteps = d; paint(d); }).catch(() => paint(null));
 }
 window.addEventListener('message', e => { try { if(e.data && e.data.bmLbHeight){ const f = document.getElementById('lbBm'); if(f) f.style.height = Math.min(900, Math.max(200, e.data.bmLbHeight + 8)) + 'px'; } } catch {} });
+
+// Website "Notifications" page: what's personal to you, plus the latest updates and the notification switch.
+function notificationsPageHtml(){
+  const sess = getCmSession();
+  const mine = sess ? myTodoHtml().replace('✨ For you', '🔔 Your notifications').replace('max-width:520px;margin:0 auto 14px;', 'margin:0 0 14px;') : '';
+  return `<div style="max-width:640px;margin:0 auto;padding:4px 4px 24px;"><h3 class="clubs-popular-title">🔔 NOTIFICATIONS</h3>
+    ${sess ? (mine || '<div class="panel-card" style="padding:16px;margin:0 0 14px;text-align:center;"><p class="av-msg" style="margin:0;">You\'re all caught up ✨</p></div>') : '<div class="panel-card" style="padding:16px;margin:0 0 14px;text-align:center;"><p style="margin:0 0 10px;">Log in to see what needs your attention.</p><button type="button" class="club-guide-btn" data-pf="login" style="min-height:46px;">Log in</button></div>'}
+    <div class="pf-card"><button type="button" class="pf-row" data-pf="whatsnew"><span style="font-size:20px;width:26px;text-align:center;">✨</span><span style="flex:1;">What's new on 4DS</span><span style="opacity:.35;">›</span></button>${sess ? '<button type="button" class="pf-row" data-pf="settings"><span style="font-size:20px;width:26px;text-align:center;">⚙️</span><span style="flex:1;">Turn push / email notifications on or off</span><span style="opacity:.35;">›</span></button>' : ''}</div></div>`;
+}
 // One "Contribute" button: pick whether you're sending in an event or adding a resource.
 function openContributeChooser(){
   const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 4px;text-align:center;">Contribute</h3><p class="ideas-hint" style="text-align:center;margin:0 0 10px;">Help the community grow 💛</p>
@@ -7673,8 +7686,7 @@ function myHomeHtml(){
     const evs = (state.clubCal || []).filter(e => e.date && e.date >= today && !String(e.id).startsWith('idea:')).sort((a, b) => a.date.localeCompare(b.date) || String(a.time || '').localeCompare(String(b.time || ''))).slice(0, 6);
     extras.push(`<div class="panel-card" style="margin:0 0 12px;padding:12px 10px;"><p style="margin:0 0 6px 6px;font-weight:800;">🎟️ Events you can sign up to</p><p class="ideas-hint" style="margin:0 0 6px 6px;text-align:left;">Hosted by 4DS — tap one to RSVP.</p>${state.clubCal ? (evs.length ? evs.map(e => `<button type="button" class="pf-row home-ev" data-calid="${escapeCm(e.id)}"><span style="min-width:54px;font-size:12px;font-weight:800;color:#ce8491;">${escapeCm(new Date(e.date + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' }))}</span><span style="flex:1;">${escapeCm(e.title)}${e.time ? `<br><small style="color:#776867;font-weight:500;">${escapeCm(e.time)}</small>` : ''}</span><span style="opacity:.35;">›</span></button>`).join('') : '<p class="av-msg" style="margin:0 6px;">Nothing scheduled yet — check back soon.</p>') : '<p class="av-msg" style="margin:0 6px;">Loading…</p>'}</div>`);
   }
-  const tiles = [['📅', "What's on today", 'cal-today']];
-  if(tiles.length) extras.push(`<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;">${tiles.map(([ic, l, href]) => href === 'cal-today' ? `<button type="button" class="club-guide-btn home-caltoday" style="flex:1 1 140px;display:flex;gap:8px;align-items:center;justify-content:center;min-height:48px;">${ic} ${escapeCm(l)}</button>` : `<a href="${href}" class="club-guide-btn" style="flex:1 1 140px;display:flex;gap:8px;align-items:center;justify-content:center;text-decoration:none;min-height:48px;">${ic} ${escapeCm(l)}</a>`).join('')}</div>`);
+  extras.unshift(myTodoHtml().replace('✨ For you', '🔔 Your notifications &amp; events you\'re signed up to').replace('max-width:520px;margin:0 auto 14px;', 'margin:0 0 12px;'));
   return `<div class="my-home" style="max-width:640px;margin:0 auto 16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;"><button type="button" id="homeGreeting" aria-label="Open my profile and settings" style="border:none;background:none;padding:6px 0;margin:0;font:inherit;font-size:22px;font-weight:800;text-align:left;cursor:pointer;color:inherit;">Hi ${escapeCm(first)} ${waveEmoji()}</button></div>
     <p style="margin:0 0 6px;font-weight:800;font-size:14px;">🏛️ Your clubs</p>
@@ -7697,7 +7709,7 @@ async function myTodoLoad(){
   if(state.myTodoLoading || !getCmSession()) return; state.myTodoLoading = true;
   try { state.myTodo = await cmApiRaw('/api/me/todo', { headers: ideaHeaders(), cache:'no-store' }); } catch { state.myTodo = { next:[], unpaid:[], tbd:[] }; }
   state.myTodoLoading = false;
-  if((state.tab === 'clubs' && !state.clubsPage) || state.tab === 'home') render();
+  if((state.tab === 'clubs' && !state.clubsPage) || state.tab === 'home' || state.tab === 'notifications') render();
 }
 function myTodoHtml(){
   if(!getCmSession()) return '';
@@ -11464,7 +11476,8 @@ function render(){
 
   syncStateToHash();
   placeSearchBar();
-  if(state.tab === 'clubs' && !state.clubsPage) mountLeaderboards();
+  if(state.tab === 'trophy') mountLeaderboards();
+  if(state.tab === 'notifications' && getCmSession() && !state.myTodo) myTodoLoad();
 }
 
 /* ============================================================
@@ -11479,7 +11492,7 @@ const LAST_TAB_STORAGE_KEY = 'lastAppState';
 // instead of the old #tab=events&cat=all&view=list&... query-string look. The full
 // state (filters, view mode, etc.) still round-trips through localStorage below —
 // only what's actually shown in the URL bar has been simplified.
-const TAB_SLUGS = { admin:'admin', events:'calendar', clubs:'clubs', stay:'stay', steps:'steps', badminton:'badminton', resources:'resources', travel:'travel', rules:'about', homescreen:'add-to-homescreen', subscribe:'subscribe', submitevent:'submit-event', submitresource:'add-resource' };
+const TAB_SLUGS = { trophy:'leaderboards', admin:'admin', events:'calendar', clubs:'clubs', stay:'stay', steps:'steps', badminton:'badminton', resources:'resources', travel:'travel', rules:'about', homescreen:'add-to-homescreen', subscribe:'subscribe', submitevent:'submit-event', submitresource:'add-resource' };
 const SLUG_TO_TAB = Object.fromEntries(Object.entries(TAB_SLUGS).map(([tab, slug]) => [slug, tab]));
 /* Every page and sub-page has its own shareable link (all hash-based, so they work with the static host):
      #/calendar  #/calendar/sports  #/calendar/sports/badminton  #/calendar/activities/Mississauga
@@ -11719,11 +11732,10 @@ document.querySelector('.wordmark-link').addEventListener('click', e => {
 document.getElementById('tabs').addEventListener('click', e => {
   const btn = e.target.closest('.tab-btn');
   if(!btn) return;
-  if(btn.dataset.act === 'notif'){ e.preventDefault(); showWhatsNew(true); return; }
   // Real links now: right-click / middle-click / Ctrl- or ⌘-click open the page in a new tab; a plain click still switches in place.
   if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   e.preventDefault();
-  if(btn.dataset.tab === 'events' && getCmSession() && state.tab !== 'events' && window.matchMedia('(max-width:700px)').matches){ openCalendarChooser(); return; }
+  if(btn.dataset.tab === 'events' && window.matchMedia('(max-width:700px)').matches){ state.view = 'calendar'; state.calViewMode = 'day'; } // the app opens on what's on today, with the whole calendar behind it
   goToTab(btn.dataset.tab);
 });
 // Signed in: the Calendar tab first asks which calendar you mean — what's on today, or the 4DS clubs' own calendar.
@@ -12074,6 +12086,7 @@ async function pwrAction(k){
     else if(k === 'adminout'){ await cmAdminLogout(); render(); }
     else if(k === 'leadout'){ await cmLeadLogout(); }
     else if(k === 'steps') location.hash = '#/steps';
+    else if(k === 'clubs') goToTab('clubs');
     else if(k === 'badminton') location.href = '/badminton';
     else if(k === 'attended') openAttendedPopup();
     else if(k === 'about') goToTab('rules');
