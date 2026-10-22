@@ -540,5 +540,6 @@ function loop(){const apb=$('profileAddPlayerBtn');if(apb&&apb.dataset.bound!=='
 setInterval(loop,800);if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loop);else loop();
 })();
 document.addEventListener('error',function(e){var i=e.target;if(!i||i.tagName!=='IMG'||!i.closest('.avatar,.pod,.lb'))return;var h=document.createElement('span');h.className='blank';h.style.cssText='display:flex;align-items:center;justify-content:center;font-size:22px;width:100%;height:100%';h.textContent='💗';i.replaceWith(h)},true);
+if(/[?&]lb=1/.test(location.search)){var st=document.createElement('style');st.textContent='body>*:not(.wrap){display:none!important}.wrap>*:not(#standingsCard){display:none!important}.wrap #standingsCard{display:block!important;margin:0!important}body{padding:0!important;background:transparent!important}';document.head.appendChild(st);document.documentElement.classList.add('lb-only');var rep=function(){try{parent.postMessage({bmLbHeight:document.documentElement.scrollHeight},'*')}catch(e){}};setInterval(rep,700)}
 </script></body>
 </html>

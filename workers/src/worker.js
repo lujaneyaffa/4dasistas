@@ -2632,7 +2632,14 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     // ---- Steps challenge ----
     if (path === "/api/steps/public" && request.method === "GET") {
       if (!(await stepsEnsure(env))) return jsonResponse({ round: null, previous: [] }, 200, corsHeaders);
-      return jsonResponse(await stepsPublicData(env), 200, { ...corsHeaders, "Cache-Control": "public, max-age=60" });
+      const pubData = await stepsPublicData(env), out = { ...pubData, leaderboard: [] };
+      if (pubData.round) {
+        try {
+          const rows = (await env.DB.prepare("SELECT q.user_id AS user_id, COALESCE(SUM(d.steps),0) AS s FROM step_participants q LEFT JOIN steps_daily d ON d.user_id = q.user_id AND d.day BETWEEN ? AND ? WHERE q.round_id = ? GROUP BY q.user_id ORDER BY s DESC LIMIT 8").bind(pubData.round.start, pubData.round.end, pubData.round.id).all()).results || [];
+          for (const r of rows) { const u = await readUser(env, r.user_id); out.leaderboard.push({ name: u ? maskPublic(u.username || firstNameOnly(u.name)) : "member", steps: r.s }); } // visitors see masked names
+        } catch {}
+      }
+      return jsonResponse(out, 200, { ...corsHeaders, "Cache-Control": "public, max-age=60" });
     }
     if (path === "/api/me/steps" && (request.method === "GET" || request.method === "POST")) {
       const meId = await memberIdFromRequest();

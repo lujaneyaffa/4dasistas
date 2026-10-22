@@ -133,6 +133,7 @@
   .sp-sec > summary::after{ content:'⌃'; font-size:18px; transition:transform .2s; }
   .sp-sec:not([open]) > summary::after{ transform:rotate(180deg); }
   .sp-body{ padding:0 8px 10px; }
+  @keyframes ptrSpin{ to{ rotate:360deg; } }
   #ptr{ position:fixed; top:calc(8px + env(safe-area-inset-top,0px)); left:50%; width:38px; height:38px; margin-left:-19px; border-radius:50%; background:#fff; box-shadow:0 4px 14px rgba(0,0,0,.2); display:flex; align-items:center; justify-content:center; z-index:9000; opacity:0; pointer-events:none; font-size:18px; transition:opacity .15s; }
   .tabs::-webkit-scrollbar{ display:none; }
   .top-search-wrap{ position:relative; z-index:20; display:flex; justify-content:flex-end; flex:0 0 220px; width:220px; padding:0; }
@@ -7499,7 +7500,7 @@ function homeGridHtml(){
     return `<button type="button" class="home-bubble" ${attr} aria-label="${l}" style="background:${bg};color:${fg};border-color:${fg};box-shadow:3px 3px 0 ${fg};--dx:${dx}px;--dy:${dy}px;--dur:${8 + (i % 4) * 1.3}s;--delay:${-i * 2.7}s;"><span class="hb-ic">${ic}</span><span class="hb-l">${l}</span></button>`;
   }).join('');
   return `${homeIsSignedIn() ? '' : '<div class="home-search" id="homeSearchSlot"></div>'}
-    <div class="home-about"><p style="margin:0;"><strong>4DASISTAS</strong> is a community connector for Muslim women in the GTA — find events and trips, join clubs, discover women-owned businesses, and plan things together. 💛</p></div>
+    ${homeIsSignedIn() ? '' : `<div class="home-about"><p style="margin:0;"><strong>4DASISTAS</strong> is a community connector for Muslim women in the GTA — find events and trips, join clubs, discover women-owned businesses, and plan things together. 💛</p></div>`}
     ${homeIsSignedIn() ? '' : `<div class="home-bubbles">${bubbles}</div>`}`;
 }
 function wireHomeBubbles(){
@@ -7586,6 +7587,9 @@ function hapticTick(kind){
 (function(){
   if(!window.matchMedia('(pointer:coarse)').matches) return;
   const ind = document.createElement('div'); ind.id = 'ptr'; ind.textContent = '↻'; document.body.appendChild(ind);
+  const softRefresh = async () => { // refreshes the data in place — the screen never goes blank
+    try { await Promise.all([loadData(), clubCalLoad(true)]); state.myTodo = null; state.stepsData = null; state.lbSteps = null; try { await loadLabels(); } catch {} render(); } catch { location.reload(); }
+  };
   let y0 = 0, pull = 0, on = false, armed = false; const LIM = 92;
   const blocked = el => !!(el && el.closest && el.closest('.mem-pop, .leaflet-container, #welcomeScreen, input, textarea, select, #stepsPrompt, [data-noptr]'));
   addEventListener('touchstart', e => { on = false; if(e.touches.length !== 1 || (document.scrollingElement || document.documentElement).scrollTop > 0 || blocked(e.target)) return; y0 = e.touches[0].clientY; pull = 0; armed = false; on = true; }, { passive:true });
@@ -7597,10 +7601,26 @@ function hapticTick(kind){
   }, { passive:true });
   addEventListener('touchend', () => {
     if(!on) return; on = false;
-    if(armed){ hapticTick('done'); ind.style.transition = 'transform .2s'; ind.style.transform = 'translateY(40px)'; ind.style.opacity = '1'; setTimeout(() => location.reload(), 220); }
+    if(armed){ hapticTick('done'); ind.style.transition = 'transform .2s'; ind.style.transform = 'translateY(40px)'; ind.style.opacity = '1'; ind.style.animation = 'ptrSpin .8s linear infinite'; softRefresh().finally(() => { ind.style.animation = ''; ind.style.opacity = '0'; ind.style.transform = ''; }); }
     else { ind.style.opacity = '0'; ind.style.transform = ''; }
   }, { passive:true });
 })();
+
+// ---- Leaderboards at the bottom of the Clubs page (public and signed-in): steps challenge + badminton ----
+function mountLeaderboards(){
+  const host = document.getElementById('directory-view'); if(!host || host.querySelector('#lbBox')) return;
+  const box = document.createElement('div'); box.id = 'lbBox'; box.style.cssText = 'max-width:640px;margin:18px auto 0;';
+  box.innerHTML = `<h3 class="clubs-popular-title">🏆 LEADERBOARDS</h3><div class="panel-card" style="padding:12px 14px;margin:0 0 12px;" id="lbSteps"><p style="margin:0 0 6px;font-weight:800;">👟 Steps challenge</p><p class="av-msg" style="margin:0;">Loading…</p></div>
+    <div class="panel-card" style="padding:10px 6px;margin:0 0 12px;"><p style="margin:0 0 4px 8px;font-weight:800;">🏸 Badminton <a href="/badminton" style="font-weight:600;font-size:13px;margin-left:6px;">open →</a></p><iframe id="lbBm" title="Badminton leaderboard" src="/badminton?lb=1" loading="lazy" style="width:100%;height:520px;border:0;background:transparent;" data-noptr="1"></iframe></div>`;
+  host.appendChild(box);
+  const paint = d => {
+    const el = box.querySelector('#lbSteps'); if(!el) return; const r = d && d.round, lb = (d && d.leaderboard) || [];
+    el.innerHTML = `<p style="margin:0 0 6px;font-weight:800;">👟 Steps challenge${r ? ' — ' + escapeCm(r.title) : ''} <a href="#/steps" style="font-weight:600;font-size:13px;margin-left:6px;">open →</a></p>` + (!r ? '<p class="av-msg" style="margin:0;">The next challenge is coming soon 💛</p>' : lb.length ? lb.slice(0, 8).map((x, i) => `<div style="display:flex;gap:8px;padding:6px 0;border-top:1px solid rgba(0,0,0,.08);${x.me ? 'font-weight:800;' : ''}"><span style="width:26px;">${i + 1}</span><span style="flex:1;">${escapeCm(x.name)}${x.me ? ' (you)' : ''}</span><span>${stepsFmt(x.steps)}</span></div>`).join('') : '<p class="av-msg" style="margin:0;">No steps yet — be the first!</p>');
+  };
+  if(state.lbSteps) paint(state.lbSteps);
+  else cmApiRaw(getCmSession() ? '/api/me/steps' : '/api/steps/public', getCmSession() ? { headers: ideaHeaders(), cache:'no-store' } : {}).then(d => { state.lbSteps = d; paint(d); }).catch(() => paint(null));
+}
+window.addEventListener('message', e => { try { if(e.data && e.data.bmLbHeight){ const f = document.getElementById('lbBm'); if(f) f.style.height = Math.min(900, Math.max(200, e.data.bmLbHeight + 8)) + 'px'; } } catch {} });
 // One "Contribute" button: pick whether you're sending in an event or adding a resource.
 function openContributeChooser(){
   const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 4px;text-align:center;">Contribute</h3><p class="ideas-hint" style="text-align:center;margin:0 0 10px;">Help the community grow 💛</p>
@@ -7619,10 +7639,11 @@ function myHomeHtml(){
   const cards = mine.length ? mine.map(c => { const col = clubCol(c.id); return `<button type="button" class="home-myclub" data-myclub="${escapeCm(c.id)}" style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:96px;flex:1 1 96px;max-width:150px;padding:10px 6px;border-radius:16px;border:2px solid ${col.fg};background:${col.bg};color:${col.fg};font:inherit;font-weight:800;cursor:pointer;">${c.logo ? `<img src="${escapeCm(c.logo)}" alt="" style="width:48px;height:48px;object-fit:contain;">` : `<span style="font-size:30px;">${escapeCm(c.emoji || '🏛️')}</span>`}<span style="font-size:13px;">${escapeCm(c.title)}</span></button>`; }).join('') : `<p class="ideas-hint" style="margin:0;">You're not in a club yet — <a href="#/clubs">pick one on the Clubs tab</a>.</p>`;
   const inClub = id => (sess.clubs || []).includes(id);
   const extras = [];
-  if(!homeHidden('minical') && mine.length){
+  if(!homeHidden('minical')){
     if(!state.clubCal) clubCalLoad();
-    const myEvs = (state.clubCal || []).filter(e => (e.clubIds || [e.clubId]).some(inClub));
-    extras.push(`<div class="panel-card" style="margin:0 0 12px;padding:10px 8px;"><p style="margin:0 0 6px 6px;font-weight:800;">🗓️ Your clubs' calendar</p>${state.clubCal ? clubCalGridHtml(myEvs) : '<p class="av-msg">Loading…</p>'}</div>`);
+    const today = new Date().toISOString().slice(0, 10);
+    const evs = (state.clubCal || []).filter(e => e.date && e.date >= today && !String(e.id).startsWith('idea:')).sort((a, b) => a.date.localeCompare(b.date) || String(a.time || '').localeCompare(String(b.time || ''))).slice(0, 6);
+    extras.push(`<div class="panel-card" style="margin:0 0 12px;padding:12px 10px;"><p style="margin:0 0 6px 6px;font-weight:800;">🎟️ Events you can sign up to</p><p class="ideas-hint" style="margin:0 0 6px 6px;text-align:left;">Hosted by 4DS — tap one to RSVP.</p>${state.clubCal ? (evs.length ? evs.map(e => `<button type="button" class="pf-row home-ev" data-calid="${escapeCm(e.id)}"><span style="min-width:54px;font-size:12px;font-weight:800;color:#ce8491;">${escapeCm(new Date(e.date + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' }))}</span><span style="flex:1;">${escapeCm(e.title)}${e.time ? `<br><small style="color:#776867;font-weight:500;">${escapeCm(e.time)}</small>` : ''}</span><span style="opacity:.35;">›</span></button>`).join('') : '<p class="av-msg" style="margin:0 6px;">Nothing scheduled yet — check back soon.</p>') : '<p class="av-msg" style="margin:0 6px;">Loading…</p>'}</div>`);
   }
   const tiles = [['📅', "What's on today", 'cal-today']];
   if(tiles.length) extras.push(`<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;">${tiles.map(([ic, l, href]) => href === 'cal-today' ? `<button type="button" class="club-guide-btn home-caltoday" style="flex:1 1 140px;display:flex;gap:8px;align-items:center;justify-content:center;min-height:48px;">${ic} ${escapeCm(l)}</button>` : `<a href="${href}" class="club-guide-btn" style="flex:1 1 140px;display:flex;gap:8px;align-items:center;justify-content:center;text-decoration:none;min-height:48px;">${ic} ${escapeCm(l)}</a>`).join('')}</div>`);
@@ -11415,6 +11436,7 @@ function render(){
 
   syncStateToHash();
   placeSearchBar();
+  if(state.tab === 'clubs' && !state.clubsPage) mountLeaderboards();
 }
 
 /* ============================================================
@@ -11672,8 +11694,19 @@ document.getElementById('tabs').addEventListener('click', e => {
   // Real links now: right-click / middle-click / Ctrl- or ⌘-click open the page in a new tab; a plain click still switches in place.
   if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   e.preventDefault();
+  if(btn.dataset.tab === 'events' && getCmSession() && state.tab !== 'events'){ openCalendarChooser(); return; }
   goToTab(btn.dataset.tab);
 });
+// Signed in: the Calendar tab first asks which calendar you mean — what's on today, or the 4DS clubs' own calendar.
+function openCalendarChooser(){
+  const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 10px;text-align:center;">📅 Calendar</h3>
+    <button type="button" class="club-guide-btn" id="ccToday" style="width:100%;min-height:64px;margin-bottom:10px;text-align:center;font-size:17px;">☀️ What's on today</button>
+    <button type="button" class="club-guide-btn" id="ccClubs" style="width:100%;min-height:64px;margin-bottom:10px;text-align:center;font-size:17px;background:var(--brand-rose);color:#fff;">🏛️ 4DS clubs calendar</button>
+    <button type="button" class="club-guide-btn" id="ccAll" style="width:100%;min-height:50px;text-align:center;">🗓️ All events</button>`);
+  wrap.querySelector('#ccToday').addEventListener('click', () => { close(); state.view = 'calendar'; state.calViewMode = 'day'; goToTab('events'); });
+  wrap.querySelector('#ccClubs').addEventListener('click', () => { close(); state.clubsPage = ''; goToTab('clubs'); state.clubsPage = 'cal'; render(); });
+  wrap.querySelector('#ccAll').addEventListener('click', () => { close(); goToTab('events'); });
+}
 
 document.getElementById('viewToggle').addEventListener('click', e => {
   const btn = e.target.closest('button');
@@ -12081,7 +12114,7 @@ function showWelcomeOnce(){
   </style>
   <div class="wl-stage"><div class="wl-word" id="wlWord"></div></div>
   <p class="wl-sub">Welcome to 4DS</p>
-  <button type="button" class="wl-go" id="welcomeGo">Get started</button>`;
+  ${isNativeApp() && !getCmSession() ? '<button type="button" class="wl-go" id="welcomeGo" data-act="register">Create an account</button><button type="button" class="wl-go wl-guest" id="welcomeGuest" style="background:none;color:#9a7a76;margin-top:4px;">Continue as a guest</button>' : '<button type="button" class="wl-go" id="welcomeGo">Get started</button>'}`;
   document.body.appendChild(w);
   const el = document.getElementById('wlWord'); let n = 0, dead = false;
   const show = () => {
@@ -12091,7 +12124,9 @@ function showWelcomeOnce(){
     setTimeout(() => { if(dead) return; el.style.transition = 'opacity .5s ease'; el.style.opacity = '0'; setTimeout(show, 550); }, 3000);
   };
   show();
-  document.getElementById('welcomeGo').addEventListener('click', () => { dead = true; try { localStorage.setItem('welcomeSeen', '1'); } catch {} w.style.opacity = '0'; setTimeout(() => w.remove(), 650); });
+  const finish = (then) => { dead = true; try { localStorage.setItem('welcomeSeen', '1'); } catch {} w.style.opacity = '0'; setTimeout(() => { w.remove(); if(then) then(); }, 650); };
+  document.getElementById('welcomeGo').addEventListener('click', () => finish(document.getElementById('welcomeGo').dataset.act === 'register' ? goSignup : null));
+  const gst = document.getElementById('welcomeGuest'); if(gst) gst.addEventListener('click', () => finish());
 }
 document.getElementById('footerSubmitEvent').addEventListener('click', () => goToTab('submitevent'));
 document.getElementById('footerAddResource').addEventListener('click', () => goToTab('submitresource'));
