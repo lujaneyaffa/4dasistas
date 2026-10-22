@@ -3164,12 +3164,12 @@ function stepsPageHtml(){
   html += `<div class="panel-card" style="${wrap}padding:14px;margin-top:12px;"><p style="margin:0 0 8px;font-weight:800;">Your steps</p>${joinBox}
     <div style="display:flex;gap:10px;text-align:center;"><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${stepsFmt(m.today)}</div><small>today</small></div><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${stepsFmt(m.round)}</div><small>this round</small></div><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${m.rank ? '#' + m.rank : '—'}</div><small>rank</small></div></div>
     <p style="margin:12px 0 6px;font-weight:700;font-size:14px;">Where do your steps come from?</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">${srcBtn('apple', '🍎 Apple Health')}${srcBtn('google', '🟢 Google Health')}</div>
-    <p class="ideas-hint" style="margin:8px 0 0;text-align:left;">${src === 'fitbit'
-      ? `Steps come from your Fitbit / Google account — it works on any phone, even an iPhone.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''} <button type="button" id="stepsFitbit" class="adm-need-refresh" style="border:none;background:none;text-decoration:underline;cursor:pointer;">${synced ? 'Reconnect / sync now' : 'Connect Fitbit'}</button>`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">${srcBtn('apple', '🍎 Apple Health')}${srcBtn('googlehealth', '🟢 Google Health')}${/android/i.test(plat) ? srcBtn('google', '🤖 Health Connect') : ''}</div>
+    <p class="ideas-hint" style="margin:8px 0 0;text-align:left;">${src === 'googlehealth'
+      ? `Steps come from your Google Health account (Fitbit, Pixel Watch, the Google Health app) — it works on any phone, even an iPhone.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''} <button type="button" id="stepsFitbit" class="adm-need-refresh" style="border:none;background:none;text-decoration:underline;cursor:pointer;">${synced ? 'Reconnect / sync now' : 'Connect Google Health'}</button>`
       : native
-      ? ((src === 'apple' && !/ios/i.test(plat)) || (src === 'google' && /ios/i.test(plat)) ? `⚠️ ${src === 'apple' ? 'Apple Health only exists on an iPhone' : 'Health Connect only exists on an Android phone'} — pick the one that matches this phone.` : src ? `Steps sync from ${src === 'apple' ? 'Apple Health' : 'Health Connect'} about every hour.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''} <button type="button" id="stepsSyncNow" class="adm-need-refresh" style="border:none;background:none;text-decoration:underline;cursor:pointer;">Connect &amp; sync now</button>` : 'Pick the one this phone uses, then tap Connect.')
-      : `Steps only come from the <strong>4DS app</strong> — Apple Health on an iPhone or Google Health (Health Connect) on an Android. There's no typing them in.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''}`}</p></div>`;
+      ? ((src === 'apple' && !/ios/i.test(plat)) || (src === 'google' && /ios/i.test(plat)) ? `⚠️ ${src === 'apple' ? 'Apple Health only exists on an iPhone' : 'Health Connect only exists on an Android phone'} — pick the one that matches this phone.` : src ? `Steps sync from ${src === 'apple' ? 'Apple Health' : 'Health Connect'} about every hour.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''} <button type="button" id="stepsSyncNow" class="adm-need-refresh" style="border:none;background:none;text-decoration:underline;cursor:pointer;">Connect &amp; sync now</button>` : 'Pick where your steps live, then tap Connect.')
+      : `Pick where your steps live: <strong>Apple Health</strong> (iPhone) or <strong>Google Health</strong> (Fitbit / Pixel Watch / Google account, any phone). There's no typing them in.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''}`}</p></div>`;
   const mine = (d.pledges || []).find(p => p.mine);
   html += `<div class="panel-card" style="${wrap}padding:14px;margin-top:12px;"><p style="margin:0 0 6px;font-weight:800;">💛 Your pledge</p>
     ${mine ? `<p style="margin:0 0 8px;">You pledged <strong>${stepsMoney(mine.per1000)}</strong> per 1,000 steps${mine.cap ? ` (up to ${stepsMoney(mine.cap)})` : ''}. <button type="button" id="stepsPledgeDel" style="border:none;background:none;text-decoration:underline;cursor:pointer;">Remove</button></p>` : ''}
@@ -3180,7 +3180,7 @@ function stepsPageHtml(){
   return html;
 }
 function wireStepsPage(){
-  document.querySelectorAll('.steps-src').forEach(b => b.addEventListener('click', async () => { try { await cmApiRaw('/api/me/steps/source', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ source: b.dataset.src }) }); state.stepsData = null; render(); if(b.dataset.src === 'fitbit') stepsFitbitConnect(); } catch(e){ alert(e.message); } }));
+  document.querySelectorAll('.steps-src').forEach(b => b.addEventListener('click', async () => { try { await cmApiRaw('/api/me/steps/source', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ source: b.dataset.src }) }); state.stepsData = null; render(); if(b.dataset.src === 'googlehealth') stepsFitbitConnect(); } catch(e){ alert(e.message); } }));
   const sf = document.getElementById('stepsFitbit'); if(sf) sf.addEventListener('click', () => stepsFitbitConnect());
   const sj = document.getElementById('stepsJoin'); if(sj) sj.addEventListener('click', async () => { sj.disabled = true; try { await cmApiRaw('/api/me/steps/join', { method:'POST', headers: ideaHeaders() }); state.stepsData = null; render(); admToastLite("✓ You're in!"); } catch(e){ sj.disabled = false; alert(e.message); } });
   const sl = document.getElementById('stepsLeave'); if(sl) sl.addEventListener('click', async () => { if(!confirm('Leave this challenge?')) return; try { await cmApiRaw('/api/me/steps/join', { method:'DELETE', headers: ideaHeaders() }); state.stepsData = null; render(); } catch(e){ alert(e.message); } });
@@ -3200,13 +3200,13 @@ let stepsSyncBusy = false, stepsSyncAt = 0;
 // Fitbit / Google account: sign in on Fitbit's own page (the system browser inside the app), then come back — the server pulls the steps.
 async function stepsFitbitConnect(){
   try {
-    const d = await cmApiRaw('/api/me/fitbit/start', { method:'POST', headers: ideaHeaders() });
+    const d = await cmApiRaw('/api/me/google/start', { method:'POST', headers: ideaHeaders() });
     const B = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Browser;
     if(B && B.open) await B.open({ url: d.url }); else window.open(d.url, '_blank', 'noopener');
   } catch(e){ alert(e.message); }
 }
 async function stepsNativeSync(force){
-  if(!stepsIsNativeApp() || stepsSyncBusy || !getCmSession() || (state.stepsData && state.stepsData.mine && state.stepsData.mine.source === 'fitbit')) return false;
+  if(!stepsIsNativeApp() || stepsSyncBusy || !getCmSession() || (state.stepsData && state.stepsData.mine && state.stepsData.mine.source === 'googlehealth')) return false;
   if(!force && Date.now() - stepsSyncAt < 50 * 60000) return false;
   const H = window.Capacitor.Plugins && window.Capacitor.Plugins.Health; if(!H) return false;
   stepsSyncBusy = true;
