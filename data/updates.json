@@ -1,6 +1,16 @@
 {
   "updates": [
     {
+      "no": 25,
+      "date": "2026-10-21",
+      "title": "Steps challenges",
+      "items": [
+        {
+          "text": "✨ Steps challenges now have a description, a deadline and their own member list — open to everyone or invite-only — and you can choose to sync your steps from Apple Health or Google Health Connect in the 4DS app."
+        }
+      ]
+    },
+    {
       "no": 24,
       "date": "2026-10-21",
       "title": "A cleaner app",

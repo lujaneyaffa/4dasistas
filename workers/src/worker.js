@@ -690,6 +690,8 @@ const stepsEnsure = async (env) => {
     env.DB.prepare("CREATE TABLE IF NOT EXISTS steps_daily (user_id TEXT NOT NULL, day TEXT NOT NULL, steps INTEGER NOT NULL, source TEXT, updated INTEGER, PRIMARY KEY (user_id, day))"),
     env.DB.prepare("CREATE INDEX IF NOT EXISTS steps_day ON steps_daily (day)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS step_pledges (id TEXT PRIMARY KEY, round_id TEXT NOT NULL, name TEXT, user_id TEXT, per1000 REAL NOT NULL, cap REAL, at INTEGER)"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS step_participants (round_id TEXT NOT NULL, user_id TEXT NOT NULL, at INTEGER, added INTEGER DEFAULT 0, PRIMARY KEY (round_id, user_id))"),
+    env.DB.prepare("CREATE TABLE IF NOT EXISTS step_sources (user_id TEXT PRIMARY KEY, source TEXT, at INTEGER)"),
   ]).catch((e) => { _stepsReady = null; throw e; });
   await _stepsReady;
   return true;
@@ -700,23 +702,25 @@ const cleanStepRound = (r) => {
   if (!r || !isValidDateString(r.start) || !isValidDateString(r.end) || r.end < r.start) return null;
   let url = ""; try { const u = new URL(String(r.charityUrl || "").trim()); if (u.protocol === "https:") url = u.href.slice(0, 500); } catch {}
   return { id: /^[a-z0-9-]{3,40}$/.test(String(r.id || "")) ? String(r.id) : crypto.randomUUID().slice(0, 8), title: cleanCalText(r.title, 80) || "Steps round", start: r.start, end: r.end,
-    charity: cleanCalText(r.charity, 100), charityUrl: url, goal: Math.max(0, Math.min(100000000, Math.round(Number(r.goal) || 0))) };
+    charity: cleanCalText(r.charity, 100), charityUrl: url, goal: Math.max(0, Math.min(100000000, Math.round(Number(r.goal) || 0))),
+    description: String(r.description || "").replace(/[\x00-\x08\x0b-\x1f\x7f<>]/g, " ").trim().slice(0, 800), mode: r.mode === "invite" ? "invite" : "open" };
 };
 // The round happening now; else the next one coming up; else the most recent finished one.
 const currentStepRound = (rounds, today) => rounds.find((r) => r.start <= today && today <= r.end) || rounds.filter((r) => r.start > today).sort((a, b) => a.start.localeCompare(b.start))[0] || rounds.slice().sort((a, b) => b.end.localeCompare(a.end))[0] || null;
 const stepRoundTotals = async (env, round) => {
-  const t = await env.DB.prepare("SELECT COALESCE(SUM(steps),0) AS s, COUNT(DISTINCT user_id) AS p FROM steps_daily WHERE day BETWEEN ? AND ?").bind(round.start, round.end).first();
+  const t = await env.DB.prepare("SELECT COALESCE(SUM(d.steps),0) AS s, COUNT(DISTINCT d.user_id) AS p FROM steps_daily d JOIN step_participants q ON q.user_id = d.user_id AND q.round_id = ? WHERE d.day BETWEEN ? AND ?").bind(round.id, round.start, round.end).first();
+  const joined = await env.DB.prepare("SELECT COUNT(*) AS n FROM step_participants WHERE round_id = ?").bind(round.id).first();
   const steps = (t && t.s) || 0, people = (t && t.p) || 0;
   const pl = (await env.DB.prepare("SELECT per1000, cap FROM step_pledges WHERE round_id = ?").bind(round.id).all()).results || [];
   let raised = 0; for (const x of pl) { const v = (x.per1000 * steps) / 1000; raised += x.cap ? Math.min(x.cap, v) : v; }
-  return { steps, people, raised: Math.round(raised * 100) / 100, pledges: pl.length };
+  return { steps, people, participants: (joined && joined.n) || 0, raised: Math.round(raised * 100) / 100, pledges: pl.length };
 };
 let _stepsPublicMemo = { at: 0, data: null };
 const stepsPublicData = async (env) => {
   if (_stepsPublicMemo.data && Date.now() - _stepsPublicMemo.at < 60000) return _stepsPublicMemo.data;
   const rounds = (await readStepRounds(env)).sort((a, b) => b.start.localeCompare(a.start)), today = new Date().toISOString().slice(0, 10);
   const cur = currentStepRound(rounds, today);
-  const data = { round: cur ? { id: cur.id, title: cur.title, start: cur.start, end: cur.end, charity: cur.charity, charityUrl: cur.charityUrl, goal: cur.goal, status: cur.end < today ? "finished" : cur.start > today ? "upcoming" : "live", ...(await stepRoundTotals(env, cur)) } : null, previous: [] };
+  const data = { round: cur ? { id: cur.id, title: cur.title, description: cur.description || "", mode: cur.mode || "open", start: cur.start, end: cur.end, charity: cur.charity, charityUrl: cur.charityUrl, goal: cur.goal, status: cur.end < today ? "finished" : cur.start > today ? "upcoming" : "live", ...(await stepRoundTotals(env, cur)) } : null, previous: [] };
   for (const r of rounds.filter((x) => cur && x.id !== cur.id && x.end < today).slice(0, 6)) data.previous.push({ title: r.title, start: r.start, end: r.end, charity: r.charity, ...(await stepRoundTotals(env, r)) });
   _stepsPublicMemo = { at: Date.now(), data };
   return data;
@@ -2357,7 +2361,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     const readEventFormCfg = async () => { try { const c = JSON.parse((await env.SITE_DATA.get("evsubform")) || "{}") || {}; return { intro: String(c.intro || ""), form: c.form && c.form.fields ? c.form : null }; } catch { return { intro: "", form: null }; } };
     if (path === "/api/event-form-config" && request.method === "GET") return jsonResponse(await readEventFormCfg(), 200, { ...corsHeaders, "Cache-Control": "no-store" });
     // SECURITY: the admin routes between here and the main admin guard further down run BEFORE that guard, so they check the main-admin session themselves.
-    if ((path === "/api/admin/event-form-config" || path === "/api/admin/needs" || path === "/api/admin/steps" || path === "/api/admin/step-rounds" || path === "/api/admin/stay-status" || path.startsWith("/api/admin/step-pledges") || path.startsWith("/api/admin/badminton/")) && !(await isAdminRequest(env, request))) return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
+    if ((path === "/api/admin/event-form-config" || path === "/api/admin/needs" || path === "/api/admin/steps" || path === "/api/admin/step-rounds" || path === "/api/admin/stay-status" || path.startsWith("/api/admin/step-pledges") || path.startsWith("/api/admin/step-participants") || path.startsWith("/api/admin/badminton/")) && !(await isAdminRequest(env, request))) return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
     if (path === "/api/admin/event-form-config" && request.method === "PUT") {
       let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       const cfg = { intro: String(body.intro || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 500), form: sanitizeCalForm(body.form) };
@@ -2605,10 +2609,12 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         return jsonResponse({ ok: true, saved: stmts.length }, 200, corsHeaders);
       }
       const pub = await stepsPublicData(env), round = pub.round;
-      const out = { ...pub, mine: { round: 0, today: 0, lastSync: 0, rank: null }, leaderboard: [], pledges: [] };
+      const out = { ...pub, mine: { round: 0, today: 0, lastSync: 0, rank: null, joined: false, source: "" }, leaderboard: [], pledges: [] };
+      { const sr = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(me.id).first(); out.mine.source = (sr && sr.source) || ""; }
       const last = await env.DB.prepare("SELECT MAX(updated) AS u FROM steps_daily WHERE user_id = ?").bind(me.id).first(); out.mine.lastSync = (last && last.u) || 0;
       if (round) {
-        const rows = (await env.DB.prepare("SELECT user_id, SUM(steps) AS s FROM steps_daily WHERE day BETWEEN ? AND ? GROUP BY user_id ORDER BY s DESC").bind(round.start, round.end).all()).results || [];
+        out.mine.joined = !!(await env.DB.prepare("SELECT 1 AS x FROM step_participants WHERE round_id = ? AND user_id = ?").bind(round.id, me.id).first());
+        const rows = (await env.DB.prepare("SELECT q.user_id AS user_id, COALESCE(SUM(d.steps),0) AS s FROM step_participants q LEFT JOIN steps_daily d ON d.user_id = q.user_id AND d.day BETWEEN ? AND ? WHERE q.round_id = ? GROUP BY q.user_id ORDER BY s DESC").bind(round.start, round.end, round.id).all()).results || [];
         const idx = rows.findIndex((r) => r.user_id === me.id);
         if (idx >= 0) { out.mine.round = rows[idx].s; out.mine.rank = idx + 1; }
         const td = await env.DB.prepare("SELECT steps FROM steps_daily WHERE user_id = ? AND day = ?").bind(me.id, todayUtc).first(); out.mine.today = (td && td.steps) || 0;
@@ -2617,6 +2623,28 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         out.pledges = pl.map((x) => ({ id: x.id, name: x.name, per1000: x.per1000, cap: x.cap, mine: x.user_id === me.id }));
       }
       return jsonResponse(out, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    if (path === "/api/me/steps/join" && (request.method === "POST" || request.method === "DELETE")) {
+      const meId = await memberIdFromRequest();
+      if (!meId) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
+      if (!(await stepsEnsure(env))) return jsonResponse({ error: "Steps aren't available yet" }, 503, corsHeaders);
+      const round = (await stepsPublicData(env)).round;
+      if (!round) return jsonResponse({ error: "There's no challenge right now" }, 400, corsHeaders);
+      if (request.method === "DELETE") { await env.DB.prepare("DELETE FROM step_participants WHERE round_id = ? AND user_id = ?").bind(round.id, meId).run(); _stepsPublicMemo = { at: 0, data: null }; return jsonResponse({ ok: true }, 200, corsHeaders); }
+      if (round.status === "finished") return jsonResponse({ error: "This challenge has finished" }, 400, corsHeaders);
+      if (round.mode === "invite" && !(await env.DB.prepare("SELECT 1 AS x FROM step_participants WHERE round_id = ? AND user_id = ?").bind(round.id, meId).first())) return jsonResponse({ error: "This challenge is invite-only — ask an admin to add you" }, 403, corsHeaders);
+      await env.DB.prepare("INSERT OR IGNORE INTO step_participants (round_id, user_id, at, added) VALUES (?, ?, ?, 0)").bind(round.id, meId, Date.now()).run();
+      _stepsPublicMemo = { at: 0, data: null };
+      return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+    if (path === "/api/me/steps/source" && request.method === "POST") {
+      const meId = await memberIdFromRequest();
+      if (!meId) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const source = b.source === "apple" ? "apple" : b.source === "google" ? "google" : "";
+      if (!source || !(await stepsEnsure(env))) return jsonResponse({ error: "Choose Apple Health or Google Health Connect" }, 400, corsHeaders);
+      await env.DB.prepare("INSERT INTO step_sources (user_id, source, at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET source = excluded.source, at = excluded.at").bind(meId, source, Date.now()).run();
+      return jsonResponse({ ok: true, source }, 200, corsHeaders);
     }
     if (path === "/api/me/steps/pledge" && (request.method === "POST" || request.method === "DELETE")) {
       const meId = await memberIdFromRequest();
@@ -2639,7 +2667,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (path === "/api/admin/steps" && request.method === "GET") {
       if (!(await stepsEnsure(env))) return jsonResponse({ error: "No database attached" }, 503, corsHeaders);
       const rounds = (await readStepRounds(env)).sort((a, b) => b.start.localeCompare(a.start)), out = [];
-      for (const r of rounds) out.push({ ...r, ...(await stepRoundTotals(env, r)), pledgeList: ((await env.DB.prepare("SELECT id, name, per1000, cap, user_id FROM step_pledges WHERE round_id = ? ORDER BY at").bind(r.id).all()).results || []).map((x) => ({ id: x.id, name: x.name, per1000: x.per1000, cap: x.cap, member: !!x.user_id })) });
+      for (const r of rounds) out.push({ ...r, ...(await stepRoundTotals(env, r)), pledgeList: ((await env.DB.prepare("SELECT id, name, per1000, cap, user_id FROM step_pledges WHERE round_id = ? ORDER BY at").bind(r.id).all()).results || []).map((x) => ({ id: x.id, name: x.name, per1000: x.per1000, cap: x.cap, member: !!x.user_id })),
+        participantList: await (async () => { const rows = (await env.DB.prepare("SELECT q.user_id AS user_id, q.added AS added, COALESCE(SUM(d.steps),0) AS s FROM step_participants q LEFT JOIN steps_daily d ON d.user_id = q.user_id AND d.day BETWEEN ? AND ? WHERE q.round_id = ? GROUP BY q.user_id ORDER BY s DESC").bind(r.start, r.end, r.id).all()).results || [], list = []; for (const x of rows) { const u = await readUser(env, x.user_id); list.push({ id: x.user_id, name: u ? u.name : "(deleted)", username: u ? u.username : "", steps: x.s, added: !!x.added }); } return list; })() });
       return jsonResponse({ rounds: out }, 200, corsHeaders);
     }
     if (path === "/api/admin/step-rounds" && request.method === "PUT") {
@@ -2657,6 +2686,27 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await env.DB.prepare("INSERT INTO step_pledges (id, round_id, name, user_id, per1000, cap, at) VALUES (?, ?, ?, NULL, ?, ?, ?)").bind(crypto.randomUUID(), String(b.roundId), cleanCalText(b.name, 40) || "Sponsor", per1000, cap, Date.now()).run();
       _stepsPublicMemo = { at: 0, data: null };
       return jsonResponse({ ok: true }, 201, corsHeaders);
+    }
+    if (path === "/api/admin/step-participants" && request.method === "POST") {
+      if (!(await stepsEnsure(env))) return jsonResponse({ error: "No database attached" }, 503, corsHeaders);
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const round = (await readStepRounds(env)).find((r) => r.id === b.roundId); if (!round) return jsonResponse({ error: "Unknown challenge" }, 404, corsHeaders);
+      let ids = (Array.isArray(b.userIds) ? b.userIds : []).map(String);
+      if (b.clubId) ids = ids.concat(await readClubMemberIds(env, String(b.clubId)));
+      if (b.everyone) ids = ids.concat((await listAllUsers(env)).map((u) => u.id));
+      ids = [...new Set(ids)].slice(0, 1000);
+      const existing = new Set(((await env.DB.prepare("SELECT user_id FROM step_participants WHERE round_id = ?").bind(round.id).all()).results || []).map((x) => x.user_id)), added = [];
+      const stmts = []; for (const id of ids) { if (existing.has(id)) continue; if (!(await readUser(env, id))) continue; added.push(id); stmts.push(env.DB.prepare("INSERT OR IGNORE INTO step_participants (round_id, user_id, at, added) VALUES (?, ?, ?, 1)").bind(round.id, id, Date.now())); }
+      for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
+      _stepsPublicMemo = { at: 0, data: null };
+      if (b.notify !== false) for (const id of added.slice(0, 200)) ctx.waitUntil(sendPushToUser(env, id, { title: "You're in the challenge! 👟", body: `You were added to ${round.title}. Open 4DS to connect your steps.`, url: "/#/steps", cat: "events" }).catch(() => {}));
+      return jsonResponse({ ok: true, added: added.length }, 200, corsHeaders);
+    }
+    const stepPartDel = path.match(/^\/api\/admin\/step-participants\/([^/]+)\/([^/]+)\/?$/);
+    if (stepPartDel && request.method === "DELETE") {
+      if (!(await stepsEnsure(env))) return jsonResponse({ error: "No database attached" }, 503, corsHeaders);
+      await env.DB.prepare("DELETE FROM step_participants WHERE round_id = ? AND user_id = ?").bind(decodeURIComponent(stepPartDel[1]), decodeURIComponent(stepPartDel[2])).run(); _stepsPublicMemo = { at: 0, data: null };
+      return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     const stepPledgeDel = path.match(/^\/api\/admin\/step-pledges\/([^/]+)\/?$/);
     if (stepPledgeDel && request.method === "DELETE") {

@@ -2994,6 +2994,7 @@ async function stepsLoad(){
   } catch(err){ state.stepsErr = err.message; if(!state.stepsData) state.stepsData = { round:null, previous:[] }; }
   state.stepsLoading = false; if(state.tab === 'steps') render();
 }
+const stepsDaysLeft = end => { const n = Math.ceil((new Date(end + 'T23:59:59') - new Date()) / 86400000); return n <= 0 ? 'last day!' : n === 1 ? '1 day left' : n + ' days left'; };
 const stepsFmt = n => Number(n || 0).toLocaleString('en-CA');
 const stepsMoney = n => '$' + Number(n || 0).toLocaleString('en-CA', { minimumFractionDigits: (Number(n || 0) % 1 ? 2 : 0), maximumFractionDigits: 2 });
 function stepsPageHtml(){
@@ -3006,8 +3007,9 @@ function stepsPageHtml(){
   const pct = r.goal ? Math.min(100, Math.round(r.steps / r.goal * 100)) : 0;
   const status = r.status === 'live' ? '🟢 Live now' : r.status === 'upcoming' ? '⏳ Starts ' + fmtD(r.start) : '🏁 Finished';
   let html = `${head}<div class="panel-card" style="${wrap}padding:16px;text-align:center;"><p style="margin:0 0 2px;font-weight:800;font-size:18px;">${escapeCm(r.title)}</p>
-    <p class="ideas-hint" style="margin:0 0 10px;">${escapeCm(fmtD(r.start))} → ${escapeCm(fmtD(r.end))} · ${status}</p>
-    <div style="font-size:34px;font-weight:800;line-height:1.1;">${stepsFmt(r.steps)}</div><div style="color:#776867;font-size:13px;margin-bottom:8px;">steps by ${stepsFmt(r.people)} ${r.people === 1 ? 'person' : 'people'}</div>
+    <p class="ideas-hint" style="margin:0 0 6px;">${escapeCm(fmtD(r.start))} → ${escapeCm(fmtD(r.end))} · ${status}${r.status === 'live' ? ' · ' + stepsDaysLeft(r.end) : ''}</p>
+    ${r.description ? `<p style="margin:0 0 10px;font-size:14px;line-height:1.5;white-space:pre-wrap;">${escapeCm(r.description)}</p>` : ''}
+    <div style="font-size:34px;font-weight:800;line-height:1.1;">${stepsFmt(r.steps)}</div><div style="color:#776867;font-size:13px;margin-bottom:8px;">steps by ${stepsFmt(r.people)} ${r.people === 1 ? 'person' : 'people'}${r.participants ? ' · ' + stepsFmt(r.participants) + ' taking part' : ''}</div>
     ${r.goal ? `<div style="height:12px;border-radius:99px;background:#f2d8d7;overflow:hidden;margin:6px 0 4px;"><div style="height:100%;width:${pct}%;background:var(--brand-rose,#ce8491);"></div></div><div style="font-size:12px;color:#776867;">${pct}% of the ${stepsFmt(r.goal)}-step goal</div>` : ''}
     ${r.charity ? `<p style="margin:12px 0 0;">💛 Raising <strong>${stepsMoney(r.raised)}</strong> for <strong>${escapeCm(r.charity)}</strong>${r.charityUrl ? ` — <a href="${escapeCm(r.charityUrl)}" target="_blank" rel="noopener">learn more / donate</a>` : ''}</p><p class="ideas-hint" style="margin:4px 0 0;">Pledges are paid directly to the charity. We only track the total.</p>` : ''}</div>`;
   if(!sess){
@@ -3015,9 +3017,18 @@ function stepsPageHtml(){
   }
   const m = d.mine || {};
   const synced = m.lastSync ? new Date(m.lastSync).toLocaleString('en-CA', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '';
-  html += `<div class="panel-card" style="${wrap}padding:14px;margin-top:12px;"><p style="margin:0 0 8px;font-weight:800;">Your steps</p>
+  const native = stepsIsNativeApp(), plat = native && window.Capacitor.getPlatform ? Capacitor.getPlatform() : '';
+  const src = m.source || '', srcBtn = (k, l) => `<button type="button" class="steps-src filter-chip${src === k ? ' active' : ''}" data-src="${k}" style="min-height:44px;flex:1;">${l}</button>`;
+  const joinBox = m.joined ? `<p style="margin:0 0 8px;color:#2a7a4a;font-weight:700;">✅ You're in this challenge${r.status !== 'finished' ? ` <button type="button" id="stepsLeave" style="border:none;background:none;text-decoration:underline;cursor:pointer;color:#776867;font-weight:400;">Leave</button>` : ''}</p>`
+    : r.status === 'finished' ? '' : r.mode === 'invite' ? `<p style="margin:0 0 8px;color:#776867;">🔒 This challenge is invite-only — ask an admin to add you.</p>`
+    : `<button type="button" class="club-guide-btn" id="stepsJoin" style="width:100%;min-height:48px;margin-bottom:10px;background:var(--brand-rose);color:#fff;">🙋 Join this challenge</button>`;
+  html += `<div class="panel-card" style="${wrap}padding:14px;margin-top:12px;"><p style="margin:0 0 8px;font-weight:800;">Your steps</p>${joinBox}
     <div style="display:flex;gap:10px;text-align:center;"><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${stepsFmt(m.today)}</div><small>today</small></div><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${stepsFmt(m.round)}</div><small>this round</small></div><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${m.rank ? '#' + m.rank : '—'}</div><small>rank</small></div></div>
-    <p class="ideas-hint" style="margin:10px 0 0;text-align:left;">${stepsIsNativeApp() ? `Steps sync automatically from ${/ios/i.test(window.Capacitor.getPlatform ? Capacitor.getPlatform() : '') ? 'Apple Health' : 'Health Connect'} about every hour.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''} <button type="button" id="stepsSyncNow" class="adm-need-refresh" style="border:none;background:none;text-decoration:underline;cursor:pointer;">Sync now</button>` : `Steps count only from the <strong>4DS app</strong> (Apple Health on iPhone, Health Connect on Android) — there's no typing them in.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ' The app is coming soon.'}`}</p></div>`;
+    <p style="margin:12px 0 6px;font-weight:700;font-size:14px;">Where do your steps come from?</p>
+    <div style="display:flex;gap:8px;">${srcBtn('apple', '🍎 Apple Health')}${srcBtn('google', '🟢 Google Health Connect')}</div>
+    <p class="ideas-hint" style="margin:8px 0 0;text-align:left;">${native
+      ? ((src === 'apple' && !/ios/i.test(plat)) || (src === 'google' && /ios/i.test(plat)) ? `⚠️ ${src === 'apple' ? 'Apple Health only exists on an iPhone' : 'Google Health Connect only exists on an Android phone'} — use the one that matches this phone.` : src ? `Steps sync from ${src === 'apple' ? 'Apple Health' : 'Health Connect'} about every hour.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''} <button type="button" id="stepsSyncNow" class="adm-need-refresh" style="border:none;background:none;text-decoration:underline;cursor:pointer;">Connect &amp; sync now</button>` : 'Pick the one this phone uses, then tap Connect.')
+      : `Steps only come from the <strong>4DS app</strong> — Apple Health on an iPhone or Health Connect on an Android. There's no typing them in.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''}`}</p></div>`;
   const mine = (d.pledges || []).find(p => p.mine);
   html += `<div class="panel-card" style="${wrap}padding:14px;margin-top:12px;"><p style="margin:0 0 6px;font-weight:800;">💛 Your pledge</p>
     ${mine ? `<p style="margin:0 0 8px;">You pledged <strong>${stepsMoney(mine.per1000)}</strong> per 1,000 steps${mine.cap ? ` (up to ${stepsMoney(mine.cap)})` : ''}. <button type="button" id="stepsPledgeDel" style="border:none;background:none;text-decoration:underline;cursor:pointer;">Remove</button></p>` : ''}
@@ -3028,6 +3039,9 @@ function stepsPageHtml(){
   return html;
 }
 function wireStepsPage(){
+  document.querySelectorAll('.steps-src').forEach(b => b.addEventListener('click', async () => { try { await cmApiRaw('/api/me/steps/source', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ source: b.dataset.src }) }); state.stepsData = null; render(); } catch(e){ alert(e.message); } }));
+  const sj = document.getElementById('stepsJoin'); if(sj) sj.addEventListener('click', async () => { sj.disabled = true; try { await cmApiRaw('/api/me/steps/join', { method:'POST', headers: ideaHeaders() }); state.stepsData = null; render(); admToastLite("✓ You're in!"); } catch(e){ sj.disabled = false; alert(e.message); } });
+  const sl = document.getElementById('stepsLeave'); if(sl) sl.addEventListener('click', async () => { if(!confirm('Leave this challenge?')) return; try { await cmApiRaw('/api/me/steps/join', { method:'DELETE', headers: ideaHeaders() }); state.stepsData = null; render(); } catch(e){ alert(e.message); } });
   const lg = document.getElementById('stepsLogin'); if(lg) lg.addEventListener('click', () => goLogin());
   const sn = document.getElementById('stepsSyncNow'); if(sn) sn.addEventListener('click', async () => { sn.textContent = 'Syncing…'; await stepsNativeSync(true); state.stepsData = null; render(); });
   const pl = document.getElementById('stepsPledge');
@@ -3044,17 +3058,20 @@ let stepsSyncBusy = false, stepsSyncAt = 0;
 async function stepsNativeSync(force){
   if(!stepsIsNativeApp() || stepsSyncBusy || !getCmSession()) return false;
   if(!force && Date.now() - stepsSyncAt < 50 * 60000) return false;
-  const plugin = window.Capacitor.Plugins && window.Capacitor.Plugins.StepsHealth; if(!plugin) return false;
+  const H = window.Capacitor.Plugins && window.Capacitor.Plugins.Health; if(!H) return false;
   stepsSyncBusy = true;
   try {
-    const perm = await plugin.requestPermission(); if(perm && perm.granted === false) return false;
-    const res = await plugin.getDailySteps({ days: 3 }); // -> { samples:[{ day:'YYYY-MM-DD', steps: 1234 }] } (local calendar days)
-    const source = /ios/i.test(Capacitor.getPlatform()) ? 'apple' : 'google';
-    const samples = ((res && res.samples) || []).map(x => ({ day:x.day, steps:Math.round(x.steps), source }));
-    if(!samples.length) return false;
+    const av = await H.isAvailable(); if(av && av.available === false){ if(force) alert('Health data isn\'t available on this phone' + (av.reason ? ': ' + av.reason : '') + '.'); return false; }
+    const auth = await H.requestAuthorization({ read: ['steps'] });
+    const start = new Date(); start.setDate(start.getDate() - 3); start.setHours(0, 0, 0, 0);
+    const res = await H.queryAggregated({ dataType:'steps', startDate: start.toISOString(), endDate: new Date().toISOString(), bucket:'day', aggregation:'sum' });
+    const source = /ios/i.test(Capacitor.getPlatform()) ? 'apple' : 'google', ld = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const samples = ((res && res.samples) || []).map(x => ({ day: ld(new Date(x.startDate)), steps: Math.round(Number(x.value) || 0), source })).filter(x => x.steps >= 0);
+    if(!samples.length){ if(force) alert('No steps found in Health yet — walk a little and try again.'); return false; }
     await cmApiRaw('/api/me/steps', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ samples }) });
+    cmApiRaw('/api/me/steps/source', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ source }) }).catch(() => {});
     stepsSyncAt = Date.now(); return true;
-  } catch { return false; } finally { stepsSyncBusy = false; }
+  } catch(e){ if(force) alert('Could not read your steps: ' + (e && e.message ? e.message : e)); return false; } finally { stepsSyncBusy = false; }
 }
 if(stepsIsNativeApp()){
   setTimeout(() => stepsNativeSync(), 3000);
@@ -10895,12 +10912,18 @@ function stepsAdminHtml(){
   if(!state.stepsAdmin){ if(!state.stepsAdminLoading) loadStepsAdmin(); return '<p class="av-msg">Loading…</p>'; }
   const inp = 'padding:8px;border-radius:8px;border:2px solid var(--brand-brown);font-size:14px;box-sizing:border-box;';
   const rows = state.stepsAdmin.map((r, i) => `<div class="fb-card" style="margin-top:8px;box-shadow:none;" data-stepround="${i}">
-    <div style="display:flex;gap:6px;flex-wrap:wrap;"><input class="sr-title" value="${escapeCm(r.title)}" placeholder="Round name" style="${inp}flex:2;min-width:140px;"><input class="sr-start" type="date" value="${escapeCm(r.start)}" style="${inp}flex:1;min-width:130px;"><input class="sr-end" type="date" value="${escapeCm(r.end)}" style="${inp}flex:1;min-width:130px;"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;"><input class="sr-title" value="${escapeCm(r.title)}" placeholder="Challenge name" style="${inp}flex:2;min-width:140px;"><label style="flex:1;min-width:130px;font-size:11px;color:#776867;">Start<input class="sr-start" type="date" value="${escapeCm(r.start)}" style="${inp}width:100%;"></label><label style="flex:1;min-width:130px;font-size:11px;color:#776867;">Deadline (last day)<input class="sr-end" type="date" value="${escapeCm(r.end)}" style="${inp}width:100%;"></label></div>
+    <textarea class="sr-desc" rows="3" maxlength="800" placeholder="Description — what's the challenge, any rules or prizes?" style="${inp}width:100%;margin-top:6px;font-family:inherit;">${escapeCm(r.description || '')}</textarea>
+    <select class="sr-mode" style="${inp}width:100%;margin-top:6px;background:#fff;"><option value="open" ${r.mode !== 'invite' ? 'selected' : ''}>🌍 Open — any member can join</option><option value="invite" ${r.mode === 'invite' ? 'selected' : ''}>🔒 Invite only — I add the members myself</option></select>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"><input class="sr-charity" value="${escapeCm(r.charity || '')}" placeholder="Charity name" style="${inp}flex:1;min-width:140px;"><input class="sr-url" type="url" value="${escapeCm(r.charityUrl || '')}" placeholder="Charity link (https://…)" style="${inp}flex:2;min-width:160px;"><input class="sr-goal" type="number" value="${r.goal || ''}" placeholder="Step goal" style="${inp}flex:1;min-width:110px;"></div>
     <input type="hidden" class="sr-id" value="${escapeCm(r.id || '')}">
     ${r.id ? `<p style="font-size:13px;margin:8px 0 2px;">👟 <b>${stepsFmt(r.steps)}</b> steps · ${r.people} people · 💛 <b>${stepsMoney(r.raised)}</b> pledged</p>
       ${(r.pledgeList || []).map(p => `<div style="display:flex;gap:6px;align-items:center;font-size:13px;padding:3px 0;"><span style="flex:1;">${escapeCm(p.name)}${p.member ? '' : ' <small>(sponsor)</small>'} — ${stepsMoney(p.per1000)}/1,000${p.cap ? ' (max ' + stepsMoney(p.cap) + ')' : ''}</span><button type="button" class="fb-mini sp-del" data-pid="${escapeCm(p.id)}">✕</button></div>`).join('')}
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;"><input class="sp-name" placeholder="Sponsor name" style="${inp}flex:2;min-width:110px;"><input class="sp-per" type="number" step="0.01" placeholder="$ per 1,000" style="${inp}flex:1;min-width:90px;"><input class="sp-cap" type="number" placeholder="Max $" style="${inp}flex:1;min-width:70px;"><button type="button" class="fb-mini sp-add" data-rid="${escapeCm(r.id)}">+ Add sponsor pledge</button></div>` : '<p class="ideas-hint" style="margin:6px 0 0;">Save to start collecting steps &amp; pledges.</p>'}
+      <p style="margin:12px 0 4px;font-weight:700;font-size:13px;">👥 Participants (${(r.participantList || []).length})</p>
+      <div style="max-height:180px;overflow:auto;">${(r.participantList || []).map(x => `<div style="display:flex;gap:6px;align-items:center;font-size:13px;padding:3px 0;"><span style="flex:1;">${escapeCm(x.name)} <small style="color:#776867;">@${escapeCm(x.username)} · ${stepsFmt(x.steps)} steps${x.added ? ' · added by admin' : ''}</small></span><button type="button" class="fb-mini spp-del" data-rid="${escapeCm(r.id)}" data-uid="${escapeCm(x.id)}">✕</button></div>`).join('') || '<small style="color:#776867;">Nobody yet.</small>'}</div>
+      <input class="spp-search" data-rid="${escapeCm(r.id)}" type="search" placeholder="🔍 Search a member to add…" autocomplete="off" style="${inp}width:100%;margin-top:6px;"><div class="spp-results"></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"><select class="spp-club" style="${inp}flex:1;min-width:140px;background:#fff;"><option value="">Add a whole club…</option>${(typeof clubsData !== 'undefined' ? clubsData : []).map(c => `<option value="${escapeCm(c.id)}">${escapeCm(c.title)}</option>`).join('')}</select><button type="button" class="fb-mini spp-club-add" data-rid="${escapeCm(r.id)}">Add club</button><button type="button" class="fb-mini spp-all" data-rid="${escapeCm(r.id)}">Add everyone</button></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;"><input class="sp-name" placeholder="Sponsor name" style="${inp}flex:2;min-width:110px;"><input class="sp-per" type="number" step="0.01" placeholder="$ per 1,000" style="${inp}flex:1;min-width:90px;"><input class="sp-cap" type="number" placeholder="Max $" style="${inp}flex:1;min-width:70px;"><button type="button" class="fb-mini sp-add" data-rid="${escapeCm(r.id)}">+ Add sponsor pledge</button></div>` : '<p class="ideas-hint" style="margin:6px 0 0;">Save to start collecting steps &amp; pledges.</p>'}
     <button type="button" class="fb-mini sr-remove" style="margin-top:6px;">🗑 Remove round</button></div>`).join('');
   return `<div class="cp-box"><p style="font-size:13px;margin:0 0 6px;line-height:1.5;">Each round is a fixed window (usually 14 days). Steps come only from the 4DS app (Apple Health / Health Connect, hourly) — nobody types them in. Public sees totals only; signed-in members see the leaderboard.</p>
     ${state.stepsAdminErr ? `<p style="color:#c00;font-size:13px;">${escapeCm(state.stepsAdminErr)}</p>` : ''}${rows || '<p class="av-msg">No rounds yet.</p>'}
@@ -10908,7 +10931,7 @@ function stepsAdminHtml(){
 }
 function wireStepsAdmin(){
   const save = document.getElementById('srSave'); if(!save) return;
-  const collect = () => [...document.querySelectorAll('[data-stepround]')].map(c => ({ id: c.querySelector('.sr-id').value, title: c.querySelector('.sr-title').value, start: c.querySelector('.sr-start').value, end: c.querySelector('.sr-end').value, charity: c.querySelector('.sr-charity').value, charityUrl: c.querySelector('.sr-url').value, goal: c.querySelector('.sr-goal').value }));
+  const collect = () => [...document.querySelectorAll('[data-stepround]')].map(c => ({ id: c.querySelector('.sr-id').value, title: c.querySelector('.sr-title').value, start: c.querySelector('.sr-start').value, end: c.querySelector('.sr-end').value, charity: c.querySelector('.sr-charity').value, charityUrl: c.querySelector('.sr-url').value, goal: c.querySelector('.sr-goal').value, description: c.querySelector('.sr-desc').value, mode: c.querySelector('.sr-mode').value }));
   document.getElementById('srAdd').addEventListener('click', () => {
     const cur = collect(), last = cur.map(r => r.end).filter(Boolean).sort().pop(), st = last ? new Date(new Date(last + 'T12:00:00').getTime() + 86400000) : new Date(), en = new Date(st.getTime() + 13 * 86400000), k = d => d.toISOString().slice(0, 10);
     state.stepsAdmin = cur.map(r => ({ ...r, ...((state.stepsAdmin || []).find(x => x.id === r.id) || {}), ...r })).concat([{ id:'', title:'Round ' + (cur.length + 1), start:k(st), end:k(en), charity:'', charityUrl:'', goal:0 }]); render();
@@ -10923,6 +10946,16 @@ function wireStepsAdmin(){
     const c = b.closest('[data-stepround]'), msg = document.getElementById('srMsg');
     try { await leadApi('POST', '/api/admin/step-pledges', { roundId: b.dataset.rid, name: c.querySelector('.sp-name').value, per1000: c.querySelector('.sp-per').value, cap: c.querySelector('.sp-cap').value }); state.stepsAdmin = null; render(); }
     catch(e){ msg.style.color = '#c00'; msg.textContent = e.message; }
+  }));
+  const addP = async (body, what) => { try { const d = await leadApi('POST', '/api/admin/step-participants', body); state.stepsAdmin = null; render(); admToastLite('✓ Added ' + d.added + (d.added === 1 ? ' person' : ' people') + (what || '')); } catch(e){ alert(e.message); } };
+  document.querySelectorAll('.spp-del').forEach(b => b.addEventListener('click', async () => { try { await leadApi('DELETE', '/api/admin/step-participants/' + encodeURIComponent(b.dataset.rid) + '/' + encodeURIComponent(b.dataset.uid)); state.stepsAdmin = null; render(); } catch(e){ alert(e.message); } }));
+  document.querySelectorAll('.spp-club-add').forEach(b => b.addEventListener('click', () => { const v = b.closest('[data-stepround]').querySelector('.spp-club').value; if(v) addP({ roundId: b.dataset.rid, clubId: v }, ' from that club'); }));
+  document.querySelectorAll('.spp-all').forEach(b => b.addEventListener('click', () => { if(confirm('Add EVERY member to this challenge? They all get a notification.')) addP({ roundId: b.dataset.rid, everyone: true }); }));
+  document.querySelectorAll('.spp-search').forEach(inp => inp.addEventListener('input', async () => {
+    const q = inp.value.trim().toLowerCase(), box = inp.parentElement.querySelector('.spp-results'); if(q.length < 2){ box.innerHTML = ''; return; }
+    const users = await calLoadUsers();
+    box.innerHTML = users.filter(u => `${u.name} ${u.username}`.toLowerCase().includes(q)).slice(0, 6).map(u => `<button type="button" class="fb-mini spp-pick" data-uid="${escapeCm(u.id)}" style="display:block;width:100%;text-align:left;margin:2px 0;">${escapeCm(u.name)} <small>@${escapeCm(u.username || '')}</small></button>`).join('') || '<small style="color:#776867;">No match.</small>';
+    box.querySelectorAll('.spp-pick').forEach(b => b.addEventListener('click', () => addP({ roundId: inp.dataset.rid, userIds: [b.dataset.uid] })));
   }));
   document.querySelectorAll('.sp-del').forEach(b => b.addEventListener('click', async () => { try { await leadApi('DELETE', '/api/admin/step-pledges/' + encodeURIComponent(b.dataset.pid)); state.stepsAdmin = null; render(); } catch(e){ alert(e.message); } }));
 }
