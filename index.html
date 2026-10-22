@@ -1176,6 +1176,7 @@
   #directory-view.res-list-grid > .panel-card{ display:flex; flex-direction:column; text-align:left; min-width:0; }
   #directory-view.res-list-grid > .panel-card .panel-links{ margin-top:auto; padding-top:10px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
   #directory-view.res-list-grid > .panel-card .panel-top{ align-items:center; }
+  .home-bubbles.straight .home-bubble{ animation:none !important; transform:none !important; translate:0 0 !important; transition:transform .6s cubic-bezier(.3,1.4,.5,1), translate .6s ease; }
 </style>
 </head>
 <body>
@@ -2935,7 +2936,7 @@ function wireClubBubbles(){
     const r = b.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, dx = cx - e.clientX, dy = cy - e.clientY, d = Math.hypot(dx, dy) || 1;
     const f = d < 190 ? (190 - d) / 190 * 22 : 0;
     b.style.translate = (dx / d * f).toFixed(1) + 'px ' + (dy / d * f).toFixed(1) + 'px';
-  }));
+  }); });
   box.addEventListener('pointerleave', () => btns.forEach(b => { b.style.translate = '0px 0px'; }));
 }
 function clubCardHtml(c, hideDesc){
@@ -7583,9 +7584,19 @@ function homeGridHtml(){
 function wireHomeBubbles(){
   const box = document.querySelector('.home-bubbles'); if(!box || box.dataset.wired) return; box.dataset.wired = '1';
   box.addEventListener('click', e => { const b = e.target.closest('[data-href]'); if(b){ const h = b.dataset.href; if(h.startsWith('#')) location.hash = h; else location.href = h; } });
+  // Click on empty space: the bubbles line up straight and calm. Move the mouse again and they wake up and float / dodge — then repeat.
+  if(!box.classList.contains('still')){
+    let rest = null;
+    document.getElementById('directory-view').addEventListener('click', e => {
+      if(e.target.closest('button, a, input, .home-search, .home-about, .home-auth')) return;
+      box.classList.add('straight'); rest = { x: e.clientX, y: e.clientY };
+      box.querySelectorAll('.home-bubble').forEach(b => { b.style.translate = '0px 0px'; });
+    });
+    window.addEventListener('pointermove', e => { if(rest && Math.hypot(e.clientX - rest.x, e.clientY - rest.y) > 28){ box.classList.remove('straight'); rest = null; } }, { passive:true });
+  }
   if(!window.matchMedia('(hover:hover)').matches || box.classList.contains('still')) return;
   const btns = [...box.querySelectorAll('.home-bubble')];
-  box.addEventListener('pointermove', e => btns.forEach(b => { // bubbles flee the pointer — strongly
+  box.addEventListener('pointermove', e => { if(box.classList.contains('straight')) return; btns.forEach(b => { // bubbles flee the pointer — strongly
     const r = b.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, dx = cx - e.clientX, dy = cy - e.clientY, d = Math.hypot(dx, dy) || 1;
     const f = d < 280 ? (280 - d) / 280 * 62 : 0;
     b.style.translate = (dx / d * f).toFixed(1) + 'px ' + (dy / d * f).toFixed(1) + 'px';
