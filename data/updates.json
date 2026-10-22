@@ -1,6 +1,19 @@
 {
   "updates": [
     {
+      "no": 26,
+      "date": "2026-10-21",
+      "title": "New home screen",
+      "items": [
+        {
+          "text": "✨ Home is now a set of big boxes — Calendar, Clubs, Directory, Travel, About and Submit — and the menu bar only appears once you open one."
+        },
+        {
+          "text": "✨ The 4DS button in the corner stays on screen and now holds the footer buttons (Submit an event, Add a resource, WhatsApp, Instagram, TikTok). The welcome screen was redone, headings are cleaner, and buttons respond faster."
+        }
+      ]
+    },
+    {
       "no": 25,
       "date": "2026-10-21",
       "title": "Steps challenges",

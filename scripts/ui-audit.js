@@ -44,6 +44,9 @@
       }
     }
   }
+  // 3) things marked data-center must sit in the middle of the screen (a past bug: an animation's transform undid the centring on desktop)
+  out.offCenter = [];
+  document.querySelectorAll('[data-center]').forEach(el => { const r = el.getBoundingClientRect(); if(r.width && Math.abs((r.left + r.right) / 2 - window.innerWidth / 2) > 3) out.offCenter.push(label(el) + ' is ' + Math.round((r.left + r.right) / 2 - window.innerWidth / 2) + 'px off centre'); });
   out.clipped = [...new Set(out.clipped)].slice(0, 25); out.overlap = [...new Set(out.overlap)].slice(0, 25);
   return out;
 })();
