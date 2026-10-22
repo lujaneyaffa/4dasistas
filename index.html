@@ -85,6 +85,8 @@
   .wordmark-img{ display:block; width:clamp(110px,30vw,150px); height:auto; margin:0 auto; }
   .header-disclaimer{ font-size:11px; color:#2a2022; max-width:440px; margin:8px auto 0; line-height:1.5; text-align:center; }
 
+  /* the round + / profile button steps aside while a pop-up menu is open in the middle of the screen, so the two never clash */
+  body:has(.mem-pop) .pwr-btn, body:has(#tourCard) .pwr-btn, body:has(#detail-view.open) .pwr-btn, body:has(.mem-pop) #pwrMenu{ opacity:0 !important; pointer-events:none !important; transition:opacity .15s; }
   .pwr-btn{
     position:fixed; top:calc(14px + env(safe-area-inset-top, 0px)); right:calc(14px + env(safe-area-inset-right, 0px)); z-index:60;
     display:flex; align-items:center; justify-content:center;
@@ -1159,7 +1161,7 @@
   .my-home > p, .my-home > div > p{ text-align:center; }
   /* ---- cute & girly Notifications ---- */
   .nt-card{ position:relative; background:linear-gradient(160deg,#fef7f4 0%,#f9ebe9 55%,#f2d8d7 100%); border:2px solid #ce8491; border-radius:28px; padding:16px 14px 14px; margin:0 0 14px; box-shadow:0 10px 26px rgba(118,34,11,.18); overflow:hidden; }
-  .nt-card::before{ content:'✨'; position:absolute; top:10px; right:16px; font-size:16px; opacity:.7; } .nt-card::after{ content:'💗'; position:absolute; bottom:8px; right:14px; font-size:14px; opacity:.35; }
+  
   .nt-head{ font-family:'Sacramento','Snell Roundhand',cursive; font-size:44px; font-weight:400; line-height:1.15; text-align:center; margin:0 0 6px; background:linear-gradient(90deg,#e3a3ad,#ce8491 38%,#a8505f 75%,#76220b); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent; -webkit-text-stroke:.7px #ce8491; } .nt-head span{ font-size:22px; vertical-align:middle; -webkit-text-fill-color:initial; color:initial; -webkit-text-stroke:0; background:none; }
   .nt-sub{ margin:12px 4px 6px; font:800 12px 'Outfit',sans-serif; letter-spacing:.1em; text-transform:uppercase; color:#776867; }
   .nt-row{ display:flex; align-items:center; gap:10px; width:100%; margin:0 0 8px; padding:10px 12px; border:none; border-radius:20px; background:#fff; box-shadow:0 2px 8px rgba(118,34,11,.10); font:inherit; text-align:left; cursor:pointer; color:#373d3b; min-height:52px; }
@@ -6767,6 +6769,7 @@ function openCommunityClub(id){
 }
 function openClubIdeas(clubId){
   if(isCommunityClub(clubId)){ openCommunityClub(clubId); return; }
+  if(state.tab !== 'clubideas') state.ideasFrom = state.tab; // so Back returns to where this board was opened from (Home for signed-in members)
   state.tab = 'clubideas';
   state.ideasClubId = clubId;
   state.ideas = null; state.ideasError = ''; state.ideasStatus = ''; state.ideasRenaming = false;
@@ -7459,7 +7462,7 @@ function renderClubIdeas(el){
   const addForm = (me && !state.ideasRenaming && !ideaCanActInClub(clubId)) ? `<p class="ideas-hint" style="text-align:center;">Only members of this club can vote or add ideas.</p>` : (me && !state.ideasRenaming) ? ideaAddFormHtml(clubId) : '';
 
   el.innerHTML = `
-    <button class="back-btn" ${getCmSession() ? `data-clubspage="${state.clubsPage === 'vote' && ((getCmSession().clubs || []).length > 1) ? 'vote' : ''}"` : 'data-hometab="clubs"'}>← Back${getCmSession() ? '' : ' to clubs'}</button>
+    <button class="back-btn" ${getCmSession() && state.ideasFrom === 'home' ? 'data-hometab="home"' : getCmSession() ? `data-clubspage="${state.clubsPage === 'vote' && ((getCmSession().clubs || []).length > 1) ? 'vote' : ''}"` : 'data-hometab="clubs"'}>← Back${getCmSession() ? '' : ' to clubs'}</button>
     <div class="ideas-wrap">
       <h2 class="ideas-title">THE ${escapeCm(title).toUpperCase()}</h2>
       <div class="ideas-link"><span>🔗 ${escapeCm(clubLink(clubId).replace(/^https?:\/\//, ''))}</span><button type="button" class="av-link" id="ideaCopyBtn">Copy link</button></div>
@@ -7780,8 +7783,8 @@ function notificationsCardHtml(){
   (td.next || []).forEach(e => rows.push(row('🎟️', `<b>${escapeCm(e.title)}</b><small>You're going · ${escapeCm(fmt(e.date))}${e.time ? ' · ' + escapeCm(e.time) : ''}</small>`, 'event:' + e.id, 'mint')));
   const today = new Date().toISOString().slice(0, 10), going = new Set((td.next || []).map(e => e.id));
   const evs = (state.clubCal || []).filter(e => e.date && e.date >= today && !String(e.id).startsWith('idea:') && !going.has(e.id)).sort((a, b) => a.date.localeCompare(b.date) || String(a.time || '').localeCompare(String(b.time || ''))).slice(0, 5);
-  const join = !state.clubCal ? '<p class="nt-empty">Loading…</p>' : evs.length ? evs.map(e => `<button type="button" class="nt-row home-ev sky" data-calid="${escapeCm(e.id)}"><span class="nt-ic">🎀</span><span class="nt-tx"><b>${escapeCm(e.title)}</b><small>${escapeCm(fmt(e.date))}${e.time ? ' · ' + escapeCm(e.time) : ''} · tap to join</small></span><span class="nt-ch">♡</span></button>`).join('') : '<p class="nt-empty">Nothing new to join right now ✨</p>';
-  return `<div class="nt-card"><div class="nt-head"><span>🎀</span> Notifications <span>🎀</span></div>
+  const join = !state.clubCal ? '<p class="nt-empty">Loading…</p>' : evs.length ? evs.map(e => `<button type="button" class="nt-row home-ev sky" data-calid="${escapeCm(e.id)}"><span class="nt-ic">📅</span><span class="nt-tx"><b>${escapeCm(e.title)}</b><small>${escapeCm(fmt(e.date))}${e.time ? ' · ' + escapeCm(e.time) : ''} · tap to join</small></span><span class="nt-ch">♡</span></button>`).join('') : '<p class="nt-empty">Nothing new to join right now ✨</p>';
+  return `<div class="nt-card"><div class="nt-head">Notifications</div>
     ${rows.length ? rows.join('') : '<p class="nt-empty">You\'re all caught up, gorgeous ✨</p>'}
     <div class="nt-sub">💌 Events you can join</div>${join}</div>`;
 }
@@ -7882,7 +7885,7 @@ function myHomeHtml(){
   const extras = [];
   extras.unshift(notificationsCardHtml());
   return `<div class="my-home" style="max-width:640px;margin:0 auto 16px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;"><button type="button" id="homeGreeting" aria-label="Open my profile and settings" style="border:none;background:none;padding:6px 0;margin:0;font:inherit;font-size:22px;font-weight:800;text-align:left;cursor:pointer;color:inherit;">Hi ${escapeCm(first)} ${waveEmoji()}</button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;"><button type="button" id="homeGreeting" aria-label="Open my profile and settings" style="border:none;background:none;padding:2px 0;margin:0;font-family:'Sacramento','Snell Roundhand',cursive;font-size:44px;font-weight:400;line-height:1.1;text-align:left;cursor:pointer;background-image:linear-gradient(90deg,#e3a3ad,#ce8491 38%,#a8505f 75%,#76220b);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;">Asalamu Aleykum, ${escapeCm(first)}</button></div>
     <p style="margin:0 0 6px;font-weight:800;font-size:14px;">🏛️ Your clubs</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:0 0 14px;">${cards}</div>${extras.join('')}</div>`;
 }

@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-22 · Claude · Logged-in Home: greeting is now "Asalamu Aleykum, <name>" in the welcome script font + gradient; Notifications card has no ribbons / corner sparkle+heart; a club board opened from Home now has a Back that returns to Home (was looping back to the same board for 1-club members, so Back seemed dead); the round + / profile button hides while any pop-up (.mem-pop, tour, event detail) is open. Cache v207.
+
 - 2026-10-22 · Claude · Script font (Sacramento, same gradient as the salamu welcome) on the badminton loading screen, the Badminton page title ("Ladies Badminton"), and the Notifications page/popup titles; Sacramento now preloaded in <head> so the fallback font never flashes. Cache v206.
 
 - 2026-10-22 · Claude · Back fix: Steps and Badminton Back buttons now return to the page you opened them from (was hard-wired to Clubs) via sessionStorage `backTo:*` (`rememberOrigin`/`goBackFromSub`; badminton.html `#bmBackLink`). Website Clubs page: 4 clubs per row (≥900px). Cache v205.
