@@ -973,7 +973,9 @@
   /* a much shorter footer: icons, one row of buttons, a small logo */
   footer{ padding-top:10px !important; padding-bottom:calc(8px + env(safe-area-inset-bottom)) !important; margin-top:8px !important; }
   footer .footer-logo{ height:120px !important; width:min(300px,80vw) !important; object-fit:cover !important; object-position:center 68% !important; margin:0 auto !important; } /* the original, readable size */
-  footer .footer-btns, footer .footer-admin-corner{ display:none !important; } /* every footer button now lives in the 4DS button (top right) */
+  footer .footer-admin-corner{ display:none !important; }
+  footer .footer-btns{ display:flex !important; align-items:center; flex-wrap:wrap; gap:10px; justify-content:center; } footer .find-us{ width:100%; text-align:center; font:700 13px 'Outfit',sans-serif; letter-spacing:.08em; text-transform:uppercase; color:#fef7f4; margin:0 0 2px; opacity:.9; }
+  .mail-btn{ display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border-radius:50%; background:#ce8491; border:2px solid #fef7f4; } .mail-btn svg{ width:20px; height:20px; }
 
   .suggest-btn{ display:inline-block; font-family:'Outfit','Inter',sans-serif; font-weight:600; font-size:13px; background:var(--blush); border:1.5px solid var(--charcoal); color:var(--charcoal); padding:9px 18px; border-radius:999px; cursor:pointer; margin-bottom:2px; text-decoration:none; }
   .hp-field{ position:absolute; left:-9999px; }
@@ -1150,6 +1152,23 @@
     #lbBox{ max-width:1000px !important; }
     #lbBox .lb-cols{ display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
   }
+
+  .my-home > p, .my-home > div > p{ text-align:center; }
+  /* ---- cute & girly Notifications ---- */
+  .nt-card{ position:relative; background:linear-gradient(160deg,#fff6f9 0%,#ffe9f1 55%,#f6eaff 100%); border:2px solid #f4bfd2; border-radius:28px; padding:16px 14px 14px; margin:0 0 14px; box-shadow:0 10px 26px rgba(214,110,150,.18); overflow:hidden; }
+  .nt-card::before{ content:'✨'; position:absolute; top:10px; right:16px; font-size:16px; opacity:.7; } .nt-card::after{ content:'💗'; position:absolute; bottom:8px; right:14px; font-size:14px; opacity:.35; }
+  .nt-head{ font-family:'Sacramento','Dancing Script',cursive; font-size:34px; line-height:1.1; text-align:center; color:#c2577f; margin:0 0 8px; letter-spacing:.01em; } .nt-head span{ font-size:20px; vertical-align:middle; }
+  .nt-sub{ margin:12px 4px 6px; font:800 12px 'Outfit',sans-serif; letter-spacing:.1em; text-transform:uppercase; color:#b4788f; }
+  .nt-row{ display:flex; align-items:center; gap:10px; width:100%; margin:0 0 8px; padding:10px 12px; border:none; border-radius:20px; background:#fff; box-shadow:0 2px 8px rgba(194,87,127,.10); font:inherit; text-align:left; cursor:pointer; color:#4a2a36; min-height:52px; }
+  .nt-row.pink{ background:#ffe3ee; } .nt-row.peach{ background:#ffeadb; } .nt-row.lilac{ background:#f0e6ff; } .nt-row.mint{ background:#e3f7ec; } .nt-row.sky{ background:#e6f1ff; }
+  .nt-ic{ width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,.85); display:flex; align-items:center; justify-content:center; font-size:19px; flex:none; box-shadow:0 1px 4px rgba(0,0,0,.06); }
+  .nt-tx{ flex:1; font-size:14px; line-height:1.3; } .nt-tx b{ display:block; font-weight:700; } .nt-tx small{ display:block; color:#8a6272; font-size:12px; margin-top:1px; }
+  .nt-ch{ color:#e58aac; font-size:18px; } .nt-empty{ margin:4px 8px 8px; font-size:13px; color:#a0768a; text-align:center; }
+
+  .spodium{ display:flex; align-items:flex-end; justify-content:center; gap:12px; margin:14px 0 4px; }
+  .spod{ width:31%; text-align:center; } .spav{ width:62px; height:62px; border-radius:50%; margin:0 auto 6px; background:rgba(118,34,11,.1); border:2px solid #d9a441; display:flex; align-items:center; justify-content:center; font-size:26px; }
+  .spname{ font-size:13px; font-weight:700; overflow-wrap:anywhere; } .spbase{ margin-top:6px; border-radius:10px 10px 0 0; background:rgba(206,132,145,.18); display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:22px; } .spbase small{ font-size:11px; color:#5b4b49; font-weight:700; }
+  .spod.one .spbase{ height:90px; } .spod.two .spbase{ height:68px; } .spod.three .spbase{ height:56px; }
 </style>
 </head>
 <body>
@@ -1211,7 +1230,7 @@
     <div class="search-suggestions" id="searchSuggestions" style="display:none;"></div>
   </div>
   <a class="tab-btn ph-only" data-tab="search" href="#/search" aria-label="Search"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.6"/><path d="m20.5 20.5-4.7-4.7"/></svg><span class="tl">Search</span></a>
-  <a class="tab-btn dt-only" data-tab="notifications" href="#/notifications" aria-label="Notifications"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg><span class="tl">Notifications</span></a>
+  
   <a class="tab-btn" data-tab="profile" href="#/profile" aria-label="Profile" id="tabProfile"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4.2"/><path d="M4 21c0-4.3 3.6-7.3 8-7.3s8 3 8 7.3z"/></svg><span class="tl">Profile</span></a>
 </nav>
 <div id="dualBanner" style="display:none;"></div>
@@ -1297,6 +1316,7 @@
 
 <footer>
   <div class="footer-btns">
+    <div class="find-us">Find us on</div>
     <a class="wa-btn" href="https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS" target="_blank" rel="noopener" aria-label="Join the WhatsApp community">
       <svg viewBox="0 0 32 32" fill="white"><path d="M16 5C9.4 5 4 9.9 4 16c0 3.2 1.5 6.1 3.9 8.1-.3 1.8-1.1 3.8-2.2 5.4 2.3-.4 4.6-1.3 6.4-2.6 1.2.3 2.5.5 3.9.5 6.6 0 12-4.9 12-11S22.6 5 16 5Z"/></svg>
     </a>
@@ -1306,6 +1326,7 @@
     <a class="tiktok-btn" href="https://www.tiktok.com/@4dasistas" target="_blank" rel="noopener" aria-label="Follow @4dasistas on TikTok">
       <svg viewBox="0 0 24 24" fill="white"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.3 0 .6.05.88.13V9.4a6.33 6.33 0 0 0-.88-.06A6.34 6.34 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 3.52z"/></svg>
     </a>
+    <a class="mail-btn" href="mailto:admin@4dasistas.ca" aria-label="Email admin@4dasistas.ca"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></svg></a>
   </div>
   <img class="footer-logo" src="assets/OFFICIAL%20LOGO.png" alt="Not a cult (Yet)">
   <div class="footer-admin-corner">
@@ -2542,13 +2563,13 @@ const cityFilterList = [
 ];
 
 const categoryList = [
+  {key:'clubs', label:'4DS Clubs', bg:'#f6d4de', fg:'#373d3b'},
   {key:'all', label:'All Events', bg:'#373d3b', fg:'#fff7e6'},
   {key:'sports', label:'Sports', bg:'#e1f1ea', fg:'#373d3b'},
   {key:'activities', label:'Activities', bg:'#e1eaf1', fg:'#373d3b'},
   {key:'functions', label:'Functions', bg:'#fdf0f2', fg:'#373d3b'},
   {key:'trips', label:'Trips', bg:'#eedcb1', fg:'#373d3b'},
   {key:'mosqueprograms', label:'Knowledge', bg:'#fad8c1', fg:'#373d3b'},
-  {key:'clubs', label:'4DS Clubs', bg:'#f6d4de', fg:'#373d3b'},
 ];
 
 // Categories that have no physical storefront to plot, so the Directory hides the
@@ -3317,7 +3338,8 @@ function renderDirectory(){
       return;
     }
     if(!state.cmAdminOpen) openClubAdmin();
-    el.innerHTML = renderClubAdminPanel();
+    el.innerHTML = (state.cmAdminLoggedIn === true ? '<div style="text-align:center;margin:0 0 10px;"><button type="button" id="admReviewsBtn" class="club-guide-btn" style="min-height:46px;background:#fff0f5;border-color:#f4bfd2;color:#c2577f;">💗 Event reviews</button></div>' : '') + renderClubAdminPanel();
+    { const rb = document.getElementById('admReviewsBtn'); if(rb) rb.addEventListener('click', openAdminReviews); }
     wireClubAdminPanel();
     return;
   }
@@ -7525,7 +7547,7 @@ function homeCustomize(){
 function homeIsSignedIn(){ return !!getCmSession() || state.cmAdminLoggedIn === true || !!state.cmLead; }
 function homeGridHtml(){
   const pal = [['#f2d8d7', '#76220b'], ['#d6e8f7', '#4c6a82'], ['#ffefb7', '#a8851f'], ['#e2ddf4', '#6b5aa8'], ['#deebd1', '#4a7a3a'], ['#fbf0ee', '#8a4a63'], ['#f8efdb', '#8a6a2f'], ['#e1eaf1', '#4c6a82']];
-  const items = [['events', '📅', 'Calendar'], ['clubs', '🏛️', 'Clubs'], ['resources', '📖', 'Directory'], ['travel', '✈️', 'Travel'], ['badminton', '🏸', 'Badminton'], ['steps', '👟', 'Steps'], ['rules', 'ℹ️', 'About'], ['submit', '➕', 'Contribute']];
+  const items = [['events', '📅', 'Calendar'], ['clubs', '🏛️', 'Clubs'], ['resources', '📖', 'Directory'], ['travel', '✈️', 'Travel'], ['badminton', '🏸', 'Badminton'], ['steps', '👟', 'Steps'], ['trophy', '🏆', 'Leaderboards'], ['rules', 'ℹ️', 'About'], ['submit', '➕', 'Contribute']];
   const bubbles = items.map(([k, ic, l], i) => {
     const [bg, fg] = pal[i % pal.length], dx = [12, -10, 9, -12, 10][i % 5], dy = [-14, 12, -10, 13, -12][i % 5];
     const attr = k === 'submit' ? 'id="homeSubmitTile"' : k === 'badminton' ? 'data-href="/badminton"' : k === 'steps' ? 'data-href="#/steps"' : `data-hometab="${k}"`;
@@ -7574,11 +7596,40 @@ async function openAttendedPopup(){
   if(!getCmSession()){ goLogin(); return; }
   const { wrap } = ideaPopup('<h3 style="margin:0 0 8px;text-align:center;">🏅 Activities I attended</h3><div id="attBody"><p class="av-msg" style="text-align:center;">Loading…</p></div>');
   try {
-    const d = await cmApiRaw('/api/me/attended', { headers: ideaHeaders(), cache:'no-store' }), a = d.activities || [];
+    const [d, rv] = await Promise.all([cmApiRaw('/api/me/attended', { headers: ideaHeaders(), cache:'no-store' }), cmApiRaw('/api/me/reviews', { headers: ideaHeaders(), cache:'no-store' }).catch(() => ({ reviews: [] }))]);
+    const a = d.activities || [], mine = {}; (rv.reviews || []).forEach(r => { mine[r.event_id] = r; });
+    const hearts = n => '💗'.repeat(n) + '🤍'.repeat(5 - n);
     wrap.querySelector('#attBody').innerHTML = a.length
-      ? `<p class="ideas-hint" style="text-align:center;margin:0 0 8px;">${a.length} so far 🎉</p>` + a.map(x => `<div style="border-top:1px solid rgba(0,0,0,.08);padding:9px 0;"><b>${escapeCm(x.title)}</b><br><small style="color:#776867;">${escapeCm(new Date(x.date + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', year:'numeric', month:'short', day:'numeric' }))}${(x.clubs || []).length ? ' · ' + escapeCm(x.clubs.join(' × ')) : ''}</small></div>`).join('')
+      ? `<p class="ideas-hint" style="text-align:center;margin:0 0 8px;">${a.length} so far 🎉 — tell us how they were!</p>` + a.map(x => `<div style="border-top:1px solid rgba(0,0,0,.08);padding:10px 0;display:flex;gap:10px;align-items:center;"><div style="flex:1;min-width:0;"><b>${escapeCm(x.title)}</b><br><small style="color:#776867;">${escapeCm(new Date(x.date + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', year:'numeric', month:'short', day:'numeric' }))}${(x.clubs || []).length ? ' · ' + escapeCm(x.clubs.join(' × ')) : ''}</small>${mine[x.id] ? `<br><small>${hearts(mine[x.id].rating)}</small>` : ''}</div><button type="button" class="att-rv" data-eid="${escapeCm(x.id)}" style="border:2px solid #f4bfd2;background:#fff0f5;color:#c2577f;border-radius:999px;min-height:40px;padding:0 14px;font:700 13px 'Outfit',sans-serif;cursor:pointer;white-space:nowrap;">${mine[x.id] ? '✏️ Edit' : '💗 Review'}</button></div>`).join('')
       : '<p class="av-msg" style="text-align:center;">Nothing yet — RSVP to a club event and it will show up here after it happens.</p>';
+    wrap.querySelectorAll('.att-rv').forEach(b => b.addEventListener('click', () => { const x = a.find(y => y.id === b.dataset.eid); openReviewPopup(x, mine[x.id], () => { wrap.remove(); openAttendedPopup(); }); }));
   } catch(err){ wrap.querySelector('#attBody').innerHTML = `<p class="av-msg" style="color:#c00;text-align:center;">${escapeCm(err.message)}</p>`; }
+}
+// Rate an activity with hearts and leave a comment — the main admin reads these.
+function openReviewPopup(ev, prev, done){
+  let rating = (prev && prev.rating) || 0;
+  const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 2px;text-align:center;">💗 How was it?</h3><p class="ideas-hint" style="text-align:center;margin:0 0 8px;">${escapeCm(ev.title)}</p>
+    <div id="rvHearts" style="display:flex;justify-content:center;gap:6px;margin:6px 0 10px;">${[1, 2, 3, 4, 5].map(n => `<button type="button" class="rv-h" data-n="${n}" aria-label="${n} heart${n > 1 ? 's' : ''}" style="border:none;background:none;font-size:38px;line-height:1;cursor:pointer;padding:2px;min-width:44px;min-height:44px;">🤍</button>`).join('')}</div>
+    <textarea id="rvText" rows="4" maxlength="600" placeholder="Tell us what you loved, or what could be better…" style="width:100%;box-sizing:border-box;padding:10px;border-radius:14px;border:2px solid #f4bfd2;font:inherit;font-size:16px;resize:vertical;">${escapeCm((prev && prev.comment) || '')}</textarea>
+    <div id="rvMsg" style="min-height:18px;font-size:13px;color:#c00;text-align:center;margin:4px 0;"></div>
+    <button type="button" id="rvSend" class="club-guide-btn" style="width:100%;min-height:48px;background:#e58aac;color:#fff;border-color:#c2577f;">Send my review 💌</button>`);
+  const paint = () => wrap.querySelectorAll('.rv-h').forEach(h => { h.textContent = Number(h.dataset.n) <= rating ? '💗' : '🤍'; });
+  paint(); wrap.querySelectorAll('.rv-h').forEach(h => h.addEventListener('click', () => { rating = Number(h.dataset.n); paint(); }));
+  wrap.querySelector('#rvSend').addEventListener('click', async e => {
+    const msg = wrap.querySelector('#rvMsg'); if(!rating){ msg.textContent = 'Tap the hearts to rate it first 💗'; return; }
+    e.target.disabled = true; msg.style.color = '#776867'; msg.textContent = 'Sending…';
+    try { await cmApiRaw('/api/me/reviews', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ eventId: ev.id, rating, comment: wrap.querySelector('#rvText').value }) }); close(); admToastLite('Thank you! 💗'); if(done) done(); }
+    catch(err){ msg.style.color = '#c00'; msg.textContent = err.message; e.target.disabled = false; }
+  });
+}
+// main admin: read the reviews members have left
+async function openAdminReviews(){
+  const { wrap } = ideaPopup('<h3 style="margin:0 0 8px;text-align:center;">💗 Event reviews</h3><div id="arBody"><p class="av-msg" style="text-align:center;">Loading…</p></div>');
+  try {
+    const r = await fetch('/api/admin/reviews', { credentials:'include', cache:'no-store' }), d = await r.json(); if(!r.ok) throw new Error(d.error || 'Could not load');
+    const list = d.reviews || [], hearts = n => '💗'.repeat(n) + '🤍'.repeat(5 - n);
+    wrap.querySelector('#arBody').innerHTML = list.length ? list.map(x => `<div style="border-top:1px solid rgba(0,0,0,.08);padding:10px 0;"><b>${escapeCm(x.title || 'Event')}</b> <small style="color:#776867;">${escapeCm(x.date || '')}</small><br>${hearts(x.rating)} <small style="color:#776867;">— ${escapeCm(x.who)}</small>${x.comment ? `<p style="margin:4px 0 0;font-size:14px;white-space:pre-wrap;">${escapeCm(x.comment)}</p>` : ''}</div>`).join('') : '<p class="av-msg" style="text-align:center;">No reviews yet.</p>';
+  } catch(err){ wrap.querySelector('#arBody').innerHTML = `<p class="av-msg" style="color:#c00;text-align:center;">${escapeCm(err.message)}</p>`; }
 }
 document.addEventListener('click', e => { if(e.target.closest('[data-attended]')) openAttendedPopup(); });
 // ---- Search tab: the long search bar + the calendar and the directory as two sections you can open or fold away ----
@@ -7647,7 +7698,9 @@ function mountLeaderboards(){
   host.appendChild(box);
   const paint = d => {
     const el = box.querySelector('#lbSteps'); if(!el) return; const r = d && d.round, lb = (d && d.leaderboard) || [];
-    el.innerHTML = `<p style="margin:0 0 6px;font-weight:800;">👟 Steps challenge${r ? ' — ' + escapeCm(r.title) : ''} <a href="#/steps" style="font-weight:600;font-size:13px;margin-left:6px;">open →</a></p>` + (!r ? '<p class="av-msg" style="margin:0;">The next challenge is coming soon 💛</p>' : lb.length ? lb.slice(0, 8).map((x, i) => `<div style="display:flex;gap:8px;padding:6px 0;border-top:1px solid rgba(0,0,0,.08);${x.me ? 'font-weight:800;' : ''}"><span style="width:26px;">${i + 1}</span><span style="flex:1;">${escapeCm(x.name)}${x.me ? ' (you)' : ''}</span><span>${stepsFmt(x.steps)}</span></div>`).join('') : '<p class="av-msg" style="margin:0;">No steps yet — be the first!</p>');
+    const upcoming = r && r.status === 'upcoming', live = lb.filter(x => x.steps > 0), cls = ['one', 'two', 'three'], med = ['🏆', '🥈', '🥉'];
+    const pod = i => { const x = live[i]; return !x || upcoming ? `<div class="spod ${cls[i]}"><div class="spav">❓</div><div class="spname">${upcoming ? 'Who will it be?' : '—'}</div><div class="spbase">${med[i]}</div></div>` : `<div class="spod ${cls[i]}"><div class="spav">${x.me ? '💗' : ['💙', '💚', '🧡'][i]}</div><div class="spname">${escapeCm(x.name)}${x.me ? ' (you)' : ''}</div><div class="spbase">${med[i]}<small>${stepsFmt(x.steps)}</small></div></div>`; };
+    el.innerHTML = `<p style="margin:0 0 2px;font-weight:800;">👟 Steps challenge${r ? ' — ' + escapeCm(r.title) : ''} <a href="#/steps" style="font-weight:600;font-size:13px;margin-left:6px;">open →</a></p>` + (!r ? '<p class="av-msg" style="margin:0;">The next challenge is coming soon 💛</p>' : `<p class="ideas-hint" style="margin:0;text-align:left;">${upcoming ? 'Starts soon — get ready!' : r.status === 'live' ? 'Live podium · ' + stepsDaysLeft(r.end) : 'Final podium'}</p><div class="spodium">${pod(1)}${pod(0)}${pod(2)}</div>`);
   };
   if(state.lbSteps) paint(state.lbSteps);
   else cmApiRaw(getCmSession() ? '/api/me/steps' : '/api/steps/public', getCmSession() ? { headers: ideaHeaders(), cache:'no-store' } : {}).then(d => { state.lbSteps = d; paint(d); }).catch(() => paint(null));
@@ -7662,6 +7715,44 @@ function notificationsPageHtml(){
     ${sess ? (mine || '<div class="panel-card" style="padding:16px;margin:0 0 14px;text-align:center;"><p class="av-msg" style="margin:0;">You\'re all caught up ✨</p></div>') : '<div class="panel-card" style="padding:16px;margin:0 0 14px;text-align:center;"><p style="margin:0 0 10px;">Log in to see what needs your attention.</p><button type="button" class="club-guide-btn" data-pf="login" style="min-height:46px;">Log in</button></div>'}
     <div class="pf-card"><button type="button" class="pf-row" data-pf="whatsnew"><span style="font-size:20px;width:26px;text-align:center;">✨</span><span style="flex:1;">What's new on 4DS</span><span style="opacity:.35;">›</span></button>${sess ? '<button type="button" class="pf-row" data-pf="settings"><span style="font-size:20px;width:26px;text-align:center;">⚙️</span><span style="flex:1;">Turn push / email notifications on or off</span><span style="opacity:.35;">›</span></button>' : ''}</div></div>`;
 }
+
+// ---- One cute "Notifications" card on Home (signed in): what needs you + events you can join ----
+function notificationsCardHtml(){
+  if(!getCmSession()) return '';
+  if(!state.ideaAvailLoadedFor && !state.ideaAvailLoading && !state.ideaAvailError) ideaAvailLoad();
+  if(!state.myTodo) myTodoLoad();
+  if(!state.clubCal) clubCalLoad();
+  const td = state.myTodo || { next:[], unpaid:[], tbd:[] }, fmt = d => new Date(d + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' });
+  const rows = [], row = (ic, html, go, tone) => `<button type="button" class="nt-row ${tone || ''}" data-todogo="${escapeCm(go)}"><span class="nt-ic">${ic}</span><span class="nt-tx">${html}</span><span class="nt-ch">♡</span></button>`;
+  const dates = iavNext15Dates();
+  if(hasVotingClub() && state.ideaAvailLoadedFor && dates.length && !dates.some(d => (state.ideaAvail && state.ideaAvail[d]) || (state.ideaAvailNo && state.ideaAvailNo[d])))
+    rows.push(row('📅', `<b>Add your availability</b><small>${escapeCm(fmt(AVAIL_PERIOD.start))} → ${escapeCm(fmt(AVAIL_PERIOD.end))}</small>`, 'avail', 'pink'));
+  (td.unpaid || []).forEach(e => rows.push(row('💳', `<b>Payment due</b><small>${escapeCm(e.title)}${e.amount ? ' · ' + escapeCm(e.amount) : ''}</small>`, 'event:' + e.id, 'peach')));
+  (td.tbd || []).forEach(e => rows.push(row('🕒', `<b>${escapeCm(e.title)}</b><small>needs a date — tell us you're interested</small>`, 'tbd', 'lilac')));
+  (td.next || []).forEach(e => rows.push(row('🎟️', `<b>${escapeCm(e.title)}</b><small>You're going · ${escapeCm(fmt(e.date))}${e.time ? ' · ' + escapeCm(e.time) : ''}</small>`, 'event:' + e.id, 'mint')));
+  const today = new Date().toISOString().slice(0, 10), going = new Set((td.next || []).map(e => e.id));
+  const evs = (state.clubCal || []).filter(e => e.date && e.date >= today && !String(e.id).startsWith('idea:') && !going.has(e.id)).sort((a, b) => a.date.localeCompare(b.date) || String(a.time || '').localeCompare(String(b.time || ''))).slice(0, 5);
+  const join = !state.clubCal ? '<p class="nt-empty">Loading…</p>' : evs.length ? evs.map(e => `<button type="button" class="nt-row home-ev sky" data-calid="${escapeCm(e.id)}"><span class="nt-ic">🎀</span><span class="nt-tx"><b>${escapeCm(e.title)}</b><small>${escapeCm(fmt(e.date))}${e.time ? ' · ' + escapeCm(e.time) : ''} · tap to join</small></span><span class="nt-ch">♡</span></button>`).join('') : '<p class="nt-empty">Nothing new to join right now ✨</p>';
+  return `<div class="nt-card"><div class="nt-head"><span>🎀</span> Notifications <span>🎀</span></div>
+    ${rows.length ? rows.join('') : '<p class="nt-empty">You\'re all caught up, gorgeous ✨</p>'}
+    <div class="nt-sub">💌 Events you can join</div>${join}</div>`;
+}
+
+// ---- A quick run-through for anyone new (or new to this version) — shown once, can be skipped ----
+function showTourOnce(){
+  try { if(localStorage.getItem('tourSeen') === '2' || document.getElementById('tourCard') || document.getElementById('welcomeScreen')) return; } catch {}
+  const phone = window.matchMedia('(max-width:700px)').matches, where = phone ? 'bar at the bottom' : 'bar on the left';
+  const steps = [['🏠', 'Home', `Your starting point — your clubs, what needs you, and events you can join.`], ['📅', 'Calendar', phone ? 'Opens on what\'s on today. Every event, trip and 4DS club gathering lives here.' : 'Every event, trip and 4DS club gathering — switch between day, week and month.'], ['🏆', 'Leaderboards', 'The live badminton podium and the steps challenge podium — who\'s winning right now.'], ['🔎', 'Search', 'Find anything fast. The directory of women-owned spots is right here too.'], ['👤', 'Profile', 'Your settings, activities you attended (leave a 💗 review!), and your clubs.']];
+  let n = 0; const w = document.createElement('div'); w.id = 'tourCard';
+  w.style.cssText = 'position:fixed;inset:0;z-index:29500;background:rgba(60,20,30,.45);display:flex;align-items:' + (phone ? 'flex-end' : 'center') + ';justify-content:center;padding:16px calc(16px + env(safe-area-inset-right)) calc(100px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));box-sizing:border-box;';
+  const paint = () => { const [ic, ti, tx] = steps[n], last = n === steps.length - 1;
+    w.innerHTML = `<div style="background:linear-gradient(160deg,#fff6f9,#ffe9f1);border:2px solid #f4bfd2;border-radius:28px;padding:22px 20px 16px;width:100%;max-width:400px;text-align:center;box-shadow:0 18px 50px rgba(0,0,0,.25);"><div style="font-size:12px;font-weight:800;letter-spacing:.12em;color:#b4788f;">QUICK TOUR · ${n + 1}/${steps.length}</div><div style="font-size:46px;margin:6px 0 2px;">${ic}</div><h3 style="margin:0 0 6px;font-size:22px;">${ti}</h3><p style="margin:0 0 14px;font-size:15px;line-height:1.5;color:#5b4b49;">${tx}</p>${n === 0 ? `<p class="ideas-hint" style="margin:-6px 0 12px;">Find these in the ${where} ✨</p>` : ''}<div style="display:flex;gap:6px;justify-content:center;margin:0 0 12px;">${steps.map((_, i) => `<span style="width:${i === n ? 20 : 7}px;height:7px;border-radius:9px;background:${i === n ? '#e58aac' : '#f4bfd2'};"></span>`).join('')}</div><button type="button" id="tourNext" class="club-guide-btn" style="width:100%;min-height:48px;background:#e58aac;color:#fff;border-color:#c2577f;">${last ? "Let's go 💗" : 'Next'}</button><button type="button" id="tourSkip" style="border:none;background:none;min-height:44px;font:inherit;color:#9a7a76;">${last ? '' : 'Skip'}</button></div>`;
+    w.querySelector('#tourNext').addEventListener('click', () => { if(n === steps.length - 1) done(); else { n++; paint(); } });
+    w.querySelector('#tourSkip').addEventListener('click', done); };
+  const done = () => { try { localStorage.setItem('tourSeen', '2'); } catch {} w.remove(); };
+  document.body.appendChild(w); paint();
+}
+setTimeout(showTourOnce, 4500);
 // One "Contribute" button: pick whether you're sending in an event or adding a resource.
 function openContributeChooser(){
   const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 4px;text-align:center;">Contribute</h3><p class="ideas-hint" style="text-align:center;margin:0 0 10px;">Help the community grow 💛</p>
@@ -7677,20 +7768,14 @@ function myHomeHtml(){
   const sess = getCmSession(); if(!sess) return '';
   const first = String(sess.name || '').split(' ')[0] || 'there';
   const mine = (sess.clubs || []).map(id => clubsData.find(c => c.id === id)).filter(Boolean);
-  const cards = mine.length ? mine.map(c => { const col = clubCol(c.id); return `<button type="button" class="home-myclub" data-myclub="${escapeCm(c.id)}" style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:96px;flex:1 1 96px;max-width:150px;padding:10px 6px;border-radius:16px;border:2px solid ${col.fg};background:${col.bg};color:${col.fg};font:inherit;font-weight:800;cursor:pointer;">${c.logo ? `<img src="${escapeCm(c.logo)}" alt="" style="width:48px;height:48px;object-fit:contain;">` : `<span style="font-size:30px;">${escapeCm(c.emoji || '🏛️')}</span>`}<span style="font-size:13px;">${escapeCm(c.title)}</span></button>`; }).join('') : `<p class="ideas-hint" style="margin:0;">You're not in a club yet — <a href="#/clubs">pick one on the Clubs tab</a>.</p>`;
+  const cards = mine.length ? mine.map(c => { const col = clubCol(c.id); return `<button type="button" class="home-myclub" data-myclub="${escapeCm(c.id)}" style="display:flex;flex-direction:column;align-items:center;gap:4px;width:${Math.max(96, Math.min(190, Math.floor(560 / Math.max(1, mine.length)) - 10))}px;flex:0 0 auto;padding:12px 8px;border-radius:16px;border:2px solid ${col.fg};background:${col.bg};color:${col.fg};font:inherit;font-weight:800;cursor:pointer;">${c.logo ? `<img src="${escapeCm(c.logo)}" alt="" style="width:48px;height:48px;object-fit:contain;">` : `<span style="font-size:30px;">${escapeCm(c.emoji || '🏛️')}</span>`}<span style="font-size:13px;">${escapeCm(c.title)}</span></button>`; }).join('') : `<p class="ideas-hint" style="margin:0;">You're not in a club yet — <a href="#/clubs">pick one on the Clubs tab</a>.</p>`;
   const inClub = id => (sess.clubs || []).includes(id);
   const extras = [];
-  if(!homeHidden('minical')){
-    if(!state.clubCal) clubCalLoad();
-    const today = new Date().toISOString().slice(0, 10);
-    const evs = (state.clubCal || []).filter(e => e.date && e.date >= today && !String(e.id).startsWith('idea:')).sort((a, b) => a.date.localeCompare(b.date) || String(a.time || '').localeCompare(String(b.time || ''))).slice(0, 6);
-    extras.push(`<div class="panel-card" style="margin:0 0 12px;padding:12px 10px;"><p style="margin:0 0 6px 6px;font-weight:800;">🎟️ Events you can sign up to</p><p class="ideas-hint" style="margin:0 0 6px 6px;text-align:left;">Hosted by 4DS — tap one to RSVP.</p>${state.clubCal ? (evs.length ? evs.map(e => `<button type="button" class="pf-row home-ev" data-calid="${escapeCm(e.id)}"><span style="min-width:54px;font-size:12px;font-weight:800;color:#ce8491;">${escapeCm(new Date(e.date + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' }))}</span><span style="flex:1;">${escapeCm(e.title)}${e.time ? `<br><small style="color:#776867;font-weight:500;">${escapeCm(e.time)}</small>` : ''}</span><span style="opacity:.35;">›</span></button>`).join('') : '<p class="av-msg" style="margin:0 6px;">Nothing scheduled yet — check back soon.</p>') : '<p class="av-msg" style="margin:0 6px;">Loading…</p>'}</div>`);
-  }
-  extras.unshift(myTodoHtml().replace('✨ For you', '🔔 Your notifications &amp; events you\'re signed up to').replace('max-width:520px;margin:0 auto 14px;', 'margin:0 0 12px;'));
+  extras.unshift(notificationsCardHtml());
   return `<div class="my-home" style="max-width:640px;margin:0 auto 16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;"><button type="button" id="homeGreeting" aria-label="Open my profile and settings" style="border:none;background:none;padding:6px 0;margin:0;font:inherit;font-size:22px;font-weight:800;text-align:left;cursor:pointer;color:inherit;">Hi ${escapeCm(first)} ${waveEmoji()}</button></div>
     <p style="margin:0 0 6px;font-weight:800;font-size:14px;">🏛️ Your clubs</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;">${cards}</div>${extras.join('')}</div>`;
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:0 0 14px;">${cards}</div>${extras.join('')}</div>`;
 }
 document.addEventListener('click', e => {
   const mh = e.target.closest('.my-home'); 
@@ -12050,13 +12135,12 @@ function renderNavAuth(){
   if(!menu) return;
   const sess = getCmSession();
   const staff = state.cmAdminLoggedIn === true ? 'an admin' : (state.cmLead ? 'a club admin' : '');
-  const newsBtn = '<button type="button" data-pwr="whatsnew">✨ What\'s new</button>';
-  const moreItems = `<div class="pwr-sep">More</div><button type="button" data-pwr="contribute">➕ Contribute</button>${adminUiOn() ? '<button type="button" data-pwr="newevent">➕ New event (admin)</button>' : ''}<button type="button" data-pwr="findus" aria-expanded="false">🔗 Find us on…</button><div class="pwr-social" id="pwrSocial" hidden><a href="https://chat.whatsapp.com/JgmuY1XU0jrGrDPUvuDPTS" target="_blank" rel="noopener">💬 WhatsApp</a><a href="https://www.instagram.com/4dasistas.ca/" target="_blank" rel="noopener">📸 Instagram</a><a href="https://www.tiktok.com/@4dasistas" target="_blank" rel="noopener">🎵 TikTok</a></div>`;
   const staffPage = staff ? '<button type="button" data-pwr="adminpage">🛠 Admin page</button>' : '';
   const staffOut = staff ? `<button type="button" data-pwr="${state.cmAdminLoggedIn === true ? 'adminout' : 'leadout'}">Log out of ${state.cmAdminLoggedIn === true ? 'admin' : 'club admin'}</button>` : '';
-  const warn = staff ? `<div class="pwr-hi" style="background:#fff3cf;color:#6b5210;border-radius:10px;padding:8px;line-height:1.4;">⚠️ You're currently logged in as ${staff}</div>` : '';
-  if(sess) menu.innerHTML = `<div class="pwr-hi">Hi, ${escapeCm(sess.name || sess.username || 'friend')}</div>${newsBtn}<button type="button" data-pwr="settings">⚙️ Settings</button>${moreItems}<button type="button" data-pwr="out">Log out</button>${warn}${staffPage}${staffOut}`;
-  else menu.innerHTML = `${warn}${staffPage}<button type="button" class="primary" data-pwr="login">Log in</button><button type="button" data-pwr="signup">Sign up</button>${newsBtn}${moreItems}${staffOut}`;
+  const warn = staff ? `<div class="pwr-hi" style="background:#fff3cf;color:#6b5210;border-radius:10px;padding8px;line-height:1.4;">⚠️ You're currently logged in as ${staff}</div>`.replace('padding8px', 'padding:8px') : '';
+  const contrib = '<button type="button" data-pwr="contribute">➕ Contribute</button>' + (adminUiOn() ? '<button type="button" data-pwr="newevent">➕ New event (admin)</button>' : '');
+  if(sess) menu.innerHTML = `${warn}${contrib}${staffPage}<button type="button" data-pwr="out">Log out</button>${staffOut}`;
+  else menu.innerHTML = `${warn}${contrib}${staffPage}<button type="button" class="primary" data-pwr="login">Log in</button><button type="button" data-pwr="signup">Sign up</button>${staffOut}`;
   const pb = document.getElementById('pwrBtn'); if(pb) pb.classList.toggle('staff', !!staff);
   leadMaybeOnboard();
   paintProfileTab();
@@ -12154,7 +12238,7 @@ function showWelcomeOnce(){
   ${isNativeApp() && !getCmSession() ? '<button type="button" class="wl-go" id="welcomeGo" data-act="register">Create an account</button><button type="button" class="wl-go wl-guest" id="welcomeGuest" style="background:none;color:#9a7a76;margin-top:4px;">Continue as a guest</button>' : '<button type="button" class="wl-go" id="welcomeGo">Get started</button>'}`;
   document.body.appendChild(w);
   try { const tx = document.getElementById('wlText'); const len = Math.ceil(tx.getComputedTextLength() * 2.2); tx.style.setProperty('--len', len); } catch {}
-  const finish = (then) => { try { localStorage.setItem('welcomeSeen', '1'); } catch {} w.style.opacity = '0'; setTimeout(() => { w.remove(); if(then) then(); }, 650); };
+  const finish = (then) => { try { localStorage.setItem('welcomeSeen', '1'); } catch {} w.style.opacity = '0'; setTimeout(() => { w.remove(); if(then) then(); else setTimeout(showTourOnce, 600); }, 650); };
   document.getElementById('welcomeGo').addEventListener('click', () => finish(document.getElementById('welcomeGo').dataset.act === 'register' ? goSignup : null));
   const gst = document.getElementById('welcomeGuest'); if(gst) gst.addEventListener('click', () => finish());
 }

@@ -2558,6 +2558,24 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ hidden: Array.isArray(me.homeHidden) ? me.homeHidden : [] }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     // The signed-in member's "to-do" list for the Clubs home: next events they're going to, unpaid events, undated events waiting for their interest.
+    // ---- Event reviews: members rate an activity they attended with hearts (1-5) and leave a comment; the main admin reads them ----
+    if (path === "/api/me/reviews" && (request.method === "GET" || request.method === "POST")) {
+      const meId = await memberIdFromRequest();
+      if (!meId) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      if (!env.DB) return jsonResponse({ error: "Reviews aren't available yet" }, 503, corsHeaders);
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS event_reviews (user_id TEXT NOT NULL, event_id TEXT NOT NULL, title TEXT, ev_date TEXT, rating INTEGER NOT NULL, comment TEXT, at INTEGER, PRIMARY KEY (user_id, event_id))").run();
+      if (request.method === "GET") {
+        const rows = (await env.DB.prepare("SELECT event_id, rating, comment FROM event_reviews WHERE user_id = ?").bind(meId).all()).results || [];
+        return jsonResponse({ reviews: rows }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      }
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const eventId = String(b.eventId || "").slice(0, 120), rating = Math.round(Number(b.rating)), comment = String(b.comment || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "").trim().slice(0, 600);
+      if (!eventId || !(rating >= 1 && rating <= 5)) return jsonResponse({ error: "Pick 1 to 5 hearts" }, 400, corsHeaders);
+      const ev = (await readClubCal(env)).find((e) => e.id === eventId);
+      if (!ev || !(ev.rsvps || []).some((x) => x.id === meId && x.status === "going") || ev.date >= new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "You can only review activities you attended" }, 403, corsHeaders);
+      await env.DB.prepare("INSERT INTO event_reviews (user_id, event_id, title, ev_date, rating, comment, at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(user_id, event_id) DO UPDATE SET rating = excluded.rating, comment = excluded.comment, at = excluded.at").bind(meId, eventId, String(ev.title || "").slice(0, 120), ev.date, rating, comment, Date.now()).run();
+      return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
     if (path === "/api/me/attended" && request.method === "GET") {
       const meId = await memberIdFromRequest();
       if (!meId) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
@@ -3464,7 +3482,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/club-cal") || path.startsWith("/api/admin/event-form") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup") || path.startsWith("/api/admin/wa-templates") || path.startsWith("/api/admin/email-preview");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/club-cal") || path.startsWith("/api/admin/event-form") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/reviews") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup") || path.startsWith("/api/admin/wa-templates") || path.startsWith("/api/admin/email-preview");
 
     if (requiresAuth && !leadCtx) {
       const token = getSessionToken(request);
@@ -3695,6 +3713,16 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (adminSugMatch && request.method === "DELETE") {
       await env.SITE_DATA.delete(`eventsug:${decodeURIComponent(adminSugMatch[1])}`);
       return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+
+    if (path === "/api/admin/reviews" && request.method === "GET") {
+      if (leadCtx) return jsonResponse({ error: "Main admin only" }, 403, corsHeaders);
+      if (!env.DB) return jsonResponse({ reviews: [] }, 200, corsHeaders);
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS event_reviews (user_id TEXT NOT NULL, event_id TEXT NOT NULL, title TEXT, ev_date TEXT, rating INTEGER NOT NULL, comment TEXT, at INTEGER, PRIMARY KEY (user_id, event_id))").run();
+      const rows = (await env.DB.prepare("SELECT user_id, event_id, title, ev_date, rating, comment, at FROM event_reviews ORDER BY at DESC LIMIT 300").all()).results || [];
+      const out = [];
+      for (const r of rows) { const u = await readUser(env, r.user_id); out.push({ title: r.title, date: r.ev_date, rating: r.rating, comment: r.comment, at: r.at, who: u ? `${u.name || ""} (@${u.username || ""})` : "a member" }); }
+      return jsonResponse({ reviews: out }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
 
     const adminIdeaAvailMatch = path.match(/^\/api\/admin\/idea-availability\/?$/);

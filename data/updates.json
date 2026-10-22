@@ -1,6 +1,19 @@
 {
   "updates": [
     {
+      "no": 28,
+      "date": "2026-10-23",
+      "title": "Reviews, a tour, and cuter notifications",
+      "items": [
+        {
+          "text": "✨ Rate the activities you attended with hearts and leave a comment (Profile → Activities I attended)."
+        },
+        {
+          "text": "✨ New: a quick tour, live podiums for badminton and the steps challenge on the 🏆 tab, a cute single Notifications card on Home, and an email button next to WhatsApp, Instagram and TikTok."
+        }
+      ]
+    },
+    {
       "no": 27,
       "date": "2026-10-22",
       "title": "A new look for the bottom bar",
