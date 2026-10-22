@@ -916,12 +916,24 @@
   /* landing page boxes; no tab bar until you leave Home */
   body.on-home .tabs{ display:none !important; }
   body.on-home{ padding-bottom:calc(16px + env(safe-area-inset-bottom, 0px)) !important; }
-  .home-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; max-width:560px; margin:8px auto 18px; padding:0 4px; }
-  @media (min-width:700px){ .home-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
-  .home-tile{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; min-height:132px; padding:16px 10px; border-radius:22px; border:2px solid var(--brand-brown,#76220b); background:var(--brand-blush,#f2d8d7); color:var(--brand-brown,#76220b); box-shadow:3px 3px 0 var(--brand-brown,#76220b); font-family:inherit; cursor:pointer; text-align:center; }
-  .home-tile:active{ transform:translate(2px,2px); box-shadow:1px 1px 0 var(--brand-brown,#76220b); }
-  .home-tile .ht-ic{ font-size:38px; line-height:1; }
-  .home-tile .ht-l{ font-size:15px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+  .home-bubbles{ display:flex; flex-wrap:wrap; justify-content:center; align-items:center; gap:14px; max-width:640px; margin:6px auto 22px; padding:6px 4px; }
+  .home-bubble{ flex:0 0 calc((100% - 28px) / 3); min-width:0; aspect-ratio:1; border-radius:50%; border:2px solid; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:6px; box-sizing:border-box; cursor:pointer; font-family:'Outfit','Inter',sans-serif; font-weight:800; text-align:center; --ds:.6; animation:clubBubbleFloat var(--dur,9s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:translate .45s cubic-bezier(.2,.8,.2,1), scale .3s cubic-bezier(.2,.8,.2,1); }
+  .home-bubble:hover{ scale:1.1; }
+  .home-bubble .hb-ic{ font-size:clamp(28px,9vw,48px); line-height:1; }
+  .home-bubble .hb-l{ font-size:clamp(10px,3.2vw,14px); letter-spacing:.06em; text-transform:uppercase; }
+  @media (min-width:700px){ .home-bubble{ flex-basis:calc((100% - 42px) / 4); } .home-bubble .hb-ic{ font-size:46px; } .home-bubble .hb-l{ font-size:14px; } }
+  @media (prefers-reduced-motion:reduce){ .home-bubble{ animation:none !important; } }
+  .home-about{ max-width:560px; margin:0 auto 12px; padding:14px 18px; border-radius:18px; background:#fff; border:2px solid var(--brand-brown,#76220b); box-shadow:3px 3px 0 var(--brand-brown,#76220b); text-align:center; font-size:15px; line-height:1.55; }
+  .home-search{ max-width:560px; margin:6px auto 12px; position:relative; z-index:30; }
+  /* the search bar when it sits on the landing page: long, always open, drops its suggestions underneath */
+  .top-search-wrap.in-home{ width:100% !important; flex:none !important; display:block !important; position:relative; margin:0 !important; }
+  .top-search-wrap.in-home .top-search-shell, .top-search-wrap.in-home.open .top-search-shell{ position:static !important; width:100% !important; max-width:none !important; height:auto !important; padding:13px 18px !important; justify-content:flex-start !important; cursor:text; box-shadow:3px 3px 0 var(--charcoal) !important; }
+  .top-search-wrap.in-home .top-search-shell input{ display:block !important; flex:1; min-width:0; font-size:16px; }
+  .top-search-wrap.in-home .top-search-shell svg{ width:18px !important; height:18px !important; }
+  .top-search-wrap.in-home .search-suggestions{ position:absolute !important; left:0 !important; right:0 !important; top:calc(100% + 6px) !important; width:auto !important; }
+  /* the footer sits at the bottom of the screen even on a short page */
+  body{ display:flex; flex-direction:column; }
+  body > footer{ margin-top:auto !important; }
   /* a much shorter footer: icons, one row of buttons, a small logo */
   footer{ padding-top:10px !important; padding-bottom:calc(8px + env(safe-area-inset-bottom)) !important; margin-top:8px !important; }
   footer .footer-logo{ height:120px !important; width:min(300px,80vw) !important; object-fit:cover !important; object-position:center 68% !important; margin:0 auto !important; } /* the original, readable size */
@@ -3272,7 +3284,6 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       `}
     </div>` : ''}
     ${anon ? `
-    <p style="text-align:center;margin:0 0 12px;"><a href="#/steps" class="club-guide-btn" style="display:inline-block;text-decoration:none;padding:10px 18px;min-height:44px;">👟 Steps challenge — see the totals</a> <a href="/badminton" class="club-guide-btn" style="display:inline-block;text-decoration:none;padding:10px 18px;min-height:44px;">🏸 Badminton leaderboard</a></p>
     <div class="clubs-grid clubs-grid-row">${clubsForGrid().map(c => clubCardHtml(c, false)).join('')}</div>
     <div class="club-cal-public" style="margin-top:22px;">${clubCalSectionHtml(true)}</div>
     <div class="public-ideas-section">${renderPublicIdeasFeedHtml()}</div>
@@ -3582,6 +3593,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
     </section>`;
     el.innerHTML = `${homeGridHtml()}${myHomeHtml()}<div style="display:none;">${todaySection}</div><div class="home-quicklinks" style="display:none;">${quickLinks.map((q, i) => `
       <button type="button" class="club-guide-btn" data-hometab="${q.tab}" style="--dx:${[12,-10,9][i % 3]}px;--dy:${[-14,12,-11][i % 3]}px;--dur:${[5.2,6.4,5.8][i % 3]}s;--delay:${-i * 3}s;">${q.label}</button>`).join('')}</div>`;
+    wireHomeBubbles();
     (function(){ // bubbles glide gently away from the pointer, like the club bubbles
       const box = document.querySelector('.home-quicklinks'); if(!box || !window.matchMedia('(hover:hover)').matches) return;
       const btns = [...box.querySelectorAll('.club-guide-btn')];
@@ -7135,8 +7147,6 @@ function renderMyClubsSectionHtml(){
   return `${topRow}${pendingBanner}${stayBanner}${annBanner}${myTodoHtml()}
     <div class="clubs-big-btns">
       ${bigBtn('avail', '📅', 'Availability', 'Add yours &amp; see everyone\'s')}
-      ${myClubs.some(c => c.id === 'club-badminton' || c === 'club-badminton') ? `<button type="button" class="club-guide-btn clubs-big-btn" onclick="location.href='/badminton'"><span class="cbb-emoji">🏸</span><span class="cbb-label">Badminton</span><span class="cbb-sub">Leaderboard, games &amp; RSVP</span></button>` : ''}
-      <button type="button" class="club-guide-btn clubs-big-btn" onclick="location.hash='#/steps'"><span class="cbb-emoji">👟</span><span class="cbb-label">Steps challenge</span><span class="cbb-sub">Leaderboard &amp; charity pledges</span></button>
       ${bigBtn('vote', '🗳️', 'Vote', myClubs.length > 1 ? 'All your clubs\' ideas in one place' : 'Vote on ideas for ' + escapeCm(myClubs[0].title))}
     </div>
     <h3 class="clubs-popular-title" style="margin:16px 0 2px;">CLUBS YOU'RE IN</h3>
@@ -7388,12 +7398,37 @@ function homeCustomize(){
     try { await cmApiRaw('/api/me/prefs', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ hidden: state.homeHidden }) }); } catch {}
   });
 }
-// The landing page: big boxes for the main areas. The tab bar is hidden here (body.on-home) and appears once you open one.
+// The landing page: a short About, the search bar, and floating bubbles for every main area. The tab bar is hidden here (body.on-home) and appears once you open one.
 function homeGridHtml(){
-  const tiles = [['events', '📅', 'Calendar'], ['clubs', '🏛️', 'Clubs'], ['resources', '📖', 'Directory'], ['travel', '✈️', 'Travel'], ['rules', 'ℹ️', 'About'], ['submit', '➕', 'Submit']];
-  return `<div class="home-grid">${tiles.map(([k, ic, l]) => k === 'submit'
-    ? `<button type="button" class="home-tile" id="homeSubmitTile"><span class="ht-ic">${ic}</span><span class="ht-l">${l}</span></button>`
-    : `<button type="button" class="home-tile" data-hometab="${k}"><span class="ht-ic">${ic}</span><span class="ht-l">${l}</span></button>`).join('')}</div>`;
+  const pal = [['#f2d8d7', '#76220b'], ['#d6e8f7', '#4c6a82'], ['#ffefb7', '#a8851f'], ['#e2ddf4', '#6b5aa8'], ['#deebd1', '#4a7a3a'], ['#fbf0ee', '#8a4a63'], ['#f8efdb', '#8a6a2f'], ['#e1eaf1', '#4c6a82']];
+  const items = [['events', '📅', 'Calendar'], ['clubs', '🏛️', 'Clubs'], ['resources', '📖', 'Directory'], ['travel', '✈️', 'Travel'], ['badminton', '🏸', 'Badminton'], ['steps', '👟', 'Steps'], ['rules', 'ℹ️', 'About'], ['submit', '➕', 'Submit']];
+  const bubbles = items.map(([k, ic, l], i) => {
+    const [bg, fg] = pal[i % pal.length], dx = [12, -10, 9, -12, 10][i % 5], dy = [-14, 12, -10, 13, -12][i % 5];
+    const attr = k === 'submit' ? 'id="homeSubmitTile"' : k === 'badminton' ? 'data-href="/badminton"' : k === 'steps' ? 'data-href="#/steps"' : `data-hometab="${k}"`;
+    return `<button type="button" class="home-bubble" ${attr} aria-label="${l}" style="background:${bg};color:${fg};border-color:${fg};box-shadow:3px 3px 0 ${fg};--dx:${dx}px;--dy:${dy}px;--dur:${8 + (i % 4) * 1.3}s;--delay:${-i * 2.7}s;"><span class="hb-ic">${ic}</span><span class="hb-l">${l}</span></button>`;
+  }).join('');
+  return `<div class="home-search" id="homeSearchSlot"></div>
+    <div class="home-about"><p style="margin:0;"><strong>4DASISTAS</strong> is a community connector for Muslim women in the GTA — find events and trips, join clubs, discover women-owned businesses, and plan things together. 💛</p></div>
+    <div class="home-bubbles">${bubbles}</div>`;
+}
+function wireHomeBubbles(){
+  const box = document.querySelector('.home-bubbles'); if(!box || box.dataset.wired) return; box.dataset.wired = '1';
+  box.addEventListener('click', e => { const b = e.target.closest('[data-href]'); if(b){ const h = b.dataset.href; if(h.startsWith('#')) location.hash = h; else location.href = h; } });
+  if(!window.matchMedia('(hover:hover)').matches) return;
+  const btns = [...box.querySelectorAll('.home-bubble')];
+  box.addEventListener('pointermove', e => btns.forEach(b => { // bubbles flee the pointer — strongly
+    const r = b.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, dx = cx - e.clientX, dy = cy - e.clientY, d = Math.hypot(dx, dy) || 1;
+    const f = d < 280 ? (280 - d) / 280 * 62 : 0;
+    b.style.translate = (dx / d * f).toFixed(1) + 'px ' + (dy / d * f).toFixed(1) + 'px';
+  }));
+  box.addEventListener('pointerleave', () => btns.forEach(b => { b.style.translate = '0px 0px'; }));
+}
+// The long search bar lives in the tab bar normally; on Home (where the tab bar is hidden) it moves into the page.
+function placeSearchBar(){
+  const shell = document.getElementById('globalSearchShell'); if(!shell) return;
+  const slot = document.getElementById('homeSearchSlot'), nav = document.getElementById('tabs');
+  if(state.tab === 'home' && slot){ if(shell.parentElement !== slot){ slot.appendChild(shell); } shell.classList.add('in-home'); }
+  else if(nav && shell.parentElement !== nav){ nav.appendChild(shell); shell.classList.remove('in-home'); }
 }
 document.addEventListener('click', e => {
   if(!e.target.closest('#homeSubmitTile')) return;
@@ -7418,8 +7453,6 @@ function myHomeHtml(){
     extras.push(`<div class="panel-card" style="margin:0 0 12px;padding:10px 8px;"><p style="margin:0 0 6px 6px;font-weight:800;">🗓️ Your clubs' calendar</p>${state.clubCal ? clubCalGridHtml(myEvs) : '<p class="av-msg">Loading…</p>'}</div>`);
   }
   const tiles = [['📅', "What's on today", 'cal-today']];
-  if(!homeHidden('steps')) tiles.push(['👟', 'Steps challenge', '/#/steps']);
-  if(!homeHidden('badminton') && inClub('club-badminton')) tiles.push(['🏸', 'Badminton', '/badminton']);
   if(tiles.length) extras.push(`<div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px;">${tiles.map(([ic, l, href]) => href === 'cal-today' ? `<button type="button" class="club-guide-btn home-caltoday" style="flex:1 1 140px;display:flex;gap:8px;align-items:center;justify-content:center;min-height:48px;">${ic} ${escapeCm(l)}</button>` : `<a href="${href}" class="club-guide-btn" style="flex:1 1 140px;display:flex;gap:8px;align-items:center;justify-content:center;text-decoration:none;min-height:48px;">${ic} ${escapeCm(l)}</a>`).join('')}</div>`);
   return `<div class="my-home" style="max-width:640px;margin:0 auto 16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;"><button type="button" id="homeGreeting" aria-label="Open my profile and settings" style="border:none;background:none;padding:6px 0;margin:0;font:inherit;font-size:22px;font-weight:800;text-align:left;cursor:pointer;color:inherit;">Hi ${escapeCm(first)} ${waveEmoji()}</button></div>
@@ -11144,6 +11177,7 @@ async function checkAdminSession(){
 }
 
 function render(){
+  { const sh = document.getElementById('globalSearchShell'), nv = document.getElementById('tabs'); if(sh && nv && sh.parentElement !== nv){ nv.appendChild(sh); sh.classList.remove('in-home'); } } // put the search bar back in the tab bar BEFORE the page content is rebuilt (placeSearchBar moves it into Home again at the end)
   document.body.classList.toggle('on-home', state.tab === 'home');
   document.body.classList.toggle('on-events', state.tab === 'events');
   if(state.tab !== 'clubs' && state.availEditing){ state.availEditing = false; state.availEditDate = null; }
@@ -11207,6 +11241,7 @@ function render(){
   }
 
   syncStateToHash();
+  placeSearchBar();
 }
 
 /* ============================================================
