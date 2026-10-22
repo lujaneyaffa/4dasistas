@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-22 · Claude · Kiosk roster = THIS season's players: active players PLUS anyone who checked in / played a game since the season start (kSeasonIds) — so nobody playing now can be hidden. Re-activated Manahil I. (5 games + attendance on Oct 9 but marked inactive). The "Played last season?" list only shows last-season (inactive, no activity this season) players; tapping a name joins them to this season. Cache v211.
+
 - 2026-10-22 · Claude · Kiosk missing names: Zainab, Zainab Y. and Tooba H. were `active:false` (the kiosk roster only shows active players) — set active=1 in D1. New on the iPad kiosk check-in screen: "🔍 Played before but not on the list?" → pick your name → `kiosk_reactivate` RPC re-activates you and checks you in. 40 of 69 players are still inactive (old-site data). Cache v210.
 
 - 2026-10-22 · Claude · ROOT CAUSE of the intermittent white screen / "4DASISTAS Worker — use /api/data/:key, /editor…" page: deploying with `npx wrangler deploy` from the `workers/` folder used that folder's wrangler.toml, which had NO `[assets]` — it briefly detached the whole static site (index.html etc.) from the Worker until the git auto-build redeployed. Fixed: `workers/wrangler.toml` now mirrors the root config (assets = ..), and the ONE way to deploy is `sh scripts/deploy.sh` from the repo root (predeploy checks → root deploy → live check). Never run `wrangler deploy` from workers/ by hand.
