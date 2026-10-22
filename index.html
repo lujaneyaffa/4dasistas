@@ -955,8 +955,8 @@
   .home-bubble{ flex:0 0 calc((100% - 28px) / 3); min-width:0; aspect-ratio:1; border-radius:50%; border:2px solid; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:6px; box-sizing:border-box; cursor:pointer; font-family:'Outfit','Inter',sans-serif; font-weight:800; text-align:center; --ds:.6; animation:clubBubbleFloat var(--dur,9s) ease-in-out var(--delay,0s) infinite alternate; will-change:transform; transition:translate .45s cubic-bezier(.2,.8,.2,1), scale .3s cubic-bezier(.2,.8,.2,1); }
   .home-bubble:hover{ scale:1.1; }
   .home-bubble .hb-ic{ font-size:clamp(28px,9vw,48px); line-height:1; }
-  .home-bubble .hb-l{ font-size:clamp(10px,3.2vw,14px); letter-spacing:.06em; text-transform:uppercase; }
-  @media (min-width:700px){ .home-bubble{ flex-basis:calc((100% - 42px) / 4); } .home-bubble .hb-ic{ font-size:46px; } .home-bubble .hb-l{ font-size:14px; } }
+  .home-bubble .hb-l{ font-size:clamp(9px,2.7vw,13px); letter-spacing:.03em; text-transform:uppercase; max-width:92%; overflow:hidden; text-overflow:clip; white-space:nowrap; } /* long labels (Leaderboards) must stay inside the circle */
+  @media (min-width:700px){ .home-bubble{ flex-basis:calc((100% - 42px) / 4); } .home-bubble .hb-ic{ font-size:46px; } .home-bubble .hb-l{ font-size:13px; } }
   @media (prefers-reduced-motion:reduce){ .home-bubble{ animation:none !important; } }
   .home-about{ max-width:560px; margin:0 auto 12px; padding:14px 18px; border-radius:18px; background:#fff; border:2px solid var(--brand-brown,#76220b); box-shadow:3px 3px 0 var(--brand-brown,#76220b); text-align:center; font-size:15px; line-height:1.55; }
   .home-search{ max-width:560px; margin:6px auto 12px; position:relative; z-index:30; }
@@ -7564,7 +7564,7 @@ function homeCustomize(){
 function homeIsSignedIn(){ return !!getCmSession() || state.cmAdminLoggedIn === true || !!state.cmLead; }
 function homeGridHtml(){
   const pal = [['#f2d8d7', '#76220b'], ['#d6e8f7', '#4c6a82'], ['#ffefb7', '#a8851f'], ['#e2ddf4', '#6b5aa8'], ['#deebd1', '#4a7a3a'], ['#fbf0ee', '#8a4a63'], ['#f8efdb', '#8a6a2f'], ['#e1eaf1', '#4c6a82']];
-  const items = [['events', '📅', 'Calendar'], ['clubs', '🏛️', 'Clubs'], ['resources', '📖', 'Directory'], ['travel', '✈️', 'Travel'], ['badminton', '🏸', 'Badminton'], ['steps', '👟', 'Steps'], ['trophy', '🏆', 'Leaderboards'], ['rules', 'ℹ️', 'About'], ['submit', '➕', 'Contribute']];
+  const items = [['events', '📅', 'Calendar'], ['clubs', '🏛️', 'Clubs'], ['resources', '📖', 'Directory'], ['travel', '✈️', 'Travel'], ['trophy', '🏆', 'Leaderboards'], ['rules', 'ℹ️', 'About'], ['submit', '➕', 'Contribute']];
   const bubbles = items.map(([k, ic, l], i) => {
     const [bg, fg] = pal[i % pal.length], dx = [12, -10, 9, -12, 10][i % 5], dy = [-14, 12, -10, 13, -12][i % 5];
     const attr = k === 'submit' ? 'id="homeSubmitTile"' : k === 'badminton' ? 'data-href="/badminton"' : k === 'steps' ? 'data-href="#/steps"' : `data-hometab="${k}"`;
