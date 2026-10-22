@@ -42,7 +42,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/globe.gl"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Amiri:wght@700&family=Aref+Ruqaa:wght@700&family=Dancing+Script:wght@600&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Amiri:wght@700&family=Aref+Ruqaa:wght@700&family=Dancing+Script:wght@600&family=Sacramento&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap');
 
   :root{
     --cream: #fef7f4;
@@ -1123,6 +1123,32 @@
     .av-sheet{ bottom:calc(64px + env(safe-area-inset-bottom, 0px)); }
     .update-banner{ bottom:calc(76px + env(safe-area-inset-bottom, 0px)); }
   }
+
+  /* ---- DESKTOP / TABLET (>700px): Instagram-style left rail — icons only, opens with labels when you hover it ---- */
+  @media (min-width:701px){
+    body{ padding-left:76px; }
+    .tabs{ position:fixed !important; left:0; top:0; bottom:0; right:auto !important; width:76px; height:auto; flex-direction:column !important; justify-content:flex-start !important; align-items:stretch !important; gap:4px !important; padding:86px 10px 16px !important; background:rgba(254,247,244,.92) !important; -webkit-backdrop-filter:blur(18px); backdrop-filter:blur(18px); border:none !important; border-right:1px solid rgba(0,0,0,.08) !important; box-shadow:none !important; overflow:hidden !important; z-index:150; transition:width .22s ease, box-shadow .22s ease; margin:0 !important; max-width:none !important; border-radius:0 !important; }
+    .tabs:hover{ width:236px; box-shadow:6px 0 28px rgba(60,20,20,.14) !important; }
+    .tabs .tab-btn, .tabs a.tab-btn{ display:flex !important; flex-direction:row !important; align-items:center; justify-content:flex-start; gap:18px; width:100%; min-height:52px; padding:0 13px !important; border:none !important; border-radius:14px !important; background:none !important; box-shadow:none !important; color:#3a2a28 !important; font-size:16px !important; font-weight:600; letter-spacing:0 !important; text-transform:none !important; white-space:nowrap; box-sizing:border-box; flex:none !important; margin:0 !important; }
+    .tabs .tab-btn::before{ content:none !important; }
+    .tab-btn .ti{ display:block !important; width:28px; height:28px; flex:none; }
+    .tab-btn.dt-only, .tab-btn.ph-only{ display:flex !important; }
+    .tabs .tl{ display:inline !important; opacity:0; max-width:0; overflow:hidden; transition:opacity .15s ease, max-width .22s ease; }
+    .tabs:hover .tl{ opacity:1; max-width:170px; }
+    .tabs .tl .the{ display:none; }
+    .tabs .tab-btn:hover{ background:rgba(206,132,145,.12) !important; }
+    .tabs .tab-btn.active{ color:var(--brand-rose,#ce8491) !important; font-weight:800; background:rgba(206,132,145,.14) !important; }
+    .tabs .tab-btn.active .ti{ fill:currentColor; }
+    #globalSearchShell:not(.in-home){ display:none !important; }
+    main{ max-width:1120px !important; }
+    #dualBanner, .context-back{ margin-left:0; }
+    .pf-wrap{ display:grid; grid-template-columns:320px 1fr; gap:24px; align-items:start; max-width:980px !important; }
+    .pf-wrap .pf-head{ position:sticky; top:20px; background:#fff; border-radius:22px; padding:28px 16px !important; box-shadow:0 2px 14px rgba(0,0,0,.06); }
+    .sp-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; max-width:1000px !important; }
+    .sp-grid .home-search{ grid-column:1 / -1; }
+    #lbBox{ max-width:1000px !important; }
+    #lbBox .lb-cols{ display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+  }
 </style>
 </head>
 <body>
@@ -1174,7 +1200,7 @@
   <a class="tab-btn active" data-tab="home" href="/" aria-label="Home"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 10.8 12 3.6l8.5 7.2V20a1 1 0 0 1-1 1H15v-6.2H9V21H4.5a1 1 0 0 1-1-1z"/></svg><span class="tl">Home</span></a>
   <a class="tab-btn" data-tab="events" href="#/calendar" aria-label="Calendar"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span class="tl"><span class="the">The </span>Calendar</span></a>
   <a class="tab-btn" data-tab="clubs" href="#/clubs" aria-label="Clubs"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.3"/><path d="M2.8 20c0-3.5 2.8-6 6.2-6s6.2 2.5 6.2 6z"/><path d="M15.6 5.4a3.2 3.2 0 0 1 0 6.2M17 14.4c2.5.5 4.2 2.6 4.2 5.6h-3"/></svg><span class="tl"><span class="the">The </span>Clubs</span></a>
-  <a class="tab-btn dt-only" data-tab="resources" href="#/resources" aria-label="Directory"><span class="tl"><span class="the">The </span>Directory</span></a>
+  <a class="tab-btn dt-only" data-tab="resources" href="#/resources" aria-label="Directory"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5zM13 4h5.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H13z"/></svg><span class="tl"><span class="the">The </span>Directory</span></a>
   <div class="top-search-wrap" id="globalSearchShell" style="display:none;">
     <div class="top-search-shell">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M16 16L21 21"></path></svg>
@@ -1183,6 +1209,7 @@
     <div class="search-suggestions" id="searchSuggestions" style="display:none;"></div>
   </div>
   <a class="tab-btn ph-only" data-tab="search" href="#/search" aria-label="Search"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.6"/><path d="m20.5 20.5-4.7-4.7"/></svg><span class="tl">Search</span></a>
+  <a class="tab-btn dt-only" data-act="notif" href="#" aria-label="Notifications"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg><span class="tl">Notifications</span></a>
   <a class="tab-btn" data-tab="profile" href="#/profile" aria-label="Profile" id="tabProfile"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4.2"/><path d="M4 21c0-4.3 3.6-7.3 8-7.3s8 3 8 7.3z"/></svg><span class="tl">Profile</span></a>
 </nav>
 <div id="dualBanner" style="display:none;"></div>
@@ -7532,11 +7559,11 @@ function profilePageHtml(){
     ? `<div style="text-align:center;padding:8px 0 16px;">${sess.photo ? `<img src="${escapeCm(sess.photo)}" alt="" style="width:92px;height:92px;border-radius:50%;object-fit:cover;border:2px solid #ce8491;">` : `<div style="width:92px;height:92px;border-radius:50%;background:#f2d8d7;color:#76220b;display:inline-flex;align-items:center;justify-content:center;font-size:38px;font-weight:800;">${escapeCm((sess.name || '?').charAt(0).toUpperCase())}</div>`}<h2 style="margin:8px 0 0;">${escapeCm(sess.name || '')}</h2><p class="ideas-hint" style="margin:2px 0 0;">@${escapeCm(sess.username || '')}</p></div>`
     : `<div style="text-align:center;padding:14px 0;"><div style="font-size:46px;">👤</div><h2 style="margin:6px 0;">Your profile</h2><p class="ideas-hint">Log in to see your clubs, activity and settings.</p><button type="button" class="club-guide-btn" data-pf="login" style="background:var(--brand-rose);color:#fff;min-height:48px;width:min(280px,100%);">Log in</button><br><button type="button" class="club-guide-btn" data-pf="signup" style="min-height:48px;width:min(280px,100%);margin-top:8px;">Sign up</button></div>`;
   const warn = staff ? `<div class="av-waitlist" style="margin:0 0 12px;text-align:center;">⚠️ You're currently logged in as ${staff}</div>` : '';
-  return `<div style="max-width:560px;margin:0 auto;padding:6px 4px 24px;">${head}${warn}
+  return `<div class="pf-wrap" style="max-width:560px;margin:0 auto;padding:6px 4px 24px;"><div class="pf-head">${head}</div><div class="pf-body">${warn}
     ${sess ? `<div class="pf-card">${row('settings', '⚙️', 'Settings &amp; profile')}${row('attended', '🏅', 'Activities I attended')}${row('steps', '👟', 'Steps challenge')}${row('badminton', '🏸', 'Badminton')}</div>` : ''}
     <div class="pf-card">${row('contribute', '➕', 'Contribute (event or resource)')}${row('whatsnew', '✨', "What's new")}${row('about', 'ℹ️', 'About 4DS')}${row('privacy', '📄', 'Privacy &amp; help')}</div>
     ${staff ? `<div class="pf-card">${row('adminpage', '🛠', 'Admin page')}${row(state.cmAdminLoggedIn === true ? 'adminout' : 'leadout', '🚪', 'Log out of ' + (state.cmAdminLoggedIn === true ? 'admin' : 'club admin'))}</div>` : ''}
-    ${sess ? `<div class="pf-card">${row('out', '↩️', 'Log out')}</div>` : ''}</div>`;
+    ${sess ? `<div class="pf-card">${row('out', '↩️', 'Log out')}</div>` : ''}</div></div>`;
 }
 document.getElementById('directory-view').addEventListener('click', e => { const b = e.target.closest('[data-pf]'); if(b) pwrAction(b.dataset.pf); });
 async function openAttendedPopup(){
@@ -7564,7 +7591,7 @@ function searchPageHtml(){
   const open = k => { try { return localStorage.getItem('spSec:' + k) !== '0'; } catch { return true; } };
   const evHtml = evs.length ? evs.map(([ds, it]) => `<button type="button" class="pf-row" data-id="${escapeCm(it.id || '')}"><span style="min-width:54px;font-size:12px;font-weight:800;color:#ce8491;">${escapeCm(new Date(ds + 'T12:00:00').toLocaleDateString('en-CA', { month:'short', day:'numeric' }))}</span><span style="flex:1;">${escapeCm(it.title || it.name || '')}</span><span style="opacity:.35;">›</span></button>`).join('') : '<p class="av-msg" style="text-align:center;">Nothing coming up.</p>';
   const cats = (typeof RESOURCE_CATEGORIES !== 'undefined' ? RESOURCE_CATEGORIES : []).map(([k, l]) => `<button type="button" class="filter-chip" data-spcat="${escapeCm(k)}">${escapeCm(l)}</button>`).join('');
-  return `<div style="max-width:620px;margin:0 auto;padding:4px 4px 24px;"><div class="home-search" id="homeSearchSlot"></div>
+  return `<div class="sp-grid" style="max-width:620px;margin:0 auto;padding:4px 4px 24px;"><div class="home-search" id="homeSearchSlot"></div>
     <details class="sp-sec" data-sp="cal" ${open('cal') ? 'open' : ''}><summary>📅 Calendar</summary><div class="sp-body">${evHtml}<button type="button" class="club-guide-btn" data-sptab="events" style="width:100%;min-height:46px;margin-top:8px;">Open the full calendar</button></div></details>
     <details class="sp-sec" data-sp="dir" ${open('dir') ? 'open' : ''}><summary>📖 Directory</summary><div class="sp-body"><div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px 6px 8px;">${cats}</div><button type="button" class="club-guide-btn" data-sptab="resources" style="width:100%;min-height:46px;">Open the full directory</button></div></details></div>`;
 }
@@ -7611,8 +7638,8 @@ function hapticTick(kind){
 function mountLeaderboards(){
   const host = document.getElementById('directory-view'); if(!host || host.querySelector('#lbBox')) return;
   const box = document.createElement('div'); box.id = 'lbBox'; box.style.cssText = 'max-width:640px;margin:18px auto 0;';
-  box.innerHTML = `<h3 class="clubs-popular-title">🏆 LEADERBOARDS</h3><div class="panel-card" style="padding:12px 14px;margin:0 0 12px;" id="lbSteps"><p style="margin:0 0 6px;font-weight:800;">👟 Steps challenge</p><p class="av-msg" style="margin:0;">Loading…</p></div>
-    <div class="panel-card" style="padding:10px 6px;margin:0 0 12px;"><p style="margin:0 0 4px 8px;font-weight:800;">🏸 Badminton <a href="/badminton" style="font-weight:600;font-size:13px;margin-left:6px;">open →</a></p><iframe id="lbBm" title="Badminton leaderboard" src="/badminton?lb=1" loading="lazy" style="width:100%;height:520px;border:0;background:transparent;" data-noptr="1"></iframe></div>`;
+  box.innerHTML = `<h3 class="clubs-popular-title">🏆 LEADERBOARDS</h3><div class="lb-cols"><div class="panel-card" style="padding:12px 14px;margin:0 0 12px;" id="lbSteps"><p style="margin:0 0 6px;font-weight:800;">👟 Steps challenge</p><p class="av-msg" style="margin:0;">Loading…</p></div>
+    <div class="panel-card" style="padding:10px 6px;margin:0 0 12px;"><p style="margin:0 0 4px 8px;font-weight:800;">🏸 Badminton <a href="/badminton" style="font-weight:600;font-size:13px;margin-left:6px;">open →</a></p><iframe id="lbBm" title="Badminton leaderboard" src="/badminton?lb=1" loading="lazy" style="width:100%;height:520px;border:0;background:transparent;" data-noptr="1"></iframe></div></div>`;
   host.appendChild(box);
   const paint = d => {
     const el = box.querySelector('#lbSteps'); if(!el) return; const r = d && d.round, lb = (d && d.leaderboard) || [];
@@ -11692,10 +11719,11 @@ document.querySelector('.wordmark-link').addEventListener('click', e => {
 document.getElementById('tabs').addEventListener('click', e => {
   const btn = e.target.closest('.tab-btn');
   if(!btn) return;
+  if(btn.dataset.act === 'notif'){ e.preventDefault(); showWhatsNew(true); return; }
   // Real links now: right-click / middle-click / Ctrl- or ⌘-click open the page in a new tab; a plain click still switches in place.
   if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
   e.preventDefault();
-  if(btn.dataset.tab === 'events' && getCmSession() && state.tab !== 'events'){ openCalendarChooser(); return; }
+  if(btn.dataset.tab === 'events' && getCmSession() && state.tab !== 'events' && window.matchMedia('(max-width:700px)').matches){ openCalendarChooser(); return; }
   goToTab(btn.dataset.tab);
 });
 // Signed in: the Calendar tab first asks which calendar you mean — what's on today, or the 4DS clubs' own calendar.
@@ -12097,35 +12125,23 @@ document.getElementById('footerAdminModalOverlay').addEventListener('click', e =
 function showWelcomeOnce(){
   try { if(localStorage.getItem('welcomeSeen')) return; } catch {}
   if(document.getElementById('welcomeScreen')) return;
-  const hellos = [['hello','Dancing Script','ltr'], ['السلام عليكم','Aref Ruqaa','rtl'], ['bonjour','Dancing Script','ltr'], ['hola','Dancing Script','ltr'], ['مرحبا','Aref Ruqaa','rtl'], ['salaam','Dancing Script','ltr'], ['hello','Dancing Script','ltr']];
   const w = document.createElement('div'); w.id = 'welcomeScreen';
   w.style.cssText = 'position:fixed;inset:0;z-index:30000;background:#fef7f4;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:calc(24px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));box-sizing:border-box;transition:opacity .6s ease;';
   w.innerHTML = `<style>
-    @property --wl { syntax:'<percentage>'; inherits:false; initial-value:0%; }
-    @keyframes wlWrite { from { --wl:0%; } to { --wl:120%; } }
+    @keyframes wlDraw { from { stroke-dashoffset:var(--len); } to { stroke-dashoffset:0; } }
+    @keyframes wlFill { from { fill-opacity:0; } to { fill-opacity:1; } }
     @keyframes wlFadeIn { from { opacity:0; } to { opacity:1; } }
     #welcomeScreen .wl-stage{ flex:1; display:flex; align-items:center; justify-content:center; width:100%; }
-    #welcomeScreen .wl-word{ text-align:center; line-height:1.5; padding:0 .2em; font-size:clamp(64px,19vw,132px); font-weight:600; --wl:0%;
-      background:linear-gradient(100deg,#e8a87c 0%,#ce8491 38%,#a86aa6 70%,#6f7fd1 100%); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent;
-      -webkit-mask-image:linear-gradient(to right,#000 calc(var(--wl) - 16%),transparent var(--wl)); mask-image:linear-gradient(to right,#000 calc(var(--wl) - 16%),transparent var(--wl));
-      animation:wlWrite 1.9s cubic-bezier(.4,.1,.3,1) both; }
-    #welcomeScreen .wl-word[dir=rtl]{ -webkit-mask-image:linear-gradient(to left,#000 calc(var(--wl) - 16%),transparent var(--wl)); mask-image:linear-gradient(to left,#000 calc(var(--wl) - 16%),transparent var(--wl)); font-size:clamp(52px,15vw,104px); }
-    #welcomeScreen .wl-go{ margin-bottom:8px; min-width:min(300px,80vw); min-height:52px; border-radius:999px; border:0; background:#ce8491; color:#fff; font:600 17px 'Outfit','Inter',system-ui,sans-serif; cursor:pointer; opacity:0; animation:wlFadeIn .8s ease 2.2s both; }
-    #welcomeScreen .wl-sub{ margin:0 0 18px; color:#9a7a76; font:500 14px 'Outfit','Inter',system-ui,sans-serif; opacity:0; animation:wlFadeIn .8s ease 2.2s both; }
+    #welcomeScreen svg{ width:min(92vw,680px); height:auto; overflow:visible; }
+    #welcomeScreen text{ font-family:'Sacramento','Snell Roundhand',cursive; font-size:190px; text-anchor:middle; --len:1800; stroke:url(#wlg); stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; fill:url(#wlg); fill-opacity:0; stroke-dasharray:var(--len); stroke-dashoffset:var(--len);
+      animation:wlDraw 3.1s cubic-bezier(.45,.05,.3,1) .35s forwards, wlFill .9s ease 3.2s forwards; }
+    #welcomeScreen .wl-go{ margin-bottom:8px; min-width:min(300px,80vw); min-height:52px; border-radius:999px; border:0; background:#ce8491; color:#fff; font:600 17px 'Outfit','Inter',system-ui,sans-serif; cursor:pointer; opacity:0; animation:wlFadeIn .8s ease 3.4s both; }
   </style>
-  <div class="wl-stage"><div class="wl-word" id="wlWord"></div></div>
-  <p class="wl-sub">Welcome to 4DS</p>
+  <div class="wl-stage"><svg viewBox="0 0 700 260" role="img" aria-label="salaam"><defs><linearGradient id="wlg" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#e8a87c"/><stop offset=".4" stop-color="#ce8491"/><stop offset=".72" stop-color="#a86aa6"/><stop offset="1" stop-color="#6f7fd1"/></linearGradient></defs><text x="350" y="185" id="wlText">salaam</text></svg></div>
   ${isNativeApp() && !getCmSession() ? '<button type="button" class="wl-go" id="welcomeGo" data-act="register">Create an account</button><button type="button" class="wl-go wl-guest" id="welcomeGuest" style="background:none;color:#9a7a76;margin-top:4px;">Continue as a guest</button>' : '<button type="button" class="wl-go" id="welcomeGo">Get started</button>'}`;
   document.body.appendChild(w);
-  const el = document.getElementById('wlWord'); let n = 0, dead = false;
-  const show = () => {
-    if(dead) return; const h = hellos[n % hellos.length]; n++;
-    el.style.opacity = '1'; el.style.transition = ''; el.style.animation = 'none'; el.textContent = h[0]; el.dir = h[2]; el.style.fontFamily = `'${h[1]}','Snell Roundhand','Amiri',cursive,serif`;
-    void el.offsetWidth; el.style.animation = '';
-    setTimeout(() => { if(dead) return; el.style.transition = 'opacity .5s ease'; el.style.opacity = '0'; setTimeout(show, 550); }, 3000);
-  };
-  show();
-  const finish = (then) => { dead = true; try { localStorage.setItem('welcomeSeen', '1'); } catch {} w.style.opacity = '0'; setTimeout(() => { w.remove(); if(then) then(); }, 650); };
+  try { const tx = document.getElementById('wlText'); const len = Math.ceil(tx.getComputedTextLength() * 2.2); tx.style.setProperty('--len', len); } catch {}
+  const finish = (then) => { try { localStorage.setItem('welcomeSeen', '1'); } catch {} w.style.opacity = '0'; setTimeout(() => { w.remove(); if(then) then(); }, 650); };
   document.getElementById('welcomeGo').addEventListener('click', () => finish(document.getElementById('welcomeGo').dataset.act === 'register' ? goSignup : null));
   const gst = document.getElementById('welcomeGuest'); if(gst) gst.addEventListener('click', () => finish());
 }
