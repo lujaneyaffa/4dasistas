@@ -1157,7 +1157,7 @@
   /* ---- cute & girly Notifications ---- */
   .nt-card{ position:relative; background:linear-gradient(160deg,#fff6f9 0%,#ffe9f1 55%,#f6eaff 100%); border:2px solid #f4bfd2; border-radius:28px; padding:16px 14px 14px; margin:0 0 14px; box-shadow:0 10px 26px rgba(214,110,150,.18); overflow:hidden; }
   .nt-card::before{ content:'✨'; position:absolute; top:10px; right:16px; font-size:16px; opacity:.7; } .nt-card::after{ content:'💗'; position:absolute; bottom:8px; right:14px; font-size:14px; opacity:.35; }
-  .nt-head{ font-family:'Sacramento','Dancing Script',cursive; font-size:34px; line-height:1.1; text-align:center; color:#c2577f; margin:0 0 8px; letter-spacing:.01em; } .nt-head span{ font-size:20px; vertical-align:middle; }
+  .nt-head{ font-family:'Sacramento','Snell Roundhand',cursive; font-size:44px; font-weight:400; line-height:1.15; text-align:center; margin:0 0 6px; background:linear-gradient(90deg,#e3a3ad,#ce8491 38%,#a8505f 75%,#76220b); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent; -webkit-text-stroke:.7px #ce8491; } .nt-head span{ font-size:20px; vertical-align:middle; }
   .nt-sub{ margin:12px 4px 6px; font:800 12px 'Outfit',sans-serif; letter-spacing:.1em; text-transform:uppercase; color:#b4788f; }
   .nt-row{ display:flex; align-items:center; gap:10px; width:100%; margin:0 0 8px; padding:10px 12px; border:none; border-radius:20px; background:#fff; box-shadow:0 2px 8px rgba(194,87,127,.10); font:inherit; text-align:left; cursor:pointer; color:#4a2a36; min-height:52px; }
   .nt-row.pink{ background:#ffe3ee; } .nt-row.peach{ background:#ffeadb; } .nt-row.lilac{ background:#f0e6ff; } .nt-row.mint{ background:#e3f7ec; } .nt-row.sky{ background:#e6f1ff; }
@@ -12231,12 +12231,12 @@ function showWelcomeOnce(){
     @keyframes wlFill { from { fill-opacity:0; } to { fill-opacity:1; } }
     @keyframes wlFadeIn { from { opacity:0; } to { opacity:1; } }
     #welcomeScreen .wl-stage{ flex:1; display:flex; align-items:center; justify-content:center; width:100%; }
-    #welcomeScreen svg{ width:min(92vw,680px); height:auto; overflow:visible; }
-    #welcomeScreen text{ font-family:'Sacramento','Snell Roundhand',cursive; font-size:190px; text-anchor:middle; --len:1800; stroke:url(#wlg); stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; fill:url(#wlg); fill-opacity:0; stroke-dasharray:var(--len); stroke-dashoffset:var(--len);
+    #welcomeScreen svg{ width:min(96vw,760px); height:auto; overflow:visible; }
+    #welcomeScreen text{ font-family:'Sacramento','Snell Roundhand',cursive; font-size:128px; text-anchor:middle; --len:1800; stroke:url(#wlg); stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; fill:url(#wlg); fill-opacity:0; stroke-dasharray:var(--len); stroke-dashoffset:var(--len);
       animation:wlDraw 3.1s cubic-bezier(.45,.05,.3,1) .35s forwards, wlFill .9s ease 3.2s forwards; }
     #welcomeScreen .wl-go{ margin-bottom:8px; min-width:min(300px,80vw); min-height:52px; border-radius:999px; border:0; background:#ce8491; color:#fff; font:600 17px 'Outfit','Inter',system-ui,sans-serif; cursor:pointer; opacity:0; animation:wlFadeIn .8s ease 3.4s both; }
   </style>
-  <div class="wl-stage"><svg viewBox="0 0 700 260" role="img" aria-label="salaam"><defs><linearGradient id="wlg" gradientUnits="userSpaceOnUse" x1="120" x2="580" y1="0" y2="0"><stop offset="0" stop-color="#e3a3ad"/><stop offset=".38" stop-color="#ce8491"/><stop offset=".75" stop-color="#a8505f"/><stop offset="1" stop-color="#76220b"/></linearGradient></defs><text x="350" y="185" id="wlText" xml:space="preserve">&#160;&#160;salaam&#160;&#160;</text></svg></div>
+  <div class="wl-stage"><svg viewBox="0 0 800 260" role="img" aria-label="salamu aleykum"><defs><linearGradient id="wlg" gradientUnits="userSpaceOnUse" x1="90" x2="710" y1="0" y2="0"><stop offset="0" stop-color="#e3a3ad"/><stop offset=".38" stop-color="#ce8491"/><stop offset=".75" stop-color="#a8505f"/><stop offset="1" stop-color="#76220b"/></linearGradient></defs><text x="400" y="180" id="wlText" xml:space="preserve">&#160;&#160;salamu aleykum&#160;&#160;</text></svg></div>
   ${isNativeApp() && !getCmSession() ? '<button type="button" class="wl-go" id="welcomeGo" data-act="register">Create an account</button><button type="button" class="wl-go wl-guest" id="welcomeGuest" style="background:none;color:#9a7a76;margin-top:4px;">Continue as a guest</button>' : '<button type="button" class="wl-go" id="welcomeGo">Get started</button>'}`;
   document.body.appendChild(w);
   try { const tx = document.getElementById('wlText'); const len = Math.ceil(tx.getComputedTextLength() * 2.2); tx.style.setProperty('--len', len); } catch {}
