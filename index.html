@@ -973,7 +973,7 @@
   /* a much shorter footer: icons, one row of buttons, a small logo */
   footer{ padding-top:10px !important; padding-bottom:calc(8px + env(safe-area-inset-bottom)) !important; margin-top:8px !important; }
   footer .footer-logo{ height:120px !important; width:min(300px,80vw) !important; object-fit:cover !important; object-position:center 68% !important; margin:0 auto !important; } /* the original, readable size */
-  footer .footer-admin-corner{ display:none !important; }
+  footer .footer-admin-corner{ display:flex !important; } footer .footer-admin-corner #footerSubmitEvent, footer .footer-admin-corner #footerAddResource{ display:none !important; } /* staff buttons (Admin page / New event / Needs details) are back; Contribute lives in the + menu */
   footer .footer-btns{ display:flex !important; align-items:center; flex-wrap:wrap; gap:10px; justify-content:center; } footer .find-us{ width:100%; text-align:center; font:700 13px 'Outfit',sans-serif; letter-spacing:.08em; text-transform:uppercase; color:#fef7f4; margin:0 0 2px; opacity:.9; }
   .mail-btn{ display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:50%; background:#76220b; border:none; } .mail-btn svg{ width:17px; height:17px; }
   footer .footer-btns{ margin:8px 0 4px !important; } footer .footer-btns .wa-btn, footer .footer-btns .ig-btn, footer .footer-btns .tiktok-btn{ width:36px !important; height:36px !important; } footer .footer-btns .wa-btn svg, footer .footer-btns .ig-btn svg, footer .footer-btns .tiktok-btn svg{ width:17px !important; height:17px !important; }
@@ -1254,6 +1254,7 @@
   </div>
   <a class="tab-btn ph-only" data-tab="search" href="#/search" aria-label="Search"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.6"/><path d="m20.5 20.5-4.7-4.7"/></svg><span class="tl">Search</span></a>
   
+  <a class="tab-btn dt-only" data-tab="admin" href="#/admin" aria-label="Admin" id="tabAdmin" style="display:none !important;"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.5 3.1 8 7.5 9.5 4.4-1.5 7.5-5 7.5-9.5V6z"/><path d="m9 12 2 2 4-4"/></svg><span class="tl">Admin</span></a>
   <a class="tab-btn" data-tab="profile" href="#/profile" aria-label="Profile" id="tabProfile"><svg class="ti" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4.2"/><path d="M4 21c0-4.3 3.6-7.3 8-7.3s8 3 8 7.3z"/></svg><span class="tl">Profile</span></a>
 </nav>
 <div id="dualBanner" style="display:none;"></div>
@@ -12243,6 +12244,7 @@ function renderNavAuth(){
   const pb = document.getElementById('pwrBtn'); if(pb) pb.classList.toggle('staff', !!staff);
   leadMaybeOnboard();
   paintProfileTab();
+  { const ta = document.getElementById('tabAdmin'); if(ta) ta.style.setProperty('display', staff ? '' : 'none', 'important'); }
 }
 (function(){
   const btn = document.getElementById('pwrBtn'), menu = document.getElementById('pwrMenu');
