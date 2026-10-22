@@ -538,7 +538,7 @@ async function gameRecords(){if(Date.now()-gameRecordsLast<5000)return;gameRecor
 async function addPlayerTool(){if(!await admin())return alert('Admin login required.');modal('<h2 style="margin-top:0">Add Player</h2><input id="npName" class="field" placeholder="Name" maxlength="40" style="width:100%;margin:10px 0 8px"><div id="npStatus" class="muted" style="margin-top:8px"></div><div style="margin-top:14px"><button id="npSave" class="btn gold">Add Player</button><button id="npClose" class="btn ghost" style="margin-left:6px">Cancel</button></div>');const nameInput=$('npName'),status=$('npStatus'),save=$('npSave');$('npClose').onclick=close;const submit=async()=>{const full=nameInput.value.trim();if(!full)return status.textContent='Enter a name.';const r=await db.from('players').select('id,name,full_name');if(r.error)return status.textContent='Could not check existing players: '+r.error.message;if((r.data||[]).some(p=>(p.full_name||p.name||'').toLowerCase()===full.toLowerCase()))return status.textContent='That name is already taken.';save.disabled=true;save.textContent='Saving…';const q=await db.from('players').insert({name:full,full_name:full,date_joined:localDate(new Date()),active:true});if(q.error){save.disabled=false;save.textContent='Add Player';return status.textContent=q.error.code==='23505'?'That name is already taken.':'Could not add player: '+q.error.message}close();location.reload()};save.onclick=submit;nameInput.onkeydown=e=>{if(e.key==='Enter')submit()}}
 function loop(){const apb=$('profileAddPlayerBtn');if(apb&&apb.dataset.bound!=='1'){apb.onclick=addPlayerTool;apb.dataset.bound='1'}const dgb=$('deleteGameBtn');if(dgb&&dgb.dataset.bound!=='1'){dgb.onclick=deleteGame;dgb.dataset.bound='1'}if($('history')&&!historyInstalled)historyView();gameRecords()}
 setInterval(loop,800);if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loop);else loop();
-})();
+
 document.addEventListener('error',function(e){var i=e.target;if(!i||i.tagName!=='IMG'||!i.closest('.avatar,.pod,.lb'))return;var h=document.createElement('span');h.className='blank';h.style.cssText='display:flex;align-items:center;justify-content:center;font-size:22px;width:100%;height:100%';h.textContent='💗';i.replaceWith(h)},true);
 if(/[?&]lb=1/.test(location.search)){var st=document.createElement('style');st.textContent='body>*:not(.wrap){display:none!important}.wrap>*:not(#lbLive){display:none!important}.wrap #lbLive{display:block!important;margin:0!important}body{padding:0!important;background:transparent!important}';document.head.appendChild(st);document.documentElement.classList.add('lb-only');
 var tz=function(d){return new Date(d).toLocaleDateString('en-CA',{timeZone:'America/Toronto'})};
@@ -553,5 +553,7 @@ var pods=[0,1,2].map(function(i){var x=top[i];if(!x||waiting)return '<div class=
 host.innerHTML='<div class="muted" style="font-size:10px;text-transform:uppercase;letter-spacing:.08em">Live podium</div><div style="font-weight:800;margin:2px 0 0">'+label+'</div><div class="podium" id="podium">'+pods+'</div>';return true}catch(e){return false}};
 var tries=setInterval(function(){if(buildLive())clearInterval(tries)},500);setInterval(buildLive,30000);
 var rep=function(){try{parent.postMessage({bmLbHeight:document.documentElement.scrollHeight},'*')}catch(e){}};setInterval(rep,700)}
+
+})();
 </script></body>
 </html>
