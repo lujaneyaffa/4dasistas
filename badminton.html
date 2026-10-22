@@ -555,7 +555,7 @@ var rest=Object.values(by).sort(function(a,c){return c.pts-a.pts||c.w-a.w}).slic
 var more=rest.length>2&&!waiting?'<button type="button" id="lbMore" class="btn ghost" style="width:100%;margin-top:10px">See more</button>':'';
 host.innerHTML='<div class="muted" style="font-size:10px;text-transform:uppercase;letter-spacing:.08em">Live podium</div><div style="font-weight:800;margin:2px 0 0">'+label+'</div><div class="podium" id="podium">'+pods+'</div>'+(waiting?'':rowsHtml)+more;var mb=document.getElementById('lbMore');if(mb)mb.onclick=function(){var rows=host.querySelectorAll('.lbRow'),open=mb.dataset.o==='1';rows.forEach(function(r,i){r.style.display=(open&&i>=2)?'none':'flex'});mb.dataset.o=open?'0':'1';mb.textContent=open?'See more':'Show less'};return true}catch(e){window.__lbErr=String(e&&e.stack||e);return false}};window.__bl=buildLive;
 var tries=setInterval(function(){if(buildLive())clearInterval(tries)},500);setInterval(buildLive,30000);
-var rep=function(){try{parent.postMessage({bmLbHeight:document.documentElement.scrollHeight},'*')}catch(e){}};setInterval(rep,700)}
+var lastH=0,rep=function(){try{var h=document.getElementById('lbLive');if(!h)return;var v=Math.ceil(h.getBoundingClientRect().height)+8;if(Math.abs(v-lastH)>2){lastH=v;parent.postMessage({bmLbHeight:v},'*')}}catch(e){}};setInterval(rep,500)}
 
 })();
 </script></body>
