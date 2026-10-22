@@ -3156,23 +3156,26 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         }
         return jsonResponse({ ok: true, ...result }, 200, corsHeaders);
       }
-      if (path === "/api/admin/badminton/copy-photos" && request.method === "POST") { // copies up to 20 profile photos per call from the old Supabase storage into 4DS (the client loops until none are left)
-        const rows = (await env.DB.prepare("SELECT id, uid, data FROM bm_players WHERE data LIKE '%supabase.co/storage/v1/object/public/profile-avatars/%' LIMIT 20").all()).results || [];
-        let copied = 0, failed = 0;
-        for (const r of rows) {
-          const d = JSON.parse(r.data), m = String(d.avatar_url || "").match(/^https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1\/object\/public\/profile-avatars\/(.+)$/);
-          if (!m) continue;
-          try {
-            const resp = await fetch(d.avatar_url); if (!resp.ok) throw new Error("fetch " + resp.status);
-            const buf = new Uint8Array(await resp.arrayBuffer()); if (buf.length > 2500000) throw new Error("too big");
-            let bin = ""; for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
-            const path2 = decodeURIComponent(m[1]).replace(/[^\w./@-]/g, "_");
-            await env.DB.prepare("INSERT OR REPLACE INTO bm_files (path, ctype, b64, at) VALUES (?, ?, ?, ?)").bind(path2, resp.headers.get("content-type") || "image/jpeg", btoa(bin), Date.now()).run();
-            d.avatar_url = "/storage/v1/object/public/profile-avatars/" + path2; copied++;
-          } catch { d.avatar_url = ""; failed++; } // an unreachable photo falls back to the player's heart
-          await env.DB.prepare("UPDATE bm_players SET data = ? WHERE id = ?").bind(JSON.stringify(d), r.id).run();
-        }
-        return jsonResponse({ ok: true, copied, failed, left: (await env.DB.prepare("SELECT COUNT(*) AS n FROM bm_players WHERE data LIKE '%supabase.co/storage%'").first()).n }, 200, corsHeaders);
+      if (path === "/api/admin/badminton/copy-photos" && request.method === "POST") { // copies ONE profile photo per call from the old Supabase storage into 4DS (small CPU budget per request); the client loops until none are left
+        try {
+          const row = await env.DB.prepare("SELECT id, data FROM bm_players WHERE data LIKE '%supabase.co/storage/v1/object/public/profile-avatars/%' AND data NOT LIKE '%\"_cf\":true%' LIMIT 1").first();
+          let copied = 0, failed = 0, why = "";
+          if (row) {
+            const d = JSON.parse(row.data), m = String(d.avatar_url || "").match(/^https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1\/object\/public\/profile-avatars\/(.+)$/);
+            try {
+              if (!m) throw new Error("not a supabase url");
+              const resp = await fetch(d.avatar_url); if (!resp.ok) throw new Error("fetch " + resp.status);
+              const buf = new Uint8Array(await resp.arrayBuffer()); if (buf.length > 1500000) throw new Error("too big");
+              let bin = ""; for (let k = 0; k < buf.length; k += 32768) bin += String.fromCharCode.apply(null, buf.subarray(k, k + 32768));
+              const path2 = decodeURIComponent(m[1]).replace(/[^\w./@-]/g, "_");
+              await env.DB.prepare("INSERT OR REPLACE INTO bm_files (path, ctype, b64, at) VALUES (?, ?, ?, ?)").bind(path2, resp.headers.get("content-type") || "image/jpeg", btoa(bin), Date.now()).run();
+              d.avatar_url = "/storage/v1/object/public/profile-avatars/" + path2; copied = 1;
+            } catch (e) { d._cf = true; failed = 1; why = String(e && e.message || e).slice(0, 80); } // keep the old link (so nothing is lost) but don't retry it forever
+            await env.DB.prepare("UPDATE bm_players SET data = ? WHERE id = ?").bind(JSON.stringify(d), row.id).run();
+          }
+          const left = (await env.DB.prepare("SELECT COUNT(*) AS n FROM bm_players WHERE data LIKE '%supabase.co/storage%' AND data NOT LIKE '%\"_cf\":true%'").first()).n;
+          return jsonResponse({ ok: true, copied, failed, why, left }, 200, corsHeaders);
+        } catch (e) { return jsonResponse({ error: "Photo copy hit a snag: " + String(e && e.message || e).slice(0, 120) }, 500, corsHeaders); }
       }
       if (path.startsWith("/api/bm/")) {
         const memberId = await memberIdFromRequest();

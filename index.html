@@ -11294,10 +11294,11 @@ function bmImportHtml(){
     <div id="bmSetMsg" style="font-size:13px;min-height:16px;margin-top:6px;"></div></div>`;
 }
 async function bmCopyPhotos(msg){
-  for(let i = 0; i < 30; i++){
+  let ok = 0, bad = 0;
+  for(let i = 0; i < 90; i++){
     const r = await fetch('/api/admin/badminton/copy-photos', { method:'POST', credentials:'include' }); const d = await r.json().catch(() => ({}));
-    if(!r.ok) throw new Error(d.error || 'Could not copy photos');
-    msg.textContent += `\nPhotos copied: ${d.copied}${d.failed ? ' · could not read ' + d.failed + ' (they get a heart instead)' : ''} · left ${d.left}`;
+    if(!r.ok) throw new Error(d.error || ('Could not copy photos (' + r.status + ')'));
+    ok += d.copied || 0; bad += d.failed || 0; msg.textContent = `Photos copied: ${ok}${bad ? ' · could not read ' + bad + (d.why ? ' (' + d.why + ')' : '') : ''} · left ${d.left}`;
     if(!d.left) break;
   }
 }
