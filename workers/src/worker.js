@@ -697,6 +697,39 @@ const stepsEnsure = async (env) => {
   return true;
 };
 const STEP_ROUNDS_KEY = "steprounds", STEP_MAX_PER_DAY = 60000;
+// ---- Fitbit / Google account: for people whose steps live in a Fitbit (any phone, even an iPhone with a Fitbit). OAuth with the Fitbit Web API; the secrets FITBIT_CLIENT_ID / FITBIT_CLIENT_SECRET are Worker secrets set by the owner. ----
+let _fitbitReady = null;
+const fitbitEnsure = async (env) => {
+  if (!env.DB || !env.FITBIT_CLIENT_ID || !env.FITBIT_CLIENT_SECRET) return false;
+  if (!_fitbitReady) _fitbitReady = env.DB.prepare("CREATE TABLE IF NOT EXISTS fitbit_tokens (user_id TEXT PRIMARY KEY, access TEXT, refresh TEXT, exp INTEGER, at INTEGER)").run().catch((e) => { _fitbitReady = null; throw e; });
+  await _fitbitReady;
+  return true;
+};
+const fitbitRedirect = (env) => `${env.SITE_ORIGIN || "https://4dasistas.ca"}/api/fitbit/callback`;
+const fitbitToken = async (env, params) => {
+  const r = await fetch("https://api.fitbit.com/oauth2/token", { method: "POST", headers: { Authorization: "Basic " + btoa(`${env.FITBIT_CLIENT_ID}:${env.FITBIT_CLIENT_SECRET}`), "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(params).toString() });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.access_token) throw new Error((j.errors && j.errors[0] && j.errors[0].message) || "Fitbit said no");
+  return j;
+};
+// Pull the last few days of steps from Fitbit into steps_daily (whole-day totals, like the native sync). Returns how many days were saved.
+const fitbitSync = async (env, userId) => {
+  if (!(await fitbitEnsure(env)) || !(await stepsEnsure(env))) return 0;
+  let row = await env.DB.prepare("SELECT access, refresh, exp FROM fitbit_tokens WHERE user_id = ?").bind(userId).first();
+  if (!row) return 0;
+  if (row.exp < Date.now() + 60000) {
+    const j = await fitbitToken(env, { grant_type: "refresh_token", refresh_token: row.refresh });
+    row = { access: j.access_token, refresh: j.refresh_token || row.refresh, exp: Date.now() + (j.expires_in || 28800) * 1000 };
+    await env.DB.prepare("UPDATE fitbit_tokens SET access = ?, refresh = ?, exp = ?, at = ? WHERE user_id = ?").bind(row.access, row.refresh, row.exp, Date.now(), userId).run();
+  }
+  const end = new Date().toISOString().slice(0, 10), start = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
+  const r = await fetch(`https://api.fitbit.com/1/user/-/activities/steps/date/${start}/${end}.json`, { headers: { Authorization: "Bearer " + row.access } });
+  if (!r.ok) throw new Error("Couldn't read Fitbit steps");
+  const j = await r.json(), stmts = [], now = Date.now();
+  for (const x of j["activities-steps"] || []) { const steps = Math.round(Number(x.value)); if (isValidDateString(x.dateTime) && Number.isFinite(steps) && steps >= 0) stmts.push(env.DB.prepare("INSERT INTO steps_daily (user_id, day, steps, source, updated) VALUES (?, ?, ?, 'fitbit', ?) ON CONFLICT(user_id, day) DO UPDATE SET steps = excluded.steps, source = excluded.source, updated = excluded.updated").bind(userId, x.dateTime, Math.min(steps, STEP_MAX_PER_DAY), now)); }
+  if (stmts.length) await env.DB.batch(stmts);
+  return stmts.length;
+};
 const readStepRounds = async (env) => { try { const a = JSON.parse((await env.SITE_DATA.get(STEP_ROUNDS_KEY)) || "[]"); return Array.isArray(a) ? a : []; } catch { return []; } };
 const cleanStepRound = (r) => {
   if (!r || !isValidDateString(r.start) || !isValidDateString(r.end) || r.end < r.start) return null;
@@ -2525,6 +2558,14 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ hidden: Array.isArray(me.homeHidden) ? me.homeHidden : [] }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     // The signed-in member's "to-do" list for the Clubs home: next events they're going to, unpaid events, undated events waiting for their interest.
+    if (path === "/api/me/attended" && request.method === "GET") {
+      const meId = await memberIdFromRequest();
+      if (!meId) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      const todayIso = new Date().toISOString().slice(0, 10), roster = await readClubRoster(env);
+      const activities = (await readClubCal(env)).filter((e) => !e.tbd && e.date < todayIso && (e.rsvps || []).some((x) => x.id === meId && x.status === "going"))
+        .sort((a, b) => b.date.localeCompare(a.date)).map((e) => ({ id: e.id, title: e.title, date: e.date, clubs: calClubs(e).map((cid) => (roster.find((c) => c.id === cid) || {}).title).filter(Boolean) }));
+      return jsonResponse({ activities }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
     if (path === "/api/me/todo" && request.method === "GET") {
       const meId = await memberIdFromRequest();
       if (!meId) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
@@ -2603,6 +2644,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         // Samples come from the native app reading Apple Health / Health Connect: [{day:'YYYY-MM-DD', steps, source:'apple'|'google'}] (the whole day's total, re-sent each hour).
         let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
         const minDay = new Date(Date.now() - 8 * 86400000).toISOString().slice(0, 10), maxDay = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+        { const sr1 = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(me.id).first(); if (sr1 && sr1.source === "fitbit") return jsonResponse({ ok: true, skipped: "fitbit" }, 200, corsHeaders); } // their steps come from Fitbit — the phone's own health data is ignored
         const stmts = [], now = Date.now();
         for (const x of (Array.isArray(body.samples) ? body.samples : []).slice(0, 10)) {
           const steps = Math.round(Number(x && x.steps)), day = String((x && x.day) || ""), src = x && x.source === "apple" ? "apple" : x && x.source === "google" ? "google" : "";
@@ -2611,8 +2653,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         }
         if (!stmts.length) return jsonResponse({ error: "No valid step data" }, 400, corsHeaders);
         await env.DB.batch(stmts);
+        await env.DB.prepare("INSERT OR IGNORE INTO step_sources (user_id, source, at) VALUES (?, ?, ?)").bind(me.id, stmts.length ? (body.samples[0] && body.samples[0].source === "google" ? "google" : "apple") : "apple", Date.now()).run();
         return jsonResponse({ ok: true, saved: stmts.length }, 200, corsHeaders);
       }
+      try { const sr0 = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(me.id).first(); if (sr0 && sr0.source === "fitbit") { const lu = await env.DB.prepare("SELECT MAX(updated) AS u FROM steps_daily WHERE user_id = ?").bind(me.id).first(); if (!lu || !lu.u || Date.now() - lu.u > 15 * 60000) await fitbitSync(env, me.id); } } catch {}
       const pub = await stepsPublicData(env), round = pub.round;
       const out = { ...pub, mine: { round: 0, today: 0, lastSync: 0, rank: null, joined: false, source: "" }, leaderboard: [], pledges: [] };
       { const sr = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(me.id).first(); out.mine.source = (sr && sr.source) || ""; }
@@ -2642,11 +2686,39 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       _stepsPublicMemo = { at: 0, data: null };
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
+    if (path === "/api/me/fitbit/start" && request.method === "POST") {
+      const meId = await memberIdFromRequest();
+      if (!meId) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
+      if (!(await fitbitEnsure(env))) return jsonResponse({ error: "Fitbit / Google isn't switched on yet — the site owner needs to finish setting it up" }, 503, corsHeaders);
+      const ts = Date.now(), sig = (await hmacHex(`fitbit-state:${env.FITBIT_CLIENT_SECRET}`, `${meId}.${ts}`)).slice(0, 32);
+      const u = new URL("https://www.fitbit.com/oauth2/authorize");
+      u.search = new URLSearchParams({ response_type: "code", client_id: env.FITBIT_CLIENT_ID, redirect_uri: fitbitRedirect(env), scope: "activity", state: `${meId}.${ts}.${sig}` }).toString();
+      return jsonResponse({ url: u.toString() }, 200, corsHeaders);
+    }
+    if (path === "/api/fitbit/callback" && request.method === "GET") {
+      const page = (msg, ok) => new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:system-ui;background:#fef7f4;color:#3a2a28;text-align:center;padding:64px 24px"><div style="font-size:54px">${ok ? "✅" : "⚠️"}</div><h2>${msg}</h2><p>${ok ? "You can close this window and go back to the 4DS app — your steps will start syncing." : "Go back to 4DS and try again."}</p><p><a href="https://4dasistas.ca/#/steps" style="color:#ce8491;font-weight:700">Open 4DS</a></p>`, { status: ok ? 200 : 400, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+      try {
+        if (!(await fitbitEnsure(env)) || !(await stepsEnsure(env))) return page("Not set up yet", false);
+        const [uid, ts, sig] = String(url.searchParams.get("state") || "").split(".");
+        const want = uid && ts ? (await hmacHex(`fitbit-state:${env.FITBIT_CLIENT_SECRET}`, `${uid}.${ts}`)).slice(0, 32) : "";
+        if (!url.searchParams.get("code") || !want || !sameSig(sig, want) || Date.now() - Number(ts) > 30 * 60000) return page("That link expired", false);
+        const j = await fitbitToken(env, { grant_type: "authorization_code", code: url.searchParams.get("code"), redirect_uri: fitbitRedirect(env) });
+        await env.DB.prepare("INSERT INTO fitbit_tokens (user_id, access, refresh, exp, at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET access = excluded.access, refresh = excluded.refresh, exp = excluded.exp, at = excluded.at").bind(uid, j.access_token, j.refresh_token, Date.now() + (j.expires_in || 28800) * 1000, Date.now()).run();
+        await env.DB.prepare("INSERT INTO step_sources (user_id, source, at) VALUES (?, 'fitbit', ?) ON CONFLICT(user_id) DO UPDATE SET source = 'fitbit', at = excluded.at").bind(uid, Date.now()).run();
+        try { await fitbitSync(env, uid); } catch {}
+        return page("Fitbit connected", true);
+      } catch (e) { return page("Couldn't connect Fitbit", false); }
+    }
+    if (path === "/api/me/fitbit/sync" && request.method === "POST") {
+      const meId = await memberIdFromRequest();
+      if (!meId) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
+      try { const n = await fitbitSync(env, meId); return jsonResponse({ ok: true, days: n }, 200, corsHeaders); } catch (e) { return jsonResponse({ error: e.message }, 502, corsHeaders); }
+    }
     if (path === "/api/me/steps/source" && request.method === "POST") {
       const meId = await memberIdFromRequest();
       if (!meId) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
       let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
-      const source = b.source === "apple" ? "apple" : b.source === "google" ? "google" : "";
+      const source = b.source === "apple" ? "apple" : b.source === "google" ? "google" : b.source === "fitbit" ? "fitbit" : "";
       if (!source || !(await stepsEnsure(env))) return jsonResponse({ error: "Choose Apple Health or Google Health Connect" }, 400, corsHeaders);
       await env.DB.prepare("INSERT INTO step_sources (user_id, source, at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET source = excluded.source, at = excluded.at").bind(meId, source, Date.now()).run();
       return jsonResponse({ ok: true, source }, 200, corsHeaders);

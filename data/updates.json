@@ -1,6 +1,22 @@
 {
   "updates": [
     {
+      "no": 27,
+      "date": "2026-10-22",
+      "title": "A new look for the bottom bar",
+      "items": [
+        {
+          "text": "✨ The bottom bar is now a sleek floating pill with new icons. Search and Profile have their own tabs — Profile holds your settings, your activity and everything from the menu."
+        },
+        {
+          "text": "✨ Search shows the calendar and directory in sections you can open or fold away. The corner button is now a + for contributing and more."
+        },
+        {
+          "text": "✨ New: see the club activities you've attended (🏅 in the club calendar or Profile), pull down to refresh with a little buzz, and choose Fitbit / Google as your steps source on any phone."
+        }
+      ]
+    },
+    {
       "no": 26,
       "date": "2026-10-21",
       "title": "New home screen",
