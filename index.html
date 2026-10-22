@@ -10571,7 +10571,7 @@ function renderClubAdminPanel(){
   }
   const clubId = state.cmAdminClub;
   const grp = state.admGroup === 'team' ? 'settings' : state.admGroup;
-  const allowedGroups = lead ? ['clubs', 'events', 'profiles'] : ['clubs', 'events', 'directory', 'calendar', 'profiles', 'settings'];
+  const allowedGroups = lead ? ['clubs', 'events', 'profiles'] : ['clubs', 'events', 'directory', 'calendar', 'profiles', 'badminton', 'steps', 'settings'];
   const gsel = allowedGroups.includes(grp) ? grp : 'clubs';
   // Club events + quick member (per club) — lives in the Clubs grid
   const clubToolsHtml = `
@@ -10615,8 +10615,6 @@ function renderClubAdminPanel(){
     ${inboxAdminHtml(lead)}
     ${lead ? admSec('periodsview', '🗂️ Availability periods — tap one to view it', `<div class="cp-box">${periodHistoryHtml(k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' })) || '<p class="av-msg">Loading…</p>'}</div>`, true) : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
     ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
-    ${lead ? '' : admSec('bmimport', '🏸 Badminton — move the old site over', bmImportHtml(), false)}
-    ${lead ? '' : admSec('stepsadm', '👟 Steps challenge — rounds &amp; pledges', stepsAdminHtml(), false)}
     ${lead ? '' : admSec('stay', '🪁→🏛️ Squads moving to clubs — confirm link', stayAdminHtml(), true)}
     ${lead ? '' : admSec('clublinks', '🔗 Club links (WhatsApp groups)', clubLinksHtml(), true)}
     ${lead ? '' : admSec('clubdir', '🏛️ Club directory (add / edit clubs)', clubDirListHtml(), false)}
@@ -10637,6 +10635,8 @@ function renderClubAdminPanel(){
     ${lead ? '' : admSec('push', '📲 Push notifications', pushAdminHtml(), false)}
     ${lead ? '' : admSec('leads', '🧑‍💼 Club admins' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
   `;
+  const badmintonGrid = admSec('bmimport', '🏸 Badminton — photos, coach password &amp; iPad kiosk', bmImportHtml(), true);
+  const stepsGrid = admSec('stepsadm', '👟 Steps challenge — rounds &amp; pledges', stepsAdminHtml(), true);
   const profilesGrid = `
     ${(lead || !/[?&]importforms/.test(location.search)) ? '' : admSec('formimport', '📥 Import sign-up forms (from your email)', formImportHtml(), false)}
     ${admSec('newprofile', '➕ Create a profile', `
@@ -10652,6 +10652,7 @@ function renderClubAdminPanel(){
       </div>
     </div>
     `, false)}
+    ${lead ? '' : admSec('mergeusers', '🧬 Merge two duplicate accounts', `<div class="cp-box"><p style="font-size:11px;color:#776867;margin:0 0 10px;">Type the two usernames. You'll see which one has more info first — nothing changes until you confirm. The fuller account is kept and the other is folded into it (profile details, clubs, availability, RSVPs, steps).</p><div style="display:flex;flex-direction:column;gap:8px;"><input id="mgA" placeholder="First username (e.g. lujane.a)" autocapitalize="off" style="padding:10px;border-radius:10px;border:2px solid var(--brand-brown);"><input id="mgB" placeholder="Second username (e.g. lujane.y)" autocapitalize="off" style="padding:10px;border-radius:10px;border:2px solid var(--brand-brown);"><button class="club-guide-btn" id="mgPreviewBtn" style="background:var(--blush);">Compare them</button><div id="mgOut" style="font-size:12px;"></div></div></div>`, false)}
     <h3 style="margin-top:24px;">Admin Profiles</h3>
     <p style="font-size:11px;color:#776867;margin-top:-6px;">Search every profile. Open one to edit it, change its clubs, archive or delete it.</p>
     <div style="margin:14px 0 26px;">${renderAdminAllMembersPanels()}</div>
@@ -10664,7 +10665,7 @@ function renderClubAdminPanel(){
     ${lead ? `<p style="font-size:12px;color:#776867;margin:6px 0 0;">You manage: <strong>${adminClubs().map(c => escapeCm(c.title)).join(', ') || 'no clubs yet'}</strong>. Reminders only go to your clubs' members. Use "➕ New event" at the bottom of the page to add an official event.</p>` : ''}
     ${lead ? '' : admNeedsHtml()}
     ${admGroupTilesHtml(lead, gsel)}
-    ${gsel === 'clubs' ? clubsGrid : gsel === 'events' ? admCeHtml() : gsel === 'directory' ? directoryGrid : gsel === 'calendar' ? calendarGrid : gsel === 'settings' ? settingsGrid : profilesGrid}
+    ${gsel === 'clubs' ? clubsGrid : gsel === 'events' ? admCeHtml() : gsel === 'directory' ? directoryGrid : gsel === 'calendar' ? calendarGrid : gsel === 'settings' ? settingsGrid : gsel === 'badminton' ? badmintonGrid : gsel === 'steps' ? stepsGrid : profilesGrid}
   </div>`;
 }
 // Three big tiles at the top of the Admin page switch between its grids (Clubs / Notifications & team / Profiles).
@@ -10688,6 +10689,8 @@ function admGroupTilesHtml(lead, cur){
     ${lead ? '' : tile('directory', '📖', 'Directory', 'Resource names', '')}
     ${lead ? '' : tile('calendar', '📅', 'The Calendar', 'Main calendar', '')}
     ${tile('profiles', '👥', 'Profiles', 'People · clubs', '')}
+    ${lead ? '' : tile('badminton', '🏸', 'Badminton', 'Photos · kiosk · coach', '')}
+    ${lead ? '' : tile('steps', '👟', 'Steps', 'Rounds · pledges', '')}
     ${lead ? '' : tile('settings', '⚙️', 'Settings', 'Push · club admins · labels', '')}
   </div>`;
 }
@@ -12554,6 +12557,20 @@ loadData().then(() => Promise.all([loadLabels(), loadAvailPeriod()])).then(() =>
       document.body.appendChild(b);
     }
   }, 1500);
+})();
+
+(function(){
+  document.addEventListener('click', async ev => {
+    const pv = ev.target.closest('#mgPreviewBtn'), go = ev.target.closest('#mgConfirmBtn');
+    if(!pv && !go) return;
+    const out = document.getElementById('mgOut'), a = (document.getElementById('mgA')||{}).value, b = (document.getElementById('mgB')||{}).value;
+    const call = async confirm => { const r = await fetch('/api/admin/users-merge', { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ a, b, confirm }) }); return { ok:r.ok, d: await r.json().catch(() => ({})) }; };
+    const line = (t, i) => `<div style="margin:6px 0;"><b>${t}:</b> ${escapeCm(i.name)} (@${escapeCm(i.username)}) · ${i.filled} profile fields · ${i.clubs.length} club${i.clubs.length === 1 ? '' : 's'} · ${i.steps} step days · availability ${i.hasAvail ? 'yes' : 'no'}</div>`;
+    try {
+      if(pv){ out.textContent = 'Comparing…'; const r = await call(false); if(!r.ok){ out.textContent = r.d.error || 'Could not compare.'; return; } out.innerHTML = line('Keep', r.d.keep) + line('Fold in &amp; remove', r.d.drop) + '<button class="club-guide-btn" id="mgConfirmBtn" style="background:var(--brand-rose);color:#fff;margin-top:6px;">Merge now</button>'; }
+      else { out.textContent = 'Merging…'; const r = await call(true); out.textContent = r.ok ? `Done ✅ Kept @${r.d.kept.username}; @${r.d.merged.username} is gone.` : (r.d.error || 'Merge failed.'); }
+    } catch { out.textContent = 'Something went wrong — try again.'; }
+  });
 })();
 </script>
 

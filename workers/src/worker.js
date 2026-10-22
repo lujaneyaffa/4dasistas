@@ -4066,6 +4066,51 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ reminded, skipped: ids.length - reminded }, 200, corsHeaders);
     }
     // Admin: delete a whole profile (not just one club membership): memberships, join requests, availability, username.
+    // Admin: merge two accidental duplicate accounts. Without confirm it only previews; with confirm the account with more info is kept and the other is folded into it.
+    if (path === "/api/admin/users-merge" && request.method === "POST") {
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const resolve = async (v) => { v = String(v || "").trim().toLowerCase(); if (!v) return null; const byId = await readUser(env, v).catch(() => null); if (byId) return byId; const id = await findUserIdByUsername(env, v); return id ? await readUser(env, id) : null; };
+      const A = await resolve(b.a), B = await resolve(b.b);
+      if (!A || !B || A.id === B.id) return jsonResponse({ error: "Couldn't find two different accounts for those usernames." }, 404, corsHeaders);
+      const clubsOf = async (u) => { const out = []; for (const c of await clubIdList(env)) if ((await readClubMemberIds(env, c)).includes(u.id)) out.push(c); return out; };
+      const stepRows = async (u) => ((await env.DB.prepare("SELECT COUNT(*) AS n FROM steps_daily WHERE user_id = ?").bind(u.id).first()) || {}).n || 0;
+      const info = async (u) => { const filled = Object.entries(u).filter(([k, v]) => !["id", "pinHash", "token"].includes(k) && v != null && v !== "" && !(Array.isArray(v) && !v.length) && !(typeof v === "object" && !Array.isArray(v) && !Object.keys(v).length)).length; const clubs = await clubsOf(u), steps = await stepRows(u), hasAvail = !!(await readIaDoc(env, `m:${u.id}`)); return { id: u.id, name: u.name, username: u.username, filled, clubs, steps, hasAvail, score: filled * 3 + clubs.length * 2 + (hasAvail ? 4 : 0) + Math.min(steps, 30) / 3 }; };
+      const iA = await info(A), iB = await info(B);
+      const keepId = b.keep ? String(b.keep) : (iA.score >= iB.score ? A.id : B.id);
+      if (![A.id, B.id].includes(keepId)) return jsonResponse({ error: "keep must be one of the two accounts" }, 400, corsHeaders);
+      const K = keepId === A.id ? A : B, D = keepId === A.id ? B : A, iK = keepId === A.id ? iA : iB, iD = keepId === A.id ? iB : iA;
+      if (!b.confirm) return jsonResponse({ preview: true, keep: iK, drop: iD }, 200, corsHeaders);
+      // 1. fill every empty field on the kept profile from the other one
+      for (const [k, v] of Object.entries(D)) { if (["id", "username", "pinHash", "token", "archived"].includes(k)) continue; const cur = K[k]; const empty = cur == null || cur === "" || (Array.isArray(cur) && !cur.length) || (typeof cur === "object" && !Array.isArray(cur) && !Object.keys(cur).length); if (empty && v != null && v !== "") K[k] = v; }
+      await writeUser(env, K);
+      // 2. clubs: union
+      for (const c of iD.clubs) { const ids = await readClubMemberIds(env, c); if (!ids.includes(K.id)) { ids.push(K.id); } await writeClubMemberIds(env, c, ids.filter((x) => x !== D.id)); }
+      // 3. availability: keep theirs, else take the other's
+      if (!iK.hasAvail) { const raw = await readIaDoc(env, `m:${D.id}`); if (raw) await writeIaDoc(env, `m:${K.id}`, raw); }
+      // 4. club-event answers
+      for (const c of await clubIdList(env)) { for (const ev of await readClubEvents(env, c).catch(() => [])) { const key = clubEventResponsesKey(c, ev.id), raw = await env.SITE_DATA.get(key); if (!raw) continue; let r; try { r = JSON.parse(raw); } catch { continue; } if (r[D.id]) { if (!r[K.id]) r[K.id] = r[D.id]; delete r[D.id]; await env.SITE_DATA.put(key, JSON.stringify(r)); } } }
+      // 5. D1 rows that point at a user
+      const mv = async (sql, ...args) => { try { await env.DB.prepare(sql).bind(...args).run(); } catch {} };
+      await mv("UPDATE OR IGNORE steps_daily SET user_id = ? WHERE user_id = ?", K.id, D.id);
+      await mv("UPDATE OR IGNORE step_participants SET user_id = ? WHERE user_id = ?", K.id, D.id);
+      await mv("UPDATE OR IGNORE step_sources SET user_id = ? WHERE user_id = ?", K.id, D.id);
+      await mv("UPDATE step_pledges SET user_id = ? WHERE user_id = ?", K.id, D.id);
+      await mv("UPDATE OR IGNORE device_tokens SET user_id = ? WHERE user_id = ?", K.id, D.id);
+      await mv("UPDATE OR IGNORE event_reviews SET user_id = ? WHERE user_id = ?", K.id, D.id);
+      await mv("UPDATE OR IGNORE gh_tokens SET user_id = ? WHERE user_id = ?", K.id, D.id);
+      await mv("UPDATE bm_players SET uid = ? WHERE uid = ?", K.id, D.id);
+      for (const t of ["steps_daily", "step_participants", "step_sources", "device_tokens", "event_reviews", "gh_tokens", "badge_counts", "member_seen"]) await mv(`DELETE FROM ${t} WHERE user_id = ?`, D.id);
+      // 6. squads, push, requests, then remove the duplicate
+      for (const sid of Object.keys(SQUAD_TITLES)) { const ids = await readSquadMemberIds(env, sid); if (ids.includes(D.id)) await writeSquadMemberIds(env, sid, [...new Set(ids.map((x) => (x === D.id ? K.id : x)))]); await env.SITE_DATA.delete(squadReqKey(sid, D.id)); }
+      const reqKeys = await env.SITE_DATA.list({ prefix: "joinreq:" });
+      for (const k of reqKeys.keys) if (k.name.split(":")[2] === D.id) await env.SITE_DATA.delete(k.name);
+      await deleteIaDoc(env, `m:${D.id}`); _ideaAvailMemo = { at: 0, people: null };
+      await env.SITE_DATA.delete(pushKey(D.id));
+      await releaseUsername(env, D.username);
+      await deleteUser(env, D.id);
+      _memberSearchCache = null; _stepsPublicMemo = { at: 0, data: null };
+      return jsonResponse({ ok: true, kept: { id: K.id, name: K.name, username: K.username }, merged: { id: D.id, username: D.username } }, 200, corsHeaders);
+    }
     const adminUserDeleteMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/?$/);
     if (adminUserDeleteMatch && request.method === "DELETE") {
       const userId = decodeURIComponent(adminUserDeleteMatch[1]);
