@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-22 · Claude · Fix: Home was blank for the main admin / club admins (no member session → no bubbles and no member home). Bubbles + about now show unless a member session exists. Cache v204.
+
 - 2026-10-22 · Claude · Admin: Badminton and Steps now have their own tiles/pages; new main-admin-only account merge (`POST /api/admin/users-merge`, preview then confirm; UI in Admin → Profiles); badminton kiosk home has "Add or change my profile picture" (pick name → photo/heart). Google Health OAuth client created in Google Cloud (secrets set by Lujane via wrangler). Cache v203.
 
 - 2026-10-23 — Claude — (SW v196) Native-app extras (need build 5): (1) universal links — `.well-known/apple-app-site-association` (appID 9FRKF98748.4DS; excludes /api/* and /badminton*; header in `_headers`) + `appUrlOpen` handler in `nativeAppExtras`; (2) event reminders via @capacitor/local-notifications (`scheduleEventReminders`, 2 h before or 8 am day-of) and an 'Add to my calendar' button → `/api/event-ics/:id`; (3) update gate: `/api/app-config` (KV `appconfig.minBuild`), main admin sets it with Admin page → 📲 Require app update (`/api/admin/app-config`), the app compares `App.getInfo().build`; (4) offline screen via capacitor `server.errorPath` (www/offline.html); (5) unread badge: `badge_counts` D1 table, `aps.badge` in `sendApns`, `/api/me/badge/clear`, @capawesome/capacitor-badge cleared when the app is opened. Home bubbles: click empty space → straight; move mouse → float again.

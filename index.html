@@ -7582,8 +7582,8 @@ function homeGridHtml(){
   }).join('');
   const authBtns = (!homeIsSignedIn() && isNativeApp()) ? `<div class="home-auth" style="display:flex;flex-direction:column;gap:10px;max-width:440px;margin:6px auto 14px;"><button type="button" class="club-guide-btn" id="homeLoginBig" style="min-height:58px;font-size:18px;background:var(--brand-rose);color:#fff;border-color:var(--brand-brown);">Log in</button><button type="button" class="club-guide-btn" id="homeSignupBig" style="min-height:58px;font-size:18px;">Sign up</button></div>` : '';
   return `${authBtns}
-    ${homeIsSignedIn() ? '' : `<div class="home-about"><p style="margin:0;"><strong>4DASISTAS</strong> is a community connector for Muslim women in the GTA — find events and trips, join clubs, discover women-owned businesses, and plan things together. 💛</p></div>`}
-    ${homeIsSignedIn() ? '' : `<div class="home-bubbles">${bubbles}</div>`}`;
+    ${getCmSession() ? '' : `<div class="home-about"><p style="margin:0;"><strong>4DASISTAS</strong> is a community connector for Muslim women in the GTA — find events and trips, join clubs, discover women-owned businesses, and plan things together. 💛</p></div>`}
+    ${getCmSession() ? '' : `<div class="home-bubbles">${bubbles}</div>`}`;
 }
 function wireHomeBubbles(){
   const box = document.querySelector('.home-bubbles'); if(!box || box.dataset.wired) return; box.dataset.wired = '1';
