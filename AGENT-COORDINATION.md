@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-22 · Claude · White-screen protection: (1) index.html has a boot watchdog (inline script right after <body>): if the page code hasn't rendered within 9s it clears the service worker + caches and reloads once by itself, then shows a "one moment — Refresh" card instead of a blank page; (2) NEW RULE for every agent: run `sh scripts/predeploy.sh` BEFORE `wrangler deploy` (syntax-checks every inline script, worker.js, service-worker.js — refuses on error) and `sh scripts/postdeploy-check.sh` AFTER (live site + new SW version). Never push a half-edited index.html. Cache v208.
+
 - 2026-10-22 · Claude · Logged-in Home: greeting is now "Asalamu Aleykum, <name>" in the welcome script font + gradient; Notifications card has no ribbons / corner sparkle+heart; a club board opened from Home now has a Back that returns to Home (was looping back to the same board for 1-club members, so Back seemed dead); the round + / profile button hides while any pop-up (.mem-pop, tour, event detail) is open. Cache v207.
 
 - 2026-10-22 · Claude · Script font (Sacramento, same gradient as the salamu welcome) on the badminton loading screen, the Badminton page title ("Ladies Badminton"), and the Notifications page/popup titles; Sacramento now preloaded in <head> so the fallback font never flashes. Cache v206.

@@ -1185,6 +1185,28 @@
 </head>
 <body>
 <script>
+/* Safety net: if the page's code didn't start (a half-finished update, a cached old file, a script error), never leave a white screen —
+   refresh once on its own (clearing the saved copies), and if that doesn't help show a friendly card with a Reload button. */
+(function(){
+  var done = false;
+  function show(){
+    if(done || window.__rendered) return; done = true;
+    var tried = false; try { tried = sessionStorage.getItem('wdTried') === '1'; sessionStorage.setItem('wdTried', '1'); } catch(e){}
+    function reload(){
+      var go = function(){ location.replace(location.pathname + '?r=' + Date.now() + location.hash); };
+      try { var p = []; if(navigator.serviceWorker && navigator.serviceWorker.getRegistrations) p.push(navigator.serviceWorker.getRegistrations().then(function(rs){ return Promise.all(rs.map(function(r){ return r.unregister(); })); })); if(window.caches && caches.keys) p.push(caches.keys().then(function(ks){ return Promise.all(ks.map(function(k){ return caches.delete(k); })); })); Promise.all(p).then(go, go); setTimeout(go, 2500); } catch(e){ go(); }
+    }
+    if(!tried){ reload(); return; }
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:#fef7f4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center;font-family:Outfit,system-ui,sans-serif;color:#76220b;';
+    d.innerHTML = '<div style="font-family:Sacramento,cursive;font-size:56px;line-height:1.1;color:#ce8491;">one moment</div><div style="font-size:15px;max-width:300px;line-height:1.5;">4DS is updating. Tap below to refresh and you\'ll be right back in.</div><button type="button" id="wdBtn" style="min-height:52px;padding:0 28px;border-radius:999px;border:2px solid #76220b;background:#ce8491;color:#fff;font:800 16px Outfit,system-ui,sans-serif;box-shadow:3px 3px 0 #76220b;">Refresh</button>';
+    document.body.appendChild(d); document.getElementById('wdBtn').onclick = function(){ try { sessionStorage.removeItem('wdTried'); } catch(e){} reload(); };
+  }
+  setTimeout(show, 9000);
+  window.addEventListener('load', function(){ setTimeout(function(){ if(window.__rendered){ try { sessionStorage.removeItem('wdTried'); } catch(e){} } }, 1500); });
+})();
+</script>
+<script>
 /* Every time the 4DS app opens: "salamu aleykum" is written across the cream screen (instead of a logo splash), then the app appears. */
 (function(){
   try {
@@ -12585,6 +12607,8 @@ loadData().then(() => Promise.all([loadLabels(), loadAvailPeriod()])).then(() =>
     } catch { out.textContent = 'Something went wrong — try again.'; }
   });
 })();
+
+(function(){ var o = render; render = function(){ var r = o.apply(this, arguments); window.__rendered = true; return r; }; })();
 </script>
 
 </body>
