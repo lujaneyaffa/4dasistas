@@ -481,6 +481,7 @@ function kioskInit(){const root=$('kioskRoot');if(!root)return;root.addEventList
 
 async function init(){const s=await db.auth.getSession();session=s.data?.session||null;bind();kioskInit();$('attDate').value=dateKey();schedule();renderScheduleCompact();setInterval(schedule,1000);await load()}
 init();
+window.__bm={get players(){return players},get games(){return games},points:points,gp:gp,gw:gw,fp:fp,name:name,heartFor:heartFor,fmtPts:fmtPts,esc:esc,arr:arr};
 })();
 </script>
 
@@ -542,7 +543,7 @@ setInterval(loop,800);if(document.readyState==='loading')document.addEventListen
 document.addEventListener('error',function(e){var i=e.target;if(!i||i.tagName!=='IMG'||!i.closest('.avatar,.pod,.lb'))return;var h=document.createElement('span');h.className='blank';h.style.cssText='display:flex;align-items:center;justify-content:center;font-size:22px;width:100%;height:100%';h.textContent='💗';i.replaceWith(h)},true);
 if(/[?&]lb=1/.test(location.search)){var st=document.createElement('style');st.textContent='body>*:not(.wrap){display:none!important}.wrap>*:not(#lbLive){display:none!important}.wrap #lbLive{display:block!important;margin:0!important}body{padding:0!important;background:transparent!important}';document.head.appendChild(st);document.documentElement.classList.add('lb-only');
 var tz=function(d){return new Date(d).toLocaleDateString('en-CA',{timeZone:'America/Toronto'})};
-var buildLive=function(){try{if(!players||!players.length||!games)return false;var host=document.getElementById('lbLive');if(!host){host=document.createElement('section');host.id='lbLive';host.className='card';host.style.cssText='display:block';document.querySelector('.wrap').appendChild(host)}
+var buildLive=function(){try{var B=window.__bm;if(!B||!B.players||!B.players.length||!B.games)return false;var players=B.players,games=B.games,points=B.points,arr=B.arr,fp=B.fp,esc=B.esc,name=B.name,heartFor=B.heartFor,fmtPts=B.fmtPts;var host=document.getElementById('lbLive');if(!host){host=document.createElement('section');host.id='lbLive';host.className='card';host.style.cssText='display:block';document.querySelector('.wrap').appendChild(host)}
 var nowT=new Date(new Date().toLocaleString('en-US',{timeZone:'America/Toronto'})),today=tz(Date.now()),days=Array.from(new Set(games.map(function(g){return tz(g.played_at)}))).sort(),last=days[days.length-1];
 var waiting=nowT.getDay()===5&&nowT.getHours()<20&&last!==today;var by={};
 if(!waiting&&last){games.filter(function(g){return tz(g.played_at)===last}).forEach(function(g){var q=points(g);arr(g.winners).forEach(function(v){var p=fp(v);if(p){var r=by[p.id]=by[p.id]||{p:p,pts:0,w:0};r.pts+=q.w;r.w++}});arr(g.losers).forEach(function(v){var p=fp(v);if(p){var r=by[p.id]=by[p.id]||{p:p,pts:0,w:0};r.pts+=q.l}})})}
