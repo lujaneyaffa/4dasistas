@@ -2167,8 +2167,8 @@ function renderList(){
       <span class="page-info">Page ${state.page} of ${totalPages}</span>
       <button class="page-btn" id="nextPage" ${state.page===totalPages?'disabled':''}>Next →</button>
     `;
-    document.getElementById('prevPage').addEventListener('click', () => { state.page--; renderList(); window.scrollTo({top:0, behavior:'smooth'}); });
-    document.getElementById('nextPage').addEventListener('click', () => { state.page++; renderList(); window.scrollTo({top:0, behavior:'smooth'}); });
+    document.getElementById('prevPage').addEventListener('click', () => { state.page--; renderList(); window.scrollTo(0, 0); });
+    document.getElementById('nextPage').addEventListener('click', () => { state.page++; renderList(); window.scrollTo(0, 0); });
   }
 }
 
@@ -6744,7 +6744,7 @@ function setClubsPage(page){
   if(page === 'vote'){ state.publicIdeasAll = null; state.publicIdeasAllError = ''; } // reload fresh, for this member's clubs only
   state.tab = 'clubs';
   render();
-  window.scrollTo({ top:0, behavior:'smooth' });
+  window.scrollTo(0, 0);
 }
 // Quran, Badminton, Cowork and Steps are community groups (chat + events), NOT idea / vote / availability clubs.
 const COMMUNITY_CLUB_IDS = ['club-quran', 'club-badminton', 'club-cowork', 'club-steps'];
@@ -6773,7 +6773,7 @@ function openClubIdeas(clubId){
   state.iavEditing = false;
   if(getCmSession()){ state.eavClub = clubId; everyoneAvailLoad(); } // the board shows who's free in THIS club
   render();
-  window.scrollTo({ top:0, behavior:'smooth' });
+  window.scrollTo(0, 0);
 }
 
 async function ideasLoad(){
@@ -8804,7 +8804,7 @@ function openClubMembers(clubId, title){
     if(!session.clubs || !session.clubs.includes(clubId)){
       state.cmView = 'notMember';
       render();
-      window.scrollTo({top:0, behavior:'smooth'});
+      window.scrollTo(0, 0);
       return;
     }
     state.cmMe = session;
@@ -8817,7 +8817,7 @@ function openClubMembers(clubId, title){
   }
   state.cmView = 'auth';
   render();
-  window.scrollTo({top:0, behavior:'smooth'});
+  window.scrollTo(0, 0);
 }
 
 async function cmLoadRoster(clubId){
@@ -9204,7 +9204,7 @@ async function openClubAdmin(){
   state.cmAdminOpen = true;
   state.cmAdminError = '';
   render();
-  window.scrollTo({top:0, behavior:'smooth'});
+  window.scrollTo(0, 0);
   try {
     const res = await fetch('/api/admin/session', { credentials:'include' });
     const data = await res.json();
@@ -11490,9 +11490,9 @@ function wireClubAdminPanel(){
   wireD1Admin();
   wireFormImport();
   { const mb = document.getElementById('admMissingBtn'); if(mb) mb.addEventListener('click', startMissingDetailsReview); if(document.getElementById('calAddBtn') || document.querySelector('.cal-list')) wireClubCal(); }
-  document.querySelectorAll('.adm-need').forEach(b => b.addEventListener('click', () => { state.admGroup = b.dataset.needgroup; render(); window.scrollTo({ top:0, behavior:'smooth' }); }));
+  document.querySelectorAll('.adm-need').forEach(b => b.addEventListener('click', () => { state.admGroup = b.dataset.needgroup; render(); window.scrollTo(0, 0); }));
   document.querySelectorAll('.adm-need-refresh').forEach(b => b.addEventListener('click', () => { state.admNeeds = null; render(); }));
-  document.querySelectorAll('.adm-tile').forEach(b => b.addEventListener('click', () => { state.admGroup = b.dataset.group; render(); window.scrollTo({ top:0, behavior:'smooth' }); }));
+  document.querySelectorAll('.adm-tile').forEach(b => b.addEventListener('click', () => { state.admGroup = b.dataset.group; render(); window.scrollTo(0, 0); }));
   const reloadProfiles = document.getElementById('admReloadProfiles');
   if(reloadProfiles) reloadProfiles.addEventListener('click', async () => { reloadProfiles.disabled = true; reloadProfiles.textContent = 'Loading…'; await cmAdminLoadAllMembers(); render(); });
   const inboxRefresh = document.getElementById('inboxRefresh');
@@ -11817,7 +11817,7 @@ function restoreStateFromHash(){
   if(hash.startsWith('#/event/')) return; // let the event-detail flow handle this
   if(!hash || hash.length < 2){
     try {
-      const saved = localStorage.getItem(LAST_TAB_STORAGE_KEY);
+      const saved = isStandaloneApp() ? localStorage.getItem(LAST_TAB_STORAGE_KEY) : null; // only the installed app / home-screen app reopens on the last page — a website visit to / always lands on Home
       if(saved) hash = '#' + saved;
     } catch {}
   }
@@ -11897,7 +11897,7 @@ function goToTab(tabName){
   }
   state.page = 1;
   render();
-  window.scrollTo({top:0, behavior:'smooth'});
+  window.scrollTo(0, 0);
 }
 
 document.getElementById('directory-view').addEventListener('click', e => {
@@ -12415,7 +12415,7 @@ window.addEventListener('hashchange', () => {
     applySlugParts(location.hash.slice(2).split('/').filter(Boolean));
     state.page = 1;
     if(!enterDeepLinkState()) render();
-    window.scrollTo({ top:0, behavior:'smooth' });
+    window.scrollTo(0, 0);
     return;
   }
   if(!location.hash || location.hash === '#'){
@@ -12423,7 +12423,7 @@ window.addEventListener('hashchange', () => {
     document.getElementById('detail-view').classList.remove('open');
     document.body.style.overflow = '';
     state.eventEditOpen = false;
-    if(state.tab !== 'home'){ applySlugParts(['home']); state.page = 1; if(!enterDeepLinkState()) render(); window.scrollTo({ top:0, behavior:'smooth' }); return; }
+    if(state.tab !== 'home'){ applySlugParts(['home']); state.page = 1; if(!enterDeepLinkState()) render(); window.scrollTo(0, 0); return; }
   }
   closeDetail();
 });
