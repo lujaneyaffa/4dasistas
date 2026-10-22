@@ -726,8 +726,8 @@ const ghSync = async (env, userId) => {
   const today = new Date(), start = new Date(Date.now() - 3 * 86400000), end = new Date(Date.now() + 86400000);
   const civ = (d) => ({ date: { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() }, time: { hours: 0, minutes: 0, seconds: 0, nanos: 0 } });
   const r = await fetch("https://health.googleapis.com/v4/users/me/dataTypes/steps/dataPoints:dailyRollUp", { method: "POST", headers: { Authorization: "Bearer " + row.access, "Content-Type": "application/json" }, body: JSON.stringify({ range: { start: civ(start), end: civ(end) }, windowSizeDays: 1, pageSize: 20 }) });
-  if (!r.ok) throw new Error("Couldn't read Google Health steps (" + r.status + ")");
-  const j = await r.json(), stmts = [], now = Date.now();
+  if (!r.ok) { const bt = (await r.text().catch(() => "")).slice(0, 400); console.log("ghSync fail", r.status, bt); throw new Error("Couldn't read Google Health steps (" + r.status + ") " + bt.replace(/\s+/g, " ").slice(0, 220)); }
+  const j = await r.json(), stmts = [], now = Date.now(); console.log("ghRollup", JSON.stringify(j).slice(0, 1800)); try { const dr = await fetch("https://health.googleapis.com/v4/users/me/dataTypes/steps/dataPoints?pageSize=5", { headers: { Authorization: "Bearer " + row.access } }); console.log("ghPoints", dr.status, (await dr.text()).slice(0, 1500)); } catch (e) { console.log("ghPoints err", String(e)); }
   for (const x of j.rollupDataPoints || []) {
     const c = (x.civilStartTime || {}).date || {}; if (!c.year) continue;
     const day = `${c.year}-${String(c.month).padStart(2, "0")}-${String(c.day).padStart(2, "0")}`;
@@ -3356,6 +3356,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               await env.DB.prepare("INSERT OR REPLACE INTO bm_attendance (id, day, data) VALUES (?, ?, ?)").bind(`${pl.id}:${day}`, day, JSON.stringify({ id: `${pl.id}:${day}`, player_id: pl.id, session_date: day, present: !!a.p_present })).run();
               await env.DB.prepare("DELETE FROM bm_attendance WHERE id != ? AND json_extract(data, '$.player_id') = ? AND json_extract(data, '$.session_date') = ?").bind(`${pl.id}:${day}`, pl.id, day).run();
               return jsonResponse({ data: null, error: null }, 200, corsHeaders);
+            }
+            if (fn === "kiosk_reactivate") {
+              const pl = await playerRow(a.p_player_id); if (!pl) return bmErr("Player not found");
+              await setPlayer(pl, { active: true }); return jsonResponse({ data: null, error: null }, 200, corsHeaders);
             }
             if (fn === "kiosk_record_game") {
               const w = (Array.isArray(a.p_winner_ids) ? a.p_winner_ids : []).map(String), l = (Array.isArray(a.p_loser_ids) ? a.p_loser_ids : []).map(String), ws = Math.round(Number(a.p_winner_score)), ls = Math.round(Number(a.p_loser_score));

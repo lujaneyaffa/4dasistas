@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-22 · Claude · Kiosk missing names: Zainab, Zainab Y. and Tooba H. were `active:false` (the kiosk roster only shows active players) — set active=1 in D1. New on the iPad kiosk check-in screen: "🔍 Played before but not on the list?" → pick your name → `kiosk_reactivate` RPC re-activates you and checks you in. 40 of 69 players are still inactive (old-site data). Cache v210.
+
 - 2026-10-22 · Claude · ROOT CAUSE of the intermittent white screen / "4DASISTAS Worker — use /api/data/:key, /editor…" page: deploying with `npx wrangler deploy` from the `workers/` folder used that folder's wrangler.toml, which had NO `[assets]` — it briefly detached the whole static site (index.html etc.) from the Worker until the git auto-build redeployed. Fixed: `workers/wrangler.toml` now mirrors the root config (assets = ..), and the ONE way to deploy is `sh scripts/deploy.sh` from the repo root (predeploy checks → root deploy → live check). Never run `wrangler deploy` from workers/ by hand.
 
 - 2026-10-22 · Claude · Steps sync fixes: app syncs at most every 2 min (was 50 min — that's why 3.9k showed as 300), re-syncs every time the Steps page opens / app returns to front, every 10 min while open; new "🔄 Sync now" button + "Last synced" for every source (Google Health sync-now surfaces real errors via GET /api/me/steps?sync=1); Google Health auto-sync throttle 2 min; 'today' now uses the Toronto date (UTC flipped at ~8pm and showed 0); Apple Health hint (it only counts iPhone/Apple Watch). Cache v209.
