@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sacramento&display=swap">
 
 
 
@@ -7140,7 +7141,7 @@ function openSettingsPopup(){
     <p class="idea-pop-h">🏛️ Your clubs</p>
     <div style="display:flex;flex-wrap:wrap;gap:6px;">${myClubs.length ? myClubs.map(c => `<span style="padding:5px 12px;border-radius:999px;border:2px solid ${clubCol(c.id).fg};background:${clubCol(c.id).bg};color:${clubCol(c.id).fg};font-weight:700;font-size:13px;">${c.emoji ? escapeCm(c.emoji) + ' ' : ''}${escapeCm(c.title)}</span>`).join('') : '<span class="av-msg">Not in a club yet — ask to join one on the Clubs page.</span>'}</div>
     <p class="ideas-hint" style="text-align:left;margin:6px 0 0;">To join another club, send a request from the Clubs page — an admin approves it.</p>
-    <p class="idea-pop-h">🔔 Notifications</p>
+    <p class="idea-pop-h nt-head" style="font-size:40px;margin:0 0 4px;">🔔 Notifications</p>
     <div id="stNotif"></div>
     <p class="idea-pop-h">👋 Wave colour</p>
     <div id="stWave" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">${WAVE_TONES.map((m, i) => `<button type="button" class="st-wave" data-i="${i}" aria-label="Wave colour ${i + 1}" style="width:46px;height:46px;border-radius:50%;border:2px solid var(--brand-brown);background:#fff;font-size:24px;cursor:pointer;">${'\u{1F44B}' + m}</button>`).join('')}</div>
@@ -7758,7 +7759,7 @@ window.addEventListener('message', e => { try { if(e.data && e.data.bmLbHeight){
 function notificationsPageHtml(){
   const sess = getCmSession();
   const mine = sess ? myTodoHtml().replace('✨ For you', '🔔 Your notifications').replace('max-width:520px;margin:0 auto 14px;', 'margin:0 0 14px;') : '';
-  return `<div style="max-width:640px;margin:0 auto;padding:4px 4px 24px;"><h3 class="clubs-popular-title">🔔 NOTIFICATIONS</h3>
+  return `<div style="max-width:640px;margin:0 auto;padding:4px 4px 24px;"><h3 class="nt-head" style="margin:6px 0 10px;">🔔 Notifications</h3>
     ${sess ? (mine || '<div class="panel-card" style="padding:16px;margin:0 0 14px;text-align:center;"><p class="av-msg" style="margin:0;">You\'re all caught up ✨</p></div>') : '<div class="panel-card" style="padding:16px;margin:0 0 14px;text-align:center;"><p style="margin:0 0 10px;">Log in to see what needs your attention.</p><button type="button" class="club-guide-btn" data-pf="login" style="min-height:46px;">Log in</button></div>'}
     <div class="pf-card"><button type="button" class="pf-row" data-pf="whatsnew"><span style="font-size:20px;width:26px;text-align:center;">✨</span><span style="flex:1;">What's new on 4DS</span><span style="opacity:.35;">›</span></button>${sess ? '<button type="button" class="pf-row" data-pf="settings"><span style="font-size:20px;width:26px;text-align:center;">⚙️</span><span style="flex:1;">Turn push / email notifications on or off</span><span style="opacity:.35;">›</span></button>' : ''}</div></div>`;
 }
@@ -7815,7 +7816,7 @@ function goBadminton(){
   if(document.getElementById('bmLoad')) return; rememberOrigin('badminton');
   const d = document.createElement('div'); d.id = 'bmLoad';
   d.style.cssText = 'position:fixed;inset:0;z-index:45000;background:#fef7f4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;';
-  d.innerHTML = `<style>@keyframes bmBounce{0%,100%{transform:translateY(0) rotate(-12deg)}50%{transform:translateY(-26px) rotate(12deg)}}@keyframes bmDots{0%{content:'.'}33%{content:'..'}66%{content:'...'}}#bmLoad .bm-e{font-size:68px;animation:bmBounce .8s ease-in-out infinite}#bmLoad .bm-t{font-family:'Sacramento','Snell Roundhand',cursive;font-size:44px;background:linear-gradient(90deg,#e3a3ad,#ce8491 38%,#a8505f 75%,#76220b);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}#bmLoad .bm-s{font:600 13px 'Outfit',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#776867}</style><div class="bm-e">🏸</div><div class="bm-t">Badminton</div><div class="bm-s">Getting the courts ready…</div>`;
+  d.innerHTML = `<style>@keyframes bmBounce{0%,100%{transform:translateY(0) rotate(-12deg)}50%{transform:translateY(-26px) rotate(12deg)}}@keyframes bmDots{0%{content:'.'}33%{content:'..'}66%{content:'...'}}#bmLoad .bm-e{font-size:68px;animation:bmBounce .8s ease-in-out infinite}#bmLoad .bm-t{font-family:'Sacramento','Snell Roundhand',cursive;font-weight:400;font-size:64px;line-height:1.1;background:linear-gradient(90deg,#e3a3ad,#ce8491 38%,#a8505f 75%,#76220b);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}#bmLoad .bm-s{font:600 13px 'Outfit',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#776867}</style><div class="bm-e">🏸</div><div class="bm-t">Badminton</div><div class="bm-s">Getting the courts ready…</div>`;
   document.body.appendChild(d);
   setTimeout(() => { location.href = '/badminton'; }, 60);
 }

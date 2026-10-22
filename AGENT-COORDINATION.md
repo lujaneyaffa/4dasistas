@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-22 · Claude · Script font (Sacramento, same gradient as the salamu welcome) on the badminton loading screen, the Badminton page title ("Ladies Badminton"), and the Notifications page/popup titles; Sacramento now preloaded in <head> so the fallback font never flashes. Cache v206.
+
 - 2026-10-22 · Claude · Back fix: Steps and Badminton Back buttons now return to the page you opened them from (was hard-wired to Clubs) via sessionStorage `backTo:*` (`rememberOrigin`/`goBackFromSub`; badminton.html `#bmBackLink`). Website Clubs page: 4 clubs per row (≥900px). Cache v205.
 
 - 2026-10-22 · Claude · Fix: Home was blank for the main admin / club admins (no member session → no bubbles and no member home). Bubbles + about now show unless a member session exists. Cache v204.
