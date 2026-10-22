@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-22 · Claude · Back fix: Steps and Badminton Back buttons now return to the page you opened them from (was hard-wired to Clubs) via sessionStorage `backTo:*` (`rememberOrigin`/`goBackFromSub`; badminton.html `#bmBackLink`). Website Clubs page: 4 clubs per row (≥900px). Cache v205.
+
 - 2026-10-22 · Claude · Fix: Home was blank for the main admin / club admins (no member session → no bubbles and no member home). Bubbles + about now show unless a member session exists. Cache v204.
 
 - 2026-10-22 · Claude · Admin: Badminton and Steps now have their own tiles/pages; new main-admin-only account merge (`POST /api/admin/users-merge`, preview then confirm; UI in Admin → Profiles); badminton kiosk home has "Add or change my profile picture" (pick name → photo/heart). Google Health OAuth client created in Google Cloud (secrets set by Lujane via wrangler). Cache v203.
