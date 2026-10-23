@@ -7885,7 +7885,8 @@ function mountLeaderboards(){
 }
 window.addEventListener('message', e => { try { if(e.origin === location.origin && e.data && e.data.bmLbData){ state.bmLb = e.data.bmLbData; lbCacheSet('lbBmCache', state.bmLb); paintBmLb(); } } catch {} });
 // warm the badminton numbers in the background shortly after the site opens, so the Leaderboards tab never waits
-setTimeout(() => { try { const c = lbCacheGet('lbBmCache'); if(!c || Date.now() - (c.at || 0) > 10 * 60000) ensureBmDataFrame(); } catch {} }, 4000);
+setTimeout(() => { try { const c = lbCacheGet('lbBmCache'); if(!c || Date.now() - (c.at || 0) > 10 * 60000) ensureBmDataFrame();
+  const sess = getCmSession(), ck = sess ? 'lbStepsCacheM' : 'lbStepsCache'; cmApiRaw(sess ? '/api/me/steps' : '/api/steps/public', sess ? { headers: ideaHeaders(), cache:'no-store' } : {}).then(d => { state.lbSteps = d; lbCacheSet(ck, d); }).catch(() => {}); } catch {} }, 4000);
 document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && state.tab === 'steps'){ state.stepsData = null; state.stepsHist = {}; render(); } });
 
 // Website "Notifications" page: what's personal to you, plus the latest updates and the notification switch.
@@ -12599,6 +12600,9 @@ if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('controllerchange', () => {
         if (refreshed) return;
         refreshed = true;
+        // the page itself is always fetched fresh (network-first), so a new worker taking over in the first seconds
+        // after opening changes nothing on screen — only offer a refresh to someone who has had the page open a while
+        if (performance.now() < 20000) return;
         showUpdateBanner();
       });
     }
