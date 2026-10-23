@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-23 · Claude · Badminton live podium (Leaderboards embed, ?lb=1): it showed "Next game night · Fri" (reset) on EVERY Friday morning — but sessions are on the SEASON_DATES schedule (Oct 22 was a Thursday), so the previous night's podium vanished. Now it keeps the last game night's podium and only resets on the DAY BEFORE the next scheduled session and on the day itself (until that night's first game is recorded); the label shows the real next date. Cache v212.
+
 - 2026-10-22 · Claude · Kiosk roster = THIS season's players: active players PLUS anyone who checked in / played a game since the season start (kSeasonIds) — so nobody playing now can be hidden. Re-activated Manahil I. (5 games + attendance on Oct 9 but marked inactive). The "Played last season?" list only shows last-season (inactive, no activity this season) players; tapping a name joins them to this season. Cache v211.
 
 - 2026-10-22 · Claude · Kiosk missing names: Zainab, Zainab Y. and Tooba H. were `active:false` (the kiosk roster only shows active players) — set active=1 in D1. New on the iPad kiosk check-in screen: "🔍 Played before but not on the list?" → pick your name → `kiosk_reactivate` RPC re-activates you and checks you in. 40 of 69 players are still inactive (old-site data). Cache v210.
