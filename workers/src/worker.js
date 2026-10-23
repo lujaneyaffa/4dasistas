@@ -730,7 +730,7 @@ const ghSync = async (env, userId) => {
     row = { access: j.access_token, refresh: j.refresh_token || row.refresh, exp: Date.now() + (j.expires_in || 3600) * 1000 };
     await env.DB.prepare("UPDATE gh_tokens SET access = ?, refresh = ?, exp = ?, at = ? WHERE user_id = ?").bind(row.access, row.refresh, row.exp, Date.now(), userId).run();
   }
-  const today = new Date(), start = new Date(Date.now() - 7 * 86400000), end = new Date(Date.now() + 86400000);
+  const today = new Date(), start = new Date(Date.now() - 14 * 86400000), end = new Date(Date.now() + 86400000);
   const civ = (d) => ({ date: { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() }, time: { hours: 0, minutes: 0, seconds: 0, nanos: 0 } });
   const r = await fetch("https://health.googleapis.com/v4/users/me/dataTypes/steps/dataPoints:dailyRollUp", { method: "POST", headers: { Authorization: "Bearer " + row.access, "Content-Type": "application/json" }, body: JSON.stringify({ range: { start: civ(start), end: civ(end) }, windowSizeDays: 1, pageSize: 20 }) });
   if (!r.ok) { await stepDiag(env, userId, false, "Google Health error " + r.status); const bt = (await r.text().catch(() => "")).slice(0, 400); throw new Error("Couldn't read Google Health steps (" + r.status + ") " + bt.replace(/\s+/g, " ").slice(0, 220)); }
@@ -2709,10 +2709,14 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (request.method === "POST") {
         // Samples come from the native app reading Apple Health / Health Connect: [{day:'YYYY-MM-DD', steps, source:'apple'|'google'}] (the whole day's total, re-sent each hour).
         let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
-        const minDay = new Date(Date.now() - 8 * 86400000).toISOString().slice(0, 10), maxDay = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-        { const sr1 = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(me.id).first(); if (sr1 && sr1.source === "googlehealth") return jsonResponse({ ok: true, skipped: "googlehealth" }, 200, corsHeaders); } // their steps come from Fitbit — the phone's own health data is ignored
+        const minDay = new Date(Date.now() - 15 * 86400000).toISOString().slice(0, 10), maxDay = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+        const sr1 = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(me.id).first(), chosen = (sr1 && sr1.source) || "";
+        // ONE source per person: the phone's numbers only count when the member picked this phone's Health app — never mixed with another source
+        if (!chosen) return jsonResponse({ ok: false, needsSource: true }, 200, corsHeaders);
+        const sentSrc = Array.isArray(body.samples) && body.samples[0] && body.samples[0].source === "google" ? "google" : "apple";
+        if (chosen !== sentSrc) return jsonResponse({ ok: true, skipped: chosen }, 200, corsHeaders); // their steps come from Fitbit — the phone's own health data is ignored
         const stmts = [], now = Date.now();
-        for (const x of (Array.isArray(body.samples) ? body.samples : []).slice(0, 10)) {
+        for (const x of (Array.isArray(body.samples) ? body.samples : []).slice(0, 16)) {
           const steps = Math.round(Number(x && x.steps)), day = String((x && x.day) || ""), src = x && x.source === "apple" ? "apple" : x && x.source === "google" ? "google" : "";
           if (!isValidDateString(day) || day < minDay || day > maxDay || !src || !Number.isFinite(steps) || steps < 0) continue;
           stmts.push(env.DB.prepare("INSERT INTO steps_daily (user_id, day, steps, source, updated) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, day) DO UPDATE SET steps = excluded.steps, source = excluded.source, updated = excluded.updated").bind(me.id, day, Math.min(steps, STEP_MAX_PER_DAY), src, now));
@@ -2720,7 +2724,6 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!stmts.length) return jsonResponse({ error: "No valid step data" }, 400, corsHeaders);
         await env.DB.batch(stmts); _stepsPublicMemo = { at: 0, data: null };
         await stepDiag(env, me.id, true, "Synced " + stmts.length + " days from " + (body.samples[0] && body.samples[0].source === "google" ? "Health Connect" : "Apple Health"));
-        await env.DB.prepare("INSERT OR IGNORE INTO step_sources (user_id, source, at) VALUES (?, ?, ?)").bind(me.id, stmts.length ? (body.samples[0] && body.samples[0].source === "google" ? "google" : "apple") : "apple", Date.now()).run();
         return jsonResponse({ ok: true, saved: stmts.length }, 200, corsHeaders);
       }
       try { const sr0 = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(me.id).first(); if (sr0 && sr0.source === "googlehealth") { const lu = await env.DB.prepare("SELECT MAX(updated) AS u FROM steps_daily WHERE user_id = ?").bind(me.id).first(); if (url.searchParams.get("sync") === "1" || !lu || !lu.u || Date.now() - lu.u > 2 * 60000) await ghSync(env, me.id); } } catch (e) { if (url.searchParams.get("sync") === "1") return jsonResponse({ error: String((e && e.message) || e) }, 502, corsHeaders); }
@@ -2736,7 +2739,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const idx = rows.findIndex((r) => r.user_id === me.id);
         if (idx >= 0) { out.mine.round = rows[idx].s; out.mine.rank = idx + 1; }
         const td = await env.DB.prepare("SELECT steps FROM steps_daily WHERE user_id = ? AND day = ?").bind(me.id, todayUtc).first(); out.mine.today = (td && td.steps) || 0;
-        for (const r of rows.slice(0, 30)) { const u = await readUser(env, r.user_id); out.leaderboard.push({ name: u ? (u.username || firstNameOnly(u.name)) : "member", steps: r.s, me: r.user_id === me.id }); }
+        for (const r of rows.slice(0, 30)) { const u = await readUser(env, r.user_id); out.leaderboard.push({ name: u ? (u.username || firstNameOnly(u.name)) : "member", u: u ? u.username || "" : "", steps: r.s, me: r.user_id === me.id }); }
         const pl = (await env.DB.prepare("SELECT id, name, user_id, per1000, cap FROM step_pledges WHERE round_id = ? ORDER BY at").bind(round.id).all()).results || [];
         out.pledges = pl.map((x) => ({ id: x.id, name: x.name, per1000: x.per1000, cap: x.cap, mine: x.user_id === me.id }));
       }
@@ -2783,6 +2786,27 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!meId) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
       try { const n = await ghSync(env, meId); return jsonResponse({ ok: true, days: n }, 200, corsHeaders); } catch (e) { return jsonResponse({ error: e.message }, 502, corsHeaders); }
     }
+    if (path === "/api/me/steps/history" && request.method === "GET") { // last 7 days for me, or for anyone in the current challenge (signed-in members only)
+      const meId = await memberIdFromRequest();
+      const me = meId ? await readUser(env, meId) : null;
+      if (!me) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
+      if (!(await stepsEnsure(env))) return jsonResponse({ error: "Steps aren't available yet" }, 503, corsHeaders);
+      const want = String(url.searchParams.get("u") || "").trim().toLowerCase();
+      let target = me;
+      if (want && want !== String(me.username || "").toLowerCase()) {
+        const tid = await findUserIdByUsername(env, want); const tu = tid ? await readUser(env, tid) : null;
+        if (!tu) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
+        const pub = await stepsPublicData(env), round = pub.round;
+        const inRound = round && (await env.DB.prepare("SELECT 1 AS x FROM step_participants WHERE round_id = ? AND user_id = ?").bind(round.id, tu.id).first());
+        if (!inRound) return jsonResponse({ error: "Only people in the current challenge can be viewed" }, 403, corsHeaders);
+        target = tu;
+      }
+      const days = []; for (let i = 6; i >= 0; i--) days.push(bmToronto(new Date(Date.now() - i * 86400000)));
+      const rows = (await env.DB.prepare("SELECT day, steps FROM steps_daily WHERE user_id = ? AND day BETWEEN ? AND ?").bind(target.id, days[0], days[6]).all()).results || [];
+      const by = {}; for (const r of rows) by[r.day] = r.steps;
+      const sr = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(target.id).first();
+      return jsonResponse({ name: target.id === me.id ? "You" : (target.username || firstNameOnly(target.name)), me: target.id === me.id, source: (sr && sr.source) || "", days: days.map((d) => ({ day: d, steps: by[d] || 0 })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
     if (path === "/api/me/steps/diag" && request.method === "POST") { // the app reports why a Health read found nothing / failed
       const meId = await memberIdFromRequest();
       if (!meId) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
@@ -2798,6 +2822,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const source = b.source === "apple" ? "apple" : b.source === "google" ? "google" : b.source === "googlehealth" ? "googlehealth" : "";
       if (!source || !(await stepsEnsure(env))) return jsonResponse({ error: "Choose Apple Health or Google Health Connect" }, 400, corsHeaders);
       await env.DB.prepare("INSERT INTO step_sources (user_id, source, at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET source = excluded.source, at = excluded.at").bind(meId, source, Date.now()).run();
+      // switching source: the last two weeks from any OTHER source are removed, so a day is never a mix (the new source refills them right away)
+      await env.DB.prepare("DELETE FROM steps_daily WHERE user_id = ? AND source != ? AND day >= ?").bind(meId, source, new Date(Date.now() - 15 * 86400000).toISOString().slice(0, 10)).run();
       let needsConnect = false, err = "";
       if (source === "googlehealth") { // already connected → pull the Google numbers right now (they replace whatever the phone sent before)
         let has = false; try { await ghEnsure(env); has = !!(await env.DB.prepare("SELECT 1 AS x FROM gh_tokens WHERE user_id = ?").bind(meId).first()); } catch {}
