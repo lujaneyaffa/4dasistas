@@ -7274,7 +7274,10 @@ function openSettingsPopup(){
     <div style="text-align:center;margin-top:10px;"><button type="button" id="stSave" style="${pill}background:var(--brand-rose);color:#fff;">Save changes</button></div>
     <div id="epStatus" style="font-size:13px;color:#c00;min-height:18px;text-align:center;margin-top:4px;"></div>
     <div style="text-align:center;margin-bottom:6px;"><button type="button" id="epPinBtn" style="${pill}">🔑 Change my PIN</button></div>
-    <p class="idea-pop-h">🏛️ Your clubs</p>
+    <p class="idea-pop-h">🏸 Badminton check-in</p>
+    <p class="ideas-hint" style="text-align:left;margin:0 0 6px;">At the courts? Ask the admin to type the badminton password, then tap check in.</p>
+    <div style="display:flex;gap:6px;"><input id="stBmPw" type="password" autocomplete="off" placeholder="Badminton password" style="${inp}flex:1;margin:0;"><button type="button" id="stBmGo" style="${pill}background:var(--brand-rose);color:#fff;">Check me in</button></div>
+    <div id="stBmMsg" style="font-size:13px;min-height:18px;margin:4px 0 8px;"></div>    <p class="idea-pop-h">🏛️ Your clubs</p>
     <div style="display:flex;flex-wrap:wrap;gap:6px;">${myClubs.length ? myClubs.map(c => `<span style="padding:5px 12px;border-radius:999px;border:2px solid ${clubCol(c.id).fg};background:${clubCol(c.id).bg};color:${clubCol(c.id).fg};font-weight:700;font-size:13px;">${c.emoji ? escapeCm(c.emoji) + ' ' : ''}${escapeCm(c.title)}</span>`).join('') : '<span class="av-msg">Not in a club yet — ask to join one on the Clubs page.</span>'}</div>
     <p class="ideas-hint" style="text-align:left;margin:6px 0 0;">To join another club, send a request from the Clubs page — an admin approves it.</p>
     <p class="idea-pop-h nt-head" style="font-size:40px;margin:0 0 4px;">🔔 Notifications</p>
@@ -7289,6 +7292,12 @@ function openSettingsPopup(){
   const status = wrap.querySelector('#epStatus');
   wrap.querySelectorAll('.st-wave').forEach(b => b.addEventListener('click', () => { try { localStorage.setItem('waveTone', b.dataset.i); } catch {} wrap.querySelectorAll('.st-wave').forEach(x => x.style.background = x === b ? '#f2d8d7' : '#fff'); if(state.tab === 'home') render(); }));
   { let cur = 0; try { cur = Number(localStorage.getItem('waveTone') || 0) || 0; } catch {} const cb = wrap.querySelector('.st-wave[data-i="' + cur + '"]'); if(cb) cb.style.background = '#f2d8d7'; }
+  wrap.querySelector('#stBmGo').addEventListener('click', async () => {
+    const msg = wrap.querySelector('#stBmMsg'), btn = wrap.querySelector('#stBmGo'), pw = wrap.querySelector('#stBmPw').value; btn.disabled = true; msg.style.color = '#776867'; msg.textContent = 'Checking in…';
+    try { await cmApiRaw('/api/me/badminton/checkin', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ password: pw }) }); msg.style.color = '#2a7a4a'; msg.textContent = '✓ You\'re checked in for tonight! 🏸'; wrap.querySelector('#stBmPw').value = ''; }
+    catch(e){ msg.style.color = '#c00'; msg.textContent = e.message || 'Could not check in'; }
+    btn.disabled = false;
+  });
   wrap.querySelector('#stDelete').addEventListener('click', () => {
     const pin = window.prompt('To delete your account, type your 4-digit PIN. This cannot be undone.');
     if(pin === null) return;

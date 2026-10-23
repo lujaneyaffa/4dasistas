@@ -2817,6 +2817,20 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const sr = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(target.id).first();
       return jsonResponse({ name: target.id === me.id ? "You" : pubName(target.name, target.username), me: target.id === me.id, month: /^\d{4}-\d{2}$/.test(mo) ? mo : "", today: bmToronto(), source: (sr && sr.source) || "", days: days.map((d) => ({ day: d, steps: by[d] || 0 })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
+    if (path === "/api/me/badminton/checkin" && request.method === "POST") { // check-in from Settings: needs the badminton password (the one on the iPad kiosk), so it only happens when the admin allows it
+      const meId = await memberIdFromRequest();
+      const me = meId ? await readUser(env, meId) : null;
+      if (!me) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
+      if (!ideaRateOk((request.headers.get("CF-Connecting-IP") || "x") + ":bmci")) return jsonResponse({ error: "Too many tries — wait a minute" }, 429, corsHeaders);
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      if (!(await bmKioskOk(env, b.password))) return jsonResponse({ error: "That password isn't right — ask the admin" }, 403, corsHeaders);
+      if (!(await bmEnsure(env))) return jsonResponse({ error: "Badminton isn't available yet" }, 503, corsHeaders);
+      const row = await env.DB.prepare("SELECT id FROM bm_players WHERE uid = ?").bind(me.id).first();
+      if (!row && !(await readClubMemberIds(env, "club-badminton")).includes(me.id)) return jsonResponse({ error: "Join the Badminton club first" }, 403, corsHeaders);
+      const pl = await bmPlayerFor(env, me), day = bmToronto(), present = b.undo ? false : true;
+      await env.DB.prepare("INSERT OR REPLACE INTO bm_attendance (id, day, data) VALUES (?, ?, ?)").bind(`${pl.id}:${day}`, day, JSON.stringify({ id: `${pl.id}:${day}`, player_id: pl.id, session_date: day, present })).run();
+      return jsonResponse({ ok: true, checkedIn: present, day }, 200, corsHeaders);
+    }
     if (path === "/api/me/steps/goal" && request.method === "POST") { // personal daily goal
       const meId = await memberIdFromRequest();
       if (!meId) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
