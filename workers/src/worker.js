@@ -588,6 +588,8 @@ const vapidAuthHeader = async (env, endpoint) => {
 // ---- Public, privacy-minimal member info: FIRST NAME ONLY + an opaque id (never the user id / username / phone) ----
 const pubId = async (env, uid) => (await sha256Hex(`${uid}:pub:${env.ADMIN_PASSWORD || "4ds"}`)).slice(0, 16);
 // Public lists never show a full username: the LAST THREE characters are replaced by ***  (alice.a → alic***).
+// Public lists show a person as "First L." (first name + first letter of the last name) — never the username.
+const pubName = (name, fallback) => { const parts = String(name || "").trim().split(/\s+/).filter(Boolean); if (!parts.length) return String(fallback || "Member"); const f = parts[0].slice(0, 20); return parts.length > 1 ? f + " " + parts[parts.length - 1][0].toUpperCase() + "." : f; };
 const maskPublic = (n) => { const t = String(n || "").trim(); return t.length > 3 ? t.slice(0, -3) + "***" : "***"; };
 const firstNameOnly = (n) => String(n || "").trim().split(/\s+/)[0].slice(0, 30) || "Member";
 // A brand-new member created from an event FORM (the base fields every form asks logged-out people for: name, phone, a 4-digit PIN).
@@ -624,7 +626,7 @@ const createMemberFromForm = async (env, ctx, ip, input) => {
 };
 // People search (to sign in from a form): first name + last initial only, ≥3 letters, rate-limited, cached.
 let _memberSearchCache = null;
-const NOTIF_CATS = ["reminders", "announcements", "clubs", "events"];
+const NOTIF_CATS = ["reminders", "announcements", "clubs", "events", "steps", "badminton"];
 // ---- Apple push (APNs) for the native iPhone app. Needs secrets APNS_KEY (the .p8 text), APNS_KEY_ID, APNS_TEAM_ID. The app's bundle id is the "topic". ----
 const APNS_TOPIC = "4DS";
 const _apnsJwt = { production: { at: 0, jwt: "" }, sandbox: { at: 0, jwt: "" } };
@@ -2047,7 +2049,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       for (const uid of (await readClubMemberIds(env, cid)).slice(0, 300)) {
         const u = await readUser(env, uid);
         if (!u || (u.archived && u.archived.reason !== "travelling")) continue;
-        members.push({ p: await pubId(env, uid), first: maskPublic(u.username || firstNameOnly(u.name)), joined: u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : "" });
+        members.push({ p: await pubId(env, uid), first: pubName(u.name, u.username), joined: u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : "" });
       }
       members.sort((a, b) => a.first.localeCompare(b.first));
       return jsonResponse({ members }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
@@ -2065,7 +2067,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const todayIso = new Date().toISOString().slice(0, 10);
         const activities = (await readClubCal(env)).filter((e) => !e.tbd && e.date < todayIso && (e.rsvps || []).some((x) => x.id === uid && x.status === "going"))
           .sort((a, b) => b.date.localeCompare(a.date)).map((e) => ({ title: e.title, date: e.date, clubs: calClubs(e).map((cid) => (roster.find((c) => c.id === cid) || {}).title).filter(Boolean) }));
-        return jsonResponse({ first: maskPublic(u.username || firstNameOnly(u.name)), joined: u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : "", clubs: mine.map((id) => (roster.find((c) => c.id === id) || {}).title).filter(Boolean), activities }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+        return jsonResponse({ first: pubName(u.name, u.username), joined: u.createdAt ? new Date(u.createdAt).toISOString().slice(0, 10) : "", clubs: mine.map((id) => (roster.find((c) => c.id === id) || {}).title).filter(Boolean), activities }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
       }
       return jsonResponse({ error: "Not found" }, 404, corsHeaders);
     }
@@ -2107,9 +2109,9 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (ev0.tbd || ev0.date >= new Date().toISOString().slice(0, 10)) return jsonResponse({ past: false, attendees: [] }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
         const out = [];
         for (const r of (ev0.rsvps || []).filter((x) => x.status === "going")) {
-          if (String(r.id).startsWith("g:")) { out.push({ first: maskPublic(firstNameOnly(r.name)) }); continue; } // no profile: a first name only
+          if (String(r.id).startsWith("g:")) { out.push({ first: pubName(r.name) }); continue; } // no profile: a first name only
           const u = await readUser(env, r.id);
-          out.push({ first: maskPublic(u && u.username ? u.username : firstNameOnly(r.name)), p: await pubId(env, r.id) }); // members are listed by USERNAME
+          out.push({ first: pubName(u ? u.name : r.name, u && u.username), p: await pubId(env, r.id) }); // members are listed by USERNAME
         }
         out.sort((a, b) => a.first.localeCompare(b.first));
         return jsonResponse({ past: true, attendees: out }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
@@ -2687,7 +2689,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const seen = new Set();
       for (const sid of Object.keys(SQUAD_TITLES)) for (const uid of await readSquadMemberIds(env, sid)) seen.add(uid);
       for (const uid of seen) { const u = await readUser(env, uid); if (u && !u.stayConfirmedAt) stayTodo++; }
-      return jsonResponse({ pendingRsvps, unpaid, tbdKeen, stayTodo }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      let stepsStuck = 0; try { if (await stepsEnsure(env)) stepsStuck = ((await env.DB.prepare("SELECT COUNT(*) AS n FROM step_participants q LEFT JOIN step_diag d ON d.user_id = q.user_id WHERE (d.ok = 0) OR (SELECT MAX(updated) FROM steps_daily WHERE user_id = q.user_id) IS NULL OR (SELECT MAX(updated) FROM steps_daily WHERE user_id = q.user_id) < ?").bind(Date.now() - 2 * 86400000).first()) || {}).n || 0; } catch {}
+      return jsonResponse({ pendingRsvps, unpaid, tbdKeen, stayTodo, stepsStuck }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     // ---- Steps challenge ----
     if (path === "/api/steps/public" && request.method === "GET") {
@@ -2696,7 +2699,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (pubData.round) {
         try {
           const rows = (await env.DB.prepare("SELECT q.user_id AS user_id, COALESCE(SUM(d.steps),0) AS s FROM step_participants q LEFT JOIN steps_daily d ON d.user_id = q.user_id AND d.day BETWEEN ? AND ? WHERE q.round_id = ? GROUP BY q.user_id ORDER BY s DESC LIMIT 8").bind(pubData.round.start, pubData.round.end, pubData.round.id).all()).results || [];
-          for (const r of rows) { const u = await readUser(env, r.user_id); out.leaderboard.push({ name: u ? maskPublic(u.username || firstNameOnly(u.name)) : "member", steps: r.s }); } // visitors see masked names
+          for (const r of rows) { const u = await readUser(env, r.user_id); out.leaderboard.push({ name: u ? pubName(u.name, u.username) : "member", steps: r.s }); } // visitors see masked names
         } catch {}
       }
       return jsonResponse(out, 200, { ...corsHeaders, "Cache-Control": "public, max-age=60" });
@@ -2740,7 +2743,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const idx = rows.findIndex((r) => r.user_id === me.id);
         if (idx >= 0) { out.mine.round = rows[idx].s; out.mine.rank = idx + 1; }
         const td = await env.DB.prepare("SELECT steps FROM steps_daily WHERE user_id = ? AND day = ?").bind(me.id, todayUtc).first(); out.mine.today = (td && td.steps) || 0;
-        for (const r of rows.slice(0, 30)) { const u = await readUser(env, r.user_id); out.leaderboard.push({ name: u ? (u.username || firstNameOnly(u.name)) : "member", u: u ? u.username || "" : "", steps: r.s, me: r.user_id === me.id }); }
+        for (const r of rows.slice(0, 30)) { const u = await readUser(env, r.user_id); out.leaderboard.push({ name: u ? pubName(u.name, u.username) : "member", u: u ? u.username || "" : "", steps: r.s, me: r.user_id === me.id }); }
         const pl = (await env.DB.prepare("SELECT id, name, user_id, per1000, cap FROM step_pledges WHERE round_id = ? ORDER BY at").bind(round.id).all()).results || [];
         out.pledges = pl.map((x) => ({ id: x.id, name: x.name, per1000: x.per1000, cap: x.cap, mine: x.user_id === me.id }));
       }
@@ -2812,7 +2815,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const rows = (await env.DB.prepare("SELECT day, steps FROM steps_daily WHERE user_id = ? AND day BETWEEN ? AND ?").bind(target.id, days[0], days[days.length - 1]).all()).results || [];
       const by = {}; for (const r of rows) by[r.day] = r.steps;
       const sr = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(target.id).first();
-      return jsonResponse({ name: target.id === me.id ? "You" : (target.username || firstNameOnly(target.name)), me: target.id === me.id, month: /^\d{4}-\d{2}$/.test(mo) ? mo : "", today: bmToronto(), source: (sr && sr.source) || "", days: days.map((d) => ({ day: d, steps: by[d] || 0 })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      return jsonResponse({ name: target.id === me.id ? "You" : pubName(target.name, target.username), me: target.id === me.id, month: /^\d{4}-\d{2}$/.test(mo) ? mo : "", today: bmToronto(), source: (sr && sr.source) || "", days: days.map((d) => ({ day: d, steps: by[d] || 0 })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     if (path === "/api/me/steps/goal" && request.method === "POST") { // personal daily goal
       const meId = await memberIdFromRequest();

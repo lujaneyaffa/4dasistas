@@ -1182,6 +1182,23 @@
   #directory-view.res-list-grid > .panel-card .panel-top{ align-items:center; }
   .home-bubbles.straight .home-bubble{ animation:none !important; transform:none !important; translate:0 0 !important; transition:transform .6s cubic-bezier(.3,1.4,.5,1), translate .6s ease; }
 </style>
+
+<style id="uxPolish">
+/* tap targets: tiny underlined text buttons become comfortable pills */
+button[style*="text-decoration:underline"], .adm-need-refresh, .av-link{ min-height:38px; padding:7px 12px !important; border-radius:999px !important; background:rgba(206,132,145,.14) !important; text-decoration:none !important; font-weight:700; }
+.pf-row, .nt-row, .home-ev{ min-height:52px; }
+/* readable secondary text */
+.ideas-hint, .av-msg, .fall-hint, .muted-ink, [style*="color:#776867"]{ color:#5b4d4b !important; }
+small{ font-size:12px; }
+/* offline + preview pills */
+#offlinePill{ position:fixed; left:50%; transform:translateX(-50%); top:calc(10px + env(safe-area-inset-top,0px)); z-index:250; background:#373d3b; color:#fff; border-radius:999px; padding:8px 16px; font:700 13px Outfit,system-ui,sans-serif; box-shadow:0 6px 18px rgba(0,0,0,.25); display:none; }
+#previewPill{ position:fixed; left:50%; transform:translateX(-50%); bottom:calc(96px + env(safe-area-inset-bottom,0px)); z-index:260; background:#76220b; color:#fff; border-radius:999px; padding:10px 18px; font:800 13px Outfit,system-ui,sans-serif; box-shadow:0 8px 22px rgba(0,0,0,.3); display:none; border:2px solid #fff; cursor:pointer; }
+/* sign-up steps */
+.su-steps{ display:flex; gap:6px; justify-content:center; margin:0 0 12px; } .su-steps i{ width:34px; height:6px; border-radius:99px; background:#f2d8d7; } .su-steps i.on{ background:#ce8491; }
+.su-nav{ display:flex; gap:10px; margin:14px 0; } .su-nav button{ flex:1; min-height:50px; border-radius:999px; font:800 16px Outfit,system-ui,sans-serif; cursor:pointer; border:2px solid #76220b; } .su-next{ background:#ce8491; color:#fff; } .su-prev{ background:#fff; color:#76220b; }
+.lb-more-chip{ text-align:center; justify-content:center; }
+.search-recent{ display:block; width:100%; text-align:left; padding:10px 12px; border:none; background:none; font:inherit; cursor:pointer; border-radius:10px; }
+</style>
 </head>
 <body>
 <script>
@@ -1285,7 +1302,7 @@
 </nav>
 <div id="dualBanner" style="display:none;"></div>
 
-<div class="context-back" id="contextBack"><button type="button" id="contextBackButton">← Back to Calendar</button></div>
+<div class="context-back" id="contextBack"><button type="button" id="contextBackButton">← Back</button></div>
 
 <div class="category-row" id="categoryRow"></div>
 <div class="controls" id="controlsRow">
@@ -2657,9 +2674,15 @@ function renderSearchSuggestions(){
   const suggestions = document.getElementById('searchSuggestions');
   if(!input || !suggestions) return;
   const query = normalizeSearchText(input.value).trim();
-  if(!query){ suggestions.innerHTML = ''; suggestions.style.display = 'none'; return; }
+  if(!query){
+    let rec = []; try { rec = JSON.parse(localStorage.getItem('recentSearches') || '[]'); } catch {}
+    if(!rec.length || document.activeElement !== input){ suggestions.innerHTML = ''; suggestions.style.display = 'none'; return; }
+    suggestions.innerHTML = '<div class="search-suggestion-hint">Recent searches</div>' + rec.map(r => `<button type="button" class="search-recent" data-recent="${escapeCm(r)}">🕘 ${escapeCm(r)}</button>`).join('');
+    suggestions.style.display = 'block'; return;
+  }
+  const clubMatches = (clubsData || []).filter(c => normalizeSearchText(c.title || '').includes(query)).slice(0, 3);
   const matches = ALL_ITEMS.filter(item => itemMatchesSearch(item)).slice(0, 8);
-  suggestions.innerHTML = matches.map(item => `<button class="search-suggestion" data-id="${item.id}"><strong>${emojiTitle(item)}</strong><span>${item.type || item.tag || 'Community listing'}</span></button>`).join('')
+  suggestions.innerHTML = clubMatches.map(c => `<button type="button" class="search-suggestion" data-sgclub="${escapeCm(c.id)}"><strong>🏛️ ${escapeCm(c.title)}</strong><span>4DS Club</span></button>`).join('') + matches.map(item => `<button class="search-suggestion" data-id="${item.id}"><strong>${emojiTitle(item)}</strong><span>${item.type || item.tag || 'Community listing'}</span></button>`).join('')
     + '<div class="search-suggestion-hint">Press Enter to see all results in Calendar view</div>';
   // Render the panel position:fixed so sticky-nav overflow can never clip it.
   if(matches.length){
@@ -2673,8 +2696,13 @@ function renderSearchSuggestions(){
       suggestions.style.width = Math.min(360, window.innerWidth - 20) + 'px';
     }
   }
-  suggestions.style.display = matches.length ? 'block' : 'none';
+  suggestions.style.display = (matches.length || clubMatches.length) ? 'block' : 'none';
 }
+document.addEventListener('click', e => {
+  const c = e.target.closest('[data-sgclub]'); if(c){ const sg = document.getElementById('searchSuggestions'); if(sg) sg.style.display = 'none'; if(getCmSession() && (getCmSession().clubs || []).includes(c.dataset.sgclub)) openClubIdeas(c.dataset.sgclub); else goToTab('clubs'); return; }
+  const r = e.target.closest('[data-recent]'); if(r){ const inp = document.getElementById('globalSearch'); inp.value = r.dataset.recent; state.searchQuery = inp.value; renderSearchSuggestions(); goToTab('events'); }
+});
+document.getElementById('globalSearch').addEventListener('focus', () => renderSearchSuggestions());
 
 function renderCategoryRow(){
   const el = document.getElementById('categoryRow');
@@ -3264,7 +3292,7 @@ function stepsPageHtml(){
     ${mine ? `<p style="margin:0 0 8px;">You pledged <strong>${stepsMoney(mine.per1000)}</strong> per 1,000 steps${mine.cap ? ` (up to ${stepsMoney(mine.cap)})` : ''}. <button type="button" id="stepsPledgeDel" style="border:none;background:none;text-decoration:underline;cursor:pointer;">Remove</button></p>` : ''}
     ${r.status === 'finished' ? '<p class="ideas-hint" style="margin:0;">This round has finished.</p>' : `<div style="display:flex;gap:6px;flex-wrap:wrap;"><input id="stepsPer" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="$ per 1,000 steps" style="flex:1;min-width:130px;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;"><input id="stepsCap" type="number" inputmode="decimal" min="1" step="1" placeholder="Max $ (optional)" style="flex:1;min-width:130px;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;"></div><div id="stepsMsg" style="font-size:13px;color:#c00;min-height:16px;margin:4px 0;"></div><button type="button" class="club-guide-btn" id="stepsPledge" style="min-height:44px;">${mine ? 'Update my pledge' : 'Pledge'}</button>`}</div>`;
   const lb = d.leaderboard || [];
-  html += `<div class="panel-card" style="${wrap}padding:14px;margin-top:12px;"><p style="margin:0 0 6px;font-weight:800;">🏆 Leaderboard</p>${lb.length ? lb.map((x, i) => `<div class="steps-lbrow" data-u="${escapeCm(x.me ? '' : (x.u || ''))}" role="button" tabindex="0" style="display:flex;gap:8px;padding:7px 0;cursor:pointer;border-top:1px solid rgba(0,0,0,.08);${x.me ? 'font-weight:800;background:#fef7f4;' : ''}"><span style="width:28px;">${i + 1}</span><span style="flex:1;">${escapeCm(x.name)}${x.me ? ' (you)' : ''}</span><span>${stepsFmt(x.steps)} ›</span></div>`).join('') : '<p class="av-msg" style="margin:0;">No steps yet — be the first!</p>'}${lb.length ? '<p class="ideas-hint" style="margin:6px 0 0;text-align:center;">Tap anyone to see their last 7 days</p>' : ''}</div>`;
+  html += `<div class="panel-card" style="${wrap}padding:14px;margin-top:12px;"><p style="margin:0 0 6px;font-weight:800;">🏆 Leaderboard</p>${lb.length ? lb.map((x, i) => `<div class="steps-lbrow" data-u="${escapeCm(x.me ? '' : (x.u || ''))}" role="button" tabindex="0" style="display:flex;gap:8px;padding:7px 0;cursor:pointer;border-top:1px solid rgba(0,0,0,.08);${x.me ? 'font-weight:800;background:#fef7f4;' : ''}"><span style="width:28px;">${i + 1}</span><span style="flex:1;">${escapeCm(x.name)}${x.me ? ' (you)' : ''}</span><span>${stepsFmt(x.steps)} ›</span></div>`).join('') : '<p class="av-msg" style="margin:0;">No steps yet — connect your Health app and take the first step! 👟</p>'}${lb.length ? '<p class="ideas-hint" style="margin:6px 0 0;text-align:center;">Tap anyone to see their last 7 days</p>' : ''}</div>`;
   if((d.previous || []).length) html += `<div class="panel-card" style="${wrap}padding:14px;margin-top:12px;"><p style="margin:0 0 6px;font-weight:800;">Past rounds</p>${d.previous.map(p => `<div style="padding:6px 0;border-top:1px solid rgba(0,0,0,.08);font-size:14px;"><strong>${escapeCm(p.title)}</strong> · ${stepsFmt(p.steps)} steps · ${stepsMoney(p.raised)}${p.charity ? ' → ' + escapeCm(p.charity) : ''}</div>`).join('')}</div>`;
   return html;
 }
@@ -3438,7 +3466,7 @@ function wireStayPage(){
 function renderEventFormPage(el){
   const id = state.formEventId;
   document.getElementById('resourcePagination').innerHTML = '';
-  el.innerHTML = `<div class="rules-content" style="max-width:640px;margin:0 auto;"><button type="button" class="back-btn" data-hometab="clubs">← Back to clubs</button><div id="efBox" style="margin-top:8px;"><p class="av-msg">Loading…</p></div></div>`;
+  el.innerHTML = `<div class="rules-content" style="max-width:640px;margin:0 auto;"><button type="button" class="back-btn" data-hometab="clubs">← Back</button><div id="efBox" style="margin-top:8px;"><p class="av-msg">Loading…</p></div></div>`;
   const box = document.getElementById('efBox');
   if(getCmSession()) clubCalMemberCard(box, id); else clubCalPublicCard(box, id);
   window.scrollTo({ top:0 });
@@ -3492,7 +3520,7 @@ function renderDirectory(){
         if(!bd) return -1;
         return state.tripShowPast ? bd.localeCompare(ad) : ad.localeCompare(bd);
       });
-    el.innerHTML = `<button class="back-btn" type="button" data-hometab="home" id="travelBackBtn">← Back to Home</button>
+    el.innerHTML = `<button class="back-btn" type="button" data-hometab="home" id="travelBackBtn">← Back</button>
     <div class="travel-earth-layout">
       <div class="travel-trip-list">
         <h4>Trips on the globe</h4>
@@ -3619,7 +3647,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
   } else if(state.tab === 'clubstart'){
     document.getElementById('resourcePagination').innerHTML = '';
     el.innerHTML = `
-      <button class="back-btn" data-hometab="clubs">← Back to GALS CLUBS</button>
+      <button class="back-btn" data-hometab="clubs">← Back</button>
       <div class="rules-content">
         <p class="rules-lead">Start a club when you have a clear activity, a realistic rhythm, and the capacity to welcome people well.</p>
         <h3>1. Send your idea to an admin</h3>
@@ -3646,7 +3674,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
   } else if(state.tab === 'clubjoin'){
     document.getElementById('resourcePagination').innerHTML = '';
     el.innerHTML = `
-      <button class="back-btn" data-hometab="clubs">← Back to GALS CLUBS</button>
+      <button class="back-btn" data-hometab="clubs">← Back</button>
       <div class="rules-content">
         <p class="rules-lead">Join a club to participate, meet people, and help keep the space welcoming for everyone.</p>
         <h3>How to join</h3>
@@ -3667,7 +3695,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       </div>`;
   } else if(state.tab === 'fallsignup' && getCmSession()){
     document.getElementById('resourcePagination').innerHTML = '';
-    el.innerHTML = `<button class="back-btn" data-hometab="clubs">← Back to GALS CLUBS</button>
+    el.innerHTML = `<button class="back-btn" data-hometab="clubs">← Back</button>
       <div class="fall-signup"><div class="fall-hero"><h2>You're already logged in</h2>
       <p>You're logged in as: <strong>${escapeCm(getCmSession().name || '')}</strong></p>
       <button type="button" class="club-guide-btn" id="fallLogOutBtn" style="min-height:44px;padding:10px 22px;border-radius:999px;">Log out</button></div></div>`;
@@ -3676,7 +3704,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
   } else if(state.tab === 'fallsignup'){
     document.getElementById('resourcePagination').innerHTML = '';
     el.innerHTML = `
-      <button class="back-btn" data-hometab="clubs">← Back to GALS CLUBS</button>
+      <button class="back-btn" data-hometab="clubs">← Back</button>
       <div class="fall-signup">
         <div class="fall-hero">
           <h2>Pick Your Clubs — Fall Season 🌸</h2>
@@ -7295,7 +7323,7 @@ function openSettingsPopup(){
     const denied = Notification.permission === 'denied', on = state.pushRegistered && Notification.permission === 'granted';
     box.innerHTML = `<p style="margin:0 0 8px;">${on ? '✅ Notifications are <strong>on</strong> for this account.' : denied ? '🚫 Notifications are blocked in your browser settings — allow them there, then come back.' : '🔕 Notifications are <strong>off</strong>.'}</p>
       ${denied ? '' : `<button type="button" id="stNotifBtn" style="${pill}">${on ? '🔕 Turn notifications off' : '🔔 Turn notifications on'}</button>`}<div id="stNotifMsg" style="font-size:13px;min-height:18px;margin-top:4px;color:#c00;"></div>`;
-    const CATS = [['reminders', '⏰ Availability reminders'], ['announcements', '📣 Announcements (new availability period, news)'], ['clubs', '🏛️ Club updates (requests approved or declined)'], ['events', '📅 New club events']];
+    const CATS = [['reminders', '⏰ Availability reminders'], ['announcements', '📣 Announcements (new availability period, news)'], ['clubs', '🏛️ Club updates (requests approved or declined)'], ['events', '📅 New club events'], ['steps', '👟 Steps challenge updates'], ['badminton', '🏸 Badminton news']];
     const offSet = new Set(state.notifOff || []);
     box.insertAdjacentHTML('beforeend', `<p class="ideas-hint" style="text-align:left;margin:12px 0 4px;">Choose what you hear about:</p>${CATS.map(([k, l]) => `<label style="display:flex;align-items:center;gap:10px;padding:7px 0;font-size:14px;"><input type="checkbox" class="stCat" data-cat="${k}" ${offSet.has(k) ? '' : 'checked'} style="width:20px;height:20px;"> ${l}</label>`).join('')}<div id="stCatMsg" style="font-size:12px;min-height:16px;color:#2a7a4a;"></div>`);
     box.querySelectorAll('.stCat').forEach(c => c.addEventListener('change', async () => {
@@ -7567,7 +7595,7 @@ function renderClubIdeas(el){
   const addForm = (me && !state.ideasRenaming && !ideaCanActInClub(clubId)) ? `<p class="ideas-hint" style="text-align:center;">Only members of this club can vote or add ideas.</p>` : (me && !state.ideasRenaming) ? ideaAddFormHtml(clubId) : '';
 
   el.innerHTML = `
-    <button class="back-btn" ${getCmSession() && state.ideasFrom === 'home' ? 'data-hometab="home"' : getCmSession() ? `data-clubspage="${state.clubsPage === 'vote' && ((getCmSession().clubs || []).length > 1) ? 'vote' : ''}"` : 'data-hometab="clubs"'}>← Back${getCmSession() ? '' : ' to clubs'}</button>
+    <button class="back-btn" ${getCmSession() && state.ideasFrom === 'home' ? 'data-hometab="home"' : getCmSession() ? `data-clubspage="${state.clubsPage === 'vote' && ((getCmSession().clubs || []).length > 1) ? 'vote' : ''}"` : 'data-hometab="clubs"'}>← Back</button>
     <div class="ideas-wrap">
       <h2 class="ideas-title">THE ${escapeCm(title).toUpperCase()}</h2>
       <div class="ideas-link"><span>🔗 ${escapeCm(clubLink(clubId).replace(/^https?:\/\//, ''))}</span><button type="button" class="av-link" id="ideaCopyBtn">Copy link</button></div>
@@ -7690,7 +7718,7 @@ function homeGridHtml(){
     const attr = k === 'submit' ? 'id="homeSubmitTile"' : k === 'badminton' ? 'data-href="/badminton"' : k === 'steps' ? 'data-href="#/steps"' : `data-hometab="${k}"`;
     return `<button type="button" class="home-bubble" ${attr} aria-label="${l}" style="background:${bg};color:${fg};border-color:${fg};box-shadow:3px 3px 0 ${fg};--dx:${dx}px;--dy:${dy}px;--dur:${8 + (i % 4) * 1.3}s;--delay:${-i * 2.7}s;"><span class="hb-ic">${ic}</span><span class="hb-l">${l}</span></button>`;
   }).join('');
-  const authBtns = (!homeIsSignedIn() && isNativeApp()) ? `<div class="home-auth" style="display:flex;flex-direction:column;gap:10px;max-width:440px;margin:6px auto 14px;"><button type="button" class="club-guide-btn" id="homeLoginBig" style="min-height:58px;font-size:18px;background:var(--brand-rose);color:#fff;border-color:var(--brand-brown);">Log in</button><button type="button" class="club-guide-btn" id="homeSignupBig" style="min-height:58px;font-size:18px;">Sign up</button></div>` : '';
+  const authBtns = (!homeIsSignedIn() && isNativeApp()) ? `<div class="home-auth" style="display:flex;flex-direction:column;gap:10px;max-width:440px;margin:6px auto 14px;"><button type="button" class="club-guide-btn" id="homeLoginBig" style="min-height:58px;font-size:18px;background:var(--brand-rose);color:#fff;border-color:var(--brand-brown);text-align:center;justify-content:center;width:100%;">Log in</button><button type="button" class="club-guide-btn" id="homeSignupBig" style="min-height:58px;font-size:18px;background:#fff;color:var(--brand-brown);text-align:center;justify-content:center;width:100%;">Create an account</button></div>` : '';
   return `${authBtns}
     ${getCmSession() ? '' : `<div class="home-about"><p style="margin:0;"><strong>4DASISTAS</strong> is a community connector for Muslim women in the GTA — find events and trips, join clubs, discover women-owned businesses, and plan things together. 💛</p></div>`}
     ${getCmSession() ? '' : `<div class="home-bubbles">${bubbles}</div>`}`;
@@ -7726,6 +7754,11 @@ function placeSearchBar(){
 }
 
 // ---- Profile tab (like WhatsApp / Instagram): who you are, your settings, your activity, and everything that used to live in the menu ----
+function profileStatsHtml(sess){
+  if(!state.lbSteps && !state.profStepsLoading){ state.profStepsLoading = true; cmApiRaw('/api/me/steps', { headers: ideaHeaders(), cache:'no-store' }).then(d => { state.lbSteps = d; }).catch(() => {}).then(() => { state.profStepsLoading = false; if(state.tab === 'profile') render(); }); }
+  const m = state.lbSteps && state.lbSteps.mine, cell = (n, l) => `<div style="flex:1;text-align:center;"><div style="font-size:22px;font-weight:800;color:#76220b;">${n}</div><small style="color:#5b4d4b;">${l}</small></div>`;
+  return `<div class="pf-card" style="display:flex;gap:6px;padding:14px 6px;">${cell((sess.clubs || []).length, 'clubs')}${cell(m && m.joined ? stepsFmt(m.today) : '—', 'steps today')}${cell(m && m.rank ? '#' + m.rank : '—', 'steps rank')}</div>`;
+}
 function profilePageHtml(){
   const sess = getCmSession(), staff = state.cmAdminLoggedIn === true ? 'an admin' : (state.cmLead ? 'a club admin' : '');
   const row = (k, ic, l) => `<button type="button" class="pf-row" data-pf="${k}"><span style="font-size:20px;width:26px;text-align:center;">${ic}</span><span style="flex:1;">${l}</span><span style="opacity:.35;">›</span></button>`;
@@ -7734,9 +7767,10 @@ function profilePageHtml(){
     : `<div style="text-align:center;padding:14px 0;"><div style="font-size:46px;">👤</div><h2 style="margin:6px 0;">Your profile</h2><p class="ideas-hint">Log in to see your clubs, activity and settings.</p><button type="button" class="club-guide-btn" data-pf="login" style="background:var(--brand-rose);color:#fff;min-height:48px;width:min(280px,100%);">Log in</button><br><button type="button" class="club-guide-btn" data-pf="signup" style="min-height:48px;width:min(280px,100%);margin-top:8px;">Sign up</button></div>`;
   const warn = staff ? `<div class="av-waitlist" style="margin:0 0 12px;text-align:center;">⚠️ You're currently logged in as ${staff}</div>` : '';
   return `<div class="pf-wrap" style="max-width:560px;margin:0 auto;padding:6px 4px 24px;"><div class="pf-head">${head}</div><div class="pf-body">${warn}
+    ${sess ? profileStatsHtml(sess) : ''}
     ${sess ? `<div class="pf-card">${row('settings', '⚙️', 'Settings &amp; profile')}${row('attended', '🏅', 'Activities I attended')}${row('steps', '👟', 'Steps challenge')}${row('badminton', '🏸', 'Badminton')}${row('clubs', '🏛️', '4DS Clubs')}</div>` : `<div class="pf-card">${row('clubs', '🏛️', '4DS Clubs')}</div>`}
     <div class="pf-card">${row('contribute', '➕', 'Contribute (event or resource)')}${row('whatsnew', '✨', "What's new")}${row('about', 'ℹ️', 'About 4DS')}${row('privacy', '📄', 'Privacy &amp; help')}</div>
-    ${staff ? `<div class="pf-card">${row('adminpage', '🛠', 'Admin page')}${row(state.cmAdminLoggedIn === true ? 'adminout' : 'leadout', '🚪', 'Log out of ' + (state.cmAdminLoggedIn === true ? 'admin' : 'club admin'))}</div>` : ''}
+    ${staff ? `<div class="pf-card">${row('adminpage', '🛠', 'Admin page')}${row('preview', '👁', 'Preview as a member')}${row(state.cmAdminLoggedIn === true ? 'adminout' : 'leadout', '🚪', 'Log out of ' + (state.cmAdminLoggedIn === true ? 'admin' : 'club admin'))}</div>` : ''}
     ${sess ? `<div class="pf-card">${row('out', '↩️', 'Log out')}</div>` : ''}</div></div>`;
 }
 document.getElementById('directory-view').addEventListener('click', e => { const b = e.target.closest('[data-pf]'); if(b) pwrAction(b.dataset.pf); });
@@ -8018,7 +8052,7 @@ function myHomeHtml(){
   return `<div class="my-home" style="max-width:640px;margin:0 auto 16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;"><button type="button" id="homeGreeting" aria-label="Open my profile and settings" style="border:none;background:none;padding:2px 0;margin:0;font-family:'Outfit',system-ui,sans-serif;font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.2;text-align:left;cursor:pointer;background-image:linear-gradient(90deg,#e3a3ad,#ce8491 38%,#a8505f 75%,#76220b);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;">Asalamu Aleykum, ${escapeCm(first)}</button></div>
     <p style="margin:0 0 6px;font-weight:800;font-size:14px;">🏛️ Your clubs</p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:0 0 14px;">${cards}</div>${extras.join('')}</div>`;
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:0 0 14px;">${cards}</div>${homeStepsCardHtml()}${extras.join('')}</div>`;
 }
 document.addEventListener('click', e => {
   const mh = e.target.closest('.my-home'); 
@@ -8985,7 +9019,7 @@ function renderClubMembersView(el){
 
   if(state.cmView === 'auth'){
     el.innerHTML = `
-      <button class="back-btn" data-hometab="clubs">← Back to GALS CLUBS</button>
+      <button class="back-btn" data-hometab="clubs">← Back</button>
       <div class="rules-content" style="max-width:420px;margin:0 auto;">
         <h2 style="margin-bottom:4px;">${title} — Club Members Schedule</h2>
         <p class="rules-lead">Sign in with your username or phone number and your PIN.</p>
@@ -9006,7 +9040,7 @@ function renderClubMembersView(el){
   if(state.cmView === 'notMember'){
     const session = getCmSession();
     el.innerHTML = `
-      <button class="back-btn" data-hometab="clubs">← Back to GALS CLUBS</button>
+      <button class="back-btn" data-hometab="clubs">← Back</button>
       <div class="rules-content" style="max-width:420px;margin:0 auto;text-align:center;">
         <h2>${title} — Club Members Schedule</h2>
         <p class="rules-lead">You're signed in as <strong>${escapeCm(session ? session.name : '')}</strong>, but you're not a member of this club yet.</p>
@@ -9026,7 +9060,7 @@ function renderClubMembersView(el){
   if(state.cmView === 'dashboard'){
     const me = state.cmMe;
     el.innerHTML = `
-      <button class="back-btn" data-hometab="clubs">← Back to GALS CLUBS</button>
+      <button class="back-btn" data-hometab="clubs">← Back</button>
       <div class="rules-content">
         <h2 style="margin-bottom:2px;">${title} — Club Members Schedule</h2>
         <p style="font-size:13px;margin-bottom:6px;">Signed in as <strong>${escapeCm(me.name)}</strong> (@${escapeCm(me.username)}) · <a href="#" id="cmSwitchLink">not you?</a></p>
@@ -9080,7 +9114,7 @@ function renderCmEventView(el){
   const event = data.event;
   const mode = state.cmEventMode; // 'mine' | 'everyone'
   el.innerHTML = `
-    <button class="club-guide-btn" id="cmBackToDashboard" style="margin-bottom:14px;">← Back to events</button>
+    <button class="club-guide-btn" id="cmBackToDashboard" style="margin-bottom:14px;">← Back</button>
     <div class="rules-content">
       <h2 style="margin-bottom:2px;">${escapeCm(event.title)}</h2>
       <p style="font-size:13px;margin-bottom:14px;">${escapeCm(event.startDate === event.endDate ? event.startDate : event.startDate + ' – ' + event.endDate)}${event.desc ? ' · ' + escapeCm(event.desc) : ''}</p>
@@ -10822,7 +10856,7 @@ async function admNeedsLoad(){
 function admNeedsHtml(){
   if(!state.admNeeds){ admNeedsLoad(); return ''; }
   const n = state.admNeeds, inbox = admInboxCount();
-  const chips = [[inbox, '🙋', 'requests & submissions', 'clubs'], [n.pendingRsvps, '⏳', 'RSVPs to approve', 'events'], [n.unpaid, '💳', 'unpaid sign-ups', 'events'], [n.tbdKeen, '🕒', 'undated events with interest', 'events'], [n.stayTodo, '🪁', 'squad members to confirm', 'clubs']].filter(c => c[0] > 0);
+  const chips = [[inbox, '🙋', 'requests & submissions', 'clubs'], [n.pendingRsvps, '⏳', 'RSVPs to approve', 'events'], [n.unpaid, '💳', 'unpaid sign-ups', 'events'], [n.tbdKeen, '🕒', 'undated events with interest', 'events'], [n.stayTodo, '🪁', 'squad members to confirm', 'clubs'], [n.stepsStuck, '👟', 'people whose steps aren\'t syncing', 'steps']].filter(c => c[0] > 0);
   return `<div class="cp-box" style="margin:10px 0;padding:10px 12px;"><p style="margin:0 0 6px;font-weight:800;">${chips.length ? '🔔 Needs you' : '✅ Nothing needs you right now'}</p>${chips.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">${chips.map(([c, ic, l, g]) => `<button type="button" class="filter-chip adm-need" data-needgroup="${g}" style="min-height:40px;">${ic} <b>${c}</b> ${l}</button>`).join('')}</div>` : ''}<button type="button" class="adm-need-refresh" style="margin-top:6px;border:none;background:none;color:#776867;font-size:12px;text-decoration:underline;cursor:pointer;">↻ refresh</button></div>`;
 }
 function admGroupTilesHtml(lead, cur){
@@ -12012,7 +12046,7 @@ function syncToggleButtonClasses(){
 
 // Every sub-page gets a "← Back" at the top (the club pages and Travel already have their own labelled ones). It returns
 // to the page you came from, or Home if you opened the link directly.
-const SUBPAGE_BACK_TABS = ['submitevent', 'submitresource', 'subscribe', 'homescreen', 'rules'];
+const SUBPAGE_BACK_TABS = ['submitevent', 'submitresource', 'subscribe', 'homescreen', 'rules', 'stay'];
 function addSubpageBackButton(){
   const el = document.getElementById('directory-view');
   if(!el || !SUBPAGE_BACK_TABS.includes(state.tab) || el.querySelector('.back-btn')) return;
@@ -12366,6 +12400,7 @@ async function whatsNewMaybe(){
   const seen = wnSeen(key);
   if(!list.some(e => e.no > seen && wnItems(e).length)) return;
   const attempt = () => {
+    try { if(localStorage.getItem('tourSeen') !== '2') return; } catch {} // first visit: the welcome + tour come first — "What's new" never piles on top
     if(document.getElementById('pushGate') || document.getElementById('leadPwGate') || document.getElementById('phoneGate') || document.querySelector('.mem-pop')){
       if(++WN.tries < 40) setTimeout(attempt, 1500);
       return;
@@ -12381,7 +12416,7 @@ function renderNavAuth(){
   if(!menu) return;
   const sess = getCmSession();
   const staff = state.cmAdminLoggedIn === true ? 'an admin' : (state.cmLead ? 'a club admin' : '');
-  const staffPage = staff ? '<button type="button" data-pwr="adminpage">🛠 Admin page</button>' : '';
+  const staffPage = (staff ? '<button type="button" data-pwr="adminpage">🛠 Admin page</button><button type="button" data-pwr="preview">👁 Preview as a member</button>' : '');
   const staffOut = staff ? `<button type="button" data-pwr="${state.cmAdminLoggedIn === true ? 'adminout' : 'leadout'}">Log out of ${state.cmAdminLoggedIn === true ? 'admin' : 'club admin'}</button>` : '';
   const warn = staff ? `<div class="pwr-hi" style="background:#fff3cf;color:#6b5210;border-radius:10px;padding8px;line-height:1.4;">⚠️ You're currently logged in as ${staff}</div>`.replace('padding8px', 'padding:8px') : '';
   const contrib = '<button type="button" data-pwr="contribute">➕ Contribute</button>' + (adminUiOn() ? '<button type="button" data-pwr="newevent">➕ New event (admin)</button>' : '');
@@ -12409,6 +12444,7 @@ async function pwrAction(k){
     if(k === 'whatsnew') showWhatsNew(true);
     else if(k === 'settings') openSettingsPopup();
     else if(k === 'adminpage') goToTab('admin');
+    else if(k === 'preview') togglePreviewMember();
     else if(k === 'contribute') openContributeChooser();
     else if(k === 'newevent'){ const nb = document.getElementById('footerNewEventBtn'); if(nb) nb.click(); }
     else if(k === 'login') goLogin();
@@ -12641,6 +12677,7 @@ document.getElementById('globalSearch').addEventListener('keydown', e => {
   const suggestions = document.getElementById('searchSuggestions');
   if(suggestions) suggestions.style.display = 'none';
   e.target.blur();
+  try { const q = e.target.value.trim(); if(q){ let rec = JSON.parse(localStorage.getItem('recentSearches') || '[]').filter(x => x !== q); rec.unshift(q); localStorage.setItem('recentSearches', JSON.stringify(rec.slice(0, 5))); } } catch {}
   goToTab('events'); // events tab's list already live-filters by state.searchQuery
 });
 // Phones: the search is a small icon in the nav row; tapping it opens the bar just under the nav.
@@ -12720,7 +12757,63 @@ loadData().then(() => Promise.all([loadLabels(), loadAvailPeriod()])).then(() =>
   });
 })();
 
-(function(){ var o = render; render = function(){ var r = o.apply(this, arguments); window.__rendered = true; return r; }; })();
+(function(){ var o = render; render = function(){ var r = o.apply(this, arguments); window.__rendered = true; try { if(state.tab === 'fallsignup') wizardizeSignup(); } catch(e){} return r; }; })();
+
+/* ---- UX polish: offline pill, preview-as-member, screen-reader labels, sign-up steps, home steps card, recent searches ---- */
+(function(){
+  const pill = document.createElement('div'); pill.id = 'offlinePill'; pill.textContent = '📡 Offline — showing your last saved info'; document.body.appendChild(pill);
+  const upd = () => { pill.style.display = navigator.onLine === false ? 'block' : 'none'; };
+  window.addEventListener('online', upd); window.addEventListener('offline', upd); upd();
+})();
+// "Preview as a member": staff see the site exactly as an ordinary signed-in member (or visitor) does; one tap to come back.
+function togglePreviewMember(){
+  if(state._real){ state.cmAdminLoggedIn = state._real.admin; state.cmLead = state._real.lead; state._real = null; document.getElementById('previewPill').style.display = 'none'; }
+  else { state._real = { admin: state.cmAdminLoggedIn, lead: state.cmLead }; state.cmAdminLoggedIn = false; state.cmLead = null; const pp = document.getElementById('previewPill'); pp.style.display = 'block'; if(state.tab === 'admin') state.tab = 'home'; }
+  try { renderNavAuth(); } catch {} render(); window.scrollTo(0, 0);
+}
+(function(){ const b = document.createElement('button'); b.id = 'previewPill'; b.type = 'button'; b.textContent = '👁 Viewing as a member — tap to exit'; b.addEventListener('click', togglePreviewMember); document.body.appendChild(b); })();
+// give icon-only controls a spoken name (VoiceOver / TalkBack)
+function a11yLabels(root){
+  try {
+    (root || document).querySelectorAll('button:not([aria-label]), a:not([aria-label]), [role=button]:not([aria-label])').forEach(el => {
+      if((el.textContent || '').trim().length > 1) return;
+      const hint = el.getAttribute('title') || el.dataset.tab || el.dataset.pwr || el.dataset.k || el.id || '';
+      const emoji = (el.textContent || '').trim();
+      const map = { pwrBtn:'Menu: contribute, log in or out', home:'Home', events:'Calendar', trophy:'Leaderboards', clubs:'Clubs', resources:'Directory', search:'Search', profile:'Profile', admin:'Admin', heart:'Pick this heart' };
+      const name = map[hint] || (hint ? hint.replace(/[-_]/g, ' ') : (emoji ? 'Button ' + emoji : ''));
+      if(name) el.setAttribute('aria-label', name);
+    });
+    (root || document).querySelectorAll('.spav, .k-av, .tpAv, .hb-ic').forEach(el => { if(!el.getAttribute('role')){ el.setAttribute('role', 'img'); if(!el.getAttribute('aria-label')) el.setAttribute('aria-label', 'Profile picture'); } });
+    (root || document).querySelectorAll('img:not([alt])').forEach(i => i.setAttribute('alt', ''));
+  } catch {}
+}
+new MutationObserver(() => { clearTimeout(a11yLabels._t); a11yLabels._t = setTimeout(() => a11yLabels(), 250); }).observe(document.body, { childList:true, subtree:true });
+setTimeout(a11yLabels, 800);
+// sign-up in three short steps (the form underneath is unchanged — this only shows one part at a time)
+function wizardizeSignup(){
+  const f = document.getElementById('fallSignupForm'); if(!f || f.dataset.wiz) return; f.dataset.wiz = '1';
+  const secs = [...f.querySelectorAll(':scope > .fall-section')]; if(secs.length < 4) return;
+  const groups = [secs.slice(0, 3), secs.slice(3, 6), secs.slice(6)], titles = ['About you', 'Your clubs', 'Good to know'];
+  const submit = f.querySelector('.fall-submit-btn, button[type=submit]'); let cur = 0;
+  const bar = document.createElement('div'); bar.className = 'su-steps'; bar.innerHTML = groups.map(() => '<i></i>').join(''); f.insertBefore(bar, f.firstChild);
+  const nav = document.createElement('div'); nav.className = 'su-nav'; nav.innerHTML = '<button type="button" class="su-prev">← Back</button><button type="button" class="su-next">Next →</button>';
+  (submit ? submit.parentNode : f).insertBefore(nav, submit || null);
+  const show = () => { groups.forEach((g, i) => g.forEach(x => { x.style.display = i === cur ? '' : 'none'; })); [...bar.children].forEach((d, i) => d.classList.toggle('on', i <= cur)); nav.querySelector('.su-prev').style.display = cur ? '' : 'none'; nav.querySelector('.su-next').style.display = cur < groups.length - 1 ? '' : 'none'; if(submit) submit.style.display = cur === groups.length - 1 ? '' : 'none'; bar.setAttribute('aria-label', 'Step ' + (cur + 1) + ' of ' + groups.length + ': ' + titles[cur]); window.scrollTo(0, 0); };
+  nav.querySelector('.su-prev').addEventListener('click', () => { if(cur){ cur--; show(); } });
+  nav.querySelector('.su-next').addEventListener('click', () => {
+    if(cur === 0){ const need = [...groups[0][0].querySelectorAll('input')].find(i => i.type !== 'hidden' && !i.value.trim()) || [...groups[0][1].querySelectorAll('input')].find(i => !i.value.trim()); if(need){ need.focus(); need.scrollIntoView({ block:'center' }); return; } }
+    if(cur < groups.length - 1){ cur++; show(); } });
+  show();
+}
+// Home (signed in): today's steps against the goal, at a glance
+function homeStepsCardHtml(){
+  if(!getCmSession()) return '';
+  if(!state.lbSteps && !state.homeStepsLoading){ state.homeStepsLoading = true; cmApiRaw('/api/me/steps', { headers: ideaHeaders(), cache:'no-store' }).then(d => { state.lbSteps = d; }).catch(() => {}).then(() => { state.homeStepsLoading = false; if(state.tab === 'home') render(); }); }
+  const m = state.lbSteps && state.lbSteps.mine; if(!m || !m.joined) return state.lbSteps && state.lbSteps.round ? '<button type="button" class="nt-row" data-gosteps="1" style="margin:0 0 12px;"><span class="nt-ic">👟</span><span class="nt-tx"><b>Join the steps challenge</b><small>' + escapeCm(state.lbSteps.round.title || '') + '</small></span><span class="nt-ch">›</span></button>' : '';
+  const goal = m.goal || 10000, pct = Math.min(100, Math.round((m.today || 0) / goal * 100));
+  return `<button type="button" class="nt-row" data-gosteps="1" style="margin:0 0 12px;display:block;"><div style="display:flex;justify-content:space-between;align-items:baseline;"><b>👟 Today</b><span style="font-size:22px;font-weight:800;color:#76220b;">${stepsFmt(m.today)}</span></div><div style="height:8px;border-radius:99px;background:#f2d8d7;overflow:hidden;margin:6px 0 4px;"><div style="height:100%;width:${pct}%;background:#ce8491;"></div></div><small style="color:#5b4d4b;">${pct}% of ${stepsFmt(goal)} · tap for your week</small></button>`;
+}
+document.addEventListener('click', e => { if(e.target.closest('[data-gosteps]')) location.hash = '#/steps'; });
 </script>
 
 </body>
