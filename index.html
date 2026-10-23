@@ -6892,7 +6892,7 @@ function openCommunityClub(id){
   const col = clubCol(id), today = new Date().toISOString().slice(0, 10);
   if(!state.clubCal) clubCalLoad();
   const evs = (state.clubCal || []).filter(e => e.date >= today && !String(e.id).startsWith('idea:') && (e.clubIds || [e.clubId]).includes(id)).slice(0, 4);
-  const link = id === 'club-badminton' ? ['🏸 Open Badminton', '/badminton'] : id === 'club-steps' ? ['👟 Open the Steps challenge', '#/steps'] : null;
+  const link = id === 'club-badminton' ? ['🏸 See standings', '#bmstandings'] : id === 'club-steps' ? ['👟 Open the Steps challenge', '#/steps'] : null;
   const { wrap, close } = ideaPopup(`<div style="text-align:center;">${c.logo ? `<img src="${escapeCm(c.logo)}" alt="" style="width:86px;height:86px;object-fit:contain;border-radius:50%;background:${col.bg};">` : `<div style="font-size:48px;">${escapeCm(c.emoji || '')}</div>`}<h3 style="margin:8px 0 4px;">${escapeCm(c.title)}</h3></div>
     <p style="margin:0 0 10px;font-size:14px;line-height:1.5;text-align:center;">${escapeCm(c.desc || '')}</p>
     ${link ? `<a class="club-guide-btn" href="${link[1]}" style="display:block;text-align:center;text-decoration:none;min-height:48px;line-height:30px;margin-bottom:8px;">${link[0]}</a>` : ''}
@@ -7896,10 +7896,53 @@ function paintBmLb(){
   const av = x => x.a ? `<img src="${escapeCm(x.a)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : escapeCm(x.h || '💗');
   const pod = i => { const x = list[i]; return !x ? `<div class="spod ${cls[i]}"><div class="spav">❓</div><div class="spname">${d && d.waiting ? 'Who will it be?' : '—'}</div><div class="spbase">${med[i]}</div></div>` : `<div class="spod ${cls[i]}"><div class="spav" style="overflow:hidden;">${av(x)}</div><div class="spname">${escapeCm(x.n)}</div><div class="spbase">${med[i]}<small>${escapeCm(String(x.pts))} pts</small></div></div>`; };
   const rest = list.slice(3), open = !!state.bmLbMore;
-  el.innerHTML = `<p style="margin:0 0 2px;font-weight:800;">🏸 Badminton <a href="/badminton" style="font-weight:600;font-size:13px;margin-left:6px;">open →</a></p>` + (!d ? '<p class="av-msg" style="margin:0;">Loading…</p>' : `<p class="ideas-hint" style="margin:0;text-align:left;">${escapeCm(d.label || '')}</p><div class="spodium">${pod(1)}${pod(0)}${pod(2)}</div>` +
-    (rest.length ? rest.slice(0, open ? 12 : 2).map((x, i) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid rgba(118,34,11,.12);"><span style="width:22px;opacity:.6;">${i + 4}</span><span style="flex:1;font-weight:700;">${escapeCm(x.n)}</span><span style="font-weight:800;">${escapeCm(String(x.pts))} pts</span></div>`).join('') + (rest.length > 2 ? `<button type="button" class="club-guide-btn" id="lbBmMore" style="width:100%;margin-top:8px;min-height:42px;text-align:center;justify-content:center;">${open ? 'Show less' : 'See more'}</button>` : '') : ''));
-  const mb = el.querySelector('#lbBmMore'); if(mb) mb.addEventListener('click', () => { state.bmLbMore = !state.bmLbMore; paintBmLb(); });
+  el.innerHTML = `<p style="margin:0 0 2px;font-weight:800;">🏸 Badminton <button type="button" id="lbBmOpen" style="font-weight:700;font-size:13px;margin-left:6px;border:none;background:rgba(206,132,145,.18);border-radius:999px;padding:6px 12px;cursor:pointer;color:#76220b;">All standings ›</button></p>` + (!d ? '<p class="av-msg" style="margin:0;">Loading…</p>' : `<p class="ideas-hint" style="margin:0;text-align:left;">${escapeCm(d.label || '')}</p><div class="spodium">${pod(1)}${pod(0)}${pod(2)}</div>` +
+    (rest.length ? rest.slice(0, open ? 12 : 2).map((x, i) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid rgba(118,34,11,.12);"><span style="width:22px;opacity:.6;">${i + 4}</span><span style="flex:1;font-weight:700;">${escapeCm(x.n)}</span><span style="font-weight:800;">${escapeCm(String(x.pts))} pts</span></div>`).join('') + (rest.length > 2 ? `<button type="button" class="club-guide-btn" id="lbBmMore" style="width:100%;margin-top:8px;min-height:42px;text-align:center;justify-content:center;">See all standings</button>` : '') : ''));
+  const mb = el.querySelector('#lbBmMore'); if(mb) mb.addEventListener('click', openBadmintonStandings);
+  const ob = el.querySelector('#lbBmOpen'); if(ob) ob.addEventListener('click', openBadmintonStandings);
 }
+// Badminton standings pop-up: the current podium + everyone below it, with a link to register — no page change.
+function openBadmintonStandings(){
+  ensureBmDataFrame();
+  const d = state.bmLb || lbCacheGet('lbBmCache'), list = (d && !d.waiting && d.list) || [];
+  const cls = ['one', 'two', 'three'], med = ['🏆', '🥈', '🥉'];
+  const av = x => x.a ? `<img src="${escapeCm(x.a)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : escapeCm(x.h || '💗');
+  const pod = i => { const x = list[i]; return !x ? `<div class="spod ${cls[i]}"><div class="spav">❓</div><div class="spname">${d && d.waiting ? 'Who will it be?' : '—'}</div><div class="spbase">${med[i]}</div></div>` : `<div class="spod ${cls[i]}"><div class="spav" style="overflow:hidden;">${av(x)}</div><div class="spname">${escapeCm(x.n)}</div><div class="spbase">${med[i]}<small>${escapeCm(String(x.pts))} pts</small></div></div>`; };
+  const rows = list.slice(3).map((x, i) => `<div style="display:flex;align-items:center;gap:10px;padding:9px 2px;border-top:1px solid rgba(118,34,11,.12);"><span style="width:24px;opacity:.6;">${i + 4}</span><span style="width:30px;height:30px;border-radius:50%;overflow:hidden;background:#f2d8d7;display:inline-flex;align-items:center;justify-content:center;font-size:17px;">${av(x)}</span><span style="flex:1;font-weight:700;">${escapeCm(x.n)}</span><span style="font-weight:800;">${escapeCm(String(x.pts))} pts</span></div>`).join('');
+  ideaPopup(`<h3 style="margin:0 0 2px;text-align:center;">🏸 Badminton standings</h3><p class="ideas-hint" style="text-align:center;margin:0;">${escapeCm((d && d.label) || 'Loading…')}</p><div class="spodium">${pod(1)}${pod(0)}${pod(2)}</div><div style="max-height:34vh;overflow:auto;">${rows}</div>
+    <a href="/badminton" class="club-guide-btn" style="display:block;text-align:center;text-decoration:none;min-height:48px;line-height:30px;margin-top:12px;background:var(--brand-rose);color:#fff;">Register for badminton →</a>`);
+}
+// Home (signed in, in the badminton club): "Are you coming this week?"
+const BM_SESSIONS = [[2026,10,9],[2026,10,16],[2026,10,22],[2026,10,29],[2026,11,5],[2026,11,13],[2026,11,20],[2026,11,26],[2026,12,3],[2026,12,11],[2026,12,17],[2026,12,24],[2026,12,31],[2027,1,7],[2027,1,14],[2027,1,22],[2027,1,28]];
+function bmNextSession(){
+  const today = new Date().toLocaleDateString('en-CA', { timeZone:'America/Toronto' }), pad = n => String(n).padStart(2, '0');
+  const i = BM_SESSIONS.findIndex(a => `${a[0]}-${pad(a[1])}-${pad(a[2])}` >= today);
+  return i < 0 ? null : { week: i + 1, date: `${BM_SESSIONS[i][0]}-${pad(BM_SESSIONS[i][1])}-${pad(BM_SESSIONS[i][2])}` };
+}
+async function bmRsvpLoad(week){
+  const sess = getCmSession(); state.bmRsvp = state.bmRsvp || {}; if(state.bmRsvp.loading) return; state.bmRsvp.loading = true; state.bmRsvp.week = week; // (set first, so a failed load can never loop)
+  try {
+    const r = await fetch('/api/bm/q', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ table:'session_rsvps', op:'select', filters:[{ op:'eq', col:'week_number', val: week }] }) }), j = await r.json();
+    const rows = Array.isArray(j.data) ? j.data : []; const c = { yes:0, maybe:0, no:0 }; rows.forEach(x => { if(c[x.status] !== undefined) c[x.status]++; });
+    state.bmRsvp.week = week; state.bmRsvp.counts = c; state.bmRsvp.mine = (rows.find(x => x.username === (sess && sess.username)) || {}).status || '';
+  } catch {}
+  state.bmRsvp.loading = false; if(state.tab === 'home') render();
+}
+function homeBadmintonRsvpHtml(){
+  const sess = getCmSession(); if(!sess || !(sess.clubs || []).includes('club-badminton')) return '';
+  const n = bmNextSession(); if(!n) return '';
+  if(!state.bmRsvp || state.bmRsvp.week !== n.week){ bmRsvpLoad(n.week); }
+  const r = state.bmRsvp || {}, c = r.counts || { yes:0, maybe:0, no:0 }, mine = r.week === n.week ? r.mine : '';
+  const day = new Date(n.date + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'long', month:'short', day:'numeric' });
+  const btn = (k, l) => `<button type="button" data-bmrsvp="${k}" style="flex:1;min-height:46px;border-radius:14px;border:2px solid #76220b;font:800 14px Outfit,system-ui,sans-serif;cursor:pointer;background:${mine === k ? '#ce8491' : '#fff'};color:${mine === k ? '#fff' : '#76220b'};">${l}</button>`;
+  return `<div class="nt-row" style="display:block;margin:0 0 12px;cursor:default;"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;"><b>🏸 Coming to badminton?</b><small style="color:#5b4d4b;">${escapeCm(day)}</small></div><div style="display:flex;gap:8px;margin:8px 0 6px;">${btn('yes', '✓ Yes')}${btn('maybe', '? Maybe')}${btn('no', '✕ No')}</div><small style="color:#5b4d4b;">${c.yes} coming · ${c.maybe} maybe · ${c.no} no</small></div>`;
+}
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-bmrsvp]'); if(!b) return; const n = bmNextSession(); if(!n) return;
+  b.disabled = true;
+  try { const r = await fetch('/api/bm/rpc', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ name:'set_my_rsvp', args:{ p_week: n.week, p_status: b.dataset.bmrsvp } }) }), j = await r.json(); if(j && j.error) throw new Error(j.error.message || 'Could not save'); admToastLite('✓ Saved'); } catch(err){ alert(err.message || 'Could not save'); }
+  state.bmRsvp = null; if(state.tab === 'home') render();
+});
 function mountLeaderboards(){
   const host = document.getElementById('directory-view'); if(!host || host.querySelector('#lbBox')) return;
   const box = document.createElement('div'); box.id = 'lbBox'; box.style.cssText = 'max-width:640px;margin:18px auto 0;';
@@ -7988,7 +8031,7 @@ function goBadminton(){
   document.body.appendChild(d);
   setTimeout(() => { location.href = '/badminton'; }, 60);
 }
-document.addEventListener('click', e => { const a = e.target.closest('a[href="/badminton"],[data-href="/badminton"]'); if(a){ e.preventDefault(); e.stopPropagation(); goBadminton(); } }, true);
+document.addEventListener('click', e => { const sb = e.target.closest('a[href="#bmstandings"]'); if(sb){ e.preventDefault(); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); openBadmintonStandings(); return; } const a = e.target.closest('a[href="/badminton"],[data-href="/badminton"]'); if(a){ e.preventDefault(); e.stopPropagation(); goBadminton(); } }, true);
 
 /* ---- Native app extras: links that open the app, event reminders, the unread badge, the "please update" gate ---- */
 function openEventIcs(id){
@@ -8052,7 +8095,7 @@ function myHomeHtml(){
   return `<div class="my-home" style="max-width:640px;margin:0 auto 16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;"><button type="button" id="homeGreeting" aria-label="Open my profile and settings" style="border:none;background:none;padding:2px 0;margin:0;font-family:'Outfit',system-ui,sans-serif;font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.2;text-align:left;cursor:pointer;background-image:linear-gradient(90deg,#e3a3ad,#ce8491 38%,#a8505f 75%,#76220b);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;">Asalamu Aleykum, ${escapeCm(first)}</button></div>
     <p style="margin:0 0 6px;font-weight:800;font-size:14px;">🏛️ Your clubs</p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:0 0 14px;">${cards}</div>${homeStepsCardHtml()}${extras.join('')}</div>`;
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:0 0 14px;">${cards}</div>${homeStepsCardHtml()}${homeBadmintonRsvpHtml()}${extras.join('')}</div>`;
 }
 document.addEventListener('click', e => {
   const mh = e.target.closest('.my-home'); 
@@ -12454,7 +12497,7 @@ async function pwrAction(k){
     else if(k === 'leadout'){ await cmLeadLogout(); }
     else if(k === 'steps') location.hash = '#/steps';
     else if(k === 'clubs') goToTab('clubs');
-    else if(k === 'badminton') goBadminton();
+    else if(k === 'badminton') openBadmintonStandings();
     else if(k === 'attended') openAttendedPopup();
     else if(k === 'about') goToTab('rules');
     else if(k === 'privacy') window.open('/privacy', '_blank', 'noopener');
