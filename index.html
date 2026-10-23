@@ -3178,6 +3178,33 @@ function stepsHistHtml(h){
   return `<p style="margin:0 0 6px;font-weight:800;font-size:14px;">Last 7 days <span style="font-weight:600;color:#776867;">· ${stepsFmt(total)} steps${src ? ' · ' + src : ''}</span></p>
     <div style="display:flex;align-items:flex-end;gap:6px;height:120px;">${h.days.map(d => { const pct = Math.round(d.steps / max * 100); const lab = new Date(d.day + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short' }); return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end;"><span style="font-size:10px;color:#776867;">${d.steps >= 1000 ? (Math.round(d.steps / 100) / 10) + 'k' : d.steps}</span><div style="width:100%;max-width:30px;height:${Math.max(3, pct)}%;border-radius:8px 8px 3px 3px;background:${d.day === today ? 'var(--brand-brown,#76220b)' : 'var(--brand-rose,#ce8491)'};"></div><span style="font-size:11px;font-weight:${d.day === today ? 800 : 600};">${d.day === today ? 'Today' : lab}</span></div>`; }).join('')}</div>`;
 }
+// 7 days ↔ month view on the Steps page. Months go back to October 2026 and forward to next month only.
+const STEPS_FIRST_MONTH = '2026-10';
+function stepsMonthAdd(mo, n){ const [y, m] = mo.split('-').map(Number), d = new Date(y, m - 1 + n, 1); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+function stepsThisMonth(){ return new Date().toLocaleDateString('en-CA', { timeZone:'America/Toronto' }).slice(0, 7); }
+function stepsMonthHtml(h, mo){
+  const prevOk = mo > STEPS_FIRST_MONTH, nextOk = mo < stepsMonthAdd(stepsThisMonth(), 1), title = new Date(mo + '-15T12:00:00').toLocaleDateString('en-CA', { month:'long', year:'numeric' });
+  const nav = `<div style="display:flex;align-items:center;justify-content:space-between;margin:0 0 8px;"><button type="button" class="fb-mini" data-stepsmo="-1" ${prevOk ? '' : 'disabled style="opacity:.3"'} aria-label="Previous month">‹</button><strong>${escapeCm(title)}</strong><button type="button" class="fb-mini" data-stepsmo="1" ${nextOk ? '' : 'disabled style="opacity:.3"'} aria-label="Next month">›</button></div>`;
+  if(!h) return nav + '<p class="ideas-hint" style="margin:0;text-align:center;">Loading…</p>';
+  if(h.error) return nav + `<p class="ideas-hint" style="margin:0;text-align:center;">${escapeCm(h.error)}</p>`;
+  const max = Math.max(1000, ...h.days.map(d => d.steps)), total = h.days.reduce((a, d) => a + d.steps, 0), lead = (new Date(mo + '-01T12:00:00').getDay() + 6) % 7;
+  const cells = Array(lead).fill('<div></div>').concat(h.days.map(d => { const a = d.steps ? 0.18 + 0.82 * d.steps / max : 0, fut = d.day > h.today; return `<div style="aspect-ratio:1;border-radius:10px;background:${d.steps ? `rgba(206,132,145,${a.toFixed(2)})` : '#fef7f4'};border:${d.day === h.today ? '2px solid #76220b' : '1px solid rgba(118,34,11,.1)'};display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:${fut ? .35 : 1};"><span style="font-size:10px;color:#776867;">${Number(d.day.slice(8))}</span><span style="font-size:10px;font-weight:800;color:${a > .6 ? '#fff' : '#373d3b'};">${d.steps ? (d.steps >= 1000 ? (Math.round(d.steps / 100) / 10) + 'k' : d.steps) : ''}</span></div>`; }));
+  return nav + `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:10px;text-align:center;color:#776867;margin-bottom:4px;">${['M','T','W','T','F','S','S'].map(x => `<div>${x}</div>`).join('')}</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">${cells.join('')}</div><p class="ideas-hint" style="margin:8px 0 0;text-align:center;">${stepsFmt(total)} steps this month</p>`;
+}
+function stepsHistBlockHtml(){
+  const mode = state.stepsHistMode || 'week', mo = state.stepsMonth || stepsThisMonth();
+  const tabs = `<div style="display:flex;gap:6px;justify-content:center;margin:0 0 10px;"><button type="button" class="filter-chip${mode === 'week' ? ' active' : ''}" data-stepsmode="week">Last 7 days</button><button type="button" class="filter-chip${mode === 'month' ? ' active' : ''}" data-stepsmode="month">By month</button></div>`;
+  return tabs + (mode === 'month' ? stepsMonthHtml(state.stepsHist && state.stepsHist['m:' + mo], mo) : stepsHistHtml(state.stepsHist && state.stepsHist['']));
+}
+async function stepsMonthLoad(mo){
+  state.stepsHist = state.stepsHist || {};
+  try { state.stepsHist['m:' + mo] = await cmApiRaw('/api/me/steps/history?month=' + mo, { headers: ideaHeaders(), cache:'no-store' }); } catch(e){ state.stepsHist['m:' + mo] = { error: e.message }; }
+  const el = document.getElementById('stepsHistMine'); if(el) el.innerHTML = stepsHistBlockHtml();
+}
+document.addEventListener('click', e => {
+  const md = e.target.closest('[data-stepsmode]'); if(md){ state.stepsHistMode = md.dataset.stepsmode; const mo = state.stepsMonth || (state.stepsMonth = stepsThisMonth()); const el = document.getElementById('stepsHistMine'); if(el) el.innerHTML = stepsHistBlockHtml(); if(md.dataset.stepsmode === 'month' && !(state.stepsHist && state.stepsHist['m:' + mo])) stepsMonthLoad(mo); return; }
+  const nv = e.target.closest('[data-stepsmo]'); if(nv && !nv.disabled){ let mo = stepsMonthAdd(state.stepsMonth || stepsThisMonth(), Number(nv.dataset.stepsmo)); if(mo < STEPS_FIRST_MONTH || mo > stepsMonthAdd(stepsThisMonth(), 1)) return; state.stepsMonth = mo; const el = document.getElementById('stepsHistMine'); if(el) el.innerHTML = stepsHistBlockHtml(); if(!(state.stepsHist && state.stepsHist['m:' + mo])) stepsMonthLoad(mo); }
+});
 async function openStepsHistory(u){
   const { wrap } = ideaPopup('<div id="stepsHistPop">' + stepsHistHtml(null) + '</div>');
   const h = await stepsHistLoad(u); const el = wrap.querySelector('#stepsHistPop');
@@ -3209,20 +3236,29 @@ function stepsPageHtml(){
   const joinBox = m.joined ? `<p style="margin:0 0 8px;color:#2a7a4a;font-weight:700;">✅ You're in this challenge${r.status !== 'finished' ? ` <button type="button" id="stepsLeave" style="border:none;background:none;text-decoration:underline;cursor:pointer;color:#776867;font-weight:400;">Leave</button>` : ''}</p>`
     : r.status === 'finished' ? '' : r.mode === 'invite' ? `<p style="margin:0 0 8px;color:#776867;">🔒 This challenge is invite-only — ask an admin to add you.</p>`
     : `<button type="button" class="club-guide-btn" id="stepsJoin" style="width:100%;min-height:48px;margin-bottom:10px;background:var(--brand-rose);color:#fff;">🙋 Join this challenge</button>`;
+  const wk = state.stepsHist && state.stepsHist[''], wkTotal = wk && wk.days ? wk.days.reduce((a, x) => a + x.steps, 0) : null, goal = m.goal || 10000, gp = Math.min(100, Math.round((m.today || 0) / goal * 100));
+  const srcLabel = src === 'googlehealth' ? '🟢 Google Health' : src === 'apple' ? '🍎 Apple Health' : src === 'google' ? '🤖 Health Connect' : '';
+  const chooser = `<div style="display:flex;gap:8px;flex-wrap:wrap;">${srcBtn('apple', '🍎 Apple Health')}${srcBtn('googlehealth', '🟢 Google Health')}${/android/i.test(plat) ? srcBtn('google', '🤖 Health Connect') : ''}</div>
+    <p class="ideas-hint" style="margin:8px 0 0;text-align:left;">Pick ONE — only that source counts, so steps are never doubled or mixed. <strong>Apple Health</strong> = what your iPhone / Apple Watch records. <strong>Google Health</strong> = Fitbit, Pixel Watch or your Google account (works on an iPhone too).</p>
+    ${src === 'googlehealth' ? `<button type="button" id="stepsFitbit" class="adm-need-refresh" style="border:none;background:none;text-decoration:underline;cursor:pointer;padding:6px 0;">${m.ghConnected ? 'Reconnect Google Health' : 'Connect Google Health'}</button>` : ''}
+    ${native && ((src === 'apple' && !/ios/i.test(plat)) || (src === 'google' && /ios/i.test(plat))) ? `<p class="ideas-hint" style="margin:6px 0 0;color:#a8505f;">⚠️ ${src === 'apple' ? 'Apple Health only exists on an iPhone' : 'Health Connect only exists on an Android phone'} — pick the one that matches this phone.</p>` : ''}`;
   html += `<div class="panel-card" style="${wrap}padding:14px;margin-top:12px;"><p style="margin:0 0 8px;font-weight:800;">Your steps</p>${joinBox}
-    <div style="display:flex;gap:10px;text-align:center;"><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${stepsFmt(m.today)}</div><small>today</small></div><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${stepsFmt(m.round)}</div><small>this round</small></div><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${m.rank ? '#' + m.rank : '—'}</div><small>rank</small></div></div>
-    <div id="stepsHistMine" style="margin-top:12px;">${stepsHistHtml(state.stepsHist && state.stepsHist[''])}</div>
-    <p style="margin:10px 0 0;text-align:center;font-size:12px;color:#776867;">${synced ? 'Last synced ' + escapeCm(synced) : 'Not synced yet'} · <button type="button" id="stepsSyncBtn" style="border:none;background:none;text-decoration:underline;cursor:pointer;color:#76220b;font-weight:700;">🔄 Sync now</button></p>
+    <div style="display:flex;gap:8px;align-items:flex-end;text-align:center;">
+      <div style="flex:1;"><div style="font-size:18px;font-weight:800;">${wkTotal === null ? '…' : stepsFmt(wkTotal)}</div><small style="color:#776867;">past 7 days</small></div>
+      <div style="flex:1.4;"><div style="font-size:40px;font-weight:800;line-height:1;letter-spacing:-.02em;color:var(--brand-brown,#76220b);">${stepsFmt(m.today)}</div><small style="color:#776867;">today</small>
+        <div style="height:8px;border-radius:99px;background:#f2d8d7;overflow:hidden;margin:6px 4px 0;"><div style="height:100%;width:${gp}%;background:var(--brand-rose,#ce8491);"></div></div></div>
+      <div style="flex:1;"><div style="font-size:18px;font-weight:800;">${stepsFmt(goal)}</div><small style="color:#776867;">goal</small></div>
+    </div>
+    <p style="margin:10px 0 0;text-align:center;font-size:13px;color:#373d3b;">This round: <strong>${stepsFmt(m.round)}</strong> steps${m.rank ? ' · rank <strong>#' + m.rank + '</strong>' : ''}</p>
+    <p style="margin:6px 0 0;text-align:center;font-size:12px;color:#776867;">${srcLabel ? srcLabel + ' · ' : ''}${synced ? 'Last synced ' + escapeCm(synced) : 'Not synced yet'}${src ? ` · <button type="button" id="stepsSyncBtn" style="border:none;background:none;text-decoration:underline;cursor:pointer;color:#76220b;font-weight:700;">🔄 Sync now</button>` : ''}</p>
     ${m.diag && !m.diag.ok ? `<div style="margin:8px 0 0;padding:10px 12px;border-radius:14px;background:#fdecea;color:#76220b;font-size:13px;line-height:1.45;">⚠️ ${escapeCm(m.diag.msg)}${src === 'apple' && native ? '<br><small>' + escapeCm(STEPS_APPLE_HELP) + '</small>' : ''}</div>` : ''}
     ${src === 'googlehealth' && m.ghConnected === false ? '<button type="button" class="club-guide-btn" id="stepsReconnect" style="width:100%;min-height:46px;margin-top:8px;background:var(--brand-rose);color:#fff;">🟢 Connect Google Health</button>' : ''}
-    ${src === 'apple' ? '<p class="ideas-hint" style="margin:6px 0 0;text-align:center;">🍎 Apple Health only counts what your iPhone or Apple Watch records. If your steps come from a Pixel Watch / Fitbit / Google account, pick Google Health below.</p>' : ''}
-    <p style="margin:12px 0 2px;font-weight:700;font-size:14px;">Where do your steps come from?</p><p class="ideas-hint" style="margin:0 0 6px;text-align:left;">Pick ONE — only that source counts, so steps are never doubled or mixed.</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">${srcBtn('apple', '🍎 Apple Health')}${srcBtn('googlehealth', '🟢 Google Health')}${/android/i.test(plat) ? srcBtn('google', '🤖 Health Connect') : ''}</div>
-    <p class="ideas-hint" style="margin:8px 0 0;text-align:left;">${src === 'googlehealth'
-      ? `Steps come from your Google Health account (Fitbit, Pixel Watch, the Google Health app) — it works on any phone, even an iPhone.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''} <button type="button" id="stepsFitbit" class="adm-need-refresh" style="border:none;background:none;text-decoration:underline;cursor:pointer;">${synced ? 'Reconnect / sync now' : 'Connect Google Health'}</button>`
-      : native
-      ? ((src === 'apple' && !/ios/i.test(plat)) || (src === 'google' && /ios/i.test(plat)) ? `⚠️ ${src === 'apple' ? 'Apple Health only exists on an iPhone' : 'Health Connect only exists on an Android phone'} — pick the one that matches this phone.` : src ? `Steps sync from ${src === 'apple' ? 'Apple Health' : 'Health Connect'} about every hour.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''} <button type="button" id="stepsSyncNow" class="adm-need-refresh" style="border:none;background:none;text-decoration:underline;cursor:pointer;">Connect &amp; sync now</button>` : 'Pick where your steps live, then tap Connect.')
-      : `Pick where your steps live: <strong>Apple Health</strong> (iPhone) or <strong>Google Health</strong> (Fitbit / Pixel Watch / Google account, any phone). There's no typing them in.${synced ? ' Last synced ' + escapeCm(synced) + '.' : ''}`}</p></div>`;
+    <div id="stepsHistMine" style="margin-top:14px;">${stepsHistBlockHtml()}</div>
+    ${src ? `<details class="steps-settings" style="margin-top:14px;border-top:1px solid rgba(0,0,0,.08);padding-top:10px;"${state.stepsSettingsOpen ? ' open' : ''}><summary style="cursor:pointer;font-weight:700;font-size:14px;list-style:none;">⚙️ Challenge settings</summary>
+      <p style="margin:10px 0 6px;font-weight:700;font-size:13px;">Where your steps come from</p>${chooser}
+      <p style="margin:12px 0 6px;font-weight:700;font-size:13px;">Your daily goal</p>
+      <div style="display:flex;gap:6px;"><input id="stepsGoalIn" type="number" inputmode="numeric" min="500" max="60000" step="500" value="${goal}" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);"><button type="button" class="club-guide-btn" id="stepsGoalSave" style="min-height:44px;">Save</button></div>
+    </details>` : `<p style="margin:14px 0 6px;font-weight:700;font-size:14px;">Where do your steps come from?</p>${chooser}`}</div>`;
   const mine = (d.pledges || []).find(p => p.mine);
   html += `<div class="panel-card" style="${wrap}padding:14px;margin-top:12px;"><p style="margin:0 0 6px;font-weight:800;">💛 Your pledge</p>
     ${mine ? `<p style="margin:0 0 8px;">You pledged <strong>${stepsMoney(mine.per1000)}</strong> per 1,000 steps${mine.cap ? ` (up to ${stepsMoney(mine.cap)})` : ''}. <button type="button" id="stepsPledgeDel" style="border:none;background:none;text-decoration:underline;cursor:pointer;">Remove</button></p>` : ''}
@@ -3233,14 +3269,16 @@ function stepsPageHtml(){
   return html;
 }
 function wireStepsPage(){
-  document.querySelectorAll('.steps-src').forEach(b => b.addEventListener('click', async () => { try { const r = await cmApiRaw('/api/me/steps/source', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ source: b.dataset.src }) }); if(state.stepsData && state.stepsData.mine) state.stepsData.mine.source = b.dataset.src; if(b.dataset.src === 'googlehealth'){ if(r && r.needsConnect) stepsFitbitConnect(); else if(r && r.error) alert(r.error); } else await stepsNativeSync(true); state.stepsData = null; render(); } catch(e){ alert(e.message); } }));
+  document.querySelectorAll('.steps-src').forEach(b => b.addEventListener('click', async () => { try { const r = await cmApiRaw('/api/me/steps/source', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ source: b.dataset.src }) }); if(state.stepsData && state.stepsData.mine) state.stepsData.mine.source = b.dataset.src; if(b.dataset.src === 'googlehealth'){ if(r && r.needsConnect) stepsFitbitConnect(); else if(r && r.error) alert(r.error); } else await stepsNativeSync(true); state.stepsData = null; state.stepsHist = {}; state.lbSteps = null; render(); } catch(e){ alert(e.message); } }));
   const sf = document.getElementById('stepsFitbit'); if(sf) sf.addEventListener('click', () => stepsFitbitConnect());
   const sj = document.getElementById('stepsJoin'); if(sj) sj.addEventListener('click', async () => { sj.disabled = true; try { await cmApiRaw('/api/me/steps/join', { method:'POST', headers: ideaHeaders() }); state.stepsData = null; render(); admToastLite("✓ You're in!"); } catch(e){ sj.disabled = false; alert(e.message); } });
   const sl = document.getElementById('stepsLeave'); if(sl) sl.addEventListener('click', async () => { if(!confirm('Leave this challenge?')) return; try { await cmApiRaw('/api/me/steps/join', { method:'DELETE', headers: ideaHeaders() }); state.stepsData = null; render(); } catch(e){ alert(e.message); } });
   const lg = document.getElementById('stepsLogin'); if(lg) lg.addEventListener('click', () => goLogin());
   const rc = document.getElementById('stepsReconnect'); if(rc) rc.addEventListener('click', () => stepsFitbitConnect());
-  if(getCmSession() && !(state.stepsHist && state.stepsHist[''])) stepsHistLoad('').then(h => { const el = document.getElementById('stepsHistMine'); if(el) el.innerHTML = stepsHistHtml(h); });
-  const sb = document.getElementById('stepsSyncBtn'); if(sb) sb.addEventListener('click', async () => { sb.textContent = 'Syncing…'; sb.disabled = true; try { const src = (state.stepsData && state.stepsData.mine && state.stepsData.mine.source) || ''; if(src === 'googlehealth') await cmApiRaw('/api/me/steps?sync=1', { headers: ideaHeaders(), cache:'no-store' }); else await stepsNativeSync(true); } catch(e){ alert(e.message || 'Could not sync'); } state.stepsData = null; render(); });
+  if(getCmSession() && !(state.stepsHist && state.stepsHist[''])) stepsHistLoad('').then(() => { if(state.tab === 'steps') render(); });
+  const det = document.querySelector('.steps-settings'); if(det) det.addEventListener('toggle', () => { state.stepsSettingsOpen = det.open; });
+  const gs = document.getElementById('stepsGoalSave'); if(gs) gs.addEventListener('click', async () => { gs.disabled = true; try { const r = await cmApiRaw('/api/me/steps/goal', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ goal: document.getElementById('stepsGoalIn').value }) }); if(state.stepsData && state.stepsData.mine) state.stepsData.mine.goal = r.goal; admToastLite('🎯 Goal saved'); render(); } catch(e){ gs.disabled = false; alert(e.message); } });
+  const sb = document.getElementById('stepsSyncBtn'); if(sb) sb.addEventListener('click', async () => { sb.textContent = 'Syncing…'; sb.disabled = true; try { const src = (state.stepsData && state.stepsData.mine && state.stepsData.mine.source) || ''; if(src === 'googlehealth') await cmApiRaw('/api/me/steps?sync=1', { headers: ideaHeaders(), cache:'no-store' }); else await stepsNativeSync(true); } catch(e){ alert(e.message || 'Could not sync'); } state.stepsData = null; state.stepsHist = {}; state.lbSteps = null; render(); });
   const sn = document.getElementById('stepsSyncNow'); if(sn) sn.addEventListener('click', async () => { sn.textContent = 'Syncing…'; await stepsNativeSync(true); state.stepsData = null; render(); });
   const pl = document.getElementById('stepsPledge');
   if(pl) pl.addEventListener('click', async () => {
@@ -3258,7 +3296,11 @@ async function stepsFitbitConnect(){
   try {
     const d = await cmApiRaw('/api/me/google/start', { method:'POST', headers: ideaHeaders() });
     const B = window.Capacitor && Capacitor.Plugins && Capacitor.Plugins.Browser;
-    if(B && B.open) await B.open({ url: d.url }); else window.open(d.url, '_blank', 'noopener');
+    if(B && B.open){
+      // when the Google sheet is closed (Done), come straight back to fresh numbers — no "open 4DS" step
+      if(!stepsFitbitConnect._l && B.addListener){ stepsFitbitConnect._l = true; B.addListener('browserFinished', () => { state.stepsData = null; state.stepsHist = {}; state.lbSteps = null; if(state.tab === 'steps' || state.tab === 'trophy') render(); }); }
+      await B.open({ url: d.url, presentationStyle: 'popover' });
+    } else window.open(d.url, '_blank', 'noopener');
   } catch(e){ alert(e.message); }
 }
 // Tell the server what happened on this phone (only when it changes), so "it isn't syncing" is never a mystery — the member and the admin both see why.
@@ -7804,22 +7846,47 @@ function hapticTick(kind){
 })();
 
 // ---- Leaderboards at the bottom of the Clubs page (public and signed-in): steps challenge + badminton ----
+// Leaderboards tab: both podiums paint INSTANTLY from the last saved copy, then refresh quietly in the background.
+// Badminton numbers come from the badminton page running in a tiny hidden frame (it does the points maths) — kept alive once loaded.
+function lbCacheGet(k){ try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } }
+function lbCacheSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+function ensureBmDataFrame(){
+  if(document.getElementById('bmDataFrame')) return;
+  const f = document.createElement('iframe'); f.id = 'bmDataFrame'; f.title = 'Badminton data'; f.src = '/badminton?lb=1'; f.setAttribute('aria-hidden', 'true'); f.tabIndex = -1;
+  f.style.cssText = 'position:fixed;width:1px;height:1px;left:-9999px;top:0;border:0;opacity:0;pointer-events:none;';
+  document.body.appendChild(f);
+}
+function paintBmLb(){
+  const el = document.getElementById('lbBmBox'); if(!el) return; const d = state.bmLb || lbCacheGet('lbBmCache');
+  const cls = ['one', 'two', 'three'], med = ['🏆', '🥈', '🥉'], list = (d && !d.waiting && d.list) || [];
+  const av = x => x.a ? `<img src="${escapeCm(x.a)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : escapeCm(x.h || '💗');
+  const pod = i => { const x = list[i]; return !x ? `<div class="spod ${cls[i]}"><div class="spav">❓</div><div class="spname">${d && d.waiting ? 'Who will it be?' : '—'}</div><div class="spbase">${med[i]}</div></div>` : `<div class="spod ${cls[i]}"><div class="spav" style="overflow:hidden;">${av(x)}</div><div class="spname">${escapeCm(x.n)}</div><div class="spbase">${med[i]}<small>${escapeCm(String(x.pts))} pts</small></div></div>`; };
+  const rest = list.slice(3), open = !!state.bmLbMore;
+  el.innerHTML = `<p style="margin:0 0 2px;font-weight:800;">🏸 Badminton <a href="/badminton" style="font-weight:600;font-size:13px;margin-left:6px;">open →</a></p>` + (!d ? '<p class="av-msg" style="margin:0;">Loading…</p>' : `<p class="ideas-hint" style="margin:0;text-align:left;">${escapeCm(d.label || '')}</p><div class="spodium">${pod(1)}${pod(0)}${pod(2)}</div>` +
+    (rest.length ? rest.slice(0, open ? 12 : 2).map((x, i) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid rgba(118,34,11,.12);"><span style="width:22px;opacity:.6;">${i + 4}</span><span style="flex:1;font-weight:700;">${escapeCm(x.n)}</span><span style="font-weight:800;">${escapeCm(String(x.pts))} pts</span></div>`).join('') + (rest.length > 2 ? `<button type="button" class="club-guide-btn" id="lbBmMore" style="width:100%;margin-top:8px;min-height:42px;">${open ? 'Show less' : 'See more'}</button>` : '') : ''));
+  const mb = el.querySelector('#lbBmMore'); if(mb) mb.addEventListener('click', () => { state.bmLbMore = !state.bmLbMore; paintBmLb(); });
+}
 function mountLeaderboards(){
   const host = document.getElementById('directory-view'); if(!host || host.querySelector('#lbBox')) return;
   const box = document.createElement('div'); box.id = 'lbBox'; box.style.cssText = 'max-width:640px;margin:18px auto 0;';
   box.innerHTML = `<h3 class="clubs-popular-title" style="margin-top:6px;">🏆 LEADERBOARDS</h3><div class="lb-cols"><div class="panel-card" style="padding:12px 14px;margin:0 0 12px;" id="lbSteps"><p style="margin:0 0 6px;font-weight:800;">👟 Steps challenge</p><p class="av-msg" style="margin:0;">Loading…</p></div>
-    <div class="panel-card" style="padding:10px 6px;margin:0 0 12px;"><p style="margin:0 0 4px 8px;font-weight:800;">🏸 Badminton <a href="/badminton" style="font-weight:600;font-size:13px;margin-left:6px;">open →</a></p><iframe id="lbBm" title="Badminton leaderboard" src="/badminton?lb=1" loading="lazy" style="width:100%;height:520px;border:0;background:transparent;" data-noptr="1"></iframe></div></div>`;
+    <div class="panel-card" style="padding:12px 14px;margin:0 0 12px;" id="lbBmBox"></div></div>`;
   host.appendChild(box);
   const paint = d => {
     const el = box.querySelector('#lbSteps'); if(!el) return; const r = d && d.round, lb = (d && d.leaderboard) || [];
     const upcoming = r && r.status === 'upcoming', live = lb.filter(x => x.steps > 0), cls = ['one', 'two', 'three'], med = ['🏆', '🥈', '🥉'];
     const pod = i => { const x = live[i]; return !x || upcoming ? `<div class="spod ${cls[i]}"><div class="spav">❓</div><div class="spname">${upcoming ? 'Who will it be?' : '—'}</div><div class="spbase">${med[i]}</div></div>` : `<div class="spod ${cls[i]}"><div class="spav">${x.me ? '💗' : ['💙', '💚', '🧡'][i]}</div><div class="spname">${escapeCm(x.name)}${x.me ? ' (you)' : ''}</div><div class="spbase">${med[i]}<small>${stepsFmt(x.steps)}</small></div></div>`; };
-    el.innerHTML = `<p style="margin:0 0 2px;font-weight:800;">👟 Steps challenge${r ? ' — ' + escapeCm(r.title) : ''} <a href="#/steps" style="font-weight:600;font-size:13px;margin-left:6px;">open →</a></p>` + (!r ? '<p class="av-msg" style="margin:0;">The next challenge is coming soon 💛</p>' : `<p class="ideas-hint" style="margin:0;text-align:left;">${upcoming ? 'Starts soon — get ready!' : r.status === 'live' ? 'Live podium · ' + stepsDaysLeft(r.end) : 'Final podium'}</p><div class="spodium">${pod(1)}${pod(0)}${pod(2)}</div>`);
+    el.innerHTML = `<p style="margin:0 0 2px;font-weight:800;">👟 Steps challenge${r ? ' — ' + escapeCm(r.title) : ''} <a href="#/steps" style="font-weight:600;font-size:13px;margin-left:6px;">open →</a></p>` + (!d ? '<p class="av-msg" style="margin:0;">Loading…</p>' : !r ? '<p class="av-msg" style="margin:0;">The next challenge is coming soon 💛</p>' : `<p class="ideas-hint" style="margin:0;text-align:left;">${upcoming ? 'Starts soon — get ready!' : r.status === 'live' ? 'Live podium · ' + stepsDaysLeft(r.end) : 'Final podium'}</p><div class="spodium">${pod(1)}${pod(0)}${pod(2)}</div>`);
   };
-  if(state.lbSteps) paint(state.lbSteps);
-  else cmApiRaw(getCmSession() ? '/api/me/steps' : '/api/steps/public', getCmSession() ? { headers: ideaHeaders(), cache:'no-store' } : {}).then(d => { state.lbSteps = d; paint(d); }).catch(() => paint(null));
+  const ck = getCmSession() ? 'lbStepsCacheM' : 'lbStepsCache';
+  paint(state.lbSteps || lbCacheGet(ck));
+  cmApiRaw(getCmSession() ? '/api/me/steps' : '/api/steps/public', getCmSession() ? { headers: ideaHeaders(), cache:'no-store' } : {}).then(d => { state.lbSteps = d; lbCacheSet(ck, d); paint(d); }).catch(() => {});
+  paintBmLb(); ensureBmDataFrame();
 }
-window.addEventListener('message', e => { try { if(e.data && e.data.bmLbHeight){ const f = document.getElementById('lbBm'); if(f) f.style.height = Math.min(900, Math.max(200, e.data.bmLbHeight + 8)) + 'px'; } } catch {} });
+window.addEventListener('message', e => { try { if(e.origin === location.origin && e.data && e.data.bmLbData){ state.bmLb = e.data.bmLbData; lbCacheSet('lbBmCache', state.bmLb); paintBmLb(); } } catch {} });
+// warm the badminton numbers in the background shortly after the site opens, so the Leaderboards tab never waits
+setTimeout(() => { try { const c = lbCacheGet('lbBmCache'); if(!c || Date.now() - (c.at || 0) > 10 * 60000) ensureBmDataFrame(); } catch {} }, 4000);
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && state.tab === 'steps'){ state.stepsData = null; state.stepsHist = {}; render(); } });
 
 // Website "Notifications" page: what's personal to you, plus the latest updates and the notification switch.
 function notificationsPageHtml(){

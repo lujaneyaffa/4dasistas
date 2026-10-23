@@ -694,7 +694,7 @@ const stepsEnsure = async (env) => {
     env.DB.prepare("CREATE TABLE IF NOT EXISTS step_participants (round_id TEXT NOT NULL, user_id TEXT NOT NULL, at INTEGER, added INTEGER DEFAULT 0, PRIMARY KEY (round_id, user_id))"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS step_sources (user_id TEXT PRIMARY KEY, source TEXT, at INTEGER)"),
     env.DB.prepare("CREATE TABLE IF NOT EXISTS step_diag (user_id TEXT PRIMARY KEY, at INTEGER, ok INTEGER, msg TEXT)"),
-  ]).catch((e) => { _stepsReady = null; throw e; });
+  ]).then(() => env.DB.prepare("ALTER TABLE step_sources ADD COLUMN goal INTEGER").run().catch(() => {})).catch((e) => { _stepsReady = null; throw e; });
   await _stepsReady;
   return true;
 };
@@ -743,6 +743,7 @@ const ghSync = async (env, userId) => {
   }
   if (stmts.length) await env.DB.batch(stmts);
   await stepDiag(env, userId, true, stmts.length ? "Synced " + stmts.length + " days from Google Health" : "Google Health had no steps for the last few days");
+  _stepsPublicMemo = { at: 0, data: null }; // the challenge totals at the top must include these numbers right away
   return stmts.length;
 };
 const readStepRounds = async (env) => { try { const a = JSON.parse((await env.SITE_DATA.get(STEP_ROUNDS_KEY)) || "[]"); return Array.isArray(a) ? a : []; } catch { return []; } };
@@ -2729,7 +2730,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       try { const sr0 = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(me.id).first(); if (sr0 && sr0.source === "googlehealth") { const lu = await env.DB.prepare("SELECT MAX(updated) AS u FROM steps_daily WHERE user_id = ?").bind(me.id).first(); if (url.searchParams.get("sync") === "1" || !lu || !lu.u || Date.now() - lu.u > 2 * 60000) await ghSync(env, me.id); } } catch (e) { if (url.searchParams.get("sync") === "1") return jsonResponse({ error: String((e && e.message) || e) }, 502, corsHeaders); }
       const pub = await stepsPublicData(env), round = pub.round;
       const out = { ...pub, mine: { round: 0, today: 0, lastSync: 0, rank: null, joined: false, source: "" }, leaderboard: [], pledges: [] };
-      { const sr = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(me.id).first(); out.mine.source = (sr && sr.source) || ""; }
+      { const sr = await env.DB.prepare("SELECT source, goal FROM step_sources WHERE user_id = ?").bind(me.id).first().catch(() => null); out.mine.source = (sr && sr.source) || ""; out.mine.goal = (sr && sr.goal) || 10000; }
       try { await ghEnsure(env); out.mine.ghConnected = !!(await env.DB.prepare("SELECT 1 AS x FROM gh_tokens WHERE user_id = ?").bind(me.id).first()); } catch { out.mine.ghConnected = false; }
       { const dg = await env.DB.prepare("SELECT at, ok, msg FROM step_diag WHERE user_id = ?").bind(me.id).first().catch(() => null); out.mine.diag = dg ? { at: dg.at, ok: !!dg.ok, msg: dg.msg } : null; }
       const last = await env.DB.prepare("SELECT MAX(updated) AS u FROM steps_daily WHERE user_id = ?").bind(me.id).first(); out.mine.lastSync = (last && last.u) || 0;
@@ -2768,7 +2769,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ url: u.toString() }, 200, corsHeaders);
     }
     if (path === "/api/google/callback" && request.method === "GET") {
-      const page = (msg, ok) => new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:system-ui;background:#fef7f4;color:#373d3b;text-align:center;padding:64px 24px"><div style="font-size:54px">${ok ? "✅" : "⚠️"}</div><h2>${msg}</h2><p>${ok ? "You can close this window and go back to the 4DS app — your steps will start syncing." : "Go back to 4DS and try again."}</p><p><a href="https://4dasistas.ca/#/steps" style="color:#ce8491;font-weight:700">Open 4DS</a></p>`, { status: ok ? 200 : 400, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+      const page = (msg, ok) => new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="font-family:system-ui;background:#fef7f4;color:#373d3b;text-align:center;padding:64px 24px"><div style="font-size:54px">${ok ? "✅" : "⚠️"}</div><h2>${msg}</h2><p>${ok ? "All set! Tap <b>Done</b> (top corner) to go back — your steps are already syncing." : "Tap <b>Done</b> (top corner) and try again."}</p><script>setTimeout(function(){try{window.close()}catch(e){}},1200)</script>`, { status: ok ? 200 : 400, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
       try {
         if (!(await ghEnsure(env)) || !(await stepsEnsure(env))) return page("Not set up yet", false);
         const [uid, ts, sig] = String(url.searchParams.get("state") || "").split(".");
@@ -2801,11 +2802,26 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!inRound) return jsonResponse({ error: "Only people in the current challenge can be viewed" }, 403, corsHeaders);
         target = tu;
       }
-      const days = []; for (let i = 6; i >= 0; i--) days.push(bmToronto(new Date(Date.now() - i * 86400000)));
-      const rows = (await env.DB.prepare("SELECT day, steps FROM steps_daily WHERE user_id = ? AND day BETWEEN ? AND ?").bind(target.id, days[0], days[6]).all()).results || [];
+      const days = [], mo = String(url.searchParams.get("month") || "");
+      if (/^\d{4}-\d{2}$/.test(mo)) { // a whole month: from October 2026 up to next month only
+        const now = bmToronto(), [ny, nm] = now.split("-").map(Number), next = `${nm === 12 ? ny + 1 : ny}-${String(nm === 12 ? 1 : nm + 1).padStart(2, "0")}`;
+        if (mo < "2026-10" || mo > next) return jsonResponse({ error: "That month isn't available" }, 400, corsHeaders);
+        const [y, m] = mo.split("-").map(Number), n = new Date(Date.UTC(y, m, 0)).getUTCDate();
+        for (let d = 1; d <= n; d++) days.push(`${mo}-${String(d).padStart(2, "0")}`);
+      } else for (let i = 6; i >= 0; i--) days.push(bmToronto(new Date(Date.now() - i * 86400000)));
+      const rows = (await env.DB.prepare("SELECT day, steps FROM steps_daily WHERE user_id = ? AND day BETWEEN ? AND ?").bind(target.id, days[0], days[days.length - 1]).all()).results || [];
       const by = {}; for (const r of rows) by[r.day] = r.steps;
       const sr = await env.DB.prepare("SELECT source FROM step_sources WHERE user_id = ?").bind(target.id).first();
-      return jsonResponse({ name: target.id === me.id ? "You" : (target.username || firstNameOnly(target.name)), me: target.id === me.id, source: (sr && sr.source) || "", days: days.map((d) => ({ day: d, steps: by[d] || 0 })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      return jsonResponse({ name: target.id === me.id ? "You" : (target.username || firstNameOnly(target.name)), me: target.id === me.id, month: /^\d{4}-\d{2}$/.test(mo) ? mo : "", today: bmToronto(), source: (sr && sr.source) || "", days: days.map((d) => ({ day: d, steps: by[d] || 0 })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    if (path === "/api/me/steps/goal" && request.method === "POST") { // personal daily goal
+      const meId = await memberIdFromRequest();
+      if (!meId) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const goal = Math.round(Number(b.goal)); if (!Number.isFinite(goal) || goal < 500 || goal > 60000) return jsonResponse({ error: "Pick a goal between 500 and 60,000 steps" }, 400, corsHeaders);
+      if (!(await stepsEnsure(env))) return jsonResponse({ error: "Steps aren't available yet" }, 503, corsHeaders);
+      await env.DB.prepare("INSERT INTO step_sources (user_id, source, at, goal) VALUES (?, '', ?, ?) ON CONFLICT(user_id) DO UPDATE SET goal = excluded.goal").bind(meId, Date.now(), goal).run();
+      return jsonResponse({ ok: true, goal }, 200, corsHeaders);
     }
     if (path === "/api/me/steps/diag" && request.method === "POST") { // the app reports why a Health read found nothing / failed
       const meId = await memberIdFromRequest();
