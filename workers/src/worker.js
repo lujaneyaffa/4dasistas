@@ -730,7 +730,7 @@ const ghSync = async (env, userId) => {
     row = { access: j.access_token, refresh: j.refresh_token || row.refresh, exp: Date.now() + (j.expires_in || 3600) * 1000 };
     await env.DB.prepare("UPDATE gh_tokens SET access = ?, refresh = ?, exp = ?, at = ? WHERE user_id = ?").bind(row.access, row.refresh, row.exp, Date.now(), userId).run();
   }
-  const today = new Date(), start = new Date(Date.now() - 3 * 86400000), end = new Date(Date.now() + 86400000);
+  const today = new Date(), start = new Date(Date.now() - 7 * 86400000), end = new Date(Date.now() + 86400000);
   const civ = (d) => ({ date: { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() }, time: { hours: 0, minutes: 0, seconds: 0, nanos: 0 } });
   const r = await fetch("https://health.googleapis.com/v4/users/me/dataTypes/steps/dataPoints:dailyRollUp", { method: "POST", headers: { Authorization: "Bearer " + row.access, "Content-Type": "application/json" }, body: JSON.stringify({ range: { start: civ(start), end: civ(end) }, windowSizeDays: 1, pageSize: 20 }) });
   if (!r.ok) { await stepDiag(env, userId, false, "Google Health error " + r.status); const bt = (await r.text().catch(() => "")).slice(0, 400); throw new Error("Couldn't read Google Health steps (" + r.status + ") " + bt.replace(/\s+/g, " ").slice(0, 220)); }
