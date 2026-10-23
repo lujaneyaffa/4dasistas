@@ -3191,6 +3191,8 @@ function stepsPageHtml(){
   html += `<div class="panel-card" style="${wrap}padding:14px;margin-top:12px;"><p style="margin:0 0 8px;font-weight:800;">Your steps</p>${joinBox}
     <div style="display:flex;gap:10px;text-align:center;"><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${stepsFmt(m.today)}</div><small>today</small></div><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${stepsFmt(m.round)}</div><small>this round</small></div><div style="flex:1;"><div style="font-size:24px;font-weight:800;">${m.rank ? '#' + m.rank : '—'}</div><small>rank</small></div></div>
     <p style="margin:10px 0 0;text-align:center;font-size:12px;color:#776867;">${synced ? 'Last synced ' + escapeCm(synced) : 'Not synced yet'} · <button type="button" id="stepsSyncBtn" style="border:none;background:none;text-decoration:underline;cursor:pointer;color:#76220b;font-weight:700;">🔄 Sync now</button></p>
+    ${m.diag && !m.diag.ok ? `<div style="margin:8px 0 0;padding:10px 12px;border-radius:14px;background:#fdecea;color:#76220b;font-size:13px;line-height:1.45;">⚠️ ${escapeCm(m.diag.msg)}${src === 'apple' && native ? '<br><small>' + escapeCm(STEPS_APPLE_HELP) + '</small>' : ''}</div>` : ''}
+    ${src === 'googlehealth' && m.ghConnected === false ? '<button type="button" class="club-guide-btn" id="stepsReconnect" style="width:100%;min-height:46px;margin-top:8px;background:var(--brand-rose);color:#fff;">🟢 Connect Google Health</button>' : ''}
     ${src === 'apple' ? '<p class="ideas-hint" style="margin:6px 0 0;text-align:center;">🍎 Apple Health only counts what your iPhone or Apple Watch records. If your steps come from a Pixel Watch / Fitbit / Google account, pick Google Health below.</p>' : ''}
     <p style="margin:12px 0 6px;font-weight:700;font-size:14px;">Where do your steps come from?</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">${srcBtn('apple', '🍎 Apple Health')}${srcBtn('googlehealth', '🟢 Google Health')}${/android/i.test(plat) ? srcBtn('google', '🤖 Health Connect') : ''}</div>
@@ -3209,11 +3211,12 @@ function stepsPageHtml(){
   return html;
 }
 function wireStepsPage(){
-  document.querySelectorAll('.steps-src').forEach(b => b.addEventListener('click', async () => { try { await cmApiRaw('/api/me/steps/source', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ source: b.dataset.src }) }); state.stepsData = null; render(); if(b.dataset.src === 'googlehealth') stepsFitbitConnect(); } catch(e){ alert(e.message); } }));
+  document.querySelectorAll('.steps-src').forEach(b => b.addEventListener('click', async () => { try { const r = await cmApiRaw('/api/me/steps/source', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ source: b.dataset.src }) }); if(state.stepsData && state.stepsData.mine) state.stepsData.mine.source = b.dataset.src; if(b.dataset.src === 'googlehealth'){ if(r && r.needsConnect) stepsFitbitConnect(); else if(r && r.error) alert(r.error); } else await stepsNativeSync(true); state.stepsData = null; render(); } catch(e){ alert(e.message); } }));
   const sf = document.getElementById('stepsFitbit'); if(sf) sf.addEventListener('click', () => stepsFitbitConnect());
   const sj = document.getElementById('stepsJoin'); if(sj) sj.addEventListener('click', async () => { sj.disabled = true; try { await cmApiRaw('/api/me/steps/join', { method:'POST', headers: ideaHeaders() }); state.stepsData = null; render(); admToastLite("✓ You're in!"); } catch(e){ sj.disabled = false; alert(e.message); } });
   const sl = document.getElementById('stepsLeave'); if(sl) sl.addEventListener('click', async () => { if(!confirm('Leave this challenge?')) return; try { await cmApiRaw('/api/me/steps/join', { method:'DELETE', headers: ideaHeaders() }); state.stepsData = null; render(); } catch(e){ alert(e.message); } });
   const lg = document.getElementById('stepsLogin'); if(lg) lg.addEventListener('click', () => goLogin());
+  const rc = document.getElementById('stepsReconnect'); if(rc) rc.addEventListener('click', () => stepsFitbitConnect());
   const sb = document.getElementById('stepsSyncBtn'); if(sb) sb.addEventListener('click', async () => { sb.textContent = 'Syncing…'; sb.disabled = true; try { const src = (state.stepsData && state.stepsData.mine && state.stepsData.mine.source) || ''; if(src === 'googlehealth') await cmApiRaw('/api/me/steps?sync=1', { headers: ideaHeaders(), cache:'no-store' }); else await stepsNativeSync(true); } catch(e){ alert(e.message || 'Could not sync'); } state.stepsData = null; render(); });
   const sn = document.getElementById('stepsSyncNow'); if(sn) sn.addEventListener('click', async () => { sn.textContent = 'Syncing…'; await stepsNativeSync(true); state.stepsData = null; render(); });
   const pl = document.getElementById('stepsPledge');
@@ -3235,22 +3238,31 @@ async function stepsFitbitConnect(){
     if(B && B.open) await B.open({ url: d.url }); else window.open(d.url, '_blank', 'noopener');
   } catch(e){ alert(e.message); }
 }
+// Tell the server what happened on this phone (only when it changes), so "it isn't syncing" is never a mystery — the member and the admin both see why.
+function stepsDiag(ok, msg){ try { if(localStorage.getItem('stepsDiagLast') === (ok ? '1' : '0') + msg) return; localStorage.setItem('stepsDiagLast', (ok ? '1' : '0') + msg); } catch {} cmApiRaw('/api/me/steps/diag', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ ok, msg }) }).catch(() => {}); }
+const STEPS_APPLE_HELP = 'On your iPhone open Settings → Health → Data Access & Devices → 4DS and turn on Steps (or Settings → Privacy & Security → Health → 4DS). Then come back and tap Sync now.';
 async function stepsNativeSync(force){
   if(!stepsIsNativeApp() || stepsSyncBusy || !getCmSession() || (state.stepsData && state.stepsData.mine && state.stepsData.mine.source === 'googlehealth')) return false;
   if(!force && Date.now() - stepsSyncAt < 2 * 60000) return false;
-  const H = window.Capacitor.Plugins && window.Capacitor.Plugins.Health; if(!H) return false;
+  const ios = /ios/i.test(Capacitor.getPlatform()), H = window.Capacitor.Plugins && window.Capacitor.Plugins.Health;
+  if(!H){ stepsDiag(false, 'This version of the app can\'t read Health — update the 4DS app'); if(force) alert('Please update the 4DS app to sync steps.'); return false; }
   stepsSyncBusy = true;
   try {
-    const av = await H.isAvailable(); if(av && av.available === false){ if(force) alert('Health data isn\'t available on this phone' + (av.reason ? ': ' + av.reason : '') + '.'); return false; }
-    const auth = await H.requestAuthorization({ read: ['steps'] });
-    const start = new Date(); start.setDate(start.getDate() - 3); start.setHours(0, 0, 0, 0);
+    const av = await H.isAvailable(); if(av && av.available === false){ stepsDiag(false, 'Health isn\'t available on this phone' + (av.reason ? ': ' + av.reason : '')); if(force) alert('Health data isn\'t available on this phone' + (av.reason ? ': ' + av.reason : '') + '.'); return false; }
+    try { await H.requestAuthorization({ read: ['steps'] }); } catch(e){ stepsDiag(false, 'Permission request failed: ' + (e && e.message ? e.message : e)); }
+    const start = new Date(); start.setDate(start.getDate() - 6); start.setHours(0, 0, 0, 0);
     const res = await H.queryAggregated({ dataType:'steps', startDate: start.toISOString(), endDate: new Date().toISOString(), bucket:'day', aggregation:'sum' });
-    const source = /ios/i.test(Capacitor.getPlatform()) ? 'apple' : 'google', ld = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    const samples = ((res && res.samples) || []).map(x => ({ day: ld(new Date(x.startDate)), steps: Math.round(Number(x.value) || 0), source })).filter(x => x.steps >= 0);
-    if(!samples.length){ if(force) alert('No steps found in Health yet — walk a little and try again.'); return false; }
+    const source = ios ? 'apple' : 'google', ld = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const samples = ((res && res.samples) || []).map(x => ({ day: ld(new Date(x.startDate)), steps: Math.round(Number(x.value) || 0), source })).filter(x => x.steps >= 0).slice(-7);
+    if(!samples.length){ // iPhones hide "permission denied" — it just looks like no steps at all
+      stepsDiag(false, ios ? 'Apple Health returned no steps — Health access for 4DS is probably off' : 'Health Connect returned no steps — allow 4DS to read Steps in Health Connect');
+      if(force) alert(ios ? 'No steps came through from Apple Health.\n\n' + STEPS_APPLE_HELP : 'No steps came through from Health Connect. Open Health Connect → App permissions → 4DS and allow Steps, then tap Sync now.');
+      return false;
+    }
     await cmApiRaw('/api/me/steps', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ samples }) });
+    try { localStorage.setItem('stepsDiagLast', ''); } catch {}
     stepsSyncAt = Date.now(); return true;
-  } catch(e){ if(force) alert('Could not read your steps: ' + (e && e.message ? e.message : e)); return false; } finally { stepsSyncBusy = false; }
+  } catch(e){ stepsDiag(false, 'Could not read steps: ' + (e && e.message ? e.message : e)); if(force) alert('Could not read your steps: ' + (e && e.message ? e.message : e)); return false; } finally { stepsSyncBusy = false; }
 }
 // In the app: when a challenge is running that you can take part in, ask once per round (a native sheet, not buried in a tab).
 async function stepsPromptOnce(){
@@ -11442,7 +11454,7 @@ function stepsAdminHtml(){
     ${r.id ? `<p style="font-size:13px;margin:8px 0 2px;">👟 <b>${stepsFmt(r.steps)}</b> steps · ${r.people} people · 💛 <b>${stepsMoney(r.raised)}</b> pledged</p>
       ${(r.pledgeList || []).map(p => `<div style="display:flex;gap:6px;align-items:center;font-size:13px;padding:3px 0;"><span style="flex:1;">${escapeCm(p.name)}${p.member ? '' : ' <small>(sponsor)</small>'} — ${stepsMoney(p.per1000)}/1,000${p.cap ? ' (max ' + stepsMoney(p.cap) + ')' : ''}</span><button type="button" class="fb-mini sp-del" data-pid="${escapeCm(p.id)}">✕</button></div>`).join('')}
       <p style="margin:12px 0 4px;font-weight:700;font-size:13px;">👥 Participants (${(r.participantList || []).length})</p>
-      <div style="max-height:180px;overflow:auto;">${(r.participantList || []).map(x => `<div style="display:flex;gap:6px;align-items:center;font-size:13px;padding:3px 0;"><span style="flex:1;">${escapeCm(x.name)} <small style="color:#776867;">@${escapeCm(x.username)} · ${stepsFmt(x.steps)} steps${x.added ? ' · added by admin' : ''}</small></span><button type="button" class="fb-mini spp-del" data-rid="${escapeCm(r.id)}" data-uid="${escapeCm(x.id)}">✕</button></div>`).join('') || '<small style="color:#776867;">Nobody yet.</small>'}</div>
+      <div style="max-height:180px;overflow:auto;">${(r.participantList || []).map(x => `<div style="display:flex;gap:6px;align-items:center;font-size:13px;padding:3px 0;"><span style="flex:1;">${escapeCm(x.name)} <small style="color:#776867;">@${escapeCm(x.username)} · ${stepsFmt(x.steps)} steps${x.added ? ' · added by admin' : ''} · ${x.source === 'googlehealth' ? '🟢 Google' : x.source === 'apple' ? '🍎 Apple' : x.source === 'google' ? '🤖 Health Connect' : 'no source'} · ${x.lastSync ? 'synced ' + new Date(x.lastSync).toLocaleString('en-CA', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : 'never synced'}</small>${x.diag && !x.diag.ok ? `<br><small style="color:#a8505f;">⚠️ ${escapeCm(x.diag.msg)}</small>` : ''}</span><button type="button" class="fb-mini spp-del" data-rid="${escapeCm(r.id)}" data-uid="${escapeCm(x.id)}">✕</button></div>`).join('') || '<small style="color:#776867;">Nobody yet.</small>'}</div>
       <input class="spp-search" data-rid="${escapeCm(r.id)}" type="search" placeholder="🔍 Search a member to add…" autocomplete="off" style="${inp}width:100%;margin-top:6px;"><div class="spp-results"></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"><select class="spp-club" style="${inp}flex:1;min-width:140px;background:#fff;"><option value="">Add a whole club…</option>${(typeof clubsData !== 'undefined' ? clubsData : []).map(c => `<option value="${escapeCm(c.id)}">${escapeCm(c.title)}</option>`).join('')}</select><button type="button" class="fb-mini spp-club-add" data-rid="${escapeCm(r.id)}">Add club</button><button type="button" class="fb-mini spp-all" data-rid="${escapeCm(r.id)}">Add everyone</button></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;"><input class="sp-name" placeholder="Sponsor name" style="${inp}flex:2;min-width:110px;"><input class="sp-per" type="number" step="0.01" placeholder="$ per 1,000" style="${inp}flex:1;min-width:90px;"><input class="sp-cap" type="number" placeholder="Max $" style="${inp}flex:1;min-width:70px;"><button type="button" class="fb-mini sp-add" data-rid="${escapeCm(r.id)}">+ Add sponsor pledge</button></div>` : '<p class="ideas-hint" style="margin:6px 0 0;">Save to start collecting steps &amp; pledges.</p>'}

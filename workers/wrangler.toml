@@ -22,7 +22,7 @@ routes = [
 ]
 
 [triggers]
-crons = ["0 13 * * *"]
+crons = ["0 13 * * *", "23 * * * *"]
 
 [[kv_namespaces]]
 binding = "SITE_DATA"
