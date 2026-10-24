@@ -68,6 +68,16 @@
       "date": "Call for current hours"
     },
     {
+      "title": "Cafe 295",
+      "type": "cafes",
+      "category": "cafes",
+      "location": "Etobicoke",
+      "desc": "Fully halal and open til 9pm! They also have bookings for coworking spaces/rooms and a podcasting studio!",
+      "ownedBy": "Community submission",
+      "instagram": "https://www.instagram.com/cafe295toronto",
+      "id": "cafe-295"
+    },
+    {
       "lng": -79.7264344,
       "phone": "+1 905-607-0064",
       "date": "See Google Maps for hours",
