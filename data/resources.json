@@ -1043,6 +1043,16 @@
       "lng": -79.3970703
     },
     {
+      "title": "Sakina Literary Society of the Arts",
+      "type": "communityorg",
+      "category": "communityorg",
+      "location": "Toronto",
+      "desc": "I run this organization with my mom! We do different workshops and events, and we feature Muslim artists (for free!).",
+      "ownedBy": "Community submission",
+      "instagram": "http://www.instagram.com/sakinaliterarysociety",
+      "id": "sakina-literary-society-of-the-arts"
+    },
+    {
       "id": "salam-sips",
       "title": "Salam Sips",
       "type": "Beverage Cart / Catering",
