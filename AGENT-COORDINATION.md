@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-26 · Claude · Footer: removed the "NOT A CULT (Yet)" logo image; footer is now just "Find us on" with the WhatsApp / Instagram / TikTok / email icons underneath. Cache v221.
+
 - 2026-10-23 · Claude · Settings → "🏸 Badminton check-in" for every logged-in member, behind the badminton password (same fixed kiosk password) so check-in only happens when the admin types it: POST /api/me/badminton/checkin {password} (rate-limited; needs an existing badminton player or Badminton club membership; writes today's bm_attendance like the kiosk). Cache v220.
 
 - 2026-10-23 · Claude · Badminton on the Leaderboards tab no longer links out: "All standings ›" / "See all standings" (and the Profile → Badminton row, the Badminton club pop-up, ) open a pop-up with the current podium + every player below (data posted by the hidden badminton frame, now up to 80 rows) and a "Register for badminton →" link under it. ISNA logo removed from the badminton page footer. Signed-in members of the Badminton club get a "🏸 Coming to badminton?" Yes/Maybe/No card on Home (next session from the schedule; /api/bm/q + set_my_rsvp with the member token) — it also stays on the badminton page. Cache v219.
