@@ -48,45 +48,45 @@
       "id": "club-quran",
       "slug": "quran",
       "emoji": "📖",
-      "colour": "#fbf0ee",
+      "colour": "#ddd9d6",
       "title": "QURAN",
       "desc": "Recite, review and reflect together — a consistent circle for staying close to the Quran.",
       "signup": "https://chat.whatsapp.com/LTYiWdI8xno3dCWpDDiwGR?mode=gi_t",
       "logo": "assets/logos/squad-quran-v3.png",
-      "textColour": "#4c6a82"
+      "textColour": "#7a726d"
     },
     {
       "id": "club-badminton",
       "slug": "badminton",
       "emoji": "🏸",
-      "colour": "#fbf0ee",
+      "colour": "#ffc1c1",
       "title": "BADMINTON",
       "desc": "Casual badminton plans, drop-ins, and games for girls who want to play, improve, and actually find people to play with.",
       "signup": "https://chat.whatsapp.com/LTYiWdI8xno3dCWpDDiwGR?mode=gi_t",
       "logo": "assets/logos/squad-badminton-v3.png",
-      "textColour": "#8a6a1f"
+      "textColour": "#c4707a"
     },
     {
       "id": "club-cowork",
       "slug": "cowork",
       "emoji": "💻",
-      "colour": "#fbf0ee",
+      "colour": "#b4cfc4",
       "title": "COWORK",
       "desc": "Casual co-working sessions for getting out of the house, getting things done, and having company while you work or study.",
       "signup": "https://chat.whatsapp.com/DCKFITHN6yaKObjJpFVHiq?mode=gi_t",
       "logo": "assets/logos/squad-cowork-v3.png",
-      "textColour": "#9a4a63"
+      "textColour": "#4f7a68"
     },
     {
       "id": "club-steps",
       "slug": "steps",
       "emoji": "👟",
-      "colour": "#fbf0ee",
+      "colour": "#f8caa9",
       "title": "STEPS",
       "desc": "Casual walks, step challenges, and meetups for anyone who wants a reason to compete in steps count.",
       "signup": "https://chat.whatsapp.com/G19Z0Kvp2szB270eQwokbI?mode=gi_t",
       "logo": "assets/logos/squad-steps-v3.png",
-      "textColour": "#8a6a2f"
+      "textColour": "#b5703f"
     }
   ]
 }

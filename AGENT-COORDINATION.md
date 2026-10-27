@@ -824,6 +824,7 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-27 · Claude · Quran/Badminton/Cowork/Steps club cards now use their logo's own background colour (like the first four): colour + textColour in data/clubs.json and a client-side override `CLUB_LOOK_FIX` (live roster still has the old colours). service-worker v228.
 - 2026-10-27 · Claude · New logos for the four former-squad clubs (Quran = open door, Badminton = sweaty tee, Cowork = stacked hands, Steps = walking shoes): `assets/logos/squad-*-v3.png` (640px) and `data/clubs.json` logo paths. service-worker v226.
 - 2026-10-27 · Claude · Club calendar (Clubs tab) is now big and centred on wide screens (≥900px): month grid up to 1000px wide, taller day cells, larger event chips and header. Phone layout unchanged. CSS only (`.mini-cal` media query). service-worker v225.
 - 2026-10-27 · Claude · Second half of the same Clubs-tab regression (62d88d4): the wiring code also used an undeclared `myClubs` (uncaught ReferenceError after every Clubs render for members). Declared. Both found by looping every tab with fake signed-in sessions (clubs: none / cuisine / badminton / both) and watching window errors — do this after any change near Clubs. Cache v224.

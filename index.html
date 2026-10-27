@@ -1529,7 +1529,12 @@ async function fetchDataWithFallback(key, localPath){
 // KV-backed roster first; if that fails for any reason, fall back to the static file exactly like
 // everything else, so the clubs tab is never worse off than before this existed.
 // The four former squads got new logos (v3); the live roster may still carry the old file names, so remap them here.
-const clubLogoFix = cl => (Array.isArray(cl) ? cl : []).map(c => (c && /^assets\/logos\/squad-(quran|badminton|cowork|steps)\.png$/.test(c.logo || '')) ? { ...c, logo: c.logo.replace('.png', '-v3.png') } : c);
+const CLUB_LOOK_FIX = { 'club-quran':['#ddd9d6','#7a726d'], 'club-badminton':['#ffc1c1','#c4707a'], 'club-cowork':['#b4cfc4','#4f7a68'], 'club-steps':['#f8caa9','#b5703f'] }; // card colour = the logo's own background
+const clubLogoFix = cl => (Array.isArray(cl) ? cl : []).map(c => {
+  if(!c || !CLUB_LOOK_FIX[c.id]) return c;
+  const logo = /^assets\/logos\/squad-[a-z]+\.png$/.test(c.logo || '') ? c.logo.replace('.png', '-v3.png') : c.logo;
+  return { ...c, logo, colour: CLUB_LOOK_FIX[c.id][0], textColour: CLUB_LOOK_FIX[c.id][1] };
+});
 async function fetchClubsLive(){
   try {
     const res = await fetch('/api/clubs', { cache: 'no-store' });
