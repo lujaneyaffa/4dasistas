@@ -1532,7 +1532,7 @@ async function fetchDataWithFallback(key, localPath){
 const CLUB_LOOK_FIX = { 'club-quran':['#ddd9d6','#7a726d'], 'club-badminton':['#ffc1c1','#c4707a'], 'club-cowork':['#b4cfc4','#4f7a68'], 'club-steps':['#f8caa9','#b5703f'] }; // card colour = the logo's own background
 const clubLogoFix = cl => (Array.isArray(cl) ? cl : []).map(c => {
   if(!c || !CLUB_LOOK_FIX[c.id]) return c;
-  const logo = /^assets\/logos\/squad-[a-z]+\.png$/.test(c.logo || '') ? c.logo.replace('.png', '-v3.png') : c.logo;
+  const logo = /^assets\/logos\/squad-[a-z]+\.png$/.test(c.logo || '') ? c.logo.replace('.png', '-v4.png') : c.logo;
   return { ...c, logo, colour: CLUB_LOOK_FIX[c.id][0], textColour: CLUB_LOOK_FIX[c.id][1] };
 });
 async function fetchClubsLive(){
