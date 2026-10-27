@@ -1528,16 +1528,18 @@ async function fetchDataWithFallback(key, localPath){
 // rebuild/deploy (the static data/*.json files only update on the next deploy) — try the live,
 // KV-backed roster first; if that fails for any reason, fall back to the static file exactly like
 // everything else, so the clubs tab is never worse off than before this existed.
+// The four former squads got new logos (v3); the live roster may still carry the old file names, so remap them here.
+const clubLogoFix = cl => (Array.isArray(cl) ? cl : []).map(c => (c && /^assets\/logos\/squad-(quran|badminton|cowork|steps)\.png$/.test(c.logo || '')) ? { ...c, logo: c.logo.replace('.png', '-v3.png') } : c);
 async function fetchClubsLive(){
   try {
     const res = await fetch('/api/clubs', { cache: 'no-store' });
     if (!res.ok) throw new Error(`/api/clubs returned ${res.status}`);
     const data = await res.json();
-    if (Array.isArray(data.clubs)) return data.clubs;
+    if (Array.isArray(data.clubs)) return clubLogoFix(data.clubs);
     throw new Error('Unexpected /api/clubs response shape');
   } catch (e) {
     console.warn('Live club roster unavailable, falling back to data/clubs.json:', e);
-    return fetchDataWithFallback('clubs', 'data/clubs.json');
+    return clubLogoFix(await fetchDataWithFallback('clubs', 'data/clubs.json'));
   }
 }
 
