@@ -3616,7 +3616,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       } else {
         wireMyClubsSection();
         if(!state.clubsPage || state.clubsPage === 'cal') wireClubCal();
-        const votingMine = myClubs.filter(c => !isCommunityClub(c.id));
+        const myClubs = clubsForGrid().filter(c => ((getCmSession() && getCmSession().clubs) || []).includes(c.id)), votingMine = myClubs.filter(c => !isCommunityClub(c.id));
   if(state.clubsPage === 'vote'){
           wireIdeaAddForm('vote');
           const vcs = document.getElementById('voteClubSel');
