@@ -7420,6 +7420,7 @@ function renderMyClubsSectionHtml(){
   const pending = new Set(state.myPending || []);
   const all = clubsForGrid();
   const myClubs = all.filter(c => mine.has(c.id));
+  const votingMine = myClubs.filter(c => !isCommunityClub(c.id)); // community groups (Quran, Badminton, Cowork, Steps) have no voting / availability
   const others = all.filter(c => !mine.has(c.id));
   const waiting = others.filter(c => pending.has(c.id)).map(c => `<strong>${escapeCm(c.title)}</strong>`);
   const pendingBanner = waiting.length ? `<div class="av-waitlist" style="max-width:520px;margin:0 auto 14px;text-align:center;">⏳ Waiting for an admin to approve: ${waiting.join(', ')}. It will show up here once approved.</div>` : '';

@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-27 · Claude · BUG FIX: the Clubs tab crashed for every signed-in member who belongs to a club (`votingMine is not defined` in renderMyClubsSectionHtml, introduced 2026-10-21 in 62d88d4 — it was only declared inside the wiring function). Declared it where it's used. Found while checking the club calendar on the signed-in Clubs tab. Cache v223.
+
 - 2026-10-27 · Claude · 4DS Clubs calendar is back on the Clubs tab for the PUBLIC view too (it was removed from there on request earlier; signed-in members already had it under their clubs). Cache v222.
 
 - 2026-10-26 · Claude · Footer: removed the "NOT A CULT (Yet)" logo image; footer is now just "Find us on" with the WhatsApp / Instagram / TikTok / email icons underneath. Cache v221.
