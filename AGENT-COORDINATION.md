@@ -824,6 +824,8 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-27 · Claude · 4DS Clubs calendar is back on the Clubs tab for the PUBLIC view too (it was removed from there on request earlier; signed-in members already had it under their clubs). Cache v222.
+
 - 2026-10-26 · Claude · Footer: removed the "NOT A CULT (Yet)" logo image; footer is now just "Find us on" with the WhatsApp / Instagram / TikTok / email icons underneath. Cache v221.
 
 - 2026-10-23 · Claude · Settings → "🏸 Badminton check-in" for every logged-in member, behind the badminton password (same fixed kiosk password) so check-in only happens when the admin types it: POST /api/me/badminton/checkin {password} (rate-limited; needs an existing badminton player or Badminton club membership; writes today's bm_attendance like the kiosk). Cache v220.

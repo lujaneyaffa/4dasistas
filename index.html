@@ -3571,6 +3571,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
     </div>` : ''}
     ${anon ? `
     <div class="clubs-grid clubs-grid-row">${clubsForGrid().map(c => clubCardHtml(c, false)).join('')}</div>
+    <div class="club-cal-public" style="margin-top:22px;">${clubCalSectionHtml(true)}</div>
     <div class="public-ideas-section">${renderPublicIdeasFeedHtml()}</div>
     ` : renderMyClubsSectionHtml()}
     `;
