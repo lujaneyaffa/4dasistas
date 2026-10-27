@@ -824,6 +824,7 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-27 · Claude · Club calendar (Clubs tab) is now big and centred on wide screens (≥900px): month grid up to 1000px wide, taller day cells, larger event chips and header. Phone layout unchanged. CSS only (`.mini-cal` media query). service-worker v225.
 - 2026-10-27 · Claude · Second half of the same Clubs-tab regression (62d88d4): the wiring code also used an undeclared `myClubs` (uncaught ReferenceError after every Clubs render for members). Declared. Both found by looping every tab with fake signed-in sessions (clubs: none / cuisine / badminton / both) and watching window errors — do this after any change near Clubs. Cache v224.
 
 - 2026-10-27 · Claude · BUG FIX: the Clubs tab crashed for every signed-in member who belongs to a club (`votingMine is not defined` in renderMyClubsSectionHtml, introduced 2026-10-21 in 62d88d4 — it was only declared inside the wiring function). Declared it where it's used. Found while checking the club calendar on the signed-in Clubs tab. Cache v223.

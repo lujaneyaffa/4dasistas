@@ -441,6 +441,14 @@
   .mc-ev-t{ display:flex; flex-direction:column; min-width:0; } .mc-ev-t small{ color:var(--muted); font-size:12px; }
   .mc-day.has{ background:#fdf0f2; font-weight:800; cursor:pointer; }
   .mc-day.today{ outline:2px solid var(--brand-rose); }
+  @media (min-width:900px){
+    .mini-cal{ max-width:min(1000px,92%); padding:20px 22px 24px; border-radius:24px; box-shadow:5px 5px 0 var(--brand-brown); }
+    .mc-head{ font-size:24px; margin-bottom:14px; } .mc-nav{ width:44px; height:44px; font-size:24px; }
+    .mc-week, .mc-grid{ gap:6px; } .mc-week span{ font-size:14px; padding:6px 0; }
+    .mc-day{ min-height:104px; font-size:15px; padding:4px 5px; border-radius:12px; } .mc-day.has{ background:#fdf0f2; }
+    .mc-n{ font-size:16px; text-align:left; margin-bottom:3px; }
+    .mc-day em{ font-size:12px; padding:2px 5px; border-radius:6px; margin-top:2px; } .mc-day b{ font-size:12px; }
+  }
   .mc-dots{ display:flex; gap:2px; height:6px; align-items:center; } .mc-dots i{ width:6px; height:6px; border-radius:50%; display:block; } .mc-dots b{ font-size:9px; line-height:6px; }
   .cal-list{ max-width:560px; margin:0 auto; display:flex; flex-direction:column; gap:8px; }
   .cal-row{ display:flex; align-items:center; gap:10px; padding:8px 10px; border:2px solid; border-radius:14px; background:var(--card); cursor:pointer; text-align:left; font:inherit; color:inherit; }
