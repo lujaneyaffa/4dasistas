@@ -6300,7 +6300,7 @@ function clubCalIdeaPopup(e){
 }
 function openEventFormPage(id){
   document.querySelectorAll('.mem-pop').forEach(x => x.remove());
-  state.formEventId = id; state.tab = 'eventform';
+  const known = (state.clubCal || []).find(e => e.id === id); state.formEventId = (known && known.slug) || id; state.tab = 'eventform'; // readable link when we know it
   render();
 }
 async function clubCalOpen(id){
@@ -6331,10 +6331,10 @@ function clubCalPublicPopup(id){
 }
 async function clubCalPublicCard(box, id){
   try {
-    const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id));
+    const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id)); calUpgradeUrl(d);
     const inp = 'class="fb-in"';
     box.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p><h3 style="margin:0 0 4px;">${escapeCm(d.title)}</h3>
-      <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${d.rsvpBy ? `<p style="margin:4px 0;font-weight:700;color:${d.closed ? '#b3261e' : '#76220b'};">⏳ ${d.closed ? 'Sign-ups are closed' : 'Sign up by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}${calLinkRowHtml(d.id)}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}${d.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
+      <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${d.rsvpBy ? `<p style="margin:4px 0;font-weight:700;color:${d.closed ? '#b3261e' : '#76220b'};">⏳ ${d.closed ? 'Sign-ups are closed' : 'Sign up by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}${calLinkRowHtml('', calFormUrl(d.slug || d.id))}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}${d.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
       ${d.closed ? '<p style="font-weight:700;">🔒 Sign-ups are closed.</p>' : ''}${calSpotsHtml(d)}
       <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 8px;">1 · 👤 About you</h3>
         <label class="pfQuickL" style="display:flex;gap:8px;align-items:flex-start;padding:10px 12px;margin:0 0 10px;border-radius:12px;background:#fdf0f2;border:2px solid #ce8491;font-weight:700;font-size:14px;"><input type="checkbox" class="pfQuick" style="width:20px;height:20px;margin-top:1px;flex:none;"><span>⚡ Quick register — just my name &amp; phone, no account<br><small style="font-weight:400;color:#776867;">Fastest way in. You can always make an account later.</small></span></label>
@@ -6415,7 +6415,7 @@ async function clubCalPublicCard(box, id){
 // One event's full details + RSVP button, painted into `box` (used by the single-event popup and by the day popup that lists several).
 async function clubCalMemberCard(box, id){
   try {
-    const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id), { headers: ideaHeaders() });
+    const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id), { headers: ideaHeaders() }); calUpgradeUrl(d);
     box.innerHTML = '';
     const top = document.createElement('div'), formBox = document.createElement('div');
     box.append(top, formBox); // details + the copyable link on TOP, then the form (and payment / description) below
@@ -6426,7 +6426,7 @@ async function clubCalMemberCard(box, id){
       top.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>
         <h3 style="margin:0 0 6px;">${escapeCm(d.title)}</h3>
         <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>
-        ${d.form ? calLinkRowHtml(d.id) : ''}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}
+        ${d.form ? calLinkRowHtml('', calFormUrl(d.slug || d.id)) : ''}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}
         ${d.desc ? `<p style="margin:8px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
         ${d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}
         <p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} ${past ? 'attended' : 'going'}${past || d.inClub || d.form ? '' : ' · you\'re not in this club, so an admin approves your RSVP'}</p>${past ? '' : calSpotsHtml(d)}
@@ -6593,6 +6593,8 @@ function calFormCollect(box, form){
   return out;
 }
 // Every form has its own link people can copy and share; opening it goes straight to the form.
+// The page's address becomes the readable link (an old random-id link is swapped for it once the event has loaded).
+function calUpgradeUrl(d){ if(d && d.slug && state.tab === 'eventform' && state.formEventId !== d.slug){ state.formEventId = d.slug; try{ history.replaceState(null, '', location.pathname + location.search + '#/form/' + encodeURIComponent(d.slug)); }catch(e){} } }
 function calFormUrl(id){ return location.origin + '/#/form/' + encodeURIComponent(id); }
 // Big events: "12 of 40 spots left" / "Full — join the waitlist"
 function calSpotsHtml(d){
@@ -10890,9 +10892,12 @@ function renderClubAdminPanel(){
     </div>`;
   }
   const clubId = state.cmAdminClub;
-  const grp = state.admGroup === 'team' ? 'settings' : state.admGroup;
-  const allowedGroups = lead ? ['clubs', 'events', 'profiles'] : ['clubs', 'events', 'directory', 'calendar', 'profiles', 'badminton', 'steps', 'settings'];
-  const gsel = allowedGroups.includes(grp) ? grp : 'clubs';
+  // Old tab names still land somewhere sensible (the admin page used to have 8 tabs; it now has 6)
+  const OLD_GROUPS = { team:'settings', directory:'settings', badminton:'programs', steps:'programs', calendar:'events', profiles:'people' };
+  if(state.admGroup === 'calendar') state.admEvSub = 'main';
+  const grp = OLD_GROUPS[state.admGroup] || state.admGroup;
+  const allowedGroups = lead ? ['clubs', 'events', 'people'] : ['todo', 'events', 'clubs', 'people', 'programs', 'settings'];
+  const gsel = allowedGroups.includes(grp) ? grp : (lead ? 'clubs' : 'todo');
   // Club events + quick member (per club) — lives in the Clubs grid
   const clubToolsHtml = `
     <p style="font-size:11px;color:#776867;margin-top:-6px;">Pick a club to add a profile or manage its events, or search every profile below.</p>
@@ -10931,13 +10936,17 @@ function renderClubAdminPanel(){
         <span id="cmAdminCreateStatus" style="font-size:12px;color:#c00;"></span>
       </div>
     ` : ''}`;
-  const clubsGrid = `
+  const todoGrid = `
     ${inboxAdminHtml(lead)}
+    ${admSec('stay', '🪁→🏛️ Squads moving to clubs — confirm link', stayAdminHtml(), true)}
+  `;
+  const clubsGrid = `
+    ${lead ? inboxAdminHtml(lead) : ''}
     ${lead ? admSec('periodsview', '🗂️ Availability periods — tap one to view it', `<div class="cp-box">${periodHistoryHtml(k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' })) || '<p class="av-msg">Loading…</p>'}</div>`, true) : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
     ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
-    ${lead ? '' : admSec('stay', '🪁→🏛️ Squads moving to clubs — confirm link', stayAdminHtml(), true)}
     ${lead ? '' : admSec('clublinks', '🔗 Club links (WhatsApp groups)', clubLinksHtml(), true)}
     ${lead ? '' : admSec('clubdir', '🏛️ Club directory (add / edit clubs)', clubDirListHtml(), false)}
+    ${lead ? '' : admSec('leads', '🧑‍💼 Club admins — who runs which club' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
   `;
   const directoryGrid = lead ? '' : admSec('reslink', '🔗 Public “Add a resource” link', `<div class="cp-box">${calLinkRowHtml('', location.origin + '/#/add-resource', '🔗 Resources link:')}${calLinkRowHtml('', location.origin + '/#/submit-event', '🔗 Events link:')}<p class="ideas-hint" style="text-align:left;margin:0;">Share these with anyone who wants to suggest a business, resource or event — they don't need an account.</p></div>`, true, 'flat') + admSec('labels-res', '🏷️ Names of resource categories', labelsAdminHtml('resource'), true, 'flat');
   const calendarGrid = `
@@ -10948,16 +10957,26 @@ function renderClubAdminPanel(){
     ${admSec('evform', '📝 Event submission form (what people fill to suggest an event)', admEvFormHtml(), false)}
     ${admSec('labels-ev', '🏷️ Names of event genres', labelsAdminHtml('event'), false)}
   `;
+  const evSub = !lead && state.admEvSub === 'main' ? 'main' : 'club';
+  const evChip = (k, l) => `<button type="button" class="filter-chip${evSub === k ? ' active' : ''}" data-evsub="${k}">${l}</button>`;
+  const eventsGrid = lead ? admCeHtml() : `<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0 4px;">${evChip('club', '🎟️ Club events (RSVPs, forms)')}${evChip('main', '📅 Main calendar (public events)')}</div>
+    <p class="ideas-hint" style="margin:0 0 8px;">${evSub === 'club' ? 'Events that belong to a club: sign-ups, spots, payments, answers.' : 'The public calendar everyone sees, plus events people submit.'}</p>${evSub === 'club' ? admCeHtml() : calendarGrid}`;
   const settingsGrid = lead ? '' : `
-    ${admSec('database', '🗄️ Database &amp; backups (move to D1)', d1AdminHtml(), true)}
+    ${admSec('database', '🗄️ Database &amp; backups (move to D1)', d1AdminHtml(), false)}
+    ${directoryGrid}
+  `;
+  const messagingSecs = `
     ${admSec('wasend', '💬 Send a WhatsApp message (pick who)', waSendHtml(), false)}
     ${admSec('watpl', '💬 WhatsApp messages — your wording', waTemplatesAdminHtml(), false)}
-    ${lead ? '' : admSec('push', '📲 Push notifications', pushAdminHtml(), false)}
-    ${lead ? '' : admSec('leads', '🧑‍💼 Club admins' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
+    ${lead ? '' : admSec('push', '📲 Push notifications to everyone', pushAdminHtml(), false)}
   `;
-  const badmintonGrid = admSec('bmimport', '🏸 Badminton — photos, coach password &amp; iPad kiosk', bmImportHtml(), true);
-  const stepsGrid = admSec('stepsadm', '👟 Steps challenge — rounds &amp; pledges', stepsAdminHtml(), true);
+  const badmintonGrid = admSec('bmimport', '🏸 Badminton — photos, coach password &amp; iPad kiosk', bmImportHtml(), false);
+  const stepsGrid = admSec('stepsadm', '👟 Steps challenge — rounds &amp; pledges', stepsAdminHtml(), false);
+  const programsGrid = badmintonGrid + stepsGrid;
   const profilesGrid = `
+    <h3 style="margin-top:8px;">Find or edit someone</h3>        <p style="font-size:11px;color:#776867;margin-top:-6px;">Search every profile. Open one to edit it, change its clubs, archive or delete it.</p>
+    <div style="margin:14px 0 26px;">${renderAdminAllMembersPanels()}</div>
+    <h3 style="margin:18px 0 6px;">Tools</h3>
     ${(lead || !/[?&]importforms/.test(location.search)) ? '' : admSec('formimport', '📥 Import sign-up forms (from your email)', formImportHtml(), false)}
     ${admSec('newprofile', '➕ Create a profile', `
     <div class="cp-box">
@@ -10973,19 +10992,19 @@ function renderClubAdminPanel(){
     </div>
     `, false)}
     ${lead ? '' : admSec('mergeusers', '🧬 Merge two duplicate accounts', `<div class="cp-box"><p style="font-size:11px;color:#776867;margin:0 0 10px;">Type the two usernames. You'll see which one has more info first — nothing changes until you confirm. The fuller account is kept and the other is folded into it (profile details, clubs, availability, RSVPs, steps).</p><div style="display:flex;flex-direction:column;gap:8px;"><input id="mgA" placeholder="First username (e.g. lujane.a)" autocapitalize="off" style="padding:10px;border-radius:10px;border:2px solid var(--brand-brown);"><input id="mgB" placeholder="Second username (e.g. lujane.y)" autocapitalize="off" style="padding:10px;border-radius:10px;border:2px solid var(--brand-brown);"><button class="club-guide-btn" id="mgPreviewBtn" style="background:var(--blush);">Compare them</button><div id="mgOut" style="font-size:12px;"></div></div></div>`, false)}
-    <h3 style="margin-top:24px;">Admin Profiles</h3>
-    <p style="font-size:11px;color:#776867;margin-top:-6px;">Search every profile. Open one to edit it, change its clubs, archive or delete it.</p>
-    <div style="margin:14px 0 26px;">${renderAdminAllMembersPanels()}</div>
+    <h3 style="margin:18px 0 6px;">Messages</h3>
+    ${messagingSecs}
   `;
   return `<div class="rules-content" style="max-width:920px;margin:16px auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;">
-      <h3 style="margin:0;">${lead ? 'Club admin · ' + escapeCm(lead.name) : 'All Members'}</h3>
+      <h3 style="margin:0;">${lead ? 'Club admin · ' + escapeCm(lead.name) : '🛠️ Admin'}</h3>
       <button class="club-guide-btn" id="cmAdminLogoutBtn" style="padding:6px 12px;font-size:12px;">Log Out</button>
     </div>
     ${lead ? `<p style="font-size:12px;color:#776867;margin:6px 0 0;">You manage: <strong>${adminClubs().map(c => escapeCm(c.title)).join(', ') || 'no clubs yet'}</strong>. Reminders only go to your clubs' members. Use "➕ New event" at the bottom of the page to add an official event.</p>` : ''}
     ${lead ? '' : admNeedsHtml()}
     ${admGroupTilesHtml(lead, gsel)}
-    ${gsel === 'clubs' ? clubsGrid : gsel === 'events' ? admCeHtml() : gsel === 'directory' ? directoryGrid : gsel === 'calendar' ? calendarGrid : gsel === 'settings' ? settingsGrid : gsel === 'badminton' ? badmintonGrid : gsel === 'steps' ? stepsGrid : profilesGrid}
+    ${admFinderHtml(lead)}
+    ${gsel === 'todo' ? todoGrid : gsel === 'clubs' ? clubsGrid : gsel === 'events' ? eventsGrid : gsel === 'settings' ? settingsGrid : gsel === 'programs' ? programsGrid : profilesGrid}
   </div>`;
 }
 // Three big tiles at the top of the Admin page switch between its grids (Clubs / Notifications & team / Profiles).
@@ -10998,21 +11017,67 @@ async function admNeedsLoad(){
 function admNeedsHtml(){
   if(!state.admNeeds){ admNeedsLoad(); return ''; }
   const n = state.admNeeds, inbox = admInboxCount();
-  const chips = [[inbox, '🙋', 'requests & submissions', 'clubs'], [n.pendingRsvps, '⏳', 'RSVPs to approve', 'events'], [n.unpaid, '💳', 'unpaid sign-ups', 'events'], [n.tbdKeen, '🕒', 'undated events with interest', 'events'], [n.stayTodo, '🪁', 'squad members to confirm', 'clubs'], [n.stepsStuck, '👟', 'people whose steps aren\'t syncing', 'steps']].filter(c => c[0] > 0);
+  const chips = [[inbox, '🙋', 'requests & submissions', 'todo'], [n.pendingRsvps, '⏳', 'RSVPs to approve', 'events'], [n.unpaid, '💳', 'unpaid sign-ups', 'events'], [n.tbdKeen, '🕒', 'undated events with interest', 'events'], [n.stayTodo, '🪁', 'squad members to confirm', 'todo'], [n.stepsStuck, '👟', 'people whose steps aren\'t syncing', 'programs']].filter(c => c[0] > 0);
   return `<div class="cp-box" style="margin:10px 0;padding:10px 12px;"><p style="margin:0 0 6px;font-weight:800;">${chips.length ? '🔔 Needs you' : '✅ Nothing needs you right now'}</p>${chips.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">${chips.map(([c, ic, l, g]) => `<button type="button" class="filter-chip adm-need" data-needgroup="${g}" style="min-height:40px;">${ic} <b>${c}</b> ${l}</button>`).join('')}</div>` : ''}<button type="button" class="adm-need-refresh" style="margin-top:6px;border:none;background:none;color:#776867;font-size:12px;text-decoration:underline;cursor:pointer;">↻ refresh</button></div>`;
 }
 function admGroupTilesHtml(lead, cur){
   const tile = (id, icon, title, hint, badge) => `<button type="button" class="adm-tile${cur === id ? ' on' : ''}" data-group="${id}" aria-pressed="${cur === id}"><span class="adm-tile-ic">${icon}</span><span class="adm-tile-t">${title}</span><span class="adm-tile-h">${hint}</span>${badge ? `<span class="adm-badge adm-tile-b">${badge}</span>` : ''}</button>`;
-  return `<div class="adm-tiles" style="grid-template-columns:repeat(3, minmax(0,1fr));">
-    ${tile('clubs', '🏛️', 'Clubs', 'Requests · events · availability', admInboxCount())}
-    ${tile('events', '🎟️', 'Club Events', 'Edit · forms · answers', '')}
-    ${lead ? '' : tile('directory', '📖', 'Directory', 'Resource names', '')}
-    ${lead ? '' : tile('calendar', '📅', 'The Calendar', 'Main calendar', '')}
-    ${tile('profiles', '👥', 'Profiles', 'People · clubs', '')}
-    ${lead ? '' : tile('badminton', '🏸', 'Badminton', 'Photos · kiosk · coach', '')}
-    ${lead ? '' : tile('steps', '👟', 'Steps', 'Rounds · pledges', '')}
-    ${lead ? '' : tile('settings', '⚙️', 'Settings', 'Push · club admins · labels', '')}
+  const n = state.admNeeds || {};
+  return `<div class="adm-tiles" style="grid-template-columns:repeat(${lead ? 3 : 3}, minmax(0,1fr));">
+    ${lead ? '' : tile('todo', '🔔', 'To do', 'Requests &amp; submissions to approve', admInboxCount() + (n.stayTodo || 0))}
+    ${tile('events', '🎟️', 'Events', lead ? 'Sign-ups · forms · answers' : 'Club events &amp; the main calendar', (n.pendingRsvps || 0) + (n.unpaid || 0))}
+    ${tile('clubs', '🏛️', 'Clubs', lead ? 'Requests · availability' : 'Clubs · links · availability · club admins', lead ? admInboxCount() : '')}
+    ${tile('people', '👥', 'People', lead ? 'Profiles' : 'Profiles · messages', '')}
+    ${lead ? '' : tile('programs', '🏸', 'Badminton &amp; Steps', 'Photos · kiosk · rounds', n.stepsStuck || '')}
+    ${lead ? '' : tile('settings', '⚙️', 'Site settings', 'Backups · public links · labels', '')}
   </div>`;
+}
+// "Where is…?": type what you want to do, tap the answer, and it opens the right tab and section.
+const ADM_FIND = [
+  ['Approve club join requests', 'join request approve accept decline member', 'todo', '', 'inbox'],
+  ['Submitted events / resources to accept', 'submitted suggestion event resource accept reject', 'todo', '', 'inbox', true],
+  ['Squads moving to clubs', 'squad stay confirm legacy', 'todo', '', 'stay', true],
+  ['Add a club event', 'add new club event create', 'events', 'club', 'clubcal'],
+  ['RSVPs, spots, waitlist, who paid, answers, CSV', 'rsvp spots capacity waitlist paid payment answers csv attendees message', 'events', 'club', 'clubcal'],
+  ['Sign-up form builder', 'form questions builder sign-up', 'events', 'club', 'clubcal'],
+  ['Main calendar: add or edit a public event', 'public calendar event add edit', 'events', 'main', 'evsearch', true],
+  ['Events people submitted', 'submitted events accept reject', 'events', 'main', 'evsubs', true],
+  ['Event genre names', 'genre label names categories events', 'events', 'main', 'labels-ev', true],
+  ['Availability calendar', 'availability periods schedule', 'clubs', '', 'avail'],
+  ['Club WhatsApp links', 'whatsapp group link club', 'clubs', '', 'clublinks', true],
+  ['Add or edit clubs (name, logo, colour)', 'club directory add edit logo colour', 'clubs', '', 'clubdir', true],
+  ['Club admins (who runs which club)', 'club admin lead leader', 'clubs', '', 'leads', true],
+  ['Find or edit a member', 'profile member search edit archive delete', 'people', '', ''],
+  ['Create a profile', 'create new profile member', 'people', '', 'newprofile'],
+  ['Merge duplicate accounts', 'merge duplicate account', 'people', '', 'mergeusers', true],
+  ['Send a WhatsApp message', 'whatsapp send message', 'people', '', 'wasend'],
+  ['Change my WhatsApp wording', 'whatsapp template wording message', 'people', '', 'watpl'],
+  ['Send a push notification to everyone', 'push notification announce', 'people', '', 'push', true],
+  ['Badminton photos, coach password, iPad kiosk', 'badminton photos coach kiosk ipad', 'programs', '', 'bmimport', true],
+  ['Steps challenge rounds and pledges', 'steps challenge round pledge charity', 'programs', '', 'stepsadm', true],
+  ['Database &amp; backups', 'database backup d1 export', 'settings', '', 'database', true],
+  ['Public "add a resource / event" links', 'public link share resource submit event', 'settings', '', 'reslink', true],
+  ['Resource category names', 'resource category labels names directory', 'settings', '', 'labels-res', true]
+];
+function admFinderHtml(lead){
+  return `<div style="margin:6px 0 10px;"><input id="admFind" type="search" placeholder="🔎 Where is…? (e.g. paid, waitlist, backup, merge)" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px 14px;border-radius:999px;border:2px solid var(--brand-brown);font:inherit;font-size:15px;"><div id="admFindOut" style="display:flex;flex-direction:column;gap:6px;margin-top:6px;"></div></div>`;
+}
+function admFinderWire(){
+  const inp = document.getElementById('admFind'), out = document.getElementById('admFindOut'); if(!inp || !out) return;
+  const lead = state.cmAdminLoggedIn !== true && state.cmLead;
+  inp.addEventListener('input', () => {
+    const q = inp.value.trim().toLowerCase(); if(q.length < 2){ out.innerHTML = ''; return; }
+    const words = q.split(/\s+/);
+    const hits = ADM_FIND.filter(f => !(lead && f[5]) && words.every(w => (f[0] + ' ' + f[1]).toLowerCase().includes(w))).slice(0, 6);
+    out.innerHTML = hits.length ? hits.map((f, i) => `<button type="button" class="filter-chip" data-fi="${ADM_FIND.indexOf(f)}" style="text-align:left;min-height:42px;">➜ ${f[0]}</button>`).join('') : '<p class="av-msg" style="margin:4px 0;">Nothing matches — try another word.</p>';
+    out.querySelectorAll('[data-fi]').forEach(b => b.addEventListener('click', () => {
+      const f = ADM_FIND[Number(b.dataset.fi)];
+      state.admGroup = lead && f[2] === 'todo' ? 'clubs' : f[2]; if(f[3]) state.admEvSub = f[3];
+      if(f[4]) (state.admOpen = state.admOpen || {})[f[4]] = true;
+      render();
+      setTimeout(() => { const el = f[4] && document.querySelector('[data-sec="' + f[4] + '"]'); if(el) el.scrollIntoView({ behavior:'smooth', block:'start' }); else window.scrollTo(0, 0); }, 60);
+    }));
+  });
 }
 // ---- Import sign-up forms: match each form submission (name / phone) to a website profile, fill in what's missing, create profiles that don't exist yet ----
 const formImport = { rows:null, status:'' };
@@ -11817,6 +11882,8 @@ function wireClubAdminPanel(){
   document.querySelectorAll('.adm-need').forEach(b => b.addEventListener('click', () => { state.admGroup = b.dataset.needgroup; render(); window.scrollTo(0, 0); }));
   document.querySelectorAll('.adm-need-refresh').forEach(b => b.addEventListener('click', () => { state.admNeeds = null; render(); }));
   document.querySelectorAll('.adm-tile').forEach(b => b.addEventListener('click', () => { state.admGroup = b.dataset.group; render(); window.scrollTo(0, 0); }));
+  document.querySelectorAll('[data-evsub]').forEach(b => b.addEventListener('click', () => { state.admEvSub = b.dataset.evsub; render(); }));
+  admFinderWire();
   const reloadProfiles = document.getElementById('admReloadProfiles');
   if(reloadProfiles) reloadProfiles.addEventListener('click', async () => { reloadProfiles.disabled = true; reloadProfiles.textContent = 'Loading…'; await cmAdminLoadAllMembers(); render(); });
   const inboxRefresh = document.getElementById('inboxRefresh');
