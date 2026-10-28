@@ -840,11 +840,11 @@ const bmScore = (a, b, phoneA, phoneB) => {
   return sc;
 };
 const bmMerge = async (env, keepId, dropId) => {
-  const rows = await bmLoadRows(env, "players"), keep = rows.find((r) => r.id === keepId), drop = rows.find((r) => r.id === dropId);
+  const rows = await bmLoadRows(env, "players", true), keep = rows.find((r) => r.id === keepId), drop = rows.find((r) => r.id === dropId);
   if (!keep || !drop || keepId === dropId) return false;
   const kn = keep.row.full_name || keep.row.name, idents = new Set([drop.row.id, drop.row.name, drop.row.nickname, drop.row.full_name].filter(Boolean).map(String));
   const stmts = [];
-  for (const g of await bmLoadRows(env, "games")) {
+  for (const g of await bmLoadRows(env, "games", true)) {
     let changed = false; const row = { ...g.row };
     for (const f of ["winners", "losers"]) {
       let arr = Array.isArray(row[f]) ? row[f] : (() => { try { const j = JSON.parse(row[f]); return Array.isArray(j) ? j : null; } catch { return null; } })(); if (!arr) continue;
@@ -854,7 +854,7 @@ const bmMerge = async (env, keepId, dropId) => {
     if (changed) stmts.push(bmSaveStmt(env, "games", g.id, row, null));
   }
   const seen = new Set();
-  for (const key of ["attendance", "past_points", "session_rsvps", "tournament_interest"]) for (const r of await bmLoadRows(env, key)) {
+  for (const key of ["attendance", "past_points", "session_rsvps", "tournament_interest"]) for (const r of await bmLoadRows(env, key, true)) {
     if (r.row.player_id !== drop.row.id && r.row.player_id !== keep.row.id) continue;
     const moved = { ...r.row, player_id: keep.row.id, ...(r.row.username && drop.row.username && r.row.username === drop.row.username ? { username: keep.row.username } : {}) };
     const dk = `${key}|${moved.player_id}|${moved.session_date || ""}|${moved.week_number || ""}${key === "past_points" ? "|" + (moved.points || 0) : ""}`;
@@ -932,12 +932,23 @@ const BM_OWNER_ID = "a517d9bd-bc9c-4e59-b36d-503747621aa4", BM_COACH_EMAIL = "co
 const BM_TBL = { players: "bm_players", games: "bm_games", attendance: "bm_attendance", past_points: "bm_past", session_rsvps: "bm_rsvps", tournament_interest: "bm_interest" };
 const bmToronto = (d = new Date()) => d.toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
 const bmWeekIdOf = (day) => { const x = new Date(day + "T12:00:00Z"), n = x.getUTCDay(); x.setUTCDate(x.getUTCDate() + (n === 0 ? -6 : 1 - n)); return x.toISOString().slice(0, 10); };
-const bmLoadRows = async (env, key) => {
-  const res = (await env.DB.prepare(key === "players" ? "SELECT id, uid, data FROM bm_players" : `SELECT id, data FROM ${BM_TBL[key]}`).all()).results || [];
-  const out = []; for (const r of res) { try { out.push({ id: r.id, uid: r.uid || null, row: JSON.parse(r.data) }); } catch {} }
-  return out;
+// D1 COST GUARD: the badminton app polls /api/bm/q and every call re-read whole tables (~16k reads/day of bm_games alone = 91% of the free
+// 5M rows_read/day). Reads now share a short per-isolate cache (concurrent callers share one query); any write clears it. NEVER bypass this
+// for read-only hot paths; writes pass fresh=true so they always merge into the latest rows.
+const _bmCache = new Map(); const BM_CACHE_MS = 30000;
+const bmCacheClear = () => _bmCache.clear();
+const bmLoadRows = async (env, key, fresh) => {
+  const hit = _bmCache.get(key);
+  if (!fresh && hit && Date.now() - hit.at < BM_CACHE_MS) return hit.p.then((o) => o.map((x) => ({ ...x, row: { ...x.row } })));
+  const p = (async () => {
+    const res = (await env.DB.prepare(key === "players" ? "SELECT id, uid, data FROM bm_players" : `SELECT id, data FROM ${BM_TBL[key]}`).all()).results || [];
+    const out = []; for (const r of res) { try { out.push({ id: r.id, uid: r.uid || null, row: JSON.parse(r.data) }); } catch {} }
+    return out;
+  })();
+  _bmCache.set(key, { at: Date.now(), p }); p.catch(() => _bmCache.delete(key));
+  return p.then((o) => o.map((x) => ({ ...x, row: { ...x.row } })));
 };
-const bmSaveStmt = (env, key, id, row, uid) => key === "players"
+const bmSaveStmt = (env, key, id, row, uid) => (bmCacheClear(), key === "players")
   ? env.DB.prepare("INSERT OR REPLACE INTO bm_players (id, uid, data) VALUES (?, ?, ?)").bind(id, uid ?? null, JSON.stringify(row))
   : env.DB.prepare(`INSERT OR REPLACE INTO ${BM_TBL[key]} (id, day, data) VALUES (?, ?, ?)`).bind(id, bmDay(row), JSON.stringify(row));
 // The badminton player row for a 4DS member: the imported one (matched by phone) or a fresh one created on first use.
@@ -3169,6 +3180,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     }
 
     // ================= Badminton compatibility layer (see BM_* helpers): serves the ORIGINAL badminton app that now lives at /badminton.html =================
+    if ((path.startsWith("/api/bm/") || path.startsWith("/api/admin/badminton/")) && request.method !== "GET" && !(path === "/api/bm/q")) bmCacheClear(); // any write-capable call starts from fresh data
     if (path.startsWith("/api/bm/") || path.startsWith("/api/admin/badminton/") || path.startsWith("/storage/v1/object/public/profile-avatars/")) {
       if (!(await bmEnsure(env))) return jsonResponse({ error: "Badminton isn't available yet" }, 503, corsHeaders);
       const bmErr = (m, st = 400) => jsonResponse({ error: { message: m } }, st, corsHeaders);
@@ -3322,7 +3334,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           const filters = Array.isArray(b.filters) ? b.filters : [];
           const cmp = (v, f) => { const a = v == null ? "" : String(v), x = f.val == null ? "" : String(f.val); switch (f.op) { case "eq": return a === x; case "neq": return a !== x; case "in": return (Array.isArray(f.val) ? f.val : []).map(String).includes(a); case "gt": return a > x; case "gte": return a >= x; case "lt": return a < x; case "lte": return a <= x; default: return false; } };
           const match = (row) => filters.every((f) => cmp(row[f.col], f));
-          const rowsAll = await bmLoadRows(env, key);
+          const rowsAll = await bmLoadRows(env, key, op !== "select");
           const isToday = (row) => { const d = key === "games" ? (row.played_at ? bmToronto(new Date(row.played_at)) : "") : String(row.session_date || ""); return d === today; };
           const canWrite = (action, row) => { // action: insert | update | delete
             if (role === "owner") return true;
@@ -3375,6 +3387,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
             for (const r of rowsAll.filter((x) => match(x.row))) { stmts.push(env.DB.prepare(`DELETE FROM ${BM_TBL[key]} WHERE id = ?`).bind(r.id)); result.push(r.row); }
           } else return bmErr("Unsupported");
           for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
+          if (stmts.length) bmCacheClear();
           return jsonResponse({ data: b.returning ? result : null, error: null }, 200, corsHeaders);
         }
         // ---- the old database functions ----
