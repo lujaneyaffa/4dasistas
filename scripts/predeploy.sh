@@ -14,5 +14,7 @@ done
 for j in "$tmp"/*.js; do [ -f "$j" ] && { node --check "$j" 2>&1 | head -5; [ "${PIPESTATUS:-0}" ] ; node --check "$j" >/dev/null 2>&1 || { echo "SYNTAX ERROR in $(basename "$j")"; fail=1; }; }; done
 node --check workers/src/worker.js >/dev/null 2>&1 || { echo "SYNTAX ERROR in worker.js"; fail=1; }
 node --check service-worker.js >/dev/null 2>&1 || { echo "SYNTAX ERROR in service-worker.js"; fail=1; }
+# logo guard: every designed club logo must exist on disk (a missing one shows as text instead of the icon)
+for lg in $(grep -o "assets/logos/[A-Za-z0-9_-]*\.png" index.html | sort -u); do [ -f "$lg" ] || { echo "MISSING LOGO FILE: $lg"; fail=1; }; done
 rm -rf "$tmp"
 [ $fail = 0 ] && echo "predeploy OK" || { echo "DO NOT DEPLOY"; exit 1; }

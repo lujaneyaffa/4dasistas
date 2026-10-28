@@ -1528,13 +1528,24 @@ async function fetchDataWithFallback(key, localPath){
 // rebuild/deploy (the static data/*.json files only update on the next deploy) — try the live,
 // KV-backed roster first; if that fails for any reason, fall back to the static file exactly like
 // everything else, so the clubs tab is never worse off than before this existed.
-// The four former squads got new logos (v3); the live roster may still carry the old file names, so remap them here.
+// LOGO GUARD: every club's designed logo lives here as the built-in default. The live roster (KV) can carry old paths, an empty
+// logo or a broken one, and a club with no logo renders as a plain letter/emoji — so the designed logo ALWAYS wins unless an admin
+// uploaded a custom photo (a data: URL). Never remove an entry here; to change a logo, add a new versioned file and update the path.
+const CLUB_DESIGNED_LOGO = { 'club-activegaming':'assets/logos/club-activegaming-v2.png', 'club-cuisine':'assets/logos/club-cuisine-v2.png', 'club-artscrafts':'assets/logos/club-artscrafts-v2.png', 'club-retreats':'assets/logos/club-retreats-v2.png', 'club-quran':'assets/logos/squad-quran-v4.png', 'club-badminton':'assets/logos/squad-badminton-v4.png', 'club-cowork':'assets/logos/squad-cowork-v4.png', 'club-steps':'assets/logos/squad-steps-v4.png' };
 const CLUB_LOOK_FIX = { 'club-quran':['#ddd9d6','#7a726d'], 'club-badminton':['#ffc1c1','#c4707a'], 'club-cowork':['#b4cfc4','#4f7a68'], 'club-steps':['#f8caa9','#b5703f'] }; // card colour = the logo's own background
 const clubLogoFix = cl => (Array.isArray(cl) ? cl : []).map(c => {
-  if(!c || !CLUB_LOOK_FIX[c.id]) return c;
-  const logo = /^assets\/logos\/squad-[a-z]+\.png$/.test(c.logo || '') ? c.logo.replace('.png', '-v4.png') : c.logo;
-  return { ...c, logo, colour: CLUB_LOOK_FIX[c.id][0], textColour: CLUB_LOOK_FIX[c.id][1] };
+  if(!c) return c;
+  const designed = CLUB_DESIGNED_LOGO[c.id];
+  const out = designed && !String(c.logo || '').startsWith('data:') ? { ...c, logo: designed } : { ...c };
+  if(CLUB_LOOK_FIX[c.id]){ out.colour = CLUB_LOOK_FIX[c.id][0]; out.textColour = CLUB_LOOK_FIX[c.id][1]; }
+  return out;
 });
+// if a logo image ever fails to load, swap to the designed one instead of showing alt text
+document.addEventListener('error', e => {
+  const im = e.target; if(!im || im.tagName !== 'IMG' || im.dataset.logoRetry) return;
+  const card = im.closest('[data-club-id]'); const d = card && CLUB_DESIGNED_LOGO[card.dataset.clubId];
+  if(d && !im.src.endsWith(d)){ im.dataset.logoRetry = '1'; im.src = d + '?r=1'; }
+}, true);
 async function fetchClubsLive(){
   try {
     const res = await fetch('/api/clubs', { cache: 'no-store' });

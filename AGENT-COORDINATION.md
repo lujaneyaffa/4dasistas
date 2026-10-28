@@ -824,6 +824,7 @@ npx wrangler deploy
 
 ## Recent Activity Log
 
+- 2026-10-28 · Claude · LOGO GUARD (sw v230): every club's designed logo is now the built-in default in `index.html` (`CLUB_DESIGNED_LOGO`), applied over the live KV roster in `clubLogoFix` unless the admin uploaded a custom `data:` photo; a failed logo image retries the designed file; `scripts/predeploy.sh` fails if any `assets/logos/*.png` referenced in index.html is missing. RULE: never delete/rename logo files — add a new versioned file and update the map.
 - 2026-10-27 · Claude · The four new club logos were too small in their cards (lots of empty margin): re-cropped so the artwork fills ~80% of the square (`assets/logos/squad-*-v4.png`, replaces v3). service-worker v229.
 - 2026-10-27 · Claude · Quran/Badminton/Cowork/Steps club cards now use their logo's own background colour (like the first four): colour + textColour in data/clubs.json and a client-side override `CLUB_LOOK_FIX` (live roster still has the old colours). service-worker v228.
 - 2026-10-27 · Claude · New logos for the four former-squad clubs (Quran = open door, Badminton = sweaty tee, Cowork = stacked hands, Steps = walking shoes): `assets/logos/squad-*-v3.png` (640px) and `data/clubs.json` logo paths. service-worker v226.
