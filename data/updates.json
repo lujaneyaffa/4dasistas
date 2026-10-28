@@ -1,6 +1,22 @@
 {
   "updates": [
     {
+      "no": 29,
+      "date": "2026-10-28",
+      "title": "Big events: spots, waitlists and reminders",
+      "items": [
+        {
+          "text": "✨ Events can have a limit on spots. When it's full you join a waitlist and get moved up (with a notification) as soon as someone cancels."
+        },
+        {
+          "text": "✨ Signing up for an event without an account is now quick: just your name and phone. Tap \"I've sent my payment\" after paying so the organiser can confirm."
+        },
+        {
+          "text": "✨ You'll get a reminder 2 days before and on the morning of events you're going to."
+        }
+      ]
+    },
+    {
       "no": 28,
       "date": "2026-10-23",
       "title": "Reviews, a tour, and cuter notifications",

@@ -6335,8 +6335,9 @@ async function clubCalPublicCard(box, id){
     const inp = 'class="fb-in"';
     box.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p><h3 style="margin:0 0 4px;">${escapeCm(d.title)}</h3>
       <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${d.rsvpBy ? `<p style="margin:4px 0;font-weight:700;color:${d.closed ? '#b3261e' : '#76220b'};">⏳ ${d.closed ? 'Sign-ups are closed' : 'Sign up by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}${calLinkRowHtml(d.id)}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}${d.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
-      ${d.closed ? '<p style="font-weight:700;">🔒 Sign-ups are closed.</p>' : ''}
+      ${d.closed ? '<p style="font-weight:700;">🔒 Sign-ups are closed.</p>' : ''}${calSpotsHtml(d)}
       <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 8px;">1 · 👤 About you</h3>
+        <label class="pfQuickL" style="display:flex;gap:8px;align-items:flex-start;padding:10px 12px;margin:0 0 10px;border-radius:12px;background:#fdf0f2;border:2px solid #ce8491;font-weight:700;font-size:14px;"><input type="checkbox" class="pfQuick" style="width:20px;height:20px;margin-top:1px;flex:none;"><span>⚡ Quick register — just my name &amp; phone, no account<br><small style="font-weight:400;color:#776867;">Fastest way in. You can always make an account later.</small></span></label>
         <div style="padding:8px 10px;border-radius:12px;background:#fef7f4;border:2px dashed #f2d8d7;font-size:14px;">Already a member? <button type="button" class="club-guide-btn pfLogin" style="padding:4px 14px;min-height:0;margin-left:4px;text-align:center;">👤 Log in</button>
           <div class="pfFind" style="display:none;margin-top:8px;">
             <input class="fb-in pfQ" type="search" placeholder="Type your name to find yourself…" autocomplete="off">
@@ -6346,15 +6347,18 @@ async function clubCalPublicCard(box, id){
         <p style="margin:12px 0 8px;font-weight:700;">New here? Fill in your details — this creates your 4DASISTAS account.</p>
         <div class="fb-q"><label>Your full name <span class="req">*</span></label><input ${inp} data-base="name" type="text" maxlength="60" autocomplete="name" placeholder="First and last name"></div>
         <div class="fb-q"><label>Phone / WhatsApp number <span class="req">*</span></label><input ${inp} data-base="phone" type="tel" maxlength="25" autocomplete="tel" inputmode="tel"></div>
-        <div class="fb-q"><label>Create a 4-digit PIN <span class="req">*</span></label><input ${inp} data-base="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"></div>
+        <div class="pfAcct"><div class="fb-q"><label>Create a 4-digit PIN <span class="req">*</span></label><input ${inp} data-base="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"></div>
         <div class="fb-q"><label>Confirm your PIN <span class="req">*</span></label><input ${inp} data-base="pin2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"></div>
         <div class="fb-q"><label>Which clubs are you interested in? <small style="font-weight:400;color:#776867;">(optional)</small></label><div class="pfClubs" style="display:flex;flex-wrap:wrap;gap:8px;">${clubsData.map(c => `<label style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:2px solid var(--brand-brown);background:#fff;font-size:14px;"><input type="checkbox" class="pfClub" value="${escapeCm(c.id)}" style="width:18px;height:18px;"> ${escapeCm(c.title)}</label>`).join('')}</div></div>
-        <div class="fb-q"><label>Anything you'd like us to know? <small style="font-weight:400;color:#776867;">(optional)</small></label><textarea ${inp} data-base="why" rows="2" maxlength="600"></textarea></div></div>
+        <div class="fb-q"><label>Anything you'd like us to know? <small style="font-weight:400;color:#776867;">(optional)</small></label><textarea ${inp} data-base="why" rows="2" maxlength="600"></textarea></div></div></div>
       <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 4px;">2 · 📝 ${escapeCm(d.form.title)}</h3>${d.form.intro ? `<p style="margin:0 0 10px;white-space:pre-wrap;">${escapeCm(d.form.intro)}</p>` : ''}
         ${calFormFieldsHtml(d.form, {}, false)}
         ${calAddonsHtml(d.form, [])}
         <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Submit</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}${d.form.payment ? `<p class="ideas-hint" style="margin:10px 0 0;">💳 Payment${d.form.payment.amount ? ': ' + escapeCm(d.form.payment.amount) : ''} — you'll see how to pay right after you submit.</p>` : ''}</div>`;
     wireCalCopy(box); wireCalAddons(box, d.form); calMountLocations(box); calAttendeesInto(box, d.id, d.date);
+    { const qk = box.querySelector('.pfQuick'), acct = box.querySelector('.pfAcct');
+      const lead = [...box.querySelectorAll('p')].find(x => /New here\?/.test(x.textContent));
+      qk.addEventListener('change', () => { acct.style.display = qk.checked ? 'none' : ''; if(lead) lead.style.display = qk.checked ? 'none' : ''; }); }
     // "Already a member?": find yourself by name, enter your PIN, and carry on with the form as yourself.
     const find = box.querySelector('.pfFind'), q = box.querySelector('.pfQ'), results = box.querySelector('.pfResults'), pinBox = box.querySelector('.pfPin'), lmsg = box.querySelector('.pfLoginMsg');
     let chosen = null, timer = null;
@@ -6383,16 +6387,17 @@ async function clubCalPublicCard(box, id){
     box.querySelector('.pfSend').addEventListener('click', async e => {
       const m = box.querySelector('.pfMsg'), base = k => (box.querySelector(`[data-base="${k}"]`) || {}).value || '';
       m.style.color = '#c00';
+      const quick = box.querySelector('.pfQuick').checked;
       if(base('name').trim().split(/\s+/).length < 2){ m.textContent = 'Please enter your first and last name.'; return; }
       if(!base('phone').trim()){ m.textContent = 'Please add your phone / WhatsApp number.'; return; }
-      if(!/^\d{4}$/.test(base('pin'))){ m.textContent = 'Choose a 4-digit PIN.'; return; }
-      if(base('pin') !== base('pin2')){ m.textContent = "The two PINs don't match."; return; }
+      if(!quick && !/^\d{4}$/.test(base('pin'))){ m.textContent = 'Choose a 4-digit PIN.'; return; }
+      if(!quick && base('pin') !== base('pin2')){ m.textContent = "The two PINs don't match."; return; }
       const chosenAddons = calAddonIds(box);
       e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Sending…';
       try {
-        const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', body: JSON.stringify({ name: base('name'), phone: base('phone'), pin: base('pin'), why: base('why'), interests: [...box.querySelectorAll('.pfClub:checked')].map(c => c.value), answers: calFormCollect(box, d.form), addons: calAddonIds(box) }) });
+        const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', body: JSON.stringify(quick ? { name: base('name'), contact: base('phone'), answers: calFormCollect(box, d.form), addons: calAddonIds(box) } : { name: base('name'), phone: base('phone'), pin: base('pin'), why: base('why'), interests: [...box.querySelectorAll('.pfClub:checked')].map(c => c.value), answers: calFormCollect(box, d.form), addons: calAddonIds(box) }) });
         if(r && r.token){ setCmSession(r); renderNavAuth(); }
-        box.innerHTML = `<div style="text-align:center;padding:14px 0;"><div style="font-size:42px;">🎉</div><h3 style="margin:6px 0;">You're signed up!</h3><p class="av-msg">Thank you — your answers for <strong>${escapeCm(d.title)}</strong> were sent.</p>${r && r.username ? `<p class="av-msg" style="margin-top:8px;">We also created your 4DASISTAS account — your username is <strong>${escapeCm(r.username)}</strong> and your PIN is the one you just chose. You're signed in now.</p>` : ''}</div>${calPayHtml(d.form, '', chosenAddons)}`;
+        box.innerHTML = calSignedUpHtml(d, r, chosenAddons, quick);
       } catch(err){ e.target.disabled = false; m.style.color = '#c00'; m.textContent = err.message; }
     });
   } catch(err){
@@ -6417,15 +6422,15 @@ async function clubCalMemberCard(box, id){
     calAttendeesInto(box, id, d.date);
     const paint = () => {
       const past = calIsPast(d.date);
-      const label = past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going — tap to cancel" : d.mine === 'pending' ? '⏳ Requested — waiting for approval (tap to cancel)' : d.inClub ? '🎟️ RSVP — I\'m going' : '🎟️ Request to RSVP';
+      const label = past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going — tap to cancel" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — tap to leave` : d.mine === 'pending' ? '⏳ Requested — waiting for approval (tap to cancel)' : d.inClub ? (d.capacity && !d.spotsLeft ? '🎟️ Join the waitlist' : '🎟️ RSVP — I\'m going') : '🎟️ Request to RSVP';
       top.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>
         <h3 style="margin:0 0 6px;">${escapeCm(d.title)}</h3>
         <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>
         ${d.form ? calLinkRowHtml(d.id) : ''}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}
         ${d.desc ? `<p style="margin:8px 0;white-space:pre-wrap;">${escapeCm(d.desc)}</p>` : ''}
         ${d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}
-        <p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} ${past ? 'attended' : 'going'}${past || d.inClub || d.form ? '' : ' · you\'re not in this club, so an admin approves your RSVP'}</p>
-        ${d.form ? `<p style="margin:6px 0;font-weight:700;">${past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going" : d.mine === 'pending' ? '⏳ Requested — waiting for approval' : d.closed ? '🔒 Sign-ups are closed' : 'Fill in the form below to sign up 👇'}</p>${d.mine && !past ? '<button type="button" class="av-link calRsvpBtn">Cancel my RSVP</button>' : ''}` : `<button type="button" class="club-guide-btn calRsvpBtn" ${(d.closed || past) && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>`}
+        <p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} ${past ? 'attended' : 'going'}${past || d.inClub || d.form ? '' : ' · you\'re not in this club, so an admin approves your RSVP'}</p>${past ? '' : calSpotsHtml(d)}
+        ${d.form ? `<p style="margin:6px 0;font-weight:700;">${past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — we'll move you up if a spot opens` : d.mine === 'pending' ? '⏳ Requested — waiting for approval' : d.closed ? '🔒 Sign-ups are closed' : d.capacity && !d.spotsLeft ? 'Fill in the form below to join the waitlist 👇' : 'Fill in the form below to sign up 👇'}</p>${d.mine && !past ? '<button type="button" class="av-link calRsvpBtn">Cancel my RSVP</button>' : ''}` : `<button type="button" class="club-guide-btn calRsvpBtn" ${(d.closed || past) && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>`}
         <div class="calRsvpMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>
         ${(!past && d.mine === 'going') ? '<button type="button" class="club-guide-btn calAddCal" style="width:100%;min-height:46px;margin-top:4px;">📆 Add to my calendar</button>' : ''}`;
       wireCalCopy(top);
@@ -6435,7 +6440,7 @@ async function clubCalMemberCard(box, id){
         e.target.disabled = true;
         try {
           const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/rsvp', { method: d.mine ? 'DELETE' : 'POST', headers: ideaHeaders() });
-          d.mine = r.mine; d.going = r.going; state.myTodo = null; paint(); admToastLite(r.mine ? (r.mine === 'going' ? "✓ You're going!" : '⏳ Request sent — an admin will approve it') : 'RSVP cancelled');
+          d.mine = r.mine; d.going = r.going; d.waitPos = r.waitPos || 0; if(d.capacity) d.spotsLeft = Math.max(0, d.capacity - r.going); state.myTodo = null; paint(); admToastLite(r.mine ? (r.mine === 'going' ? "✓ You're going!" : r.mine === 'waitlist' ? "⏳ It's full — you're on the waitlist" : '⏳ Request sent — an admin will approve it') : 'RSVP cancelled');
         } catch(err){ e.target.disabled = false; top.querySelector('.calRsvpMsg').textContent = err.message; }
       });
     };
@@ -6446,11 +6451,16 @@ async function clubCalMemberCard(box, id){
       <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 4px;">2 · 📝 ${escapeCm(d.form.title)}</h3>${d.form.intro ? `<p style="margin:0 0 10px;white-space:pre-wrap;">${escapeCm(d.form.intro)}</p>` : ''}${calFormFieldsHtml(d.form, d.myAnswers, false)}
         ${calAddonsHtml(d.form, d.myAddons)}
         <button type="button" class="club-guide-btn calFormSend" ${d.closed && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">${d.closed && !d.mine ? '🔒 Sign-ups closed' : d.myAnswers ? 'Update my answers' : 'Submit & RSVP'}</button><div class="calFormMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>
-        ${calFormFooterHtml(d.form)}<div class="calPayBox">${d.form.payment ? (d.myAnswers ? calPayHtml(d.form, '', d.myAddons) : `<p class="ideas-hint" style="margin:10px 0 0;">💳 Payment${d.form.payment.amount ? ': ' + escapeCm(d.form.payment.amount) : ''} — you'll see how to pay right after you sign up.</p>`) : ''}</div></div>`;
+        ${calFormFooterHtml(d.form)}<div class="calPayBox">${d.form.payment ? (d.myAnswers ? calPayBoxHtml(d) : `<p class="ideas-hint" style="margin:10px 0 0;">💳 Payment${d.form.payment.amount ? ': ' + escapeCm(d.form.payment.amount) : ''} — you'll see how to pay right after you sign up.</p>`) : ''}</div></div>`;
       wireCalAddons(formBox, d.form); calMountLocations(formBox);
+      formBox.addEventListener('click', async ev2 => { // "I've sent my payment"
+        const pb2 = ev2.target.closest('.calPaidBtn'); if(!pb2) return; pb2.disabled = true;
+        try { await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/paid', { method:'POST', headers: ideaHeaders() }); d.claimedPaid = true; formBox.querySelector('.calPayBox').innerHTML = calPayBoxHtml(d); admToastLite('✓ Thanks — the organiser will confirm'); }
+        catch(err){ pb2.disabled = false; admToastLite(err.message); }
+      });
       formBox.querySelector('.calFormSend').addEventListener('click', async e => {
         const m = formBox.querySelector('.calFormMsg'); e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Saving…';
-        try { const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ answers: calFormCollect(formBox, d.form), addons: calAddonIds(formBox) }) }); d.myAnswers = r.answers; d.myAddons = r.addons || []; d.mine = r.mine; d.going = r.going; m.style.color = '#2a7a4a'; m.textContent = r.mine === 'pending' ? '✓ Sent — an admin will approve your spot.' : "✓ You're signed up — thank you!"; e.target.textContent = 'Update my answers'; const pb = formBox.querySelector('.calPayBox'); paint(); if(pb && d.form.payment){ const nb = formBox.querySelector('.calPayBox'); if(nb) nb.innerHTML = calPayHtml(d.form, '', d.myAddons); } }
+        try { const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ answers: calFormCollect(formBox, d.form), addons: calAddonIds(formBox) }) }); d.myAnswers = r.answers; d.myAddons = r.addons || []; d.mine = r.mine; d.going = r.going; d.waitPos = r.waitPos || 0; if(d.capacity) d.spotsLeft = Math.max(0, d.capacity - r.going); m.style.color = '#2a7a4a'; m.textContent = r.mine === 'pending' ? '✓ Sent — an admin will approve your spot.' : r.mine === 'waitlist' ? "⏳ It's full — you're on the waitlist. We'll move you up if a spot opens." : "✓ You're signed up — thank you!"; e.target.textContent = 'Update my answers'; const pb = formBox.querySelector('.calPayBox'); paint(); if(pb && d.form.payment){ const nb = formBox.querySelector('.calPayBox'); if(nb) nb.innerHTML = calPayBoxHtml(d); } }
         catch(err){ m.style.color = '#c00'; m.textContent = err.message; }
         e.target.disabled = false;
       });
@@ -6472,23 +6482,26 @@ function clubCalManage(ev){
   let usersCache = Array.isArray(state.cmAdminAllUsers) ? state.cmAdminAllUsers : null;
   const { wrap, close } = ideaPopup('');
   const paint = () => {
-    const rs = ev.rsvps || [], going = rs.filter(r => r.status === 'going'), pend = rs.filter(r => r.status === 'pending');
+    const rs = ev.rsvps || [], going = rs.filter(r => r.status === 'going'), pend = rs.filter(r => r.status === 'pending'), wait = rs.filter(r => r.status === 'waitlist').sort((a, b) => (a.at || 0) - (b.at || 0));
     const past = ev.date < new Date().toISOString().slice(0, 10);
-    const row = (r, pending) => `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid rgba(0,0,0,.1);"><span style="flex:1;font-weight:600;">${escapeCm(r.name)}</span>
-      ${pending ? `<button type="button" class="calrs" data-a="accept" data-u="${escapeCm(r.id)}" style="border:2px solid #2a7a4a;background:#e6f4ea;border-radius:999px;padding:4px 10px;cursor:pointer;">✓ Accept</button>` : ''}
+    const row = (r, pending, wl) => `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid rgba(0,0,0,.1);"><span style="flex:1;font-weight:600;">${escapeCm(r.name)}</span>
+      ${pending ? `<button type="button" class="calrs" data-a="accept" data-u="${escapeCm(r.id)}" style="border:2px solid #2a7a4a;background:#e6f4ea;border-radius:999px;padding:4px 10px;cursor:pointer;">${wl ? '⬆ Let in' : '✓ Accept'}</button>` : ''}${!pending && r.claimedPaid && !r.paid ? '<span title="They say they have paid — tap Mark paid to confirm" style="font-size:12px;background:#fff3cd;border-radius:999px;padding:3px 8px;">💬 says paid</span>' : ''}
       ${!pending && ev.form && ev.form.payment ? `<button type="button" class="calrs" data-a="${r.paid ? 'unpaid' : 'paid'}" data-u="${escapeCm(r.id)}" style="border:2px solid #2a7a4a;background:${r.paid ? '#2a7a4a' : '#fff'};color:${r.paid ? '#fff' : '#2a7a4a'};border-radius:999px;padding:4px 10px;cursor:pointer;font-weight:700;">${r.paid ? '💳 Paid ✓' : 'Mark paid'}</button>` : ''}
       ${!pending && !r.guest ? `<button type="button" class="calwa" data-k="eventRemind" data-u="${escapeCm(r.id)}" aria-label="WhatsApp reminder" title="WhatsApp reminder" style="border:2px solid #25a244;background:#fff;border-radius:999px;padding:4px 8px;cursor:pointer;">💬</button>` : ''}
       ${!pending && !r.guest && !r.paid && ev.form && ev.form.payment ? `<button type="button" class="calwa" data-k="payRemind" data-u="${escapeCm(r.id)}" aria-label="Payment reminder" title="Payment reminder on WhatsApp" style="border:2px solid #25a244;background:#fff;border-radius:999px;padding:4px 8px;cursor:pointer;">💳💬</button>` : ''}
-      <button type="button" class="calrs" data-a="${pending ? 'decline' : 'remove'}" data-u="${escapeCm(r.id)}" style="border:2px solid #b3261e;background:#fdecea;border-radius:999px;padding:4px 10px;cursor:pointer;">${pending ? '✕ Decline' : 'Remove'}</button></div>`;
+      <button type="button" class="calrs" data-a="${pending ? 'decline' : 'remove'}" data-u="${escapeCm(r.id)}" style="border:2px solid #b3261e;background:#fdecea;border-radius:999px;padding:4px 10px;cursor:pointer;">${pending && !wl ? '✕ Decline' : 'Remove'}</button></div>`;
     wrap.querySelector('.idea-pop-card').innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
       <p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(ev.clubTitle)}</p>
       <h3 style="margin:0 0 6px;">${escapeCm(ev.title)}</h3>
       <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(ev.date))}${ev.time ? ' · ⏰ ' + escapeCm(ev.time) : ''}${past ? ' · <strong>(past)</strong>' : ''}</p>
       ${ev.place ? `<p style="margin:4px 0;">📍 ${escapeCm(ev.place)}</p>` : ''}${calMapHtml(ev)}
       ${ev.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;text-align:left;">⏳ RSVP by ${escapeCm(ideaLongDate(ev.rsvpBy))}</p>` : ''}
+      ${ev.capacity ? `<p style="margin:4px 0;font-weight:700;color:${going.length >= ev.capacity ? '#b3261e' : '#2a7a4a'};">🎟️ ${going.length} of ${ev.capacity} spots taken${wait.length ? ` · ${wait.length} on the waitlist` : ''}</p>` : ''}
       ${ev.desc ? `<p style="margin:8px 0;white-space:pre-wrap;">${escapeCm(ev.desc)}</p>` : ''}
       <div style="display:flex;gap:8px;margin:10px 0;"><button type="button" class="club-guide-btn" id="calEditBtn" style="flex:1;text-align:center;">✏️ Edit</button><button type="button" class="club-guide-btn" id="calDelBtn" style="flex:1;text-align:center;background:#fdecea;">🗑 Remove</button></div>
       ${pend.length ? `<p class="idea-pop-h" style="color:#b3261e;">⏳ Waiting for approval (${pend.length})</p>${pend.map(r => row(r, true)).join('')}` : ''}
+      ${wait.length ? `<p class="idea-pop-h" style="color:#b3261e;">⏳ Waitlist (${wait.length}) — first in line at the top</p>${wait.map(r => row(r, true, true)).join('')}` : ''}
+      ${!past && going.length ? '<p style="margin:10px 0 0;"><button type="button" class="club-guide-btn" id="calMsgAll" style="width:100%;text-align:center;background:#fff3cd;">📣 Message everyone going</button></p>' : ''}
       <p class="idea-pop-h">${past ? '✅ Who went' : '👥 Going'} (${going.length})</p>${going.length ? going.map(r => row(r, false)).join('') : '<p class="av-msg">Nobody yet.</p>'}
       <p class="idea-pop-h" style="margin-top:12px;">➕ ${past ? 'Add someone who went' : 'Add an attendee'}</p>
       <input id="calAttSearch" type="search" placeholder="Search a member by name…" autocomplete="off" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;">
@@ -6507,6 +6520,7 @@ function clubCalManage(ev){
     }, { rsvpBy: ev.rsvpBy || '', desc: ev.desc || '', showRsvpBy: true }));
     const rb = wrap.querySelector('#calRespBtn'); if(rb) rb.addEventListener('click', () => clubCalShowResponses(ev, wrap.querySelector('#calRespBox')));
     wrap.querySelector('#calEditBtn').addEventListener('click', () => { close(); clubCalForm(ev); });
+    { const mb = wrap.querySelector('#calMsgAll'); if(mb) mb.addEventListener('click', () => calMessageAll(ev)); }
     wrap.querySelector('#calDelBtn').addEventListener('click', async () => {
       if(!confirm('Remove "' + ev.title + '" and its RSVP list?')) return;
       try { await clubCalAdminCall('/' + encodeURIComponent(ev.id), 'DELETE'); close(); clubCalReload(); } catch(err){ wrap.querySelector('#calMsg').textContent = err.message; }
@@ -6580,6 +6594,24 @@ function calFormCollect(box, form){
 }
 // Every form has its own link people can copy and share; opening it goes straight to the form.
 function calFormUrl(id){ return location.origin + '/#/form/' + encodeURIComponent(id); }
+// Big events: "12 of 40 spots left" / "Full — join the waitlist"
+function calSpotsHtml(d){
+  if(!d || !d.capacity) return '';
+  const left = d.spotsLeft || 0;
+  return `<p style="margin:6px 0;font-weight:700;color:${left > 0 ? '#2a7a4a' : '#b3261e'};">🎟️ ${left > 0 ? left + ' of ' + d.capacity + ' spots left' : 'Full — all ' + d.capacity + ' spots are taken, but you can join the waitlist'}${d.waitCount ? ` <small style="font-weight:400;color:#776867;">(${d.waitCount} waiting)</small>` : ''}</p>`;
+}
+// Payment box + "I've sent my payment" (only for people who are actually going)
+function calPayBoxHtml(d){
+  if(!d.form || !d.form.payment || d.mine !== 'going') return '';
+  return calPayHtml(d.form, '', d.myAddons) + (d.paid ? '<p style="margin:8px 0 0;font-weight:700;color:#2a7a4a;">✅ Payment received — thank you!</p>' : d.claimedPaid ? '<p style="margin:8px 0 0;font-weight:700;color:#2a7a4a;">✔️ You told us you paid — the organiser will confirm it.</p>' : '<button type="button" class="club-guide-btn calPaidBtn" style="width:100%;margin-top:8px;text-align:center;">✅ I\'ve sent my payment</button>');
+}
+function calSignedUpHtml(d, r, addons, quick){
+  const wl = r && r.eventStatus === 'waitlist';
+  return `<div style="text-align:center;padding:14px 0;"><div style="font-size:42px;">${wl ? '⏳' : '🎉'}</div><h3 style="margin:6px 0;">${wl ? "You're on the waitlist" : "You're signed up!"}</h3>
+    <p class="av-msg">${wl ? `<strong>${escapeCm(d.title)}</strong> is full right now. You're in line — ${quick ? "an organiser will message you on the phone number you gave if a spot opens up." : "if someone cancels you'll be moved up automatically (and get a notification if you have the app)."}` : `Thank you — your answers for <strong>${escapeCm(d.title)}</strong> were sent.`}</p>
+    ${r && r.username ? `<p class="av-msg" style="margin-top:8px;">We also created your 4DASISTAS account — your username is <strong>${escapeCm(r.username)}</strong> and your PIN is the one you just chose. You're signed in now.</p>` : ''}
+    ${quick && !wl ? '<p class="av-msg" style="margin-top:8px;">You registered without an account, so we\'ll reach you on the phone number you gave. Screenshot this page for your records.</p>' : ''}</div>${wl ? '' : calPayHtml(d.form, '', addons)}`;
+}
 function calLinkRowHtml(id, urlOverride, label){
   const url = urlOverride || calFormUrl(id);
   return `<div class="calUrl" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 8px;padding:7px 10px;border-radius:12px;background:#fef7f4;border:2px dashed #f2d8d7;font-size:13px;"><span style="flex:1;min-width:0;overflow-wrap:anywhere;">${label ? escapeCm(label) + ' ' : '🔗 '}${escapeCm(url.replace(/^https?:\/\//, ''))}</span><button type="button" class="fb-mini calCopy" data-url="${escapeCm(url)}">Copy link</button></div>`;
@@ -6760,6 +6792,33 @@ function openFormBuilder(initial, onDone, opts){
   };
   paint();
 }
+// Message everyone going (and/or on the waitlist): a push notification, sent a few people at a time.
+function calMessageAll(ev){
+  const waitN = (ev.rsvps || []).filter(r => r.status === 'waitlist').length;
+  const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 6px;">📣 Message everyone</h3>
+    <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">Sent as a notification to <strong>${escapeCm(ev.title)}</strong> attendees who have the app or notifications on. People who signed up without an account can't be reached this way — use the 💬 button or the CSV for them.</p>
+    <select id="cmAud" style="width:100%;padding:10px;margin-bottom:8px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;"><option value="going">Everyone who's going</option>${waitN ? `<option value="waitlist">Only the waitlist (${waitN})</option><option value="all">Going + waitlist</option>` : ''}</select>
+    <textarea id="cmText" maxlength="300" rows="4" placeholder="e.g. Venue change: we're meeting at the north entrance at 6:30 PM" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;"></textarea>
+    <div id="cmOut" style="font-size:13px;min-height:18px;margin:6px 0;color:#776867;"></div>
+    <button type="button" class="club-guide-btn" id="cmSend" style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Send</button>`);
+  wrap.querySelector('#cmSend').addEventListener('click', async e => {
+    const text = wrap.querySelector('#cmText').value.trim(), aud = wrap.querySelector('#cmAud').value, out = wrap.querySelector('#cmOut');
+    if(text.length < 3){ out.style.color = '#c00'; out.textContent = 'Write the message first.'; return; }
+    if(!confirm('Send this to everyone selected now?')) return;
+    e.target.disabled = true; out.style.color = '#776867';
+    let offset = 0, reached = 0, total = 0, noProfile = 0;
+    try {
+      for(let guard = 0; guard < 60; guard++){
+        out.textContent = total ? `Sending… ${Math.min(offset, total)} of ${total}` : 'Sending…';
+        const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/message', 'POST', { text, audience: aud, offset });
+        reached += j.reached; total = j.total; noProfile = j.noProfile;
+        if(j.next == null) break; offset = j.next;
+      }
+      out.style.color = '#2a7a4a'; out.textContent = `✓ Reached ${reached} of ${total} member${total === 1 ? '' : 's'}${noProfile ? ` · ${noProfile} signed up without an account (not reachable here)` : ''}.`;
+      e.target.textContent = 'Done';
+    } catch(err){ e.target.disabled = false; out.style.color = '#c00'; out.textContent = err.message + (reached ? ` (already sent to ${reached})` : ''); }
+  });
+}
 // Responses to an event's form (admin): who answered what, plus a CSV download.
 async function clubCalShowResponses(ev, box){
   box.innerHTML = '<p class="av-msg">Loading…</p>';
@@ -6767,7 +6826,9 @@ async function clubCalShowResponses(ev, box){
     const d = await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/responses', 'GET');
     if(!d.form || !d.responses.length){ box.innerHTML = '<p class="av-msg">No answers yet.</p>'; return; }
     const fmt = (f, v) => Array.isArray(v) ? v.join(', ') : (v && typeof v === 'object' ? (v.address || '—') : (v || '—'));
-    box.innerHTML = d.responses.map(r => `<div style="border-top:1px solid rgba(0,0,0,.1);padding:8px 0;"><strong>${escapeCm(r.name)}</strong>${r.contact ? ` <small style="color:#776867;">${escapeCm(r.contact)}</small>` : ''}${r.guest ? ' <small>(public form)</small>' : ''}${d.form.payment ? (r.paid ? ' <b style="color:#2a7a4a;">💳 Paid ✓</b>' : ' <small style="color:#b3261e;">not paid</small>') : ''}${(r.addons || []).length ? `<div style="font-size:13px;"><span style="color:#776867;">Add-ons:</span> ${escapeCm(r.addons.map(id => (((d.form.payment || {}).addons || []).find(a => a.id === id) || {}).label || '').filter(Boolean).join(', '))}</div>` : ''}${r.total != null ? `<div style="font-size:13px;"><span style="color:#776867;">Total due:</span> <b>${escapeCm(calMoney(r.total, calMoneyParts(d.form).sym))}</b></div>` : ''}${d.form.fields.map(f => `<div style="font-size:13px;"><span style="color:#776867;">${escapeCm(f.label)}:</span> ${escapeCm(fmt(f, (r.answers || {})[f.id]))}</div>`).join('')}</div>`).join('') + '<button type="button" class="fb-mini" id="calCsv" style="margin-top:8px;">⬇️ Download CSV</button>';
+    const pm = d.form.payment ? calMoneyParts(d.form) : null, inList = d.responses.filter(r => r.status === 'going'), owed = inList.reduce((t, r) => t + (Number(r.total) || 0), 0), got = inList.filter(r => r.paid).reduce((t, r) => t + (Number(r.total) || 0), 0);
+    const summary = pm && owed ? `<div style="margin:0 0 8px;padding:10px 12px;border-radius:12px;background:#e6f4ea;border:2px solid #2a7a4a;font-weight:700;">💳 Collected ${escapeCm(calMoney(got, pm.sym))} of ${escapeCm(calMoney(owed, pm.sym))} · ${inList.filter(r => !r.paid).length} unpaid${inList.some(r => r.claimedPaid && !r.paid) ? ` · ${inList.filter(r => r.claimedPaid && !r.paid).length} say they paid` : ''}</div>` : '';
+    box.innerHTML = summary + d.responses.map(r => `<div style="border-top:1px solid rgba(0,0,0,.1);padding:8px 0;"><strong>${escapeCm(r.name)}</strong>${r.status === 'waitlist' ? ' <small style="background:#fdecea;border-radius:999px;padding:2px 8px;">⏳ waitlist</small>' : ''}${r.claimedPaid && !r.paid ? ' <small style="background:#fff3cd;border-radius:999px;padding:2px 8px;">💬 says paid</small>' : ''}${r.contact ? ` <small style="color:#776867;">${escapeCm(r.contact)}</small>` : ''}${r.guest ? ' <small>(public form)</small>' : ''}${d.form.payment ? (r.paid ? ' <b style="color:#2a7a4a;">💳 Paid ✓</b>' : ' <small style="color:#b3261e;">not paid</small>') : ''}${(r.addons || []).length ? `<div style="font-size:13px;"><span style="color:#776867;">Add-ons:</span> ${escapeCm(r.addons.map(id => (((d.form.payment || {}).addons || []).find(a => a.id === id) || {}).label || '').filter(Boolean).join(', '))}</div>` : ''}${r.total != null ? `<div style="font-size:13px;"><span style="color:#776867;">Total due:</span> <b>${escapeCm(calMoney(r.total, calMoneyParts(d.form).sym))}</b></div>` : ''}${d.form.fields.map(f => `<div style="font-size:13px;"><span style="color:#776867;">${escapeCm(f.label)}:</span> ${escapeCm(fmt(f, (r.answers || {})[f.id]))}</div>`).join('')}</div>`).join('') + '<button type="button" class="fb-mini" id="calCsv" style="margin-top:8px;">⬇️ Download CSV</button>';
     // 📍 Location questions: a map with a pin per person (carpooling / picking a meeting spot)
     d.form.fields.filter(f => f.type === 'location').forEach(f => {
       const pins = d.responses.filter(r => r.answers && r.answers[f.id] && typeof r.answers[f.id] === 'object' && r.answers[f.id].lat != null);
@@ -6777,7 +6838,7 @@ async function clubCalShowResponses(ev, box){
     box.querySelector('#calCsv').addEventListener('click', () => {
       const esc = v => '"' + String(v).replace(/"/g, '""') + '"';
       const aoLabel = r => (r.addons || []).map(id => (((d.form.payment || {}).addons || []).find(a => a.id === id) || {}).label || '').filter(Boolean).join('; ');
-      const rows = [['Name', 'Contact'].concat(d.form.payment ? ['Paid', 'Add-ons', 'Total due'] : []).concat(d.form.fields.map(f => f.label))].concat(d.responses.map(r => [r.name, r.contact || ''].concat(d.form.payment ? [r.paid ? 'Yes' : 'No', aoLabel(r), r.total != null ? r.total : ''] : []).concat(d.form.fields.map(f => fmt(f, (r.answers || {})[f.id]).replace('—', '')))));
+      const rows = [['Name', 'Contact', 'Status'].concat(d.form.payment ? ['Paid', 'Add-ons', 'Total due'] : []).concat(d.form.fields.map(f => f.label))].concat(d.responses.map(r => [r.name, r.contact || '', r.status === 'waitlist' ? 'Waitlist' : r.status === 'going' ? 'Going' : (r.status || '')].concat(d.form.payment ? [r.paid ? 'Yes' : 'No', aoLabel(r), r.total != null ? r.total : ''] : []).concat(d.form.fields.map(f => fmt(f, (r.answers || {})[f.id]).replace('—', '')))));
       const blob = new Blob([rows.map(r => r.map(esc).join(',')).join('\n')], { type:'text/csv' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (ev.title || 'form').replace(/[^\w-]+/g, '_') + '-responses.csv'; a.click();
     });
@@ -6841,6 +6902,8 @@ function clubCalForm(ev, presetDate){
     <input id="cfTime" type="text" maxlength="30" placeholder="Time (optional, e.g. 6:30 PM)" value="${escapeCm(ev ? ev.time : '')}" style="${f}">
     <label style="display:block;font-size:12px;color:#776867;margin:0 0 2px;">Last day to RSVP (optional)</label>
     <input id="cfRsvpBy" type="date" value="${escapeCm(ev ? (ev.rsvpBy || '') : '')}" style="${f}">
+    <label style="display:block;font-size:12px;color:#776867;margin:0 0 2px;">🎟️ Max spots (optional — leave empty for no limit; after that people join a waitlist)</label>
+    <input id="cfCap" type="number" inputmode="numeric" min="0" max="5000" placeholder="e.g. 40" value="${ev && ev.capacity ? ev.capacity : ''}" style="${f}">
     <label style="display:block;font-size:12px;color:#776867;margin:0 0 2px;">Place (optional)</label>
     <input id="cfPlace" type="hidden" value="${escapeCm(ev ? ev.place : '')}">
     <div id="cfPlaceSlot"></div>
@@ -6885,7 +6948,7 @@ function clubCalForm(ev, presetDate){
     wrap.querySelector('#cfGuestAdd').addEventListener('click', () => { const inp = wrap.querySelector('#cfGuestName'), nm = inp.value.trim(); if(nm.length < 2) return; picked.push({ name:nm }); inp.value = ''; paintChips(); });
   }
   wrap.querySelector('#cfSave').addEventListener('click', async e => {
-    const body = { title: wrap.querySelector('#cfTitle').value, date: wrap.querySelector('#cfDate').value, time: wrap.querySelector('#cfTime').value, place: wrap.querySelector('#cfPlace').value, mapUrl: cleanMapLink(wrap.querySelector('#cfMap').value), rsvpBy: wrap.querySelector('#cfRsvpBy').value, desc: wrap.querySelector('#cfDesc').value };
+    const body = { title: wrap.querySelector('#cfTitle').value, date: wrap.querySelector('#cfDate').value, time: wrap.querySelector('#cfTime').value, place: wrap.querySelector('#cfPlace').value, mapUrl: cleanMapLink(wrap.querySelector('#cfMap').value), rsvpBy: wrap.querySelector('#cfRsvpBy').value, desc: wrap.querySelector('#cfDesc').value, capacity: parseInt(wrap.querySelector('#cfCap').value, 10) || 0 };
     body.clubIds = [...wrap.querySelectorAll('.cf-club:checked')].map(x => x.value);
     body.tbd = wrap.querySelector('#cfTbd').checked; if(body.tbd){ body.date = ''; body.rsvpBy = ''; }
     body.form = draftForm ? (() => { const c = { ...draftForm }; delete c.rsvpBy; delete c.desc; return c; })() : null; // the date lives in the event's own field above

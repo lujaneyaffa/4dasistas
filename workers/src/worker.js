@@ -1348,7 +1348,122 @@ const checkCalAnswers = (form, raw) => {
   }
   return { answers };
 };
-const calFields = (b) => ({ mapUrl: b.mapUrl ? (isGoogleMapsUrl(b.mapUrl) || "") : "", title: cleanCalText(b.title, 80), date: String(b.date || ""), time: cleanCalText(b.time, 30), place: cleanCalText(b.place, 200), rsvpBy: /^\d{4}-\d{2}-\d{2}$/.test(String(b.rsvpBy || "")) ? String(b.rsvpBy) : "", desc: String(b.desc || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 3000) });
+// ---- BIG EVENTS: capacity + waitlist, safe concurrent sign-ups, reminders ----
+// Spots are claimed with ONE atomic D1 statement (table cal_spots) so two people can never take the last spot; everyone past the limit is "waitlist" (first come, first served).
+// The event list itself is a single KV doc, so every sign-up re-reads it fresh and re-checks after writing (calMutate) — and KV allows ~1 write/second per key, so a rush retries with a short back-off.
+let _spotsReady = null;
+const spotsEnsure = async (env) => {
+  if (!env.DB) return false;
+  if (!_spotsReady) _spotsReady = env.DB.prepare("CREATE TABLE IF NOT EXISTS cal_spots (event_id TEXT NOT NULL, pid TEXT NOT NULL, at INTEGER, PRIMARY KEY (event_id, pid))").run().catch((e) => { _spotsReady = null; throw e; });
+  await _spotsReady; return true;
+};
+const calCap = (ev) => Math.max(0, Number(ev && ev.capacity) || 0);
+const calGoingN = (ev) => (ev.rsvps || []).filter((r) => r.status === "going").length;
+const calWaitPos = (ev, pid) => { const w = (ev.rsvps || []).filter((r) => r.status === "waitlist").sort((a, b) => (a.at || 0) - (b.at || 0)); const i = w.findIndex((r) => r.id === pid); return i < 0 ? 0 : i + 1; };
+const calCapInfo = (ev) => { const cap = calCap(ev); return cap ? { capacity: cap, spotsLeft: Math.max(0, cap - calGoingN(ev)), waitCount: (ev.rsvps || []).filter((r) => r.status === "waitlist").length } : { capacity: 0 }; };
+// Take a spot (atomic). force = an admin adding/accepting someone: always allowed, even over the limit.
+const calClaimSpot = async (env, ev, pid, force) => {
+  const cap = calCap(ev); if (!cap || !(await spotsEnsure(env))) return true;
+  if (force) { await env.DB.prepare("INSERT OR IGNORE INTO cal_spots (event_id, pid, at) VALUES (?, ?, ?)").bind(ev.id, pid, Date.now()).run(); return true; }
+  await env.DB.prepare("INSERT OR IGNORE INTO cal_spots (event_id, pid, at) SELECT ?, ?, ? WHERE (SELECT COUNT(*) FROM cal_spots WHERE event_id = ?) < ?").bind(ev.id, pid, Date.now(), ev.id, cap).run();
+  return !!(await env.DB.prepare("SELECT 1 AS x FROM cal_spots WHERE event_id = ? AND pid = ?").bind(ev.id, pid).first());
+};
+const calSpotStatus = async (env, ev, pid) => ((await calClaimSpot(env, ev, pid, false)) ? "going" : "waitlist");
+const calReleaseSpot = async (env, evId, pid) => { try { if (await spotsEnsure(env)) await env.DB.prepare("DELETE FROM cal_spots WHERE event_id = ? AND pid = ?").bind(evId, pid).run(); } catch {} };
+// Rebuild the claims from the event's current "going" list (used when the limit is first set or changed).
+const calSyncSpots = async (env, ev) => {
+  if (!(await spotsEnsure(env))) return;
+  const stmts = [env.DB.prepare("DELETE FROM cal_spots WHERE event_id = ?").bind(ev.id)];
+  if (calCap(ev)) for (const r of (ev.rsvps || []).filter((x) => x.status === "going")) stmts.push(env.DB.prepare("INSERT OR IGNORE INTO cal_spots (event_id, pid, at) VALUES (?, ?, ?)").bind(ev.id, r.id, r.at || Date.now()));
+  await env.DB.batch(stmts);
+};
+const sleepMs = (n) => new Promise((r) => setTimeout(r, n));
+// A tiny lock in D1 (one atomic statement) so two sign-ups never read-modify-write the same KV doc at once. Expires by itself after 8s.
+let _lockReady = null;
+const calWithLock = async (env, key, fn) => {
+  let held = false;
+  try {
+    if (env.DB) {
+      if (!_lockReady) _lockReady = env.DB.prepare("CREATE TABLE IF NOT EXISTS cal_locks (k TEXT PRIMARY KEY, exp INTEGER NOT NULL)").run().catch((e) => { _lockReady = null; throw e; });
+      await _lockReady;
+      for (let i = 0; i < 50 && !held; i++) {
+        const r = await env.DB.prepare("INSERT INTO cal_locks (k, exp) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET exp = excluded.exp WHERE cal_locks.exp < ?").bind(key, Date.now() + 8000, Date.now()).run();
+        if (r && r.meta && r.meta.changes > 0) held = true; else await sleepMs(100 + (i % 5) * 40);
+      }
+    }
+  } catch (e) { console.log("calWithLock", String(e && e.message)); }
+  try { return await fn(); }
+  finally { if (held) await env.DB.prepare("DELETE FROM cal_locks WHERE k = ?").bind(key).run().catch(() => {}); }
+};
+// Fresh read → change → write → check it stuck (KV is one doc for all events, so two sign-ups at once could otherwise overwrite each other).
+const calMutate = (env, evId, fn, verify) => calWithLock(env, "cal:events", () => calMutateRaw(env, evId, fn, verify));
+const calMutateRaw = async (env, evId, fn, verify) => {
+  for (let i = 0; i < 5; i++) {
+    try {
+      const all = await readClubCal(env), ev = all.find((e) => e.id === evId); if (!ev) return null;
+      fn(ev); await writeClubCal(env, all);
+      const chk = (await readClubCal(env)).find((e) => e.id === evId);
+      if (chk && (!verify || verify(chk))) return chk;
+    } catch (e) { console.log("calMutate retry", String(e && e.message)); }
+    await sleepMs(350 * (i + 1));
+  }
+  return null;
+};
+const calAddRsvp = (env, evId, entry) => calMutate(env, evId, (ev) => { ev.rsvps = (ev.rsvps || []).filter((r) => r.id !== entry.id).concat([entry]); }, (chk) => (chk.rsvps || []).some((r) => r.id === entry.id));
+const calDropRsvp = (env, evId, pid) => calMutate(env, evId, (ev) => { ev.rsvps = (ev.rsvps || []).filter((r) => r.id !== pid); }, (chk) => !(chk.rsvps || []).some((r) => r.id === pid));
+// A person's saved form answers live in one KV map per event; same fresh-write-verify treatment. Returns the merged map.
+const calFormPut = (env, evId, pid, entry) => calWithLock(env, "calform:" + evId, () => calFormPutRaw(env, evId, pid, entry));
+const calFormPutRaw = async (env, evId, pid, entry) => {
+  for (let i = 0; i < 5; i++) {
+    try {
+      let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(evId))) || "{}") || {}; } catch {}
+      map[pid] = entry; await env.SITE_DATA.put(calFormKey(evId), JSON.stringify(map));
+      let chk = {}; try { chk = JSON.parse((await env.SITE_DATA.get(calFormKey(evId))) || "{}") || {}; } catch {}
+      if (chk[pid]) return chk;
+    } catch (e) { console.log("calFormPut retry", String(e && e.message)); }
+    await sleepMs(350 * (i + 1));
+  }
+  return { [pid]: entry };
+};
+// Someone left (or was removed): free their spot, then move the first people on the waitlist up and tell them.
+const calPromote = async (env, ctx, evId) => {
+  try {
+    const ev0 = (await readClubCal(env)).find((e) => e.id === evId); if (!ev0 || ev0.tbd) return;
+    const waiters = (ev0.rsvps || []).filter((r) => r.status === "waitlist").sort((a, b) => (a.at || 0) - (b.at || 0)), moved = [];
+    for (const r of waiters) { if (!calCap(ev0)) { moved.push(r.id); continue; } if (!(await calClaimSpot(env, ev0, r.id, false))) break; moved.push(r.id); } // no limit any more: everyone waiting is in
+    if (!moved.length) return;
+    const ev = await calMutate(env, evId, (e) => { for (const r of e.rsvps || []) if (moved.includes(r.id) && r.status === "waitlist") r.status = "going"; });
+    for (const id of moved) if (!String(id).startsWith("g:") && ev) ctx.waitUntil(sendPushToUser(env, id, { title: "A spot opened up! 🎉", body: `You're now going to ${ev.title} (${ev.date}).`, url: `/#/form/${ev.id}`, cat: "events" }).catch(() => {}));
+  } catch (e) { console.error("calPromote failed", String(e && e.message)); }
+};
+const calAfterRemoval = async (env, ctx, evId, pid) => { await calReleaseSpot(env, evId, pid); await calPromote(env, ctx, evId); };
+// Automatic reminders (run from the hourly cron, Toronto 8am–8pm): 2 days before and the morning of, to everyone going who has the app/push on.
+// A few people per run (each push costs several subrequests) with progress kept in KV, so a big event is covered within a few hours.
+const calSendReminders = async (env, ctx) => {
+  const hr = Number(new Date().toLocaleString("en-CA", { timeZone: "America/Toronto", hour: "2-digit", hour12: false })) % 24;
+  if (hr < 8 || hr >= 20) return;
+  const todayT = new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+  const soonT = new Date(Date.parse(todayT + "T12:00:00Z") + 2 * 86400000).toISOString().slice(0, 10);
+  let budget = 10;
+  for (const ev of await readClubCal(env)) {
+    if (budget <= 0) break;
+    if (ev.tbd || !ev.date || (ev.date !== todayT && ev.date !== soonT)) continue;
+    const kind = ev.date === todayT ? "day" : "soon", key = `evrem:${ev.id}:${kind}`;
+    let st = {}; try { st = JSON.parse((await env.SITE_DATA.get(key)) || "{}") || {}; } catch {}
+    if (st.done) continue;
+    const sent = new Set(st.sent || []);
+    const todo = (ev.rsvps || []).filter((r) => r.status === "going" && !String(r.id).startsWith("g:") && !sent.has(r.id)).slice(0, budget);
+    for (const r of todo) {
+      const owes = ev.form && ev.form.payment && !r.paid;
+      const when = kind === "day" ? "today" : "in 2 days";
+      try { await sendPushToUser(env, r.id, { title: kind === "day" ? `Today: ${ev.title} 🎉` : `${ev.title} is ${when}`, body: [ev.time ? `⏰ ${ev.time}` : "", ev.place ? `📍 ${ev.place}` : "", owes ? "💳 Don't forget to pay — details on the event page" : ""].filter(Boolean).join(" · ") || "Tap for the details", url: `/#/form/${ev.id}`, cat: "events" }); } catch {}
+      sent.add(r.id); budget--;
+    }
+    const left = (ev.rsvps || []).filter((r) => r.status === "going" && !String(r.id).startsWith("g:") && !sent.has(r.id)).length;
+    await env.SITE_DATA.put(key, JSON.stringify({ sent: [...sent], done: left === 0 }), { expirationTtl: 259200 });
+  }
+};
+const calFields = (b) => ({ mapUrl: b.mapUrl ? (isGoogleMapsUrl(b.mapUrl) || "") : "", title: cleanCalText(b.title, 80), date: String(b.date || ""), time: cleanCalText(b.time, 30), place: cleanCalText(b.place, 200), rsvpBy: /^\d{4}-\d{2}-\d{2}$/.test(String(b.rsvpBy || "")) ? String(b.rsvpBy) : "", desc: String(b.desc || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 3000), capacity: Math.max(0, Math.min(5000, parseInt(b.capacity, 10) || 0)) });
 const isValidDateString = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + "T00:00:00Z"));
 
 const dateRange = (startDate, endDate) => {
@@ -2095,7 +2210,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ results: _memberSearchCache.people.filter((p) => p.low.includes(q)).slice(0, 6).map((p) => ({ username: p.username, name: short(p.name) })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     // ---- Club calendar (public list; member details + RSVP) ----
-    const calMatch = path.match(/^\/api\/club-calendar(?:\/([^/]+)(\/rsvp|\/form|\/attendees|\/interest)?)?\/?$/);
+    const calMatch = path.match(/^\/api\/club-calendar(?:\/([^/]+)(\/rsvp|\/form|\/attendees|\/interest|\/paid)?)?\/?$/);
     if (calMatch) {
       const M = request.method;
       const roster = await readClubRoster(env);
@@ -2145,7 +2260,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!who || !(who.id.startsWith("m:") || who.id === "admin")) {
           // A PUBLICIZED event (publicForm): anyone can open its form straight away and submit it with just a name — no account needed.
           if (ev.form) { // ANY event with a form can be filled in without an account
-            if (!calMatch[2] && M === "GET") return jsonResponse({ id: ev.id, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", publicForm: true, form: ev.form, guest: true, rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) }, 200, corsHeaders);
+            if (!calMatch[2] && M === "GET") return jsonResponse({ id: ev.id, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", publicForm: true, form: ev.form, guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) }, 200, corsHeaders);
             if (calMatch[2] === "/form" && M === "POST") {
               if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
               let fb; try { fb = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
@@ -2157,13 +2272,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
                 if (chk0.error) return jsonResponse({ error: chk0.error }, 400, corsHeaders);
                 const made = await createMemberFromForm(env, ctx, ideaIp, fb);
                 if (made.error) return jsonResponse({ error: made.error }, made.status, corsHeaders);
-                let map0 = {}; try { map0 = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
-                { const sel = calAddonSelection(ev.form, fb.addons); map0[made.user.id] = { name: made.user.name, answers: chk0.answers, at: Date.now(), ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }; }
-                await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map0));
-                ev.rsvps = (ev.rsvps || []).concat([{ id: made.user.id, name: made.user.name, status: "going", at: Date.now(), viaForm: true }]);
-                await writeClubCal(env, all);
+                { const sel = calAddonSelection(ev.form, fb.addons); await calFormPut(env, ev.id, made.user.id, { name: made.user.name, answers: chk0.answers, at: Date.now(), ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }); }
+                const st0 = await calSpotStatus(env, ev, made.user.id);
+                { const c0 = await calAddRsvp(env, ev.id, { id: made.user.id, name: made.user.name, status: st0, at: Date.now(), viaForm: true }); if (c0) ev.rsvps = c0.rsvps; }
                 notifyAdminOfFormSignup(env, ctx, ev, { name: made.user.name, phone: made.user.phone, newAccount: true }, chk0.answers, calAddonSelection(ev.form, fb.addons));
-                return jsonResponse({ ok: true, created: true, token: made.token, ...publicUser(made.user), clubs: [], waitlist: [] }, 201, corsHeaders);
+                return jsonResponse({ ok: true, created: true, eventStatus: st0, token: made.token, ...publicUser(made.user), clubs: [], waitlist: [] }, 201, corsHeaders);
               }
               const nm = sanitizePersonName(fb && fb.name);
               if (nm.length < 2) return jsonResponse({ error: "Please type your name" }, 400, corsHeaders);
@@ -2173,12 +2286,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
               if (Object.keys(map).length >= 1500) return jsonResponse({ error: "This form is full" }, 400, corsHeaders);
               const gid = `g:${crypto.randomUUID().slice(0, 10)}`;
-              { const sel = calAddonSelection(ev.form, fb && fb.addons); map[gid] = { name: nm, contact, answers: chk.answers, at: Date.now(), guest: true, ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }; }
-              await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map));
-              ev.rsvps = ev.rsvps || []; ev.rsvps.push({ id: gid, name: nm, status: "going", at: Date.now(), guest: true, viaForm: true }); // shows in the attendee list too
-              await writeClubCal(env, all);
+              { const sel = calAddonSelection(ev.form, fb && fb.addons); await calFormPut(env, ev.id, gid, { name: nm, contact, answers: chk.answers, at: Date.now(), guest: true, ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }); }
+              const stG = await calSpotStatus(env, ev, gid);
+              await calAddRsvp(env, ev.id, { id: gid, name: nm, status: stG, at: Date.now(), guest: true, viaForm: true }); // shows in the attendee list too
               notifyAdminOfFormSignup(env, ctx, ev, { name: nm, contact }, chk.answers, calAddonSelection(ev.form, fb && fb.addons));
-              return jsonResponse({ ok: true }, 200, corsHeaders);
+              return jsonResponse({ ok: true, eventStatus: stG }, 200, corsHeaders);
             }
           }
           return jsonResponse({ error: "Log in or sign up to see event details and RSVP" }, 401, corsHeaders);
@@ -2190,7 +2302,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!calMatch[2] && M === "GET") {
           return jsonResponse({ id: ev.id, clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy),
             going: (ev.rsvps || []).filter((r) => r.status === "going").length, mine: mine ? mine.status : null, inClub,
-            publicForm: !!ev.form, form: ev.form || null, myAddons: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).addons || []) : [], myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, 200, corsHeaders);
+            publicForm: !!ev.form, form: ev.form || null, ...calCapInfo(ev), waitPos: mine && mine.status === "waitlist" ? calWaitPos(ev, uid) : 0, claimedPaid: !!(mine && mine.claimedPaid), paid: !!(mine && mine.paid), myAddons: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).addons || []) : [], myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, 200, corsHeaders);
         }
         if (calMatch[2] === "/form" && M === "POST") {
           if (!uid) return jsonResponse({ error: "Sign in as a member to fill the form" }, 403, corsHeaders);
@@ -2203,17 +2315,20 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           const wasIn = (ev.rsvps || []).find((r) => r.id === uid);
           if (!wasIn && ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) return jsonResponse({ error: "Sign-ups for this event are closed" }, 400, corsHeaders);
           if (!wasIn && ev.date < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "This event has already happened" }, 400, corsHeaders);
-          { const sel = calAddonSelection(ev.form, fb && fb.addons); map[uid] = { name: who.name, answers: chk.answers, at: Date.now(), ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }; }
-          await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map));
+          { const sel = calAddonSelection(ev.form, fb && fb.addons); map = await calFormPut(env, ev.id, uid, { name: who.name, answers: chk.answers, at: Date.now(), ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }); }
           // Submitting the form IS the RSVP: club members are going at once, people from other clubs wait for approval.
           let status = wasIn ? wasIn.status : null;
           if (!wasIn) {
-            status = "going"; // a form sign-up is open to everyone: filling it in IS the RSVP
-            ev.rsvps = (ev.rsvps || []).concat([{ id: uid, name: who.name, status, at: Date.now(), viaForm: true }]);
-            await writeClubCal(env, all);
+            status = await calSpotStatus(env, ev, uid); // a form sign-up is open to everyone: filling it in IS the RSVP (past the limit = waitlist)
+            { const c1 = await calAddRsvp(env, ev.id, { id: uid, name: who.name, status, at: Date.now(), viaForm: true }); if (c1) ev.rsvps = c1.rsvps; }
             notifyAdminOfFormSignup(env, ctx, ev, { name: who.name, newAccount: false }, chk.answers, calAddonSelection(ev.form, fb && fb.addons));
           }
-          return jsonResponse({ ok: true, answers: chk.answers, addons: (map[uid] || {}).addons || [], total: (map[uid] || {}).total ?? null, mine: status, going: (ev.rsvps || []).filter((r) => r.status === "going").length }, 200, corsHeaders);
+          return jsonResponse({ ok: true, answers: chk.answers, addons: (map[uid] || {}).addons || [], total: (map[uid] || {}).total ?? null, mine: status, waitPos: status === "waitlist" ? calWaitPos(ev, uid) : 0, going: (ev.rsvps || []).filter((r) => r.status === "going").length }, 200, corsHeaders);
+        }
+        if (calMatch[2] === "/paid" && M === "POST") { // "I've sent my payment": a flag the organiser sees next to the person's name until they confirm it
+          if (!uid || !mine) return jsonResponse({ error: "Sign up for the event first" }, 403, corsHeaders);
+          await calMutate(env, ev.id, (e) => { const r = (e.rsvps || []).find((x) => x.id === uid); if (r && !r.paid) r.claimedPaid = Date.now(); });
+          return jsonResponse({ ok: true }, 200, corsHeaders);
         }
         if (calMatch[2] === "/interest" && (M === "POST" || M === "DELETE")) {
           if (!uid || !ev.tbd) return jsonResponse({ error: "Sign in as a member to show interest" }, 403, corsHeaders);
@@ -2234,13 +2349,12 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
           if (M === "POST" && ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) return jsonResponse({ error: "RSVPs for this event are closed" }, 400, corsHeaders);
           if (M === "POST" && ev.date < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "This event has already happened" }, 400, corsHeaders);
-          ev.rsvps = (ev.rsvps || []).filter((r) => r.id !== uid);
           let status = null;
-          if (M === "POST") {
-            status = inClub ? "going" : "pending";
-            ev.rsvps.push({ id: uid, name: who.name, status, at: Date.now() });
+          if (M === "DELETE") { const c2 = await calDropRsvp(env, ev.id, uid); ev.rsvps = c2 ? c2.rsvps : (ev.rsvps || []).filter((r) => r.id !== uid); ctx.waitUntil(calAfterRemoval(env, ctx, ev.id, uid)); }
+          else {
+            status = inClub ? await calSpotStatus(env, ev, uid) : "pending";
+            const c3 = await calAddRsvp(env, ev.id, { id: uid, name: who.name, status, at: Date.now() }); ev.rsvps = c3 ? c3.rsvps : (ev.rsvps || []).filter((r) => r.id !== uid).concat([{ id: uid, name: who.name, status, at: Date.now() }]);
           }
-          await writeClubCal(env, all);
           if (status === "pending" && !mine) {
             const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
             const html = emailShell(env, { emoji: "🎟️", title: "RSVP request", preheader: `${who.name} → ${ev.title}`,
@@ -2248,7 +2362,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               footer: "Accept or decline from the event's attendee list on the Club calendar." });
             sendAdminEmail(env, ctx, `RSVP request: ${who.name} → ${ev.title}`, html);
           }
-          return jsonResponse({ ok: true, mine: status, going: ev.rsvps.filter((r) => r.status === "going").length }, 200, corsHeaders);
+          return jsonResponse({ ok: true, mine: status, waitPos: status === "waitlist" ? calWaitPos(ev, uid) : 0, going: ev.rsvps.filter((r) => r.status === "going").length }, 200, corsHeaders);
         }
       }
     }
@@ -4440,9 +4554,9 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const ev = (await readClubCal(env)).find((e) => e.id === adminCalRespMatch[1]);
       if (!ev || (leadCtx && !(Array.isArray(ev.formLeads) && ev.formLeads.includes(leadCtx.username)))) return jsonResponse({ error: leadCtx && ev ? "Ask the main admin to give you access to this event's form" : "Event not found" }, leadCtx && ev ? 403 : 404, corsHeaders);
       let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
-      return jsonResponse({ form: ev.form || null, responses: Object.keys(map).map((uid) => ({ userId: uid, name: map[uid].name, contact: map[uid].contact || "", guest: !!map[uid].guest, paid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).paid, addons: map[uid].addons || [], total: map[uid].total ?? null, answers: map[uid].answers, at: map[uid].at })).sort((a, b) => a.at - b.at) }, 200, corsHeaders);
+      return jsonResponse({ form: ev.form || null, responses: Object.keys(map).map((uid) => ({ userId: uid, name: map[uid].name, contact: map[uid].contact || "", guest: !!map[uid].guest, paid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).paid, claimedPaid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).claimedPaid, status: ((ev.rsvps || []).find((x) => x.id === uid) || {}).status || "", addons: map[uid].addons || [], total: map[uid].total ?? null, answers: map[uid].answers, at: map[uid].at })).sort((a, b) => a.at - b.at) }, 200, corsHeaders);
     }
-    const adminCalMatch = path.match(/^\/api\/admin\/club-cal(?:\/([^/]+)(?:\/rsvp\/([^/]+)\/(accept|decline|remove|add|paid|unpaid))?)?\/?$/);
+    const adminCalMatch = path.match(/^\/api\/admin\/club-cal(?:\/([^/]+)(?:\/rsvp\/([^/]+)\/(accept|decline|remove|add|paid|unpaid)|\/(message))?)?\/?$/);
     if (adminCalMatch) {
       const M = request.method;
       const canClub = (cid) => !leadCtx || leadCtx.clubs.includes(cid);
@@ -4451,7 +4565,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const canEv = (e) => calClubs(e).some(canClub) || canForm(e);
       const roster = await readClubRoster(env);
       const clubTitle = (id) => (roster.find((c) => c.id === id) || {}).title || "";
-      const view = (e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", form: canForm(e) ? (e.form || null) : null, hasForm: !!e.form, canForm: canForm(e), ...(leadCtx ? {} : { formLeads: e.formLeads || [] }), publicForm: !!e.publicForm, rsvps: e.rsvps || [], ...(e.tbd ? { tbd: true, interest: e.interest || [] } : {}) });
+      const view = (e) => ({ id: e.id, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", form: canForm(e) ? (e.form || null) : null, hasForm: !!e.form, canForm: canForm(e), ...(leadCtx ? {} : { formLeads: e.formLeads || [] }), publicForm: !!e.publicForm, capacity: calCap(e), rsvps: e.rsvps || [], ...(e.tbd ? { tbd: true, interest: e.interest || [] } : {}) });
       const all = await readClubCal(env);
       if (!adminCalMatch[1] && M === "GET") return jsonResponse({ events: all.filter(canEv).sort((a, b) => a.date.localeCompare(b.date)).map(view) }, 200, corsHeaders);
       let body = {};
@@ -4491,6 +4605,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (f.title.length < 3) return jsonResponse({ error: "Give the event a name (3+ letters)" }, 400, corsHeaders);
         const wantTbd = body.tbd !== undefined ? !!body.tbd : !!ev.tbd;
         if (wantTbd) { f.date = ""; f.rsvpBy = ""; } else if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
+        const capBefore = calCap(ev);
         Object.assign(ev, f);
         if (wantTbd) { ev.tbd = true; ev.interest = ev.interest || []; } else delete ev.tbd; // (the interest list stays on the event so the admin still sees who was keen)
         if (body.form !== undefined) { // (a club admin without access never sees the form, so their edit of the event details must not touch it)
@@ -4506,9 +4621,20 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         }
         if (body.publicForm !== undefined) { if (body.publicForm) ev.publicForm = true; else delete ev.publicForm; }
         await writeClubCal(env, all);
+        if (calCap(ev) !== capBefore) ctx.waitUntil((async () => { await calSyncSpots(env, ev); await calPromote(env, ctx, ev.id); })()); // limit changed: rebuild the claims, and let waitlisted people in if there's room now
         return jsonResponse({ ok: true, event: view(ev) }, 200, corsHeaders);
       }
-      if (!adminCalMatch[2] && M === "DELETE") { await writeClubCal(env, all.filter((e) => e.id !== ev.id)); await env.SITE_DATA.delete(calFormKey(ev.id)).catch(() => {}); return jsonResponse({ ok: true }, 200, corsHeaders); }
+      if (!adminCalMatch[2] && M === "DELETE") { await writeClubCal(env, all.filter((e) => e.id !== ev.id)); await env.SITE_DATA.delete(calFormKey(ev.id)).catch(() => {}); ctx.waitUntil(calSyncSpots(env, { id: ev.id, capacity: 0 }).catch(() => {})); return jsonResponse({ ok: true }, 200, corsHeaders); }
+      if (adminCalMatch[4] === "message" && M === "POST") { // message everyone who's going (a few at a time: the page calls again with `offset` until `next` is null)
+        const text = String(body.text || "").replace(/[\x00-\x1f\x7f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, 300);
+        if (text.length < 3) return jsonResponse({ error: "Write the message first (3+ letters)" }, 400, corsHeaders);
+        const aud = body.audience === "waitlist" ? ["waitlist"] : body.audience === "all" ? ["going", "waitlist"] : ["going"];
+        const targets = (ev.rsvps || []).filter((r) => aud.includes(r.status)), members = targets.filter((r) => !String(r.id).startsWith("g:"));
+        const off = Math.max(0, parseInt(body.offset, 10) || 0), batch = members.slice(off, off + 10);
+        let reached = 0;
+        for (const r of batch) { try { const res = await sendPushToUser(env, r.id, { title: cleanCalText(body.title, 60) || ev.title, body: text, url: `/#/form/${ev.id}`, cat: "events" }); if (res.sent > 0) reached++; } catch {} }
+        return jsonResponse({ ok: true, total: members.length, noProfile: targets.length - members.length, reached, next: off + batch.length >= members.length ? null : off + batch.length }, 200, corsHeaders);
+      }
       if (adminCalMatch[2] && M === "POST" && adminCalMatch[3] === "add") {
         // Mark someone as having come along (used for past events, also for people who never RSVPed).
         if (adminCalMatch[2] === "guest") { // someone WITHOUT a profile: just a name
@@ -4516,7 +4642,9 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           const gname = sanitizePersonName(gb.name);
           if (gname.length < 2) return jsonResponse({ error: "Type their name (2+ letters)" }, 400, corsHeaders);
           ev.rsvps = ev.rsvps || [];
-          ev.rsvps.push({ id: `g:${crypto.randomUUID().slice(0, 12)}`, name: gname, status: "going", at: Date.now(), added: true, guest: true });
+          const gid2 = `g:${crypto.randomUUID().slice(0, 12)}`;
+          ev.rsvps.push({ id: gid2, name: gname, status: "going", at: Date.now(), added: true, guest: true });
+          await calClaimSpot(env, ev, gid2, true);
           await writeClubCal(env, all);
           return jsonResponse({ ok: true, event: view(ev) }, 200, corsHeaders);
         }
@@ -4524,6 +4652,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!u) return jsonResponse({ error: "That member no longer exists" }, 404, corsHeaders);
         ev.rsvps = (ev.rsvps || []).filter((x) => x.id !== u.id);
         ev.rsvps.push({ id: u.id, name: sanitizePersonName(u.name) || "Member", status: "going", at: Date.now(), added: true });
+        await calClaimSpot(env, ev, u.id, true);
         await writeClubCal(env, all);
         return jsonResponse({ ok: true, event: view(ev) }, 200, corsHeaders);
       }
@@ -4531,11 +4660,13 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const r = (ev.rsvps || []).find((x) => x.id === adminCalMatch[2]);
         if (!r) return jsonResponse({ error: "Not on the list" }, 404, corsHeaders);
         if ((adminCalMatch[3] === "paid" || adminCalMatch[3] === "unpaid") && !canForm(ev)) return jsonResponse({ error: "Ask the main admin to give you access to this event's form" }, 403, corsHeaders);
-        if (adminCalMatch[3] === "accept") r.status = "going";
-        else if (adminCalMatch[3] === "paid") r.paid = true;
+        let freed = false;
+        if (adminCalMatch[3] === "accept") { r.status = "going"; await calClaimSpot(env, ev, r.id, true); } // the organiser can always let someone in, even over the limit
+        else if (adminCalMatch[3] === "paid") { r.paid = true; delete r.claimedPaid; }
         else if (adminCalMatch[3] === "unpaid") delete r.paid;
-        else ev.rsvps = ev.rsvps.filter((x) => x.id !== r.id);
+        else { ev.rsvps = ev.rsvps.filter((x) => x.id !== r.id); freed = true; }
         await writeClubCal(env, all);
+        if (freed) ctx.waitUntil(calAfterRemoval(env, ctx, ev.id, r.id));
         return jsonResponse({ ok: true, event: view(ev) }, 200, corsHeaders);
       }
       return jsonResponse({ error: "Not found" }, 404, corsHeaders);
@@ -5023,7 +5154,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
   },
 
   async scheduled(controller, env, ctx) {
-    if (controller.cron === "23 * * * *") { // hourly: refresh everyone who gets steps from Google Health, so the leaderboard is current even if they don't open the app
+    if (controller.cron === "23 * * * *") { // hourly: event reminders (a few people per run), then refresh everyone who gets steps from Google Health, so the leaderboard is current even if they don't open the app
+      ctx.waitUntil(calSendReminders(env, ctx).catch((e) => console.log("event reminders failed", String(e && e.message))));
       ctx.waitUntil((async () => { try { if (!(await ghEnsure(env)) || !(await stepsEnsure(env))) return; const rows = (await env.DB.prepare("SELECT g.user_id AS u FROM gh_tokens g JOIN step_sources s ON s.user_id = g.user_id AND s.source = 'googlehealth'").all()).results || []; for (const r of rows.slice(0, 40)) { try { await ghSync(env, r.u); } catch (e) { console.log("gh hourly", String(e && e.message)); } } _stepsPublicMemo = { at: 0, data: null }; } catch (e) { console.log("gh hourly failed", String(e && e.message)); } })());
       return;
     }
