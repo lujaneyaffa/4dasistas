@@ -3499,7 +3499,8 @@ function wireStayPage(){
 function renderEventFormPage(el){
   const id = state.formEventId;
   document.getElementById('resourcePagination').innerHTML = '';
-  el.innerHTML = `<div class="rules-content efPage" style="max-width:640px;margin:0 auto;"><div id="efBox" style="margin-top:8px;display:flex;flex-direction:column;"><p class="av-msg">Loading…</p></div></div>`;
+  el.innerHTML = `<div class="rules-content efPage" style="max-width:640px;margin:0 auto;">${state.formFromApp ? '<button type="button" class="back-btn" id="efBack" style="display:block;margin:0 0 6px;">← Back</button>' : ''}<div id="efBox" style="margin-top:8px;display:flex;flex-direction:column;"><p class="av-msg">Loading…</p></div></div>`;
+  { const bb = document.getElementById('efBack'); if(bb) bb.addEventListener('click', () => { state.formFromApp = false; goBackOnePage(); }); }
   const box = document.getElementById('efBox');
   if(getCmSession()) clubCalMemberCard(box, id); else clubCalPublicCard(box, id);
   window.scrollTo({ top:0 });
@@ -6309,7 +6310,9 @@ function clubCalIdeaPopup(e){
 }
 function openEventFormPage(id){
   document.querySelectorAll('.mem-pop').forEach(x => x.remove());
-  const known = (state.clubCal || []).find(e => e.id === id); state.formEventId = (known && known.slug) || id; state.tab = 'eventform'; // readable link when we know it
+  const known = (state.clubCal || []).find(e => e.id === id); state.formEventId = (known && known.slug) || id; // readable link when we know it
+  if(state.tab !== 'eventform'){ (state.tabHistory = state.tabHistory || []).push(state.tab); if(state.tabHistory.length > 20) state.tabHistory.shift(); state.formFromApp = true; } // opened from inside the app/site: this page gets a Back button (a shared link doesn't)
+  state.tab = 'eventform';
   render();
 }
 async function clubCalOpen(id){
@@ -12675,7 +12678,7 @@ function currentSlugParts(){
 function applySlugParts(parts){
   const [slug, ...rest] = parts;
   // A shared FORM link (#/form/<event id>): land on Clubs and open that event's form straight away.
-  if(slug === 'form' && rest[0]){ state.tab = 'eventform'; state.formEventId = safeDecode(rest[0]); return; }
+  if(slug === 'form' && rest[0]){ state.formFromApp = false; state.tab = 'eventform'; state.formEventId = safeDecode(rest[0]); return; }
   if(slug === 'edit-event' && rest[0]){ state.tab = 'eventedit'; state.editToken = safeDecode(rest[0]); return; } // the private "anyone with this link can edit the page" link
   let tab = slug === 'squads' ? 'clubs' : (SLUG_TO_TAB[slug] || slug); // squads no longer exist: old links land on Clubs
   if(tab === 'steps'){ state.stepsData = null; }
