@@ -2452,8 +2452,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!ev) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
         if (!who || !(who.id.startsWith("m:") || who.id === "admin")) {
           // A PUBLICIZED event (publicForm): anyone can open its form straight away and submit it with just a name — no account needed.
+          if (!calMatch[2] && M === "GET") return jsonResponse({ id: ev.id, slug: ev.slug, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], clubIds: calClubs(ev), publicForm: !!ev.form, form: ev.form || null, guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) }, 200, corsHeaders);
           if (ev.form) { // ANY event with a form can be filled in without an account
-            if (!calMatch[2] && M === "GET") return jsonResponse({ id: ev.id, slug: ev.slug, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], clubIds: calClubs(ev), publicForm: true, form: ev.form, guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) }, 200, corsHeaders);
             if (calMatch[2] === "/form" && M === "POST") {
               if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
               let fb; try { fb = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }

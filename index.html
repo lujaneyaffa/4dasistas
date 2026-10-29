@@ -6365,12 +6365,7 @@ async function clubCalOpen(id){
   // An event WITH a form opens the form as its own page. The list may not say (or may not be loaded), so ask the server when unsure.
   let hasForm = ev ? !!(ev.hasForm || ev.form || ev.publicForm) : null;
   if(hasForm === null){ try { const d0 = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id), { headers: ideaHeaders() }); hasForm = !!d0.form; } catch { hasForm = false; } }
-  if(hasForm){ openEventFormPage(id); return; }
-  if(!getCmSession()){ clubCalPublicPopup(id); return; } // no form: logged-out people are asked to log in or sign up
-  const { wrap } = ideaPopup(`<p class="av-msg">Loading…</p>`);
-  const box = document.createElement('div'); wrap.querySelector('.idea-pop-card').appendChild(box);
-  wrap.querySelector('.idea-pop-card .av-msg').remove();
-  await clubCalMemberCard(box, id);
+  openEventFormPage(id); // every event (with a form or without) opens as the same full page
 }
 // A PUBLICIZED event's form for someone who isn't logged in: opens at once, needs just a name (and optional contact).
 function clubCalPublicPopup(id){
@@ -6383,6 +6378,19 @@ async function clubCalPublicCard(box, id){
   try {
     const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id)); calUpgradeUrl(d);
     const inp = 'class="fb-in"';
+    if(!d.form){ // no sign-up form: the same page, with Log in / Sign up to RSVP
+      const past = calIsPast(d.date);
+      box.innerHTML = `${calCoverHtml(d)}${calHostsHtml(d)}<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p><h3 style="margin:0 0 6px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>
+        <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calPriceHtml(d)}
+        ${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}${calDescHtml(d)}
+        ${d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}${past ? '' : calSpotsHtml(d)}
+        ${past ? '<p class="av-msg" style="margin:8px 0 0;">This event has already happened.</p>' : `<p class="av-msg" style="margin:10px 0;">Log in or sign up to RSVP.</p><div style="display:flex;gap:10px;"><button type="button" class="club-guide-btn pfL" style="flex:1;text-align:center;">Log In</button><button type="button" class="fall-cta-btn join-club-btn pfS" style="flex:1;">Sign Up</button></div>`}
+        <div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`;
+      wireCalCopy(box); calAttendeesInto(box, id, d.date);
+      const lb = box.querySelector('.pfL'); if(lb) lb.addEventListener('click', () => { calRememberOpen(id); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); });
+      const sb = box.querySelector('.pfS'); if(sb) sb.addEventListener('click', () => { calRememberOpen(id); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); goToTab('fallsignup'); });
+      return;
+    }
     box.innerHTML = `${calCoverHtml(d)}${calHostsHtml(d)}<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p><h3 style="margin:0 0 4px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>
       <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calPriceHtml(d)}${d.rsvpBy ? `<p style="margin:4px 0;font-weight:700;color:${d.closed ? '#b3261e' : '#76220b'};">⏳ ${d.closed ? 'Sign-ups are closed' : 'Sign up by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}${calDescHtml(d)}
       ${d.closed ? '<p style="font-weight:700;">🔒 Sign-ups are closed.</p>' : ''}${calSpotsHtml(d)}
@@ -6482,6 +6490,11 @@ async function clubCalPublicCard(box, id){
 // One event's full details + RSVP button, painted into `box` (used by the single-event popup and by the day popup that lists several).
 // Dropping out of an event: ask first, then offer a pre-written WhatsApp message to the organiser (the 4DASISTAS WhatsApp username).
 const ORGANISER_WA_USERNAME = '4dasistas';
+// Someone who isn't in the event's club asks the organisers (on WhatsApp) whether there is still room.
+function calAskMessage(d){
+  const me = getCmSession() || {}, mine = (me.clubs || []).map(c => (clubsData.find(x => x.id === c) || {}).title).filter(Boolean), when = d.date ? ' on ' + ideaLongDate(d.date) : '';
+  return `Hi 4DASISTAS! 🌸 I'm ${me.name || 'a member'}${me.username ? ' (username: ' + me.username + ')' : ''}${mine.length ? ' from the ' + mine.join(' & ') + ' club' : ''}. I'd like to know if there are still spots available in the "${d.title}" event${when}. Thank you so much!`;
+}
 function calCancelMessage(d){
   const me = getCmSession() || {}, when = d.date ? ' on ' + ideaLongDate(d.date) : '';
   return `Hi 4DASISTAS! 🌸 This is ${me.name || 'a member'}${me.username ? ' (username: ' + me.username + ')' : ''}. I'm sorry, I can no longer come to "${d.title}"${when}, so I've cancelled my registration in the app.${d.paid || d.claimedPaid ? ' I had already paid for my spot, so could you let me know about the payment? ' : ' '}Thank you so much!`;
@@ -6535,8 +6548,8 @@ async function clubCalMemberCard(box, id){
         ${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}
         ${calDescHtml(d)}
         ${d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}
-        <p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} ${past ? 'attended' : 'going'}${past || d.inClub || d.form ? '' : ' · you\'re not in this club, so an admin approves your RSVP'}</p>${past ? '' : calSpotsHtml(d)}
-        ${d.form ? `<p style="margin:6px 0;font-weight:700;">${past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — we'll move you up if a spot opens` : d.mine === 'pending' ? '⏳ Requested — waiting for approval' : d.closed ? '🔒 Sign-ups are closed' : d.capacity && !d.spotsLeft ? 'Fill in the form below to join the waitlist 👇' : 'Fill in the form below to sign up 👇'}</p>${d.mine && !past ? '<button type="button" class="av-link calRsvpBtn">Cancel my RSVP</button>' : ''}` : `<button type="button" class="club-guide-btn calRsvpBtn" ${(d.closed || past) && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>`}
+        <p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} ${past ? 'attended' : 'going'}</p>${past ? '' : calSpotsHtml(d)}
+        ${d.form ? `<p style="margin:6px 0;font-weight:700;">${past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — we'll move you up if a spot opens` : d.mine === 'pending' ? '⏳ Requested — waiting for approval' : d.closed ? '🔒 Sign-ups are closed' : d.capacity && !d.spotsLeft ? 'Fill in the form below to join the waitlist 👇' : 'Fill in the form below to sign up 👇'}</p>${d.mine && !past ? '<button type="button" class="av-link calRsvpBtn">Cancel my RSVP</button>' : ''}` : (!d.inClub && !d.mine && !past ? `<a class="club-guide-btn calAskWa" href="https://wa.me/u/${ORGANISER_WA_USERNAME}?text=${waEnc(calAskMessage(d))}" target="_blank" rel="noopener" style="display:block;box-sizing:border-box;width:100%;text-align:center;text-decoration:none;background:#25a244;color:#fff;border-color:#1c7a33;">💬 Ask on WhatsApp if there's a spot</a><p class="ideas-hint" style="margin:6px 0 0;">This event is for ${escapeCm(d.clubTitle || 'a club')} members. Tap to message us — a note is already written for you.</p>` : `<button type="button" class="club-guide-btn calRsvpBtn" ${(d.closed || past) && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>`)}
         <div class="calRsvpMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>
         ${(!past && d.mine === 'going') ? '<button type="button" class="club-guide-btn calAddCal" style="width:100%;min-height:46px;margin-top:4px;">📆 Add to my calendar</button>' : ''}`;
       wireCalCopy(top);
@@ -7348,7 +7361,7 @@ function openFormBuilder(initial, onDone, opts){
       <h2 style="margin:0 0 8px;">📝 Create a form</h2>
       <p class="ideas-hint" style="text-align:left;margin:0 0 10px;">Members fill this in from the event. Add as many questions as you like — you can edit it any time.</p>`}
       ${opts && opts.showRsvpBy ? `<div class="fb-card"><strong style="font-size:14px;">📄 Event description</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">Shown at the top of the page under the date — separate from the questions below.</p><textarea id="fbEvDesc" data-rich rows="5" maxlength="3000" placeholder="What the event is, what to bring, where to meet…">${escapeCm(form.desc || '')}</textarea></div>` : ''}
-      <div class="fb-card"><strong style="font-size:14px;">📄 Intro above the questions (optional)</strong><textarea id="fbIntro" data-rich rows="3" maxlength="2000" placeholder="e.g. Please tell us a bit about you" style="margin-top:6px;">${escapeCm(form.intro)}</textarea></div>
+      <div class="fb-card"><strong style="font-size:14px;">📄 Intro above the questions (optional)</strong><textarea id="fbIntro" data-rich rows="3" maxlength="2000" placeholder="e.g. We can't wait to see you! Fill this in to save your spot." style="margin-top:6px;">${escapeCm(form.intro)}</textarea></div>
       ${opts && opts.showRsvpBy ? `<div class="fb-card"><strong style="font-size:14px;">⏳ Last day to RSVP (optional)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">After this day the form closes — nobody new can sign up. It's the same date as the event's “last day to RSVP”.</p><input type="date" id="fbRsvpBy" value="${escapeCm(form.rsvpBy || '')}"></div>` : ''}
       ${cards || '<p class="av-msg" style="text-align:center;">No questions yet — add one below.</p>'}
       <div class="fb-card"><strong style="font-size:14px;">➕ Add a question</strong><div class="fb-row">${FB_TYPES.map(([k, l]) => `<button type="button" class="fb-mini fb-add" data-t="${k}">${l}</button>`).join('')}</div></div>
@@ -10625,7 +10638,7 @@ function admCeListHtml(){
       <div style="display:flex;gap:10px;align-items:flex-start;"><span class="cal-date" style="background:${col.bg};color:${col.fg};flex:0 0 74px;">${escapeCm(calDateLabel(e.date))}${e.date < today ? '<br><small>past</small>' : ''}</span>
         <span style="flex:1;min-width:0;"><strong style="font-size:16px;overflow-wrap:break-word;">${escapeCm(e.title)}</strong><br><small style="color:#776867;">🏷 ${escapeCm(e.clubTitle || avClubTitle(e.clubId))}${e.time ? ' · ⏰ ' + escapeCm(e.time) : ''}${e.place ? ' · 📍 ' + escapeCm(e.place) : ''}</small><br>
         <small>👥 <b>${going}</b> ${calIsPast(e.date) ? 'attended' : 'going'}${pend ? ` · <b style="color:#b3261e;">${pend} waiting</b>` : ''} · ${e.form ? `📝 form (${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'})` : (e.hasForm ? '🔒 has a form (no access)' : '<span style="color:#776867;">no form</span>')}${(e.formLeads || []).length ? ` · 🔑 ${e.formLeads.length} leader${e.formLeads.length === 1 ? '' : 's'}` : ''}${e.rsvpBy ? ` · RSVP by ${escapeCm(calDateLabel(e.rsvpBy))}` : ''}</small></span></div>
-      <div class="fb-row"><button type="button" class="fb-mini ce-edit" data-ceid="${escapeCm(e.id)}">✏️ Edit event</button>${e.canForm === false && e.hasForm ? '' : `<button type="button" class="fb-mini ce-form" data-ceid="${escapeCm(e.id)}">📝 ${e.form ? 'Edit form' : 'Create a form'}</button>`}${e.form ? `<button type="button" class="fb-mini ce-ans" data-ceid="${escapeCm(e.id)}">📋 Answers</button>` : ''}${state.cmAdminLoggedIn === true && e.form ? `<button type="button" class="fb-mini ce-lead" data-ceid="${escapeCm(e.id)}">🔑 Leader access</button>` : ''}<button type="button" class="fb-mini ce-att" data-ceid="${escapeCm(e.id)}">👥 Attendees</button></div></div>`;
+      <div class="fb-row"><button type="button" class="fb-mini ce-edit" data-ceid="${escapeCm(e.id)}">✏️ Edit event &amp; form</button>${e.form ? `<button type="button" class="fb-mini ce-ans" data-ceid="${escapeCm(e.id)}">📋 Answers</button>` : ''}${state.cmAdminLoggedIn === true && e.form ? `<button type="button" class="fb-mini ce-lead" data-ceid="${escapeCm(e.id)}">🔑 Leader access</button>` : ''}<button type="button" class="fb-mini ce-att" data-ceid="${escapeCm(e.id)}">👥 Attendees</button></div></div>`;
   }).join('');
 }
 function admCeHtml(){
