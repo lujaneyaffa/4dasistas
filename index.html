@@ -7842,7 +7842,7 @@ async function nativePushInit(){
     if(nativePushDone || !isNativeApp() || !getCmSession()) return;
     const P = window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications; if(!P) return;
     nativePushDone = true;
-    P.addListener('registration', async tok => { try { await cmApiRaw('/api/push/apns-register', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ token: tok.value }) }); state.pushRegistered = true; } catch {} });
+    P.addListener('registration', async tok => { try { await cmApiRaw('/api/push/apns-register', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ token: tok.value, platform: (window.Capacitor.getPlatform && window.Capacitor.getPlatform()) || 'ios' }) }); state.pushRegistered = true; } catch {} });
     P.addListener('pushNotificationActionPerformed', a => { try { const u = a.notification && a.notification.data && a.notification.data.url; if(u && u !== '/') location.href = u.startsWith('/') ? u : '/'; } catch {} });
     const perm = await P.requestPermissions(); if(perm && perm.receive === 'granted') await P.register();
   } catch {}

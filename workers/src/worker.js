@@ -649,7 +649,7 @@ const apnsAuth = async (env, which) => {
 // Sends one notification to every iPhone registered for this person. Tries production first, then the sandbox (a build installed from Xcode registers a sandbox token).
 const sendApns = async (env, userId, message) => {
   if (!env.APNS_KEY || !env.APNS_KEY_ID || !env.APNS_TEAM_ID || !env.DB) return { sent: 0, devices: 0 };
-  let tokens = []; try { await seenEnsure(env); tokens = (await env.DB.prepare("SELECT token FROM device_tokens WHERE user_id = ?").bind(userId).all()).results || []; } catch { return { sent: 0, devices: 0 }; }
+  let tokens = []; try { await seenEnsure(env); tokens = (await env.DB.prepare("SELECT token FROM device_tokens WHERE user_id = ? AND (platform IS NULL OR platform != 'android')").bind(userId).all()).results || []; } catch { return { sent: 0, devices: 0 }; }
   let sent = 0, badge = 1;
   try { const r = await env.DB.prepare("INSERT INTO badge_counts (user_id, n) VALUES (?, 1) ON CONFLICT(user_id) DO UPDATE SET n = n + 1 RETURNING n").bind(userId).first(); if (r && r.n) badge = r.n; } catch {} // the number on the app icon = unread notifications
   for (const t of tokens) {
@@ -669,9 +669,40 @@ const sendApns = async (env, userId, message) => {
   }
   return { sent, devices: tokens.length };
 };
+// ---- Android push (Firebase Cloud Messaging v1). Needs the Worker secret FCM_SERVICE_ACCOUNT (the service-account JSON from Firebase). ----
+let _fcmTok = { at: 0, v: "" };
+const fcmAccessToken = async (env) => {
+  if (_fcmTok.v && Date.now() - _fcmTok.at < 3000000) return _fcmTok.v;
+  const sa = JSON.parse(env.FCM_SERVICE_ACCOUNT), b64u = (b) => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""), enc = (o) => b64u(new TextEncoder().encode(JSON.stringify(o)));
+  const now = Math.floor(Date.now() / 1000), head = enc({ alg: "RS256", typ: "JWT" }), body = enc({ iss: sa.client_email, scope: "https://www.googleapis.com/auth/firebase.messaging", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 });
+  const pem = sa.private_key.replace(/-----[A-Z ]+-----/g, "").replace(/\s+/g, ""), der = Uint8Array.from(atob(pem), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey("pkcs8", der, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(`${head}.${body}`));
+  const r = await fetch("https://oauth2.googleapis.com/token", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: `${head}.${body}.${b64u(sig)}` }) });
+  const j = await r.json(); if (!j.access_token) throw new Error("FCM auth failed: " + JSON.stringify(j).slice(0, 160));
+  _fcmTok = { at: Date.now(), v: j.access_token }; return j.access_token;
+};
+const sendFcm = async (env, userId, message) => {
+  if (!env.FCM_SERVICE_ACCOUNT || !env.DB) return { sent: 0, devices: 0 };
+  let tokens = []; try { await seenEnsure(env); tokens = (await env.DB.prepare("SELECT token FROM device_tokens WHERE user_id = ? AND platform = 'android'").bind(userId).all()).results || []; } catch { return { sent: 0, devices: 0 }; }
+  if (!tokens.length) return { sent: 0, devices: 0 };
+  let sent = 0, access = "", project = "";
+  try { access = await fcmAccessToken(env); project = JSON.parse(env.FCM_SERVICE_ACCOUNT).project_id; } catch (e) { console.error("FCM auth failed", String(e)); return { sent: 0, devices: tokens.length }; }
+  for (const t of tokens) {
+    try {
+      const res = await fetch(`https://fcm.googleapis.com/v1/projects/${project}/messages:send`, { method: "POST", headers: { Authorization: `Bearer ${access}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ message: { token: t.token, notification: { title: message.title || "4DS", body: message.body || "" }, data: { url: String(message.url || "/") }, android: { priority: "HIGH" } } }) });
+      if (res.ok) { sent++; continue; }
+      const txt = await res.text().catch(() => "");
+      if (res.status === 404 || /UNREGISTERED|INVALID_ARGUMENT/.test(txt)) await env.DB.prepare("DELETE FROM device_tokens WHERE token = ?").bind(t.token).run();
+      else console.error("FCM rejected", res.status, txt.slice(0, 200));
+    } catch (e) { console.error("FCM failed", String(e)); }
+  }
+  return { sent, devices: tokens.length };
+};
 const sendPushToUser = async (env, userId, message) => {
   if (message.cat) { const u = await readUser(env, userId); if (u && Array.isArray(u.notifOff) && u.notifOff.includes(message.cat)) return { sent: 0, removed: 0, devices: 0, muted: true }; }
-  const ap = await sendApns(env, userId, message);
+  const ap0 = await sendApns(env, userId, message), fc = await sendFcm(env, userId, message), ap = { sent: ap0.sent + fc.sent, devices: ap0.devices + fc.devices }; // phones (iPhone + Android app)
   const subs = await readPushSubs(env, userId);
   if (!subs.length || !env.VAPID_PRIVATE_JWK) return { sent: ap.sent, removed: 0, devices: subs.length + ap.devices };
   let sent = ap.sent; const keep = [];
@@ -2929,10 +2960,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const meId = await memberIdFromRequest();
       if (!meId) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
       let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
-      const token = String(b.token || "").toLowerCase().replace(/[^0-9a-f]/g, "");
-      if (token.length < 32 || token.length > 200) return jsonResponse({ error: "Bad token" }, 400, corsHeaders);
+      const android = b.platform === "android";
+      const token = android ? String(b.token || "").replace(/[^\w:.\-]/g, "") : String(b.token || "").toLowerCase().replace(/[^0-9a-f]/g, "");
+      if (android ? (token.length < 60 || token.length > 400) : (token.length < 32 || token.length > 200)) return jsonResponse({ error: "Bad token" }, 400, corsHeaders);
       if (!(await seenEnsure(env))) return jsonResponse({ error: "Not available" }, 503, corsHeaders);
-      await env.DB.prepare("INSERT INTO device_tokens (token, user_id, platform, at) VALUES (?, ?, 'ios', ?) ON CONFLICT(token) DO UPDATE SET user_id = excluded.user_id, at = excluded.at").bind(token, meId, Date.now()).run();
+      await env.DB.prepare("INSERT INTO device_tokens (token, user_id, platform, at) VALUES (?, ?, ?, ?) ON CONFLICT(token) DO UPDATE SET user_id = excluded.user_id, platform = excluded.platform, at = excluded.at").bind(token, meId, android ? "android" : "ios", Date.now()).run();
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     if (path === "/api/me/prefs" && (request.method === "GET" || request.method === "POST")) {
