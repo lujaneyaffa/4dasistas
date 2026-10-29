@@ -418,8 +418,7 @@
   /* "Clubs you're in" for signed-in members: same round shape + gentle float as Travel / About, always ONE line, club colours + logos */
   .fb-page{ position:fixed; inset:0; z-index:10050; background:var(--cream); overflow:auto; padding:calc(14px + env(safe-area-inset-top, 0px)) calc(14px + env(safe-area-inset-right, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)) calc(14px + env(safe-area-inset-left, 0px)); -webkit-overflow-scrolling:touch; }
   .fb-wrap{ max-width:640px; margin:0 auto; }
-  body.form-standalone header, body.form-standalone nav.tabs, body.form-standalone footer, body.form-standalone .pwr-btn{ display:none !important; }
-  body.form-standalone main{ padding-top:max(14px, env(safe-area-inset-top)); padding-bottom:max(28px, env(safe-area-inset-bottom)); }
+  body.form-standalone nav.tabs, body.form-standalone .pwr-btn{ display:none !important; } /* an event page keeps the 4DS logo banner and the normal footer, but no tab bar / back button */
   .efBrand{ display:block; text-align:center; font-weight:800; letter-spacing:.5px; color:var(--brand-rose); text-decoration:none; font-size:15px; margin:0 0 4px; }
   .efLinkEnd{ order:99; margin-top:14px; }
   .rich{ line-height:1.5; overflow-wrap:anywhere; } .rich h2{ font-size:1.4em; margin:.5em 0 .2em; } .rich h3{ font-size:1.15em; margin:.5em 0 .2em; } .rich ul{ margin:.3em 0; padding-left:1.3em; } .rich blockquote{ border-left:4px solid #f2d8d7; margin:.4em 0; padding:.1em .8em; color:#555; } .rich mark{ background:#fff3b0; padding:0 2px; } .rich a{ color:#76220b; font-weight:700; } .rich .rGap{ height:.7em; } .rich hr{ border:0; border-top:2px solid #f2d8d7; margin:.8em 0; }
@@ -3497,7 +3496,7 @@ function wireStayPage(){
 function renderEventFormPage(el){
   const id = state.formEventId;
   document.getElementById('resourcePagination').innerHTML = '';
-  el.innerHTML = `<div class="rules-content efPage" style="max-width:640px;margin:0 auto;"><a class="efBrand" href="/" aria-label="4dasistas home">4dasistas.ca</a><div id="efBox" style="margin-top:8px;display:flex;flex-direction:column;"><p class="av-msg">Loading…</p></div></div>`;
+  el.innerHTML = `<div class="rules-content efPage" style="max-width:640px;margin:0 auto;"><div id="efBox" style="margin-top:8px;display:flex;flex-direction:column;"><p class="av-msg">Loading…</p></div></div>`;
   const box = document.getElementById('efBox');
   if(getCmSession()) clubCalMemberCard(box, id); else clubCalPublicCard(box, id);
   window.scrollTo({ top:0 });
@@ -7002,7 +7001,7 @@ function calEditLinkWire(root, ev, repaint){
 // The public editing page for people given the edit link: #/edit-event/<secret>. No login. Content only.
 async function renderEventEditPage(el){
   const tok = state.editToken;
-  el.innerHTML = `<div class="rules-content efPage" style="max-width:640px;margin:0 auto;"><a class="efBrand" href="/">4dasistas.ca</a><div id="eeBox" style="margin-top:8px;"><p class="av-msg">Loading…</p></div></div>`;
+  el.innerHTML = `<div class="rules-content efPage" style="max-width:640px;margin:0 auto;"><div id="eeBox" style="margin-top:8px;"><p class="av-msg">Loading…</p></div></div>`;
   const box = document.getElementById('eeBox'); window.scrollTo({ top:0 });
   let e;
   try { const r = await fetch('/api/event-edit/' + encodeURIComponent(tok)); const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || 'Could not open the editor'); e = j.event; }
