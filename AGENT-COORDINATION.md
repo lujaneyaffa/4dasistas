@@ -1350,3 +1350,5 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - 2026-10-29: New public page delete-account.html (steps to delete account; needed for Google Play Data safety "Delete account URL").
 
 - 2026-10-29: Android push (FCM v1): worker sendFcm + fcmAccessToken (secret FCM_SERVICE_ACCOUNT = Firebase service-account JSON, NOT yet set — Lujane must generate the key; project ds-app-b0889), /api/push/apns-register now accepts platform:"android" (stores FCM token, platform=android); sendApns skips android rows; client sends platform. Inert until the secret exists. sw v253.
+
+- 2026-10-29: New public page child-safety.html (Google Play child safety standards URL: https://4dasistas.ca/child-safety). Play closed-testing track "Alpha" created (Canada), release = versionCode 3, needs 12 opted-in testers x 14 days (testers not added yet).
