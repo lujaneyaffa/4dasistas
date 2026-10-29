@@ -6388,7 +6388,8 @@ async function clubCalPublicCard(box, id){
       <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 4px;">2 · 📝 Sign up</h3>${d.form.intro ? `<div style="margin:0 0 10px;">${richHtml(d.form.intro)}</div>` : ''}
         ${calFormFieldsHtml(d.form, {}, false)}
         ${calAddonsHtml(d.form, [])}
-        <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Submit</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}${d.form.payment ? `<p class="ideas-hint" style="margin:10px 0 0;">💳 you'll see how to pay right after you submit.</p>` : ''}</div>`;
+        ${calPayInFormHtml(d.form)}
+        <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Submit</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}</div>`;
     box.insertAdjacentHTML('beforeend', `<div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`);
     wireCalCopy(box); wireCalAddons(box, d.form); calMountLocations(box); calAttendeesInto(box, d.id, d.date);
     // Section 1 starts as two buttons; only the chosen path's fields appear: guest (name + phone), sign in (find yourself + PIN), or create an account.
@@ -6437,9 +6438,11 @@ async function clubCalPublicCard(box, id){
       if(!quick && !/^\d{4}$/.test(base('pin'))){ m.textContent = 'Choose a 4-digit PIN.'; return; }
       if(!quick && base('pin') !== base('pin2')){ m.textContent = "The two PINs don't match."; return; }
       const chosenAddons = calAddonIds(box);
+      { const pe = calPayCheck(box, d.form); if(pe){ m.textContent = pe; return; } }
+      const paidClaim = calPayClaimed(box);
       e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Sending…';
       try {
-        const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', body: JSON.stringify(quick ? { name: base('name'), contact: base('phone'), answers: calFormCollect(box, d.form), addons: calAddonIds(box) } : { name: base('name'), phone: base('phone'), pin: base('pin'), why: base('why'), interests: [...box.querySelectorAll('.pfClub:checked')].map(c => c.value), answers: calFormCollect(box, d.form), addons: calAddonIds(box) }) });
+        const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', body: JSON.stringify(quick ? { name: base('name'), contact: base('phone'), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim } : { name: base('name'), phone: base('phone'), pin: base('pin'), why: base('why'), interests: [...box.querySelectorAll('.pfClub:checked')].map(c => c.value), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim }) });
         if(r && r.token){ setCmSession(r); renderNavAuth(); }
         box.innerHTML = calSignedUpHtml(d, r, chosenAddons, quick) + `<div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`; wireCalCopy(box);
       } catch(err){ e.target.disabled = false; m.style.color = '#c00'; m.textContent = err.message; }
@@ -6533,11 +6536,12 @@ async function clubCalMemberCard(box, id){
       formBox.innerHTML = `<div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 6px;">1 · 👤 About you</h3><p style="margin:0;">✅ Signed in as <strong>${escapeCm(meName)}</strong> — your details are already on file.</p></div>
       <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 4px;">2 · 📝 Sign up</h3>${d.form.intro ? `<div style="margin:0 0 10px;">${richHtml(d.form.intro)}</div>` : ''}${calFormFieldsHtml(d.form, d.myAnswers, false)}
         ${calAddonsHtml(d.form, d.myAddons)}
+        ${calPayInFormHtml(d.form)}
         <button type="button" class="club-guide-btn calFormSend" ${d.closed && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">${d.closed && !d.mine ? '🔒 Sign-ups closed' : d.myAnswers ? 'Update my answers' : 'Submit & RSVP'}</button><div class="calFormMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>
         <button type="button" class="club-guide-btn calCancelReg" hidden style="width:100%;min-height:46px;text-align:center;background:#fdecea;border-color:#b3261e;color:#b3261e;margin-top:4px;">❌ Cancel my registration</button>
-        ${calFormFooterHtml(d.form)}<div class="calPayBox">${d.form.payment ? (d.myAnswers ? calPayBoxHtml(d) : `<p class="ideas-hint" style="margin:10px 0 0;">💳 you'll see how to pay right after you sign up.</p>`) : ''}</div></div>`;
+        ${calFormFooterHtml(d.form)}<div class="calPayBox">${d.form.payment && d.myAnswers ? calPayBoxHtml(d) : ''}</div></div>`;
       const cxBtn = formBox.querySelector('.calCancelReg'), sendBtn = formBox.querySelector('.calFormSend');
-      syncCancel = () => { const past = calIsPast(d.date); cxBtn.hidden = !(d.mine && !past); sendBtn.textContent = d.closed && !d.mine ? '🔒 Sign-ups closed' : d.mine ? 'Update my answers' : d.myAnswers ? 'Register again' : 'Submit & RSVP'; };
+      syncCancel = () => { const past = calIsPast(d.date); const pf = formBox.querySelector('.calPayInForm'); if(pf) pf.hidden = !!(d.mine || d.paid || d.claimedPaid); cxBtn.hidden = !(d.mine && !past); sendBtn.textContent = d.closed && !d.mine ? '🔒 Sign-ups closed' : d.mine ? 'Update my answers' : d.myAnswers ? 'Register again' : 'Submit & RSVP'; };
       cxBtn.addEventListener('click', () => calCancelFlow(d, id, () => { paint(); syncCancel(); admToastLite('Registration cancelled'); }));
       syncCancel();
       wireCalAddons(formBox, d.form); calMountLocations(formBox);
@@ -6547,8 +6551,9 @@ async function clubCalMemberCard(box, id){
         catch(err){ pb2.disabled = false; admToastLite(err.message); }
       });
       formBox.querySelector('.calFormSend').addEventListener('click', async e => {
-        const m = formBox.querySelector('.calFormMsg'); e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Saving…';
-        try { const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ answers: calFormCollect(formBox, d.form), addons: calAddonIds(formBox) }) }); d.myAnswers = r.answers; d.myAddons = r.addons || []; d.mine = r.mine; d.going = r.going; d.waitPos = r.waitPos || 0; if(d.capacity) d.spotsLeft = Math.max(0, d.capacity - r.going); m.style.color = '#2a7a4a'; m.textContent = r.mine === 'pending' ? '✓ Sent — an admin will approve your spot.' : r.mine === 'waitlist' ? "⏳ It's full — you're on the waitlist. We'll move you up if a spot opens." : "✓ You're signed up — thank you!"; e.target.textContent = 'Update my answers'; const pb = formBox.querySelector('.calPayBox'); paint(); if(pb && d.form.payment){ const nb = formBox.querySelector('.calPayBox'); if(nb) nb.innerHTML = calPayBoxHtml(d); } }
+        const m = formBox.querySelector('.calFormMsg'); { const pe = calPayCheck(formBox, d.form); if(pe){ m.style.color = '#c00'; m.textContent = pe; return; } }
+        const paidClaim = calPayClaimed(formBox); e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Saving…';
+        try { const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ answers: calFormCollect(formBox, d.form), addons: calAddonIds(formBox), paidClaim }) }); d.myAnswers = r.answers; d.myAddons = r.addons || []; d.mine = r.mine; if(r.claimedPaid) d.claimedPaid = true; d.going = r.going; d.waitPos = r.waitPos || 0; if(d.capacity) d.spotsLeft = Math.max(0, d.capacity - r.going); m.style.color = '#2a7a4a'; m.textContent = r.mine === 'pending' ? '✓ Sent — an admin will approve your spot.' : r.mine === 'waitlist' ? "⏳ It's full — you're on the waitlist. We'll move you up if a spot opens." : "✓ You're signed up — thank you!"; e.target.textContent = 'Update my answers'; const pb = formBox.querySelector('.calPayBox'); paint(); if(pb && d.form.payment){ const nb = formBox.querySelector('.calPayBox'); if(nb) nb.innerHTML = calPayBoxHtml(d); } }
         catch(err){ m.style.color = '#c00'; m.textContent = err.message; }
         e.target.disabled = false;
       });
@@ -7239,9 +7244,25 @@ function calAddonsHtml(form, ids){
 function wireCalAddons(root, form){
   calWireSignatures(root);
   const upd = () => { const t = root.querySelector('.calTotal'); if(!t) return; const r = calTotalFor(form, calAddonIds(root)); t.textContent = r.total != null ? 'Total: ' + calMoney(r.total, r.sym) : ''; };
-  root.querySelectorAll('.calAddon').forEach(c => c.addEventListener('change', upd)); upd();
+  root.querySelectorAll('.calAddon').forEach(c => c.addEventListener('change', () => { upd(); calPayLiveRefresh(root, form); })); upd(); calPayLiveRefresh(root, form);
 }
 function calAddonIds(root){ return [...root.querySelectorAll('.calAddon:checked')].map(c => c.value); }
+// The payment box INSIDE the form (just above Submit): how to pay + a tick box. Required = the tick is needed to submit.
+function calPayInFormHtml(form){
+  const pay = form && form.payment; if(!pay) return '';
+  return `<div class="calPayInForm" style="margin-top:12px;"><div class="calPayLive"></div><label class="fb-opt" style="margin-top:8px;"><input type="checkbox" class="calPayClaim" style="width:22px;height:22px;"> <span><b>✅ I've sent my payment</b> <small style="color:${pay.required ? '#b3261e' : '#776867'};font-weight:${pay.required ? '700' : '400'};">${pay.required ? '(required)' : '(optional — you can also pay later)'}</small></span></label></div>`;
+}
+function calPayLiveRefresh(root, form){
+  const box = root.querySelector('.calPayLive'); if(!box) return;
+  box.innerHTML = calPayHtml(form, '💳 Payment' + (form.payment && form.payment.required ? ' (required)' : ''), calAddonIds(root));
+}
+// null = fine, else the message to show. Required payment: the tick box must be ticked (not needed once someone is already signed up).
+function calPayCheck(root, form){
+  if(!form || !form.payment || !form.payment.required) return null;
+  const c = root.querySelector('.calPayClaim'); if(!c || c.closest('[hidden]') || c.checked) return null;
+  return 'Payment is required — please pay using the details above, then tick “I’ve sent my payment”.';
+}
+function calPayClaimed(root){ const c = root.querySelector('.calPayClaim'); return !!(c && c.checked && !c.closest('[hidden]')); }
 function calPayHtml(form, heading, ids){
   const pay = form && form.payment; if(!pay) return '';
   const r = calTotalFor(form, ids), hasAdd = r.picked.length > 0;
@@ -7311,7 +7332,8 @@ function openFormBuilder(initial, onDone, opts){
       ${opts && opts.showRsvpBy ? `<div class="fb-card"><strong style="font-size:14px;">⏳ Last day to RSVP (optional)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">After this day the form closes — nobody new can sign up. It's the same date as the event's “last day to RSVP”.</p><input type="date" id="fbRsvpBy" value="${escapeCm(form.rsvpBy || '')}"></div>` : ''}
       ${cards || '<p class="av-msg" style="text-align:center;">No questions yet — add one below.</p>'}
       <div class="fb-card"><strong style="font-size:14px;">➕ Add a question</strong><div class="fb-row">${FB_TYPES.map(([k, l]) => `<button type="button" class="fb-mini fb-add" data-t="${k}">${l}</button>`).join('')}</div></div>
-      <div class="fb-card" ${opts && opts.noPayment ? 'hidden' : ''}><strong style="font-size:14px;">💳 Payment (optional)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 8px;">The site doesn't take the money itself — it shows people how to pay once they've signed up.</p>
+      <div class="fb-card" ${opts && opts.noPayment ? 'hidden' : ''}><strong style="font-size:14px;">💳 Payment (optional)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 8px;">The site doesn't take the money itself — the payment box sits inside the form, just above Submit, and shows people how to pay.</p>
+        <select id="fbPayMode" aria-label="Is payment required?" style="margin-bottom:8px;"><option value="optional" ${(form.payment || {}).required ? '' : 'selected'}>Optional — they can sign up first and pay later</option><option value="required" ${(form.payment || {}).required ? 'selected' : ''}>Required — they must tick “I’ve sent my payment” to submit</option></select>
         <input type="text" id="fbPayAmt" maxlength="30" placeholder="Amount (e.g. $15)" value="${escapeCm((form.payment || {}).amount || '')}">
         <input type="text" id="fbPayLink" maxlength="500" placeholder="Payment link (https://…) — Square, PayPal, Stripe…" value="${escapeCm((form.payment || {}).link || '')}" style="margin-top:8px;" inputmode="url" autocapitalize="none">
         <textarea id="fbPayNote" rows="3" maxlength="1000" placeholder="Instructions (e.g. Or e-Transfer to pay@example.com with your name in the message)" style="margin-top:8px;">${escapeCm((form.payment || {}).note || '')}</textarea>
@@ -7326,12 +7348,12 @@ function openFormBuilder(initial, onDone, opts){
     const q = (sel, fn) => page.querySelectorAll(sel).forEach(el => fn(el, Number(el.dataset.i)));
     page.querySelector('#fbIntro').addEventListener('input', e => { form.intro = e.target.value; });
     { const rb = page.querySelector('#fbRsvpBy'); if(rb) rb.addEventListener('input', () => { form.rsvpBy = rb.value; }); const ed = page.querySelector('#fbEvDesc'); if(ed) ed.addEventListener('input', () => { form.desc = ed.value; }); }
-    const syncPay = () => { const p = { amount: page.querySelector('#fbPayAmt').value.trim(), link: page.querySelector('#fbPayLink').value.trim(), note: page.querySelector('#fbPayNote').value.trim() }; const ao = (form.payment || {}).addons; if(ao && ao.length) p.addons = ao; if(p.amount || p.link || p.note || p.addons) form.payment = p; else delete form.payment; };
+    const syncPay = () => { const p = { amount: page.querySelector('#fbPayAmt').value.trim(), link: page.querySelector('#fbPayLink').value.trim(), note: page.querySelector('#fbPayNote').value.trim() }; if(page.querySelector('#fbPayMode').value === 'required') p.required = true; const ao = (form.payment || {}).addons; if(ao && ao.length) p.addons = ao; if(p.amount || p.link || p.note || p.addons) form.payment = p; else delete form.payment; };
     page.querySelector('#fbAoAdd').addEventListener('click', () => { syncPay(); form.payment = form.payment || {}; (form.payment.addons = form.payment.addons || []).push({ id: nid(), label: '', price: '' }); paint(); const l = page.querySelectorAll('.fb-ao-label'); if(l.length) l[l.length - 1].focus(); });
     page.querySelectorAll('.fb-ao-label').forEach(el => el.addEventListener('input', () => { form.payment.addons[Number(el.dataset.i)].label = el.value; }));
     page.querySelectorAll('.fb-ao-price').forEach(el => el.addEventListener('input', () => { form.payment.addons[Number(el.dataset.i)].price = el.value; }));
     page.querySelectorAll('.fb-ao-del').forEach(el => el.addEventListener('click', () => { form.payment.addons.splice(Number(el.dataset.i), 1); if(!form.payment.addons.length){ delete form.payment.addons; if(!form.payment.amount && !form.payment.link && !form.payment.note) delete form.payment; } paint(); }));
-    ['#fbPayAmt', '#fbPayLink', '#fbPayNote'].forEach(id => page.querySelector(id).addEventListener('input', syncPay));
+    ['#fbPayAmt', '#fbPayLink', '#fbPayNote'].forEach(id => page.querySelector(id).addEventListener('input', syncPay)); page.querySelector('#fbPayMode').addEventListener('change', syncPay);
     page.querySelector('#fbFooter').addEventListener('input', e => { if(e.target.value.trim()) form.footer = e.target.value; else delete form.footer; });
     q('.fb-label', (el, i) => el.addEventListener('input', () => { form.fields[i].label = el.value; el.rows = Math.min(8, Math.max(1, Math.ceil(el.value.length / 38))); }));
     q('.fb-req', (el, i) => el.addEventListener('change', () => { form.fields[i].required = el.checked; }));

@@ -1318,6 +1318,7 @@ const sanitizeCalForm = (f) => {
       seenA.add(id); addons.push({ id, label, price });
     }
     if (addons.length) pay.addons = addons;
+    if (f.payment.required) pay.required = true; // payment required: people must tick "I've sent my payment" to sign up
     if (pay.amount || pay.link || pay.note || pay.addons) out.payment = pay;
   }
   return out;
@@ -1505,6 +1506,9 @@ const calMutateRaw = async (env, evId, fn, verify) => {
   }
   return null;
 };
+// Required payment: a NEW sign-up must say they've paid (the site can't see the money; the organiser still confirms it).
+const calPayMissing = (form, body) => !!(form && form.payment && form.payment.required && !(body && body.paidClaim === true));
+const PAY_REQ_MSG = "Payment is required — please pay using the details on the form, then tick “I've sent my payment”.";
 const calAddRsvp = (env, evId, entry) => calMutate(env, evId, (ev) => { ev.rsvps = (ev.rsvps || []).filter((r) => r.id !== entry.id).concat([entry]); }, (chk) => (chk.rsvps || []).some((r) => r.id === entry.id));
 const calDropRsvp = (env, evId, pid) => calMutate(env, evId, (ev) => { ev.rsvps = (ev.rsvps || []).filter((r) => r.id !== pid); }, (chk) => !(chk.rsvps || []).some((r) => r.id === pid));
 // A person's saved form answers live in one KV map per event; same fresh-write-verify treatment. Returns the merged map.
@@ -2411,6 +2415,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               let fb; try { fb = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
               if (ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) return jsonResponse({ error: "Sign-ups for this event are closed" }, 400, corsHeaders);
               if (ev.date < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "This event has already happened" }, 400, corsHeaders);
+              if (calPayMissing(ev.form, fb)) return jsonResponse({ error: PAY_REQ_MSG }, 400, corsHeaders);
               if (fb && fb.pin !== undefined) {
                 // Base member details came with the form: create the account (and sign them in), then record the sign-up as theirs.
                 const chk0 = checkCalAnswers(ev.form, fb.answers);
@@ -2419,7 +2424,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
                 if (made.error) return jsonResponse({ error: made.error }, made.status, corsHeaders);
                 { const sel = calAddonSelection(ev.form, fb.addons); await calFormPut(env, ev.id, made.user.id, { name: made.user.name, answers: chk0.answers, at: Date.now(), ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }); }
                 const st0 = await calSpotStatus(env, ev, made.user.id);
-                { const c0 = await calAddRsvp(env, ev.id, { id: made.user.id, name: made.user.name, status: st0, at: Date.now(), viaForm: true }); if (c0) ev.rsvps = c0.rsvps; }
+                { const c0 = await calAddRsvp(env, ev.id, { id: made.user.id, name: made.user.name, status: st0, at: Date.now(), viaForm: true, ...(fb.paidClaim === true && ev.form.payment ? { claimedPaid: Date.now() } : {}) }); if (c0) ev.rsvps = c0.rsvps; }
                 notifyAdminOfFormSignup(env, ctx, ev, { name: made.user.name, phone: made.user.phone, newAccount: true }, chk0.answers, calAddonSelection(ev.form, fb.addons));
                 return jsonResponse({ ok: true, created: true, eventStatus: st0, token: made.token, ...publicUser(made.user), clubs: [], waitlist: [] }, 201, corsHeaders);
               }
@@ -2433,7 +2438,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               const gid = `g:${crypto.randomUUID().slice(0, 10)}`;
               { const sel = calAddonSelection(ev.form, fb && fb.addons); await calFormPut(env, ev.id, gid, { name: nm, contact, answers: chk.answers, at: Date.now(), guest: true, ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }); }
               const stG = await calSpotStatus(env, ev, gid);
-              await calAddRsvp(env, ev.id, { id: gid, name: nm, status: stG, at: Date.now(), guest: true, viaForm: true }); // shows in the attendee list too
+              await calAddRsvp(env, ev.id, { id: gid, name: nm, status: stG, at: Date.now(), guest: true, viaForm: true, ...(fb.paidClaim === true && ev.form.payment ? { claimedPaid: Date.now() } : {}) }); // shows in the attendee list too
               notifyAdminOfFormSignup(env, ctx, ev, { name: nm, contact }, chk.answers, calAddonSelection(ev.form, fb && fb.addons));
               return jsonResponse({ ok: true, eventStatus: stG }, 200, corsHeaders);
             }
@@ -2460,15 +2465,16 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           const wasIn = (ev.rsvps || []).find((r) => r.id === uid);
           if (!wasIn && ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) return jsonResponse({ error: "Sign-ups for this event are closed" }, 400, corsHeaders);
           if (!wasIn && ev.date < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "This event has already happened" }, 400, corsHeaders);
+          if (!wasIn && calPayMissing(ev.form, fb)) return jsonResponse({ error: PAY_REQ_MSG }, 400, corsHeaders);
           { const sel = calAddonSelection(ev.form, fb && fb.addons); map = await calFormPut(env, ev.id, uid, { name: who.name, answers: chk.answers, at: Date.now(), ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }); }
           // Submitting the form IS the RSVP: club members are going at once, people from other clubs wait for approval.
           let status = wasIn ? wasIn.status : null;
           if (!wasIn) {
             status = await calSpotStatus(env, ev, uid); // a form sign-up is open to everyone: filling it in IS the RSVP (past the limit = waitlist)
-            { const c1 = await calAddRsvp(env, ev.id, { id: uid, name: who.name, status, at: Date.now(), viaForm: true }); if (c1) ev.rsvps = c1.rsvps; }
+            { const c1 = await calAddRsvp(env, ev.id, { id: uid, name: who.name, status, at: Date.now(), viaForm: true, ...(fb.paidClaim === true && ev.form.payment ? { claimedPaid: Date.now() } : {}) }); if (c1) ev.rsvps = c1.rsvps; }
             notifyAdminOfFormSignup(env, ctx, ev, { name: who.name, newAccount: false }, chk.answers, calAddonSelection(ev.form, fb && fb.addons));
           }
-          return jsonResponse({ ok: true, answers: chk.answers, addons: (map[uid] || {}).addons || [], total: (map[uid] || {}).total ?? null, mine: status, waitPos: status === "waitlist" ? calWaitPos(ev, uid) : 0, going: (ev.rsvps || []).filter((r) => r.status === "going").length }, 200, corsHeaders);
+          return jsonResponse({ ok: true, answers: chk.answers, addons: (map[uid] || {}).addons || [], total: (map[uid] || {}).total ?? null, mine: status, waitPos: status === "waitlist" ? calWaitPos(ev, uid) : 0, going: (ev.rsvps || []).filter((r) => r.status === "going").length, claimedPaid: !!(fb && fb.paidClaim === true && ev.form.payment) || !!(wasIn && wasIn.claimedPaid) }, 200, corsHeaders);
         }
         if (calMatch[2] === "/paid" && M === "POST") { // "I've sent my payment": a flag the organiser sees next to the person's name until they confirm it
           if (!uid || !mine) return jsonResponse({ error: "Sign up for the event first" }, 403, corsHeaders);
