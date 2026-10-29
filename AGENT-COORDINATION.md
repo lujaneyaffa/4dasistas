@@ -1356,3 +1356,5 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - 2026-10-29: Settings -> About now has "Report a concern" (mailto admin@4dasistas.ca) + Child safety link (needed so the Play child-safety declaration "report in-app" is true). sw v254.
 
 - 2026-10-29: Admin: steps participants + new badminton Players list (GET /api/admin/badminton/players) open member profiles; new admin "Calendar" tab (Add event asks Public vs Hosted by 4DS); "Events" tab renamed "4DS activities"; paid-confirm button now opens WhatsApp to 4dasistas with prewritten text (calPaidMessage) and records claim; field-question bold only for marked text (.fbRich); phone Featured Today compact (no fixed 156px cards). sw v255.
+
+- 2026-10-29: Home Featured: ONE business of the day (tall card = 2 slots; worker rotation uses 1 slot for biz). Event page: removed empty 76px left strip (body.form-standalone padding-left:0). sw v257.

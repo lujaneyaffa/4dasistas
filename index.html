@@ -418,6 +418,7 @@
   /* "Clubs you're in" for signed-in members: same round shape + gentle float as Travel / About, always ONE line, club colours + logos */
   .fb-page{ position:fixed; inset:0; z-index:10050; background:var(--cream); overflow:auto; padding:calc(14px + env(safe-area-inset-top, 0px)) calc(14px + env(safe-area-inset-right, 0px)) calc(40px + env(safe-area-inset-bottom, 0px)) calc(14px + env(safe-area-inset-left, 0px)); -webkit-overflow-scrolling:touch; }
   .fb-wrap{ max-width:640px; margin:0 auto; }
+  body.form-standalone{ padding-left:0 !important; } /* no tab rail on an event page, so no empty strip where it was */
   body.form-standalone nav.tabs, body.form-standalone .pwr-btn{ display:none !important; } /* an event page keeps the 4DS logo banner and the normal footer, but no tab bar / back button */
   .efBrand{ display:block; text-align:center; font-weight:800; letter-spacing:.5px; color:var(--brand-rose); text-decoration:none; font-size:15px; margin:0 0 4px; }
   .efLinkEnd{ order:99; margin-top:14px; }
@@ -990,13 +991,13 @@
   .hf-col h4{ margin:0; height:22px; line-height:22px; font-size:15px; text-align:center; color:var(--brand-brown,#76220b); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .hf-card{ display:flex; flex-direction:column; gap:3px; width:100%; height:156px; flex:0 0 156px; overflow:hidden; text-align:left; margin:0; padding:12px 14px; border-radius:16px; background:#fff; border:2px solid var(--brand-brown,#76220b); box-shadow:3px 3px 0 var(--brand-brown,#76220b); font:inherit; color:inherit; cursor:pointer; box-sizing:border-box; }
   .hf-card strong{ font-size:16px; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-  @media (max-width:799px){ .home-feat{ margin-bottom:14px; } .home-feat > h3{ margin-bottom:6px; font-size:20px; } .hf-grid{ gap:10px; } .hf-col{ gap:6px; } .hf-col h4{ height:auto; line-height:1.2; font-size:14px; text-align:left; padding:0 2px; } .hf-card{ height:auto; flex:0 0 auto; min-height:0; padding:9px 12px; box-shadow:2px 2px 0 var(--brand-brown,#76220b); } .hf-card strong{ font-size:15px; } .hf-ph{ padding:6px 12px; font-size:13px; } .hf-links{ margin-top:2px; } .hf-add{ margin-top:2px; } }
+  @media (max-width:799px){ .home-feat{ margin-bottom:14px; } .home-feat > h3{ margin-bottom:6px; font-size:20px; } .hf-grid{ gap:10px; } .hf-col{ gap:6px; } .hf-col h4{ height:auto; line-height:1.2; font-size:14px; text-align:left; padding:0 2px; } .hf-card{ height:auto; flex:0 0 auto; min-height:0; padding:9px 12px; box-shadow:2px 2px 0 var(--brand-brown,#76220b); } .hf-card strong{ font-size:15px; } .hf-card.hf-tall{ height:auto; flex-basis:auto; } .hf-ph{ padding:6px 12px; font-size:13px; } .hf-links{ margin-top:2px; } .hf-add{ margin-top:2px; } }
   .hf-when, .hf-sub:not(.hf-clamp){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .hf-ph{ align-items:center; justify-content:center; text-align:center; background:#fdf6f4; border-style:dashed; box-shadow:none; cursor:default; color:#776867; font-size:14px; }
   .hf-when{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.03em; color:#a8505f; }
   .hf-sub{ font-size:13px; color:#555; }
   .hf-clamp{ display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-  .hf-biz{ cursor:default; }
+  .hf-biz{ cursor:default; } .hf-tall{ height:322px; flex-basis:322px; } .hf-tall .hf-clamp{ -webkit-line-clamp:8; } .hf-tall strong{ font-size:18px; }
   .hf-links{ display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:6px; font-size:13px; font-weight:700; }
   .hf-links a{ color:var(--brand-brown,#76220b); }
   .hf-empty{ text-align:center; font-size:13px; color:#776867; margin:0; }
@@ -8569,7 +8570,7 @@ function homeBusinessesOfDay(){
   const pool = (resourcesData || []).filter(r => ['shops', 'restaurants', 'cafes', 'beautycare', 'catering', 'eventservices', 'clothing', 'wellness'].includes(r.category) && r.title && r.desc && !/permanently closed|\bclosed down\b|\bnow closed\b|\bclosed permanently\b/i.test(r.desc));
   if(!pool.length) return [];
   const day = Math.floor(new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 86400000);
-  return [pool[(day * 2) % pool.length], pool[(day * 2 + 1) % pool.length]].filter((r, i, a) => a.indexOf(r) === i);
+  return [pool[day % pool.length]];
 }
 function homeFeaturedInner(){
   const evCard = (id, title, when, sub) => `<button type="button" class="hf-card" data-id="${escapeCm(id)}"><span class="hf-when">${escapeCm(when)}</span><strong>${escapeCm(title)}</strong>${sub ? `<span class="hf-sub">${escapeCm(sub)}</span>` : ''}</button>`;
@@ -8579,8 +8580,8 @@ function homeFeaturedInner(){
   const bizSrc = F ? F.biz.map(x => (resourcesData || []).find(r => String(r.id) === String(x.id))).filter(Boolean) : homeBusinessesOfDay();
   const pub = pubSrc.map(({ item, when }) => evCard(item.id, emojiTitle(item), when + (eventTimeLabel(item) && eventTimeLabel(item) !== 'All day' ? ' · ' + eventTimeLabel(item) : ''), cityLabel(item) || ''));
   const hosted = hostedSrc.map(e => evCard(e.id, e.title, calDateLabel(e.calDate) + (e.time ? ' · ' + formatTime12h(e.time) : ''), e.location || ''));
-  const bizCards = bizSrc.map(b => `<div class="hf-card hf-biz"><span class="hf-when">${escapeCm(b.type || 'Business')}${b.location ? ' · ' + escapeCm(b.location) : ''}</span><strong>${escapeCm(b.title)}</strong><span class="hf-sub hf-clamp">${escapeCm(b.desc)}</span><span class="hf-links">${b.website ? `<a href="${escapeCm(b.website)}" target="_blank" rel="noopener">Website</a>` : ''}${b.instagram ? `<a href="${escapeCm(b.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ''}<a href="#/resources/${escapeCm(b.category)}">See in Directory</a></span></div>`);
-  const col = (title, cards, empty) => { const c = cards.slice(0, 2); while(c.length < 2) c.push(`<div class="hf-card hf-ph"><span>${c.length ? '✨ More soon' : empty}</span></div>`); return `<div class="hf-col"><h4>${title}</h4>${c.join('')}</div>`; };
+  const bizCards = bizSrc.slice(0, 1).map(b => `<div class="hf-card hf-biz hf-tall"><span class="hf-when">${escapeCm(b.type || 'Business')}${b.location ? ' · ' + escapeCm(b.location) : ''}</span><strong>${escapeCm(b.title)}</strong><span class="hf-sub hf-clamp">${escapeCm(b.desc)}</span><span class="hf-links">${b.website ? `<a href="${escapeCm(b.website)}" target="_blank" rel="noopener">Website</a>` : ''}${b.instagram ? `<a href="${escapeCm(b.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ''}<a href="#/resources/${escapeCm(b.category)}">See in Directory</a></span></div>`);
+  const col = (title, cards, empty) => { const c = cards.slice(0, 2); while(c.length < (title.includes('Businesses') ? 1 : 2)) c.push(`<div class="hf-card hf-ph"><span>${c.length ? '✨ More soon' : empty}</span></div>`); return `<div class="hf-col"><h4>${title}</h4>${c.join('')}</div>`; };
   return col('📅 Public events', pub, 'Nothing coming up yet.') + col('🌸 Hosted by 4DS', hosted, 'New 4DS events are on the way.') + col('🏪 Businesses of the day', bizCards, 'Check the Directory!');
 }
 // The server decides what's featured (admin pins first, then a daily random pick); this turns those ids into the items the page already has.

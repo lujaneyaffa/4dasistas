@@ -1344,8 +1344,8 @@ const featResolve = async (env, doc, today, save) => {
   const pools = await featPools(env, today), before = JSON.stringify(doc.rot), rot = doc.rot, out = { day: today };
   if (rot.day !== today) { rot.day = today; rot.picks = { public: [], hosted: [], biz: [] }; }
   for (const col of FEAT_COLS) {
-    const pool = pools[col];
-    const pinned = (doc.pins[col] || []).filter((p) => p && p.until >= today && pool.ok.has(p.id)).slice(0, 2), pinIds = pinned.map((p) => p.id), need = 2 - pinned.length;
+    const pool = pools[col], slots = col === "biz" ? 1 : 2;
+    const pinned = (doc.pins[col] || []).filter((p) => p && p.until >= today && pool.ok.has(p.id)).slice(0, slots), pinIds = pinned.map((p) => p.id), need = slots - pinned.length;
     const picks = (rot.picks[col] || []).filter((id) => pool.pick.includes(id) && !pinIds.includes(id)).slice(0, need);
     let shown = new Set((rot.shown[col] || []).filter((id) => pool.pick.includes(id)));
     pinIds.forEach((id) => shown.add(id)); picks.forEach((id) => shown.add(id));
