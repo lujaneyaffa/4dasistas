@@ -1336,3 +1336,5 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - 2026-10-29: Home: "Add more" is now a small outline button; bubble labels narrower/smaller so LEADERBOARDS no longer touches the circle edge. sw v246.
 
 - 2026-10-29: Featured Today is one symmetrical block: 3 equal columns, every column exactly 2 cards of identical fixed size (156px), text clamped, empty slots get a dashed placeholder card. sw v247.
+
+- 2026-10-29: Businesses of the day skips listings whose description says permanently closed. sw v248.

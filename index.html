@@ -8533,7 +8533,7 @@ function homeFeaturedHosted(){
   return (CLUB_CAL_ITEMS || []).filter(e => e.calDate >= t).sort((a, b) => a.calDate.localeCompare(b.calDate) || String(a.time).localeCompare(String(b.time))).slice(0, 2);
 }
 function homeBusinessesOfDay(){
-  const pool = (resourcesData || []).filter(r => ['shops', 'restaurants', 'cafes', 'beautycare', 'catering', 'eventservices', 'clothing', 'wellness'].includes(r.category) && r.title && r.desc);
+  const pool = (resourcesData || []).filter(r => ['shops', 'restaurants', 'cafes', 'beautycare', 'catering', 'eventservices', 'clothing', 'wellness'].includes(r.category) && r.title && r.desc && !/permanently closed|\bclosed down\b|\bnow closed\b|\bclosed permanently\b/i.test(r.desc));
   if(!pool.length) return [];
   const day = Math.floor(new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 86400000);
   return [pool[(day * 2) % pool.length], pool[(day * 2 + 1) % pool.length]].filter((r, i, a) => a.indexOf(r) === i);
