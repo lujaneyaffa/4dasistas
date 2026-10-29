@@ -1338,3 +1338,5 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - 2026-10-29: Featured Today is one symmetrical block: 3 equal columns, every column exactly 2 cards of identical fixed size (156px), text clamped, empty slots get a dashed placeholder card. sw v247.
 
 - 2026-10-29: Businesses of the day skips listings whose description says permanently closed. sw v248.
+
+- 2026-10-29: Admin -> Events: new "Featured on the Home page" section. Pin events/4DS events/businesses per column (2 spots each) with a duration (1d..1mo, until event, custom date); empty spots auto-fill daily at random with NO repeats until every item has been shown (events only future; biz skips closed). Worker: KV `featured` {pins, rot}; GET /api/featured (public, resolves + rolls the day, 60s cache), admin GET/PUT /api/admin/featured, POST /api/admin/featured/shuffle. Home uses state.featured (falls back to the old client logic if the API fails). sw v249.

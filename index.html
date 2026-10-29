@@ -3574,6 +3574,7 @@ function renderDirectory(){
     { const rb = document.getElementById('admReviewsBtn'); if(rb) rb.addEventListener('click', openAdminReviews); }
     { const gb = document.getElementById('admGateBtn'); if(gb) gb.addEventListener('click', openAdminGate); }
     wireClubAdminPanel();
+    admFeatMount();
     return;
   }
   if(state.tab === 'travel'){
@@ -8540,13 +8541,30 @@ function homeBusinessesOfDay(){
 }
 function homeFeaturedInner(){
   const evCard = (id, title, when, sub) => `<button type="button" class="hf-card" data-id="${escapeCm(id)}"><span class="hf-when">${escapeCm(when)}</span><strong>${escapeCm(title)}</strong>${sub ? `<span class="hf-sub">${escapeCm(sub)}</span>` : ''}</button>`;
-  const pub = homeFeaturedEvents().map(({ item, when }) => evCard(item.id, emojiTitle(item), when + (eventTimeLabel(item) && eventTimeLabel(item) !== 'All day' ? ' · ' + eventTimeLabel(item) : ''), cityLabel(item) || ''));
-  const hosted = homeFeaturedHosted().map(e => evCard(e.id, e.title, calDateLabel(e.calDate) + (e.time ? ' · ' + formatTime12h(e.time) : ''), e.location || ''));
-  const bizCards = homeBusinessesOfDay().map(b => `<div class="hf-card hf-biz"><span class="hf-when">${escapeCm(b.type || 'Business')}${b.location ? ' · ' + escapeCm(b.location) : ''}</span><strong>${escapeCm(b.title)}</strong><span class="hf-sub hf-clamp">${escapeCm(b.desc)}</span><span class="hf-links">${b.website ? `<a href="${escapeCm(b.website)}" target="_blank" rel="noopener">Website</a>` : ''}${b.instagram ? `<a href="${escapeCm(b.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ''}<a href="#/resources/${escapeCm(b.category)}">See in Directory</a></span></div>`);
+  const F = state.featured;
+  const pubSrc = F ? F.public.map(x => homeFeatPubEntry(x.id)).filter(Boolean) : homeFeaturedEvents();
+  const hostedSrc = F ? F.hosted.map(x => (CLUB_CAL_ITEMS || []).find(e => e.id === 'clubcal:' + x.id)).filter(Boolean) : homeFeaturedHosted();
+  const bizSrc = F ? F.biz.map(x => (resourcesData || []).find(r => String(r.id) === String(x.id))).filter(Boolean) : homeBusinessesOfDay();
+  const pub = pubSrc.map(({ item, when }) => evCard(item.id, emojiTitle(item), when + (eventTimeLabel(item) && eventTimeLabel(item) !== 'All day' ? ' · ' + eventTimeLabel(item) : ''), cityLabel(item) || ''));
+  const hosted = hostedSrc.map(e => evCard(e.id, e.title, calDateLabel(e.calDate) + (e.time ? ' · ' + formatTime12h(e.time) : ''), e.location || ''));
+  const bizCards = bizSrc.map(b => `<div class="hf-card hf-biz"><span class="hf-when">${escapeCm(b.type || 'Business')}${b.location ? ' · ' + escapeCm(b.location) : ''}</span><strong>${escapeCm(b.title)}</strong><span class="hf-sub hf-clamp">${escapeCm(b.desc)}</span><span class="hf-links">${b.website ? `<a href="${escapeCm(b.website)}" target="_blank" rel="noopener">Website</a>` : ''}${b.instagram ? `<a href="${escapeCm(b.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ''}<a href="#/resources/${escapeCm(b.category)}">See in Directory</a></span></div>`);
   const col = (title, cards, empty) => { const c = cards.slice(0, 2); while(c.length < 2) c.push(`<div class="hf-card hf-ph"><span>${c.length ? '✨ More soon' : empty}</span></div>`); return `<div class="hf-col"><h4>${title}</h4>${c.join('')}</div>`; };
   return col('📅 Public events', pub, 'Nothing coming up yet.') + col('🌸 Hosted by 4DS', hosted, 'New 4DS events are on the way.') + col('🏪 Businesses of the day', bizCards, 'Check the Directory!');
 }
-function homeFeaturedHtml(){
+// The server decides what's featured (admin pins first, then a daily random pick); this turns those ids into the items the page already has.
+function homeFeatPubEntry(id){
+  const item = [...sportsData, ...gatheringsData, ...dayActivitiesData, ...mosqueGatheringsData, ...tripsData].find(x => String(x.id) === String(id)); if(!item) return null;
+  for(let i = 0; i < 120; i++){
+    const d = new Date(today); d.setDate(today.getDate() + i);
+    if(occurrencesInMonth(item, d.getFullYear(), d.getMonth()).includes(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`)) return { item, when: i === 0 ? 'Today' : calDateLabel(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`) };
+  }
+  return { item, when: item.eventDate ? calDateLabel(item.eventDate) : 'Coming up' };
+}
+async function homeFeaturedLoad(){
+  if(state.featuredAt && Date.now() - state.featuredAt < 120000) return; state.featuredAt = Date.now();
+  try { const r = await fetch('/api/featured'); if(r.ok){ state.featured = await r.json(); homeFeaturedPaint(); } } catch {}
+}
+function homeFeaturedHtml(){ setTimeout(homeFeaturedLoad, 0);
   return `<section class="home-feat"><h3>✨ Featured Today</h3><div class="hf-grid" id="homeFeatGrid">${homeFeaturedInner()}</div><button type="button" class="club-guide-btn hf-add" id="homeSubmitTile">➕ Add more</button></section>`;
 }
 function homeFeaturedPaint(){ const g = document.getElementById('homeFeatGrid'); if(g) g.innerHTML = homeFeaturedInner(); }
@@ -11685,7 +11703,7 @@ function renderClubAdminPanel(){
   `;
   const evSub = !lead && state.admEvSub === 'main' ? 'main' : 'club';
   const evChip = (k, l) => `<button type="button" class="filter-chip${evSub === k ? ' active' : ''}" data-evsub="${k}">${l}</button>`;
-  const eventsGrid = lead ? admCeHtml() : `<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0 4px;">${evChip('club', '🎟️ Club events (RSVPs, forms)')}${evChip('main', '📅 Main calendar (public events)')}</div>
+  const eventsGrid = lead ? admCeHtml() : admSec('featured', '⭐ Featured on the Home page', '<div id="admFeat"><p class="ideas-hint">Loading…</p></div>', true) + `<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0 4px;">${evChip('club', '🎟️ Club events (RSVPs, forms)')}${evChip('main', '📅 Main calendar (public events)')}</div>
     <p class="ideas-hint" style="margin:0 0 8px;">${evSub === 'club' ? 'Events that belong to a club: sign-ups, spots, payments, answers.' : 'The public calendar everyone sees, plus events people submit.'}</p>${evSub === 'club' ? admCeHtml() : calendarGrid}`;
   const settingsGrid = lead ? '' : `
     ${admSec('database', '🗄️ Database &amp; backups (move to D1)', d1AdminHtml(), false)}
@@ -11732,6 +11750,60 @@ function renderClubAdminPanel(){
     ${admFinderHtml(lead)}
     ${gsel === 'todo' ? todoGrid : gsel === 'clubs' ? clubsGrid : gsel === 'events' ? eventsGrid : gsel === 'settings' ? settingsGrid : gsel === 'programs' ? programsGrid : profilesGrid}
   </div>`;
+}
+// ⭐ Featured on Home: pin specific events / businesses for as long as you like; anything left empty is picked automatically each day (no repeats until everything has had a turn).
+const FEAT_COLS_UI = [['public', '📅 Public events', 'Events from the main calendar'], ['hosted', '🌸 Hosted by 4DS', 'Upcoming 4DS club events'], ['biz', '🏪 Businesses', 'From the Directory']];
+function admFeatDay(n){ const d = new Date(today); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function admFeatCandidates(col){
+  const t = admFeatDay(0);
+  if(col === 'public') return [...sportsData, ...gatheringsData, ...dayActivitiesData, ...mosqueGatheringsData, ...tripsData].filter(i => i.id && (((i.days || []).length && (!i.recurEnd || i.recurEnd >= t)) || String(i.endDate || i.eventDate || i.calDate || '') >= t)).map(i => ({ id: String(i.id), label: emojiTitle(i), sub: (i.days || []).length ? 'weekly' : calDateLabel(i.eventDate || i.calDate), date: (i.days || []).length ? '' : (i.endDate || i.eventDate || i.calDate || '') }));
+  if(col === 'hosted') return (CLUB_CAL_ITEMS || []).filter(e => e.calDate >= t).map(e => ({ id: e.id.replace(/^clubcal:/, ''), label: e.title, sub: calDateLabel(e.calDate), date: e.calDate }));
+  return (resourcesData || []).filter(r => r.id && r.title).map(r => ({ id: String(r.id), label: r.title, sub: r.type || r.category || '', date: '' }));
+}
+function admFeatName(col, id){ const c = admFeatCandidates(col).find(x => x.id === String(id)); return c ? c.label : String(id); }
+async function admFeatMount(){
+  const box = document.getElementById('admFeat'); if(!box) return;
+  const api = async (path, method, body) => { const r = await fetch(path, { method: method || 'GET', credentials:'include', cache:'no-store', headers: body ? { 'Content-Type':'application/json' } : {}, body: body ? JSON.stringify(body) : undefined }); const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || 'Something went wrong'); return j; };
+  let data = state.admFeat, msg = '', sel = {}; // sel[col] = the item picked to pin (not saved yet)
+  const save = async pins => { try { data = state.admFeat = await api('/api/admin/featured', 'PUT', { pins }); msg = '✓ Saved'; state.featuredAt = 0; state.featured = null; } catch(e){ msg = e.message; } paint(); };
+  const paint = () => {
+    if(!data){ box.innerHTML = '<p class="ideas-hint">Loading…</p>'; return; }
+    box.innerHTML = `<p class="ideas-hint" style="text-align:left;margin:0 0 8px;">Each column has 2 spots. 📌 Pin an event or business and choose how long it stays; when that time is up it drops off by itself. Any spot you leave empty fills with a random pick that changes every day, and nothing repeats until everything has had a turn (events are only ones still to come).</p>
+      <div style="min-height:20px;font-size:13px;font-weight:700;color:${/^✓/.test(msg) ? '#2a7a4a' : '#c00'};">${escapeCm(msg)}</div>
+      ${FEAT_COLS_UI.map(([col, title, hint]) => {
+        const pins = data.pins[col] || [], cur = (data.current && data.current[col]) || [], picked = sel[col];
+        return `<div class="cp-box" style="margin:8px 0;" data-col="${col}"><div style="font-weight:800;font-size:16px;margin:0 0 2px;">${title}</div><p class="ideas-hint" style="text-align:left;margin:0 0 6px;">${hint}</p>
+          <div style="font-size:13px;margin-bottom:6px;"><strong>Showing now:</strong>${cur.length ? cur.map(x => `<div style="padding:3px 0;">${x.pinned ? '📌' : '🎲'} ${escapeCm(admFeatName(col, x.id))} <small style="color:#776867;">${x.pinned ? 'pinned until ' + escapeCm(calDateLabel(x.until)) : 'automatic'}</small>${x.pinned ? ` <button type="button" class="fb-mini af-del" data-id="${escapeCm(x.id)}" style="background:#fdecea;">✕ Remove</button>` : ''}</div>`).join('') : ' <em>nothing yet</em>'}</div>
+          ${pins.length >= 2 ? '<p class="ideas-hint" style="text-align:left;margin:0;">Both spots are pinned — remove one to pin something else.</p>' : picked ? `<div style="padding:8px;border-radius:12px;background:#fdf0f2;"><strong>${escapeCm(picked.label)}</strong> <small>${escapeCm(picked.sub)}</small>
+              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center;"><label style="font-size:13px;">Keep it for <select class="af-len" style="padding:6px;"><option value="1">1 day</option><option value="2">2 days</option><option value="3">3 days</option><option value="7" selected>1 week</option><option value="14">2 weeks</option><option value="30">1 month</option>${picked.date ? '<option value="event">Until the event day</option>' : ''}<option value="custom">Pick a date…</option></select></label><input type="date" class="af-date" min="${admFeatDay(0)}" style="display:none;padding:6px;"><button type="button" class="fb-mini af-pin" style="background:#e6f4ea;">📌 Pin it</button><button type="button" class="fb-mini af-cancel">Cancel</button></div></div>`
+            : `<input type="search" class="af-q" placeholder="🔍 Search to pin one…" autocomplete="off" style="width:100%;box-sizing:border-box;padding:8px;border-radius:10px;border:2px solid var(--brand-brown);"><div class="af-res"></div>`}
+        </div>`; }).join('')}
+      <button type="button" class="fb-mini af-shuffle">🎲 Re-pick the automatic spots now</button>`;
+    box.querySelectorAll('[data-col]').forEach(cb => {
+      const col = cb.dataset.col, pins = (data.pins[col] || []);
+      cb.querySelectorAll('.af-del').forEach(b => b.addEventListener('click', () => { const p = { ...data.pins }; p[col] = pins.filter(x => x.id !== b.dataset.id); save(p); }));
+      const q = cb.querySelector('.af-q');
+      if(q) q.addEventListener('input', () => {
+        const v = q.value.trim().toLowerCase(), res = cb.querySelector('.af-res'); if(v.length < 2){ res.innerHTML = ''; return; }
+        const hits = admFeatCandidates(col).filter(c => c.label.toLowerCase().includes(v) && !pins.some(p => p.id === c.id)).slice(0, 8);
+        res.innerHTML = hits.map((c, i) => `<button type="button" class="fb-mini" data-i="${i}" style="display:block;width:100%;text-align:left;margin:4px 0;">${escapeCm(c.label)} <small style="color:#776867;">${escapeCm(c.sub)}</small></button>`).join('') || '<p class="ideas-hint">No match.</p>';
+        res.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { sel[col] = hits[Number(b.dataset.i)]; msg = ''; paint(); }));
+      });
+      const len = cb.querySelector('.af-len'), dt = cb.querySelector('.af-date');
+      if(len) len.addEventListener('change', () => { dt.style.display = len.value === 'custom' ? '' : 'none'; });
+      const cn = cb.querySelector('.af-cancel'); if(cn) cn.addEventListener('click', () => { delete sel[col]; paint(); });
+      const pn = cb.querySelector('.af-pin');
+      if(pn) pn.addEventListener('click', () => {
+        const it = sel[col]; let until = '';
+        if(len.value === 'event') until = it.date; else if(len.value === 'custom') until = dt.value; else until = admFeatDay(Number(len.value) - 1);
+        if(!until || until < admFeatDay(0)){ msg = 'Pick a date that is today or later.'; paint(); return; }
+        const p = { ...data.pins }; p[col] = pins.concat([{ id: it.id, until }]); delete sel[col]; save(p);
+      });
+    });
+    const sh = box.querySelector('.af-shuffle'); if(sh) sh.addEventListener('click', async () => { try { data = state.admFeat = await api('/api/admin/featured/shuffle', 'POST'); msg = '✓ New automatic picks'; state.featuredAt = 0; state.featured = null; } catch(e){ msg = e.message; } paint(); });
+  };
+  paint();
+  if(!data){ try { data = state.admFeat = await api('/api/admin/featured'); } catch(e){ box.innerHTML = `<p class="av-msg" style="color:#c00;">${escapeCm(e.message)}</p>`; return; } paint(); }
 }
 // Three big tiles at the top of the Admin page switch between its grids (Clubs / Notifications & team / Profiles).
 // "Needs you": everything waiting on the main admin, tappable, above the tiles.

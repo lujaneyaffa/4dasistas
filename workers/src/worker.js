@@ -1277,6 +1277,50 @@ const writeClubEvents = async (env, clubId, events) => {
 // The public sees only title + date; details and RSVP need a member sign-in. Members of the club are "going" at once; anyone else becomes "pending" until an admin accepts.
 let _calIdeaCache = null;
 const CLUBCAL_KEY = "clubcal";
+// ---- "Featured Today" on the Home page: admin pins (with an end date) + an automatic daily pick that never repeats until everything has been shown ----
+const FEAT_KEY = "featured", FEAT_COLS = ["public", "hosted", "biz"], FEAT_BIZ_CATS = ["shops", "restaurants", "cafes", "beautycare", "catering", "eventservices", "clothing", "wellness"];
+const featToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+const readFeat = async (env) => { let o = {}; try { o = JSON.parse((await env.SITE_DATA.get(FEAT_KEY)) || "{}") || {}; } catch {} const pins = {}, rot = o.rot && typeof o.rot === "object" ? o.rot : {}; for (const c of FEAT_COLS) pins[c] = Array.isArray(o.pins && o.pins[c]) ? o.pins[c] : []; return { pins, rot: { day: rot.day || "", picks: rot.picks || {}, shown: rot.shown || {} } }; };
+let _featPools = null;
+const featPools = async (env, today) => {
+  if (_featPools && _featPools.day === today && Date.now() - _featPools.at < 600000) return _featPools.v;
+  const readItems = async (f) => { try { const r = await fetchSiteFile(env, `/data/${f}.json`); const j = await r.json(); return Array.isArray(j.items) ? j.items : []; } catch { return []; } };
+  const futureItem = (it) => (it.days && it.days.length) ? (!it.recurEnd || it.recurEnd >= today) : (!!(it.eventDate || it.calDate) && String(it.endDate || it.eventDate || it.calDate) >= today);
+  const pub = { pick: [], ok: new Set() };
+  for (const f of ["sports", "gatherings", "dayactivities", "mosquegatherings", "trips"]) for (const it of await readItems(f)) {
+    if (!it || !it.id || !futureItem(it)) continue;
+    pub.ok.add(String(it.id)); if (f !== "trips") pub.pick.push(String(it.id));
+  }
+  const hosted = { pick: [], ok: new Set() };
+  for (const e of await readClubCal(env)) if (e && !e.tbd && e.date >= today && e.id) { hosted.pick.push(e.id); hosted.ok.add(e.id); }
+  const biz = { pick: [], ok: new Set() };
+  for (const r of await readItems("resources")) {
+    if (!r || !r.id) continue; biz.ok.add(String(r.id));
+    if (FEAT_BIZ_CATS.includes(r.category) && r.title && r.desc && !/permanently closed|\bclosed down\b|\bnow closed\b|\bclosed permanently\b/i.test(r.desc)) biz.pick.push(String(r.id));
+  }
+  const v = { public: pub, hosted, biz }; _featPools = { day: today, at: Date.now(), v }; return v;
+};
+// What shows today: pinned items first (until their end date), the rest picked at random — and an item is not picked again until every other one has had a turn.
+const featResolve = async (env, doc, today, save) => {
+  const pools = await featPools(env, today), before = JSON.stringify(doc.rot), rot = doc.rot, out = { day: today };
+  if (rot.day !== today) { rot.day = today; rot.picks = { public: [], hosted: [], biz: [] }; }
+  for (const col of FEAT_COLS) {
+    const pool = pools[col];
+    const pinned = (doc.pins[col] || []).filter((p) => p && p.until >= today && pool.ok.has(p.id)).slice(0, 2), pinIds = pinned.map((p) => p.id), need = 2 - pinned.length;
+    const picks = (rot.picks[col] || []).filter((id) => pool.pick.includes(id) && !pinIds.includes(id)).slice(0, need);
+    let shown = new Set((rot.shown[col] || []).filter((id) => pool.pick.includes(id)));
+    pinIds.forEach((id) => shown.add(id)); picks.forEach((id) => shown.add(id));
+    while (picks.length < need) {
+      let cand = pool.pick.filter((id) => !shown.has(id));
+      if (!cand.length) { shown = new Set([...pinIds, ...picks]); cand = pool.pick.filter((id) => !shown.has(id)); if (!cand.length) break; }
+      const id = cand[Math.floor(Math.random() * cand.length)]; picks.push(id); shown.add(id);
+    }
+    rot.picks[col] = picks; rot.shown[col] = [...shown];
+    out[col] = pinned.map((p) => ({ id: p.id, pinned: true, until: p.until })).concat(picks.map((id) => ({ id })));
+  }
+  if (save && JSON.stringify(rot) !== before) await env.SITE_DATA.put(FEAT_KEY, JSON.stringify({ pins: doc.pins, rot }));
+  return out;
+};
 const readClubCal = async (env) => { try { const r = await env.SITE_DATA.get(CLUBCAL_KEY); const a = r ? JSON.parse(r) : []; return Array.isArray(a) ? a : []; } catch { return []; } };
 const writeClubCal = (env, a) => env.SITE_DATA.put(CLUBCAL_KEY, JSON.stringify(a));
 const cleanCalText = (v, n) => String(v || "").replace(/[\x00-\x1f\x7f]/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
@@ -2695,7 +2739,35 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     const readEventFormCfg = async () => { try { const c = JSON.parse((await env.SITE_DATA.get("evsubform")) || "{}") || {}; return { intro: String(c.intro || ""), form: c.form && c.form.fields ? c.form : null }; } catch { return { intro: "", form: null }; } };
     if (path === "/api/event-form-config" && request.method === "GET") return jsonResponse(await readEventFormCfg(), 200, { ...corsHeaders, "Cache-Control": "no-store" });
     // SECURITY: the admin routes between here and the main admin guard further down run BEFORE that guard, so they check the main-admin session themselves.
-    if ((path === "/api/admin/event-form-config" || path === "/api/admin/needs" || path === "/api/admin/steps" || path === "/api/admin/step-rounds" || path === "/api/admin/stay-status" || path.startsWith("/api/admin/step-pledges") || path.startsWith("/api/admin/step-participants") || path.startsWith("/api/admin/badminton/")) && !(await isAdminRequest(env, request))) return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
+    if ((path === "/api/admin/event-form-config" || path.startsWith("/api/admin/featured") || path === "/api/admin/needs" || path === "/api/admin/steps" || path === "/api/admin/step-rounds" || path === "/api/admin/stay-status" || path.startsWith("/api/admin/step-pledges") || path.startsWith("/api/admin/step-participants") || path.startsWith("/api/admin/badminton/")) && !(await isAdminRequest(env, request))) return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
+    if (path === "/api/featured" && request.method === "GET") {
+      const doc = await readFeat(env), today = featToday();
+      return jsonResponse(await featResolve(env, doc, today, true), 200, { ...corsHeaders, "Cache-Control": "public, max-age=60" });
+    }
+    if (path === "/api/admin/featured" && request.method === "GET") {
+      const doc = await readFeat(env), today = featToday();
+      return jsonResponse({ pins: doc.pins, current: await featResolve(env, doc, today, true) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    if (path === "/api/admin/featured" && request.method === "PUT") {
+      let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const doc = await readFeat(env), today = featToday(), pools = await featPools(env, today);
+      for (const col of FEAT_COLS) {
+        const list = Array.isArray(body && body.pins && body.pins[col]) ? body.pins[col] : [], clean = [];
+        for (const p of list.slice(0, 2)) {
+          const id = String((p && p.id) || ""), until = String((p && p.until) || "");
+          if (!/^[^\x00-\x1f<>"]{1,120}$/.test(id) || !/^\d{4}-\d{2}-\d{2}$/.test(until) || until < today) continue;
+          if (!pools[col].ok.has(id) || clean.some((c) => c.id === id)) continue;
+          clean.push({ id, until });
+        }
+        doc.pins[col] = clean;
+      }
+      await env.SITE_DATA.put(FEAT_KEY, JSON.stringify({ pins: doc.pins, rot: doc.rot }));
+      return jsonResponse({ pins: doc.pins, current: await featResolve(env, doc, today, true) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    if (path === "/api/admin/featured/shuffle" && request.method === "POST") { // new random picks right now (keeps the pins)
+      const doc = await readFeat(env), today = featToday(); doc.rot.picks = { public: [], hosted: [], biz: [] };
+      return jsonResponse({ pins: doc.pins, current: await featResolve(env, doc, today, true) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
     if (path === "/api/admin/event-form-config" && request.method === "PUT") {
       let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
       const cfg = { intro: String(body.intro || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 500), form: sanitizeCalForm(body.form) };
