@@ -421,6 +421,9 @@
   body.form-standalone nav.tabs, body.form-standalone .pwr-btn{ display:none !important; } /* an event page keeps the 4DS logo banner and the normal footer, but no tab bar / back button */
   .efBrand{ display:block; text-align:center; font-weight:800; letter-spacing:.5px; color:var(--brand-rose); text-decoration:none; font-size:15px; margin:0 0 4px; }
   .efLinkEnd{ order:99; margin-top:14px; }
+  .sigPadWrap{ position:relative; width:100%; aspect-ratio:3/1; background:#fff; border:2px solid var(--brand-brown); border-radius:12px; overflow:hidden; } .sigPad{ position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none; -webkit-user-select:none; user-select:none; cursor:crosshair; }
+  .sigLine{ position:absolute; left:6%; right:6%; bottom:26%; border-bottom:2px dashed #cfc3c1; pointer-events:none; } .sigX{ position:absolute; left:2.5%; bottom:28%; font-size:18px; color:#b5a8a6; pointer-events:none; } .sigHint{ position:absolute; left:0; right:0; top:28%; text-align:center; font-size:20px; color:#c4b8b6; pointer-events:none; }
+  .sigBar{ display:flex; gap:8px; margin-top:6px; } .sigBar .fb-mini{ min-height:44px; flex:1; }
   .rich{ line-height:1.5; overflow-wrap:anywhere; } .rich h2{ font-size:1.4em; margin:.5em 0 .2em; } .rich h3{ font-size:1.15em; margin:.5em 0 .2em; } .rich ul{ margin:.3em 0; padding-left:1.3em; } .rich blockquote{ border-left:4px solid #f2d8d7; margin:.4em 0; padding:.1em .8em; color:#555; } .rich mark{ background:#fff3b0; padding:0 2px; } .rich a{ color:#76220b; font-weight:700; } .rich .rGap{ height:.7em; } .rich hr{ border:0; border-top:2px solid #f2d8d7; margin:.8em 0; }
   .richBar{ display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin:0 0 6px; } .richSep{ width:1px; height:24px; background:#e0cfcc; margin:0 4px; } .richB.on{ background:#f2d8d7; } .richDot{ width:30px !important; min-width:30px !important; height:30px !important; min-height:30px !important; border-radius:50% !important; padding:0 !important; } .richEd{ border:2px solid var(--brand-brown); border-radius:10px; padding:10px 12px; background:#fff; font-size:16px; outline:none; overflow-wrap:anywhere; } .richEd:focus{ border-color:#ce8491; box-shadow:0 0 0 3px #f2d8d7; } .richEd.isEmpty:before{ content:attr(data-ph); color:#9a8d8c; float:left; height:0; pointer-events:none; } .richWrap.mini .richBar{ display:none; } .richWrap.mini:focus-within .richBar{ display:flex; } .richWrap.mini .richEd{ padding:8px 10px; } .richNote{ font-size:12px; min-height:0; margin:2px 0 0; } .richB, .richColor{ min-width:36px; min-height:36px; border:2px solid var(--brand-brown); background:#fff; border-radius:10px; cursor:pointer; font-size:14px; padding:0 6px; } .richBar .richB, .richBar .richColor{ width:auto !important; flex:none; margin:0 !important; } .richPrev{ border:2px dashed #f2d8d7; border-radius:10px; padding:8px 10px; background:#fff; }
   .fb-card{ background:#fff; border:2px solid var(--brand-brown); border-radius:16px; padding:12px; margin:0 0 12px; box-shadow:3px 3px 0 var(--brand-brown); }
@@ -6261,7 +6264,7 @@ function clubCalDayPopup(key){
         ${e.place ? `<p style="margin:4px 0;">📍 ${escapeCm(e.place)}</p>` : ''}
         <p style="margin:4px 0;font-weight:700;color:#76220b;">⏳ ${e.rsvpBy ? 'Last day to RSVP: ' + escapeCm(ideaLongDate(e.rsvpBy)) : 'No RSVP deadline'}</p>
         ${e.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(e.desc)}</p>` : ''}
-        <p style="margin:4px 0;font-size:13px;color:#776867;">📝 ${e.form ? `Form: ${escapeCm(e.form.title)} (${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'})` : (e.hasForm ? 'Has a form (no access)' : 'No form — plain RSVP')}</p>
+        <p style="margin:4px 0;font-size:13px;color:#776867;">📝 ${e.form ? `Form: ${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'})` : (e.hasForm ? 'Has a form (no access)' : 'No form — plain RSVP')}</p>
         <div style="margin:8px 0 2px;"><strong style="font-size:13px;">${calIsPast(e.date) ? '✅ Attended' : '✅ Going'} (${goingL.length})</strong><div>${goingL.length ? chips(goingL, '#e6f4ea') : '<small style="color:#776867;">Nobody yet.</small>'}</div></div>
         ${pendL.length ? `<div style="margin:6px 0 2px;"><strong style="font-size:13px;color:#b3261e;">⏳ Waiting for approval (${pendL.length})</strong><div>${chips(pendL, '#fdecea')}</div></div>` : ''}
         <button type="button" class="club-guide-btn cdManage" style="width:100%;margin-top:8px;text-align:center;">👥 Manage attendees / ✏️ edit</button>`;
@@ -6361,10 +6364,10 @@ async function clubCalPublicCard(box, id){
           <div class="fb-q"><label>Confirm your PIN <span class="req">*</span></label><input ${inp} data-base="pin2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"></div>
           <div class="fb-q"><label>Which clubs are you interested in? <small style="font-weight:400;color:#776867;">(optional)</small></label><div class="pfClubs" style="display:flex;flex-wrap:wrap;gap:8px;">${clubsData.map(c => `<label style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:2px solid var(--brand-brown);background:#fff;font-size:14px;"><input type="checkbox" class="pfClub" value="${escapeCm(c.id)}" style="width:18px;height:18px;"> ${escapeCm(c.title)}</label>`).join('')}</div></div>
           <div class="fb-q"><label>Anything you'd like us to know? <small style="font-weight:400;color:#776867;">(optional)</small></label><textarea ${inp} data-base="why" rows="2" maxlength="600"></textarea></div></div></div>
-      <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 4px;">2 · 📝 ${escapeCm(d.form.title)}</h3>${d.form.intro ? `<div style="margin:0 0 10px;">${richHtml(d.form.intro)}</div>` : ''}${calPriceHtml(d, true)}
+      <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 4px;">2 · 📝 Sign up</h3>${d.form.intro ? `<div style="margin:0 0 10px;">${richHtml(d.form.intro)}</div>` : ''}
         ${calFormFieldsHtml(d.form, {}, false)}
         ${calAddonsHtml(d.form, [])}
-        <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Submit</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}${d.form.payment ? `<p class="ideas-hint" style="margin:10px 0 0;">💳 Payment${d.form.payment.amount ? ': ' + escapeCm(d.form.payment.amount) : ''} — you'll see how to pay right after you submit.</p>` : ''}</div>`;
+        <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Submit</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}${d.form.payment ? `<p class="ideas-hint" style="margin:10px 0 0;">💳 you'll see how to pay right after you submit.</p>` : ''}</div>`;
     box.insertAdjacentHTML('beforeend', `<div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`);
     wireCalCopy(box); wireCalAddons(box, d.form); calMountLocations(box); calAttendeesInto(box, d.id, d.date);
     // Section 1 starts as two buttons; only the chosen path's fields appear: guest (name + phone), sign in (find yourself + PIN), or create an account.
@@ -6470,10 +6473,10 @@ async function clubCalMemberCard(box, id){
     if(d.form){
       const meName = (getCmSession() || {}).name || '';
       formBox.innerHTML = `<div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 6px;">1 · 👤 About you</h3><p style="margin:0;">✅ Signed in as <strong>${escapeCm(meName)}</strong> — your details are already on file.</p></div>
-      <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 4px;">2 · 📝 ${escapeCm(d.form.title)}</h3>${d.form.intro ? `<div style="margin:0 0 10px;">${richHtml(d.form.intro)}</div>` : ''}${calPriceHtml(d, true)}${calFormFieldsHtml(d.form, d.myAnswers, false)}
+      <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 4px;">2 · 📝 Sign up</h3>${d.form.intro ? `<div style="margin:0 0 10px;">${richHtml(d.form.intro)}</div>` : ''}${calFormFieldsHtml(d.form, d.myAnswers, false)}
         ${calAddonsHtml(d.form, d.myAddons)}
         <button type="button" class="club-guide-btn calFormSend" ${d.closed && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">${d.closed && !d.mine ? '🔒 Sign-ups closed' : d.myAnswers ? 'Update my answers' : 'Submit & RSVP'}</button><div class="calFormMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>
-        ${calFormFooterHtml(d.form)}<div class="calPayBox">${d.form.payment ? (d.myAnswers ? calPayBoxHtml(d) : `<p class="ideas-hint" style="margin:10px 0 0;">💳 Payment${d.form.payment.amount ? ': ' + escapeCm(d.form.payment.amount) : ''} — you'll see how to pay right after you sign up.</p>`) : ''}</div></div>`;
+        ${calFormFooterHtml(d.form)}<div class="calPayBox">${d.form.payment ? (d.myAnswers ? calPayBoxHtml(d) : `<p class="ideas-hint" style="margin:10px 0 0;">💳 you'll see how to pay right after you sign up.</p>`) : ''}</div></div>`;
       wireCalAddons(formBox, d.form); calMountLocations(formBox);
       formBox.addEventListener('click', async ev2 => { // "I've sent my payment"
         const pb2 = ev2.target.closest('.calPaidBtn'); if(!pb2) return; pb2.disabled = true;
@@ -6589,7 +6592,7 @@ function clubCalManage(ev){
   paint();
 }
 /* ---- Form builder ("Create a form" on a club event): a full page where the admin adds / edits / reorders questions that members then fill. ---- */
-const FB_TYPES = [['text', 'Short answer'], ['longtext', 'Long answer'], ['choice', 'Pick one'], ['multi', 'Pick several'], ['yesno', 'Yes / No'], ['number', 'Number'], ['date', 'Date'], ['location', '📍 Location (map pin, Canada)']];
+const FB_TYPES = [['text', 'Short answer'], ['longtext', 'Long answer'], ['choice', 'Pick one'], ['multi', 'Pick several'], ['yesno', 'Yes / No'], ['number', 'Number'], ['date', 'Date'], ['location', '📍 Location (map pin, Canada)'], ['signature', '✍️ Signature (draw it)']];
 function calFormFieldsHtml(form, answers, locked){
   const a = answers || {}, dis = locked ? 'disabled' : '';
   return form.fields.map(f => {
@@ -6599,11 +6602,46 @@ function calFormFieldsHtml(form, answers, locked){
     else if(f.type === 'number') inp = `<input class="fb-in" data-fid="${f.id}" type="number" inputmode="decimal" value="${escapeCm(v || '')}" ${dis}>`;
     else if(f.type === 'date') inp = `<input class="fb-in" data-fid="${f.id}" type="date" value="${escapeCm(v || '')}" ${dis}>`;
     else if(f.type === 'location') inp = locked ? `<div class="calLocChosen" style="padding:8px 10px;border-radius:8px;background:#f3efe9;font-size:13px;color:#776867;">📍 People search a place in Canada and pick it from the list.</div>` : `<div class="calLoc" data-locfid="${f.id}"><div class="calLocSlot"></div><div class="calLocChosen ev-loc-chosen${v && v.address ? '' : ' empty'}" style="margin-top:6px;">${v && v.address ? '📍 ' + escapeCm(v.address) : 'Search for a place in Canada, then pick it from the list'}</div><input type="hidden" class="calLocVal" data-fid="${f.id}" value="${escapeCm(v && v.address ? JSON.stringify(v) : '')}"></div>`;
+    else if(f.type === 'signature'){
+      const sv = typeof v === 'string' && /^data:image\/png;base64,[A-Za-z0-9+\/=]+$/.test(v) ? v : '';
+      inp = locked ? `<div style="padding:8px 10px;border-radius:8px;background:#f3efe9;font-size:13px;color:#776867;">✍️ People draw their signature here with a finger or mouse.</div>` : `<div class="sigBox"><div class="sigPadWrap"><canvas class="sigPad" aria-label="Signature pad: draw your signature here"></canvas><span class="sigX">✕</span><div class="sigLine"></div><span class="sigHint">Sign here</span></div><div class="sigBar"><button type="button" class="fb-mini sigUndo">↩ Undo</button><button type="button" class="fb-mini sigClear">🧹 Clear &amp; start again</button></div><input type="hidden" class="sigVal" data-fid="${f.id}" value="${escapeCm(sv)}"></div>`;
+    }
     else if(f.type === 'yesno' || f.type === 'choice') inp = (f.type === 'yesno' ? ['Yes', 'No'] : f.options).map(o => `<label class="fb-opt"><input type="radio" name="fq-${f.id}" data-fid="${f.id}" value="${escapeCm(o)}" ${v === o ? 'checked' : ''} ${dis} style="width:20px;height:20px;"> ${escapeCm(o)}</label>`).join('');
     else if(f.type === 'multi') inp = f.options.map(o => `<label class="fb-opt"><input type="checkbox" data-fid="${f.id}" value="${escapeCm(o)}" ${(v || []).includes(o) ? 'checked' : ''} ${dis} style="width:20px;height:20px;"> ${escapeCm(o)}</label>`).join('');
     else inp = `<input class="fb-in" data-fid="${f.id}" type="text" maxlength="200" value="${escapeCm(v || '')}" ${dis}>`;
     return `<div class="fb-q">${lab}${inp}</div>`;
   }).join('');
+}
+// Signature pad: draw with a finger, pen or mouse; Undo the last stroke or Clear and start again. Saved as a small PNG.
+function calWireSignatures(root){
+  root.querySelectorAll('.sigBox').forEach(box => {
+    if(box.dataset.on) return; box.dataset.on = '1';
+    const cv = box.querySelector('canvas'), hid = box.querySelector('.sigVal'), hint = box.querySelector('.sigHint'), ctx = cv.getContext('2d'), W = 480, H = 160, K = 2;
+    cv.width = W * K; cv.height = H * K; ctx.scale(K, K); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#1f1f2e'; ctx.fillStyle = '#1f1f2e';
+    let strokes = [], cur = null, base = null;
+    const draw = () => {
+      ctx.clearRect(0, 0, W, H); if(base) ctx.drawImage(base, 0, 0, W, H);
+      strokes.forEach(st => {
+        if(st.length === 1){ ctx.beginPath(); ctx.arc(st[0][0], st[0][1], 1.6, 0, 7); ctx.fill(); return; }
+        ctx.lineWidth = 2.6; ctx.beginPath(); ctx.moveTo(st[0][0], st[0][1]);
+        for(let i = 1; i < st.length - 1; i++) ctx.quadraticCurveTo(st[i][0], st[i][1], (st[i][0] + st[i + 1][0]) / 2, (st[i][1] + st[i + 1][1]) / 2);
+        const l = st[st.length - 1]; ctx.lineTo(l[0], l[1]); ctx.stroke();
+      });
+    };
+    const save = () => {
+      if(!strokes.length && !base){ hid.value = ''; }
+      else { const o = document.createElement('canvas'); o.width = W; o.height = H; o.getContext('2d').drawImage(cv, 0, 0, W, H); hid.value = o.toDataURL('image/png'); }
+      hint.style.display = (strokes.length || base) ? 'none' : '';
+    };
+    const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height]; };
+    cv.addEventListener('pointerdown', e => { e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch {} cur = [pos(e)]; strokes.push(cur); hint.style.display = 'none'; draw(); });
+    cv.addEventListener('pointermove', e => { if(!cur) return; e.preventDefault(); const p = pos(e), l = cur[cur.length - 1]; if(Math.hypot(p[0] - l[0], p[1] - l[1]) < .8) return; cur.push(p); draw(); });
+    const end = () => { if(!cur) return; cur = null; draw(); save(); };
+    cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end); cv.addEventListener('lostpointercapture', end);
+    box.querySelector('.sigClear').addEventListener('click', () => { strokes = []; base = null; draw(); save(); });
+    box.querySelector('.sigUndo').addEventListener('click', () => { if(strokes.length) strokes.pop(); else base = null; draw(); save(); });
+    if(hid.value){ const im = new Image(); im.onload = () => { base = im; draw(); hint.style.display = 'none'; }; im.src = hid.value; } // a signature saved earlier: shown, and can be cleared / signed over
+  });
 }
 function calFormCollect(box, form){
   const out = {};
@@ -7163,6 +7201,7 @@ function calAddonsHtml(form, ids){
   return `<div class="fb-q calAddons"><label>➕ Add-ons <small style="font-weight:400;color:#776867;">(optional)</small></label>${list.map(a => `<label class="fb-opt"><input type="checkbox" class="calAddon" value="${escapeCm(a.id)}" ${(ids || []).includes(a.id) ? 'checked' : ''} style="width:20px;height:20px;"> ${escapeCm(a.label)} <b style="margin-left:auto;">+${escapeCm(calMoney(a.price, sym))}</b></label>`).join('')}<div class="calTotal" style="margin-top:6px;font-weight:800;"></div></div>`;
 }
 function wireCalAddons(root, form){
+  calWireSignatures(root);
   const upd = () => { const t = root.querySelector('.calTotal'); if(!t) return; const r = calTotalFor(form, calAddonIds(root)); t.textContent = r.total != null ? 'Total: ' + calMoney(r.total, r.sym) : ''; };
   root.querySelectorAll('.calAddon').forEach(c => c.addEventListener('change', upd)); upd();
 }
@@ -7206,17 +7245,19 @@ function openFormBuilder(initial, onDone, opts){
   const form = JSON.parse(JSON.stringify(initial || { title:'', intro:'', fields:[] }));
   if(opts && opts.rsvpBy !== undefined && form.rsvpBy === undefined) form.rsvpBy = opts.rsvpBy || ''; // the event's last RSVP day (editable here too)
   if(opts && opts.desc !== undefined && form.desc === undefined) form.desc = opts.desc || ''; // the event's description (editable here too)
-  const page = document.createElement('div'); page.className = 'fb-page';
-  document.body.appendChild(page);
-  const prevOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden';
+  const emb = !!(opts && opts.into); // embedded in the page editor: no header / Done button, no own scroll or overlay
+  const page = emb ? opts.into : document.createElement('div'); if(!emb){ page.className = 'fb-page'; document.body.appendChild(page); }
+  const scr = (opts && opts.scroller) || page; // the element that scrolls (drag-to-reorder follows it)
+  const prevOverflow = document.body.style.overflow; if(!emb) document.body.style.overflow = 'hidden';
   const nid = () => Math.random().toString(36).slice(2, 10);
   let preview = false, msg = '';
-  const finish = () => { page.remove(); document.body.style.overflow = prevOverflow; };
+  const finish = () => { if(emb) return; page.remove(); document.body.style.overflow = prevOverflow; };
   const paint = () => {
     if(preview){
       page.innerHTML = `<div class="fb-wrap"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><button type="button" class="fb-mini" id="fbBack">← Back to editing</button><strong>Preview</strong></div>
-        <div class="fb-card"><h2 style="margin:0 0 4px;">${escapeCm(form.title || 'Sign-up form')}</h2>${form.intro ? `<div style="margin:0 0 10px;">${richHtml(form.intro)}</div>` : ''}${calPriceHtml({ form }, true)}${calFormFieldsHtml(form, {}, false)}${calAddonsHtml(form, [])}<button type="button" class="club-guide-btn" disabled style="width:100%;text-align:center;">Submit (preview)</button>${calFormFooterHtml(form)}${calPayHtml(form, '💳 How to pay (shown after they sign up)')}</div></div>`;
+        <div class="fb-card">${form.intro ? `<div style="margin:0 0 10px;">${richHtml(form.intro)}</div>` : ''}${calFormFieldsHtml(form, {}, false)}${calAddonsHtml(form, [])}<button type="button" class="club-guide-btn" disabled style="width:100%;text-align:center;">Submit (preview)</button>${calFormFooterHtml(form)}${calPayHtml(form, '💳 How to pay (shown after they sign up)')}</div></div>`;
       page.querySelector('#fbBack').addEventListener('click', () => { preview = false; paint(); });
+      calWireSignatures(page);
       return;
     }
     const cards = form.fields.map((f, i) => `<div class="fb-card" data-i="${i}">
@@ -7225,16 +7266,16 @@ function openFormBuilder(initial, onDone, opts){
         <label class="fb-opt" style="margin:0;"><input type="checkbox" class="fb-req" data-i="${i}" ${f.required ? 'checked' : ''} style="width:20px;height:20px;"> Required</label></div>
       ${f.type === 'choice' || f.type === 'multi' ? `<textarea class="fb-opts" data-i="${i}" rows="3" placeholder="One option per line (at least 2)" style="margin-top:8px;">${escapeCm((f.options || []).join('\n'))}</textarea>` : ''}
       <div class="fb-row"><button type="button" class="fb-mini fb-up" data-i="${i}" ${i === 0 ? 'disabled' : ''}>▲ Up</button><button type="button" class="fb-mini fb-down" data-i="${i}" ${i === form.fields.length - 1 ? 'disabled' : ''}>▼ Down</button><button type="button" class="fb-mini fb-del" data-i="${i}" style="margin-left:auto;background:#fdecea;">🗑 Remove</button></div></div>`).join('');
-    page.innerHTML = `<div class="fb-wrap">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;"><button type="button" class="fb-mini" id="fbCancel">← Back to event</button><button type="button" class="club-guide-btn" id="fbDone" style="padding:8px 20px;text-align:center;background:var(--brand-rose);color:#fff;">✓ Done</button></div>
+    page.innerHTML = `<div class="${emb ? '' : 'fb-wrap'}">
+      ${emb ? '' : `      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;"><button type="button" class="fb-mini" id="fbCancel">← Back to event</button><button type="button" class="club-guide-btn" id="fbDone" style="padding:8px 20px;text-align:center;background:var(--brand-rose);color:#fff;">✓ Done</button></div>
       <h2 style="margin:0 0 8px;">📝 Create a form</h2>
-      <p class="ideas-hint" style="text-align:left;margin:0 0 10px;">Members fill this in from the event. Add as many questions as you like — you can edit it any time.</p>
+      <p class="ideas-hint" style="text-align:left;margin:0 0 10px;">Members fill this in from the event. Add as many questions as you like — you can edit it any time.</p>`}
       ${opts && opts.showRsvpBy ? `<div class="fb-card"><strong style="font-size:14px;">📄 Event description</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">Shown at the top of the page under the date — separate from the questions below.</p><textarea id="fbEvDesc" data-rich rows="5" maxlength="3000" placeholder="What the event is, what to bring, where to meet…">${escapeCm(form.desc || '')}</textarea></div>` : ''}
-      <div class="fb-card"><input type="text" id="fbTitle" maxlength="140" placeholder="Form title (e.g. Dinner sign-up)" value="${escapeCm(form.title)}"><textarea id="fbIntro" data-rich rows="3" maxlength="2000" placeholder="Short intro (optional)" style="margin-top:8px;">${escapeCm(form.intro)}</textarea></div>
+      <div class="fb-card"><strong style="font-size:14px;">📄 Intro above the questions (optional)</strong><textarea id="fbIntro" data-rich rows="3" maxlength="2000" placeholder="e.g. Please tell us a bit about you" style="margin-top:6px;">${escapeCm(form.intro)}</textarea></div>
       ${opts && opts.showRsvpBy ? `<div class="fb-card"><strong style="font-size:14px;">⏳ Last day to RSVP (optional)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">After this day the form closes — nobody new can sign up. It's the same date as the event's “last day to RSVP”.</p><input type="date" id="fbRsvpBy" value="${escapeCm(form.rsvpBy || '')}"></div>` : ''}
       ${cards || '<p class="av-msg" style="text-align:center;">No questions yet — add one below.</p>'}
       <div class="fb-card"><strong style="font-size:14px;">➕ Add a question</strong><div class="fb-row">${FB_TYPES.map(([k, l]) => `<button type="button" class="fb-mini fb-add" data-t="${k}">${l}</button>`).join('')}</div></div>
-      <div class="fb-card"><strong style="font-size:14px;">💳 Payment (optional)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 8px;">The site doesn't take the money itself — it shows people how to pay once they've signed up.</p>
+      <div class="fb-card" ${opts && opts.noPayment ? 'hidden' : ''}><strong style="font-size:14px;">💳 Payment (optional)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 8px;">The site doesn't take the money itself — it shows people how to pay once they've signed up.</p>
         <input type="text" id="fbPayAmt" maxlength="30" placeholder="Amount (e.g. $15)" value="${escapeCm((form.payment || {}).amount || '')}">
         <input type="text" id="fbPayLink" maxlength="500" placeholder="Payment link (https://…) — Square, PayPal, Stripe…" value="${escapeCm((form.payment || {}).link || '')}" style="margin-top:8px;" inputmode="url" autocapitalize="none">
         <textarea id="fbPayNote" rows="3" maxlength="1000" placeholder="Instructions (e.g. Or e-Transfer to pay@example.com with your name in the message)" style="margin-top:8px;">${escapeCm((form.payment || {}).note || '')}</textarea>
@@ -7244,10 +7285,9 @@ function openFormBuilder(initial, onDone, opts){
           <button type="button" class="fb-mini" id="fbAoAdd" style="margin-top:8px;">➕ Add an add-on</button></div></div>
       <div class="fb-card"><strong style="font-size:14px;">📝 Description at the bottom (optional)</strong><textarea id="fbFooter" data-rich rows="4" maxlength="3000" placeholder="Shown under the form — e.g. refund policy, what to bring, contact…" style="margin-top:6px;">${escapeCm(form.footer || '')}</textarea></div>
       <div id="fbMsg" style="color:#c00;font-size:13px;min-height:18px;margin-bottom:8px;">${escapeCm(msg)}</div>
-      <div class="fb-row"><button type="button" class="fb-mini" id="fbPreview">👁 Preview</button>${form.fields.length ? '<button type="button" class="fb-mini" id="fbClear" style="background:#fdecea;">Remove the whole form</button>' : ''}</div></div>`;
+      <div class="fb-row">${emb ? '' : '<button type="button" class="fb-mini" id="fbPreview">👁 Preview</button>'}${form.fields.length ? '<button type="button" class="fb-mini" id="fbClear" style="background:#fdecea;">Remove the whole form</button>' : ''}</div></div>`;
     richToolbarInit(page);
     const q = (sel, fn) => page.querySelectorAll(sel).forEach(el => fn(el, Number(el.dataset.i)));
-    page.querySelector('#fbTitle').addEventListener('input', e => { form.title = e.target.value; });
     page.querySelector('#fbIntro').addEventListener('input', e => { form.intro = e.target.value; });
     { const rb = page.querySelector('#fbRsvpBy'); if(rb) rb.addEventListener('input', () => { form.rsvpBy = rb.value; }); const ed = page.querySelector('#fbEvDesc'); if(ed) ed.addEventListener('input', () => { form.desc = ed.value; }); }
     const syncPay = () => { const p = { amount: page.querySelector('#fbPayAmt').value.trim(), link: page.querySelector('#fbPayLink').value.trim(), note: page.querySelector('#fbPayNote').value.trim() }; const ao = (form.payment || {}).addons; if(ao && ao.length) p.addons = ao; if(p.amount || p.link || p.note || p.addons) form.payment = p; else delete form.payment; };
@@ -7268,19 +7308,19 @@ function openFormBuilder(initial, onDone, opts){
     page.querySelectorAll('.fb-handle').forEach(h => h.addEventListener('pointerdown', e => {
       e.preventDefault();
       const cards = [...page.querySelectorAll('.fb-card[data-i]')], card = h.closest('.fb-card'), from = Number(card.dataset.i);
-      const rects = cards.map(c => { const r = c.getBoundingClientRect(); return { top:r.top + page.scrollTop, bottom:r.bottom + page.scrollTop, h:r.height }; });
+      const rects = cards.map(c => { const r = c.getBoundingClientRect(); return { top:r.top + scr.scrollTop, bottom:r.bottom + scr.scrollTop, h:r.height }; });
       const gap = cards.length > 1 ? rects[1].top - rects[0].bottom : 12;
-      const startY = e.clientY + page.scrollTop; let lastY = e.clientY, to = from;
+      const startY = e.clientY + scr.scrollTop; let lastY = e.clientY, to = from;
       try { h.setPointerCapture(e.pointerId); } catch {}
       card.style.position = 'relative'; card.style.zIndex = '6'; card.style.opacity = '.85'; card.style.boxShadow = '0 8px 22px rgba(0,0,0,.25)';
       const update = () => {
-        const dy = lastY + page.scrollTop - startY; card.style.transform = `translateY(${dy}px)`;
+        const dy = lastY + scr.scrollTop - startY; card.style.transform = `translateY(${dy}px)`;
         const mid = rects[from].top + rects[from].h / 2 + dy;
         to = from; rects.forEach((r, i) => { if(mid >= r.top && mid <= r.bottom) to = i; });
         if(mid < rects[0].top) to = 0; if(mid > rects[rects.length - 1].bottom) to = rects.length - 1;
         cards.forEach((c, i) => { if(i === from) return; let sh = 0; if(from < to && i > from && i <= to) sh = -(rects[from].h + gap); else if(from > to && i < from && i >= to) sh = rects[from].h + gap; c.style.transition = 'transform .12s'; c.style.transform = sh ? `translateY(${sh}px)` : ''; });
       };
-      const scroller = setInterval(() => { const edge = 90; if(lastY < edge) page.scrollTop -= 12; else if(lastY > window.innerHeight - edge) page.scrollTop += 12; else return; update(); }, 16);
+      const scroller = setInterval(() => { const edge = 90; if(lastY < edge) scr.scrollTop -= 12; else if(lastY > window.innerHeight - edge) scr.scrollTop += 12; else return; update(); }, 16);
       const move = ev => { lastY = ev.clientY; update(); };
       const up = () => {
         clearInterval(scroller); h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up);
@@ -7290,18 +7330,19 @@ function openFormBuilder(initial, onDone, opts){
       h.addEventListener('pointermove', move); h.addEventListener('pointerup', up); h.addEventListener('pointercancel', up);
     }));
     page.querySelectorAll('.fb-add').forEach(b => b.addEventListener('click', () => { form.fields.push({ id: nid(), type: b.dataset.t, label: '', required: false, ...(b.dataset.t === 'choice' || b.dataset.t === 'multi' ? { options: ['Option 1', 'Option 2'] } : {}) }); paint(); const last = page.querySelectorAll('.fb-label'); if(last.length) last[last.length - 1].focus(); }));
-    page.querySelector('#fbPreview').addEventListener('click', () => { preview = true; paint(); });
+    { const pv = page.querySelector('#fbPreview'); if(pv) pv.addEventListener('click', () => { preview = true; paint(); }); }
     const clr = page.querySelector('#fbClear'); if(clr) clr.addEventListener('click', () => { if(confirm('Remove all questions? The event will have no form.')){ form.fields = []; form.title = ''; form.intro = ''; paint(); } });
-    page.querySelector('#fbCancel').addEventListener('click', finish);
-    page.querySelector('#fbDone').addEventListener('click', () => {
-      const bad = form.fields.findIndex(f => !String(f.label || '').trim() || ((f.type === 'choice' || f.type === 'multi') && (f.options || []).length < 2));
-      if(form.payment && form.payment.addons){ form.payment.addons = form.payment.addons.filter(a => String(a.label || '').trim() && Number.isFinite(Number(a.price)) && a.price !== '').map(a => ({ id: a.id, label: a.label.trim(), price: Number(a.price) })); if(!form.payment.addons.length) delete form.payment.addons; }
-      if(form.payment && form.payment.link && !/^https:\/\//i.test(form.payment.link)){ msg = 'The payment link must start with https://'; paint(); return; }
-      if(bad >= 0){ msg = `Question ${bad + 1} needs a label${['choice', 'multi'].includes(form.fields[bad].type) ? ' and at least 2 options' : ''}.`; paint(); return; }
-      finish(); onDone(form.fields.length ? form : null);
-    });
+    { const cn = page.querySelector('#fbCancel'); if(cn) cn.addEventListener('click', finish); const dn = page.querySelector('#fbDone'); if(dn) dn.addEventListener('click', () => { if(validate()){ finish(); onDone(form.fields.length ? form : null); } }); }
+  };
+  const validate = () => { // true when every question is complete (otherwise shows what's missing)
+    const bad = form.fields.findIndex(f => !String(f.label || '').trim() || ((f.type === 'choice' || f.type === 'multi') && (f.options || []).length < 2));
+    if(form.payment && form.payment.addons){ form.payment.addons = form.payment.addons.filter(a => String(a.label || '').trim() && Number.isFinite(Number(a.price)) && a.price !== '').map(a => ({ id: a.id, label: a.label.trim(), price: Number(a.price) })); if(!form.payment.addons.length) delete form.payment.addons; }
+    if(form.payment && form.payment.link && !/^https:\/\//i.test(form.payment.link)){ msg = 'The payment link must start with https://'; paint(); return false; }
+    if(bad >= 0){ msg = `Question ${bad + 1} needs a label${['choice', 'multi'].includes(form.fields[bad].type) ? ' and at least 2 options' : ''}.`; paint(); return false; }
+    return true;
   };
   paint();
+  return { validate, get: () => (form.fields.length ? form : null) };
 }
 // Message everyone going (and/or on the waitlist): a push notification, sent a few people at a time.
 function calMessageAll(ev){
@@ -7336,10 +7377,10 @@ async function clubCalShowResponses(ev, box){
   try {
     const d = await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/responses', 'GET');
     if(!d.form || !d.responses.length){ box.innerHTML = '<p class="av-msg">No answers yet.</p>'; return; }
-    const fmt = (f, v) => Array.isArray(v) ? v.join(', ') : (v && typeof v === 'object' ? (v.address || '—') : (v || '—'));
+    const fmt = (f, v) => Array.isArray(v) ? v.join(', ') : (v && typeof v === 'object' ? (v.address || '—') : (/^data:image\/png;base64,/.test(String(v || '')) ? '✍️ signed' : (v || '—')));
     const pm = d.form.payment ? calMoneyParts(d.form) : null, inList = d.responses.filter(r => r.status === 'going'), owed = inList.reduce((t, r) => t + (Number(r.total) || 0), 0), got = inList.filter(r => r.paid).reduce((t, r) => t + (Number(r.total) || 0), 0);
     const summary = pm && owed ? `<div style="margin:0 0 8px;padding:10px 12px;border-radius:12px;background:#e6f4ea;border:2px solid #2a7a4a;font-weight:700;">💳 Collected ${escapeCm(calMoney(got, pm.sym))} of ${escapeCm(calMoney(owed, pm.sym))} · ${inList.filter(r => !r.paid).length} unpaid${inList.some(r => r.claimedPaid && !r.paid) ? ` · ${inList.filter(r => r.claimedPaid && !r.paid).length} say they paid` : ''}</div>` : '';
-    box.innerHTML = summary + d.responses.map(r => `<div style="border-top:1px solid rgba(0,0,0,.1);padding:8px 0;"><strong>${escapeCm(r.name)}</strong>${r.status === 'waitlist' ? ' <small style="background:#fdecea;border-radius:999px;padding:2px 8px;">⏳ waitlist</small>' : ''}${r.claimedPaid && !r.paid ? ' <small style="background:#fff3cd;border-radius:999px;padding:2px 8px;">💬 says paid</small>' : ''}${r.contact ? ` <small style="color:#776867;">${escapeCm(r.contact)}</small>` : ''}${r.guest ? ' <small>(public form)</small>' : ''}${d.form.payment ? (r.paid ? ' <b style="color:#2a7a4a;">💳 Paid ✓</b>' : ' <small style="color:#b3261e;">not paid</small>') : ''}${(r.addons || []).length ? `<div style="font-size:13px;"><span style="color:#776867;">Add-ons:</span> ${escapeCm(r.addons.map(id => (((d.form.payment || {}).addons || []).find(a => a.id === id) || {}).label || '').filter(Boolean).join(', '))}</div>` : ''}${r.total != null ? `<div style="font-size:13px;"><span style="color:#776867;">Total due:</span> <b>${escapeCm(calMoney(r.total, calMoneyParts(d.form).sym))}</b></div>` : ''}${d.form.fields.map(f => `<div style="font-size:13px;"><span style="color:#776867;">${escapeCm(f.label)}:</span> ${escapeCm(fmt(f, (r.answers || {})[f.id]))}</div>`).join('')}</div>`).join('') + '<button type="button" class="fb-mini" id="calCsv" style="margin-top:8px;">⬇️ Download CSV</button>';
+    box.innerHTML = summary + d.responses.map(r => `<div style="border-top:1px solid rgba(0,0,0,.1);padding:8px 0;"><strong>${escapeCm(r.name)}</strong>${r.status === 'waitlist' ? ' <small style="background:#fdecea;border-radius:999px;padding:2px 8px;">⏳ waitlist</small>' : ''}${r.claimedPaid && !r.paid ? ' <small style="background:#fff3cd;border-radius:999px;padding:2px 8px;">💬 says paid</small>' : ''}${r.contact ? ` <small style="color:#776867;">${escapeCm(r.contact)}</small>` : ''}${r.guest ? ' <small>(public form)</small>' : ''}${d.form.payment ? (r.paid ? ' <b style="color:#2a7a4a;">💳 Paid ✓</b>' : ' <small style="color:#b3261e;">not paid</small>') : ''}${(r.addons || []).length ? `<div style="font-size:13px;"><span style="color:#776867;">Add-ons:</span> ${escapeCm(r.addons.map(id => (((d.form.payment || {}).addons || []).find(a => a.id === id) || {}).label || '').filter(Boolean).join(', '))}</div>` : ''}${r.total != null ? `<div style="font-size:13px;"><span style="color:#776867;">Total due:</span> <b>${escapeCm(calMoney(r.total, calMoneyParts(d.form).sym))}</b></div>` : ''}${d.form.fields.map(f => `<div style="font-size:13px;"><span style="color:#776867;">${escapeCm(richPlain(f.label))}:</span> ${f.type === 'signature' && /^data:image\/png;base64,/.test(String((r.answers || {})[f.id] || '')) ? `<img src="${escapeCm(r.answers[f.id])}" alt="signature" style="display:block;max-width:240px;width:100%;background:#fff;border:1px solid #ddd;border-radius:8px;margin-top:2px;">` : escapeCm(fmt(f, (r.answers || {})[f.id]))}</div>`).join('')}</div>`).join('') + '<button type="button" class="fb-mini" id="calCsv" style="margin-top:8px;">⬇️ Download CSV</button>';
     // 📍 Location questions: a map with a pin per person (carpooling / picking a meeting spot)
     d.form.fields.filter(f => f.type === 'location').forEach(f => {
       const pins = d.responses.filter(r => r.answers && r.answers[f.id] && typeof r.answers[f.id] === 'object' && r.answers[f.id].lat != null);
