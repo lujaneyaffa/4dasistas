@@ -8529,20 +8529,19 @@ function homeFeaturedHosted(){
   const t = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
   return (CLUB_CAL_ITEMS || []).filter(e => e.calDate >= t).sort((a, b) => a.calDate.localeCompare(b.calDate) || String(a.time).localeCompare(String(b.time))).slice(0, 2);
 }
-function homeBusinessOfDay(){
+function homeBusinessesOfDay(){
   const pool = (resourcesData || []).filter(r => ['shops', 'restaurants', 'cafes', 'beautycare', 'catering', 'eventservices', 'clothing', 'wellness'].includes(r.category) && r.title && r.desc);
-  if(!pool.length) return null;
+  if(!pool.length) return [];
   const day = Math.floor(new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 86400000);
-  return pool[day % pool.length];
+  return [pool[(day * 2) % pool.length], pool[(day * 2 + 1) % pool.length]].filter((r, i, a) => a.indexOf(r) === i);
 }
 function homeFeaturedInner(){
   const evCard = (id, title, when, sub) => `<button type="button" class="hf-card" data-id="${escapeCm(id)}"><span class="hf-when">${escapeCm(when)}</span><strong>${escapeCm(title)}</strong>${sub ? `<span class="hf-sub">${escapeCm(sub)}</span>` : ''}</button>`;
   const pub = homeFeaturedEvents().map(({ item, when }) => evCard(item.id, emojiTitle(item), when + (eventTimeLabel(item) && eventTimeLabel(item) !== 'All day' ? ' · ' + eventTimeLabel(item) : ''), cityLabel(item) || ''));
   const hosted = homeFeaturedHosted().map(e => evCard(e.id, e.title, calDateLabel(e.calDate) + (e.time ? ' · ' + formatTime12h(e.time) : ''), e.location || ''));
-  const b = homeBusinessOfDay();
-  const bizCard = b ? `<div class="hf-card hf-biz"><span class="hf-when">${escapeCm(b.type || 'Business')}${b.location ? ' · ' + escapeCm(b.location) : ''}</span><strong>${escapeCm(b.title)}</strong><span class="hf-sub hf-clamp">${escapeCm(b.desc)}</span><span class="hf-links">${b.website ? `<a href="${escapeCm(b.website)}" target="_blank" rel="noopener">Website</a>` : ''}${b.instagram ? `<a href="${escapeCm(b.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ''}<a href="#/resources/${escapeCm(b.category)}">See in Directory</a></span></div>` : '';
+  const bizCards = homeBusinessesOfDay().map(b => `<div class="hf-card hf-biz"><span class="hf-when">${escapeCm(b.type || 'Business')}${b.location ? ' · ' + escapeCm(b.location) : ''}</span><strong>${escapeCm(b.title)}</strong><span class="hf-sub hf-clamp">${escapeCm(b.desc)}</span><span class="hf-links">${b.website ? `<a href="${escapeCm(b.website)}" target="_blank" rel="noopener">Website</a>` : ''}${b.instagram ? `<a href="${escapeCm(b.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ''}<a href="#/resources/${escapeCm(b.category)}">See in Directory</a></span></div>`);
   const col = (title, cards, empty) => `<div class="hf-col"><h4>${title}</h4>${cards.join('') || `<p class="hf-empty">${empty}</p>`}</div>`;
-  return col('📅 Public events', pub, 'Nothing coming up yet.') + col('🌸 Hosted by 4DS', hosted, 'New 4DS events are on the way.') + col('🏪 Business of the day', bizCard ? [bizCard] : [], 'Check the Directory!');
+  return col('📅 Public events', pub, 'Nothing coming up yet.') + col('🌸 Hosted by 4DS', hosted, 'New 4DS events are on the way.') + col('🏪 Businesses of the day', bizCards, 'Check the Directory!');
 }
 function homeFeaturedHtml(){
   return `<section class="home-feat"><h3>✨ Featured Today</h3><div class="hf-grid" id="homeFeatGrid">${homeFeaturedInner()}</div><button type="button" class="club-guide-btn hf-add" id="homeSubmitTile">➕ Add more</button></section>`;
