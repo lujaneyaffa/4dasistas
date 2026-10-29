@@ -6340,7 +6340,7 @@ async function clubCalPublicCard(box, id){
   try {
     const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id)); calUpgradeUrl(d);
     const inp = 'class="fb-in"';
-    box.innerHTML = `${calCoverHtml(d)}<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p><h3 style="margin:0 0 4px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>
+    box.innerHTML = `${calCoverHtml(d)}${calHostsHtml(d)}<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p><h3 style="margin:0 0 4px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>
       <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${d.rsvpBy ? `<p style="margin:4px 0;font-weight:700;color:${d.closed ? '#b3261e' : '#76220b'};">⏳ ${d.closed ? 'Sign-ups are closed' : 'Sign up by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}${calDescHtml(d)}
       ${d.closed ? '<p style="font-weight:700;">🔒 Sign-ups are closed.</p>' : ''}${calSpotsHtml(d)}
       <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 8px;">1 · 👤 About you</h3>
@@ -6446,7 +6446,7 @@ async function clubCalMemberCard(box, id){
     const paint = () => {
       const past = calIsPast(d.date);
       const label = past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going — tap to cancel" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — tap to leave` : d.mine === 'pending' ? '⏳ Requested — waiting for approval (tap to cancel)' : d.inClub ? (d.capacity && !d.spotsLeft ? '🎟️ Join the waitlist' : '🎟️ RSVP — I\'m going') : '🎟️ Request to RSVP';
-      top.innerHTML = `${calCoverHtml(d)}<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>
+      top.innerHTML = `${calCoverHtml(d)}${calHostsHtml(d)}<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>
         <h3 style="margin:0 0 6px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>
         <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>
         ${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}
@@ -6514,7 +6514,7 @@ function clubCalManage(ev){
       ${!pending && !r.guest && !r.paid && ev.form && ev.form.payment ? `<button type="button" class="calwa" data-k="payRemind" data-u="${escapeCm(r.id)}" aria-label="Payment reminder" title="Payment reminder on WhatsApp" style="border:2px solid #25a244;background:#fff;border-radius:999px;padding:4px 8px;cursor:pointer;">💳💬</button>` : ''}
       <button type="button" class="calrs" data-a="${pending ? 'decline' : 'remove'}" data-u="${escapeCm(r.id)}" style="border:2px solid #b3261e;background:#fdecea;border-radius:999px;padding:4px 10px;cursor:pointer;">${pending && !wl ? '✕ Decline' : 'Remove'}</button></div>`;
     wrap.querySelector('.idea-pop-card').innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
-      <p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(ev.clubTitle)}</p>
+      ${calHostsHtml(ev)}<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(ev.clubTitle)}</p>
       <h3 style="margin:0 0 6px;">${escapeCm(ev.title)}</h3>
       <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(ev.date))}${ev.time ? ' · ⏰ ' + escapeCm(ev.time) : ''}${past ? ' · <strong>(past)</strong>' : ''}</p>
       ${ev.place ? `<p style="margin:4px 0;">📍 ${escapeCm(ev.place)}</p>` : ''}${calMapHtml(ev)}
@@ -6920,6 +6920,7 @@ async function renderEventEditPage(el){
       <input id="eeTime" type="text" maxlength="30" placeholder="Time (e.g. 6:30 PM)" value="${escapeCm(e.time)}" style="${f}">
       <input id="eePlace" type="text" maxlength="200" placeholder="Place" value="${escapeCm(e.place)}" style="${f}">
       <input id="eeMap" type="url" inputmode="url" autocapitalize="none" placeholder="Google Maps link (Share → Copy link)" value="${escapeCm(e.mapUrl)}" style="${f}">
+      <button type="button" class="club-guide-btn" id="eeHosts" style="width:100%;text-align:center;margin-bottom:8px;background:#f2d8d7;">🏛 Hosts &amp; logos (round logos at the top)</button>
       <button type="button" class="club-guide-btn" id="eeDesign" style="width:100%;text-align:center;margin-bottom:8px;background:#f2d8d7;">🎨 Design the page (text, photos, maps, buttons…)</button>
       ${e.form ? `<button type="button" class="club-guide-btn" id="eeForm" style="width:100%;text-align:center;margin-bottom:8px;">📝 Edit the form questions (${e.form.fields.length})</button>` : ''}
       <button type="button" class="club-guide-btn" id="eeView" style="width:100%;text-align:center;margin-bottom:8px;">👁 See the page</button>
@@ -6927,19 +6928,110 @@ async function renderEventEditPage(el){
       <button type="button" class="club-guide-btn" id="eeSave" style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Save changes</button></div>`;
     const v = id => (box.querySelector(id) || {}).value;
     const sync = () => { e.title = v('#eeTitle'); if(box.querySelector('#eeDate')) e.date = v('#eeDate'); e.time = v('#eeTime'); e.place = v('#eePlace'); e.mapUrl = typeof cleanMapLink === 'function' ? cleanMapLink(v('#eeMap')) : v('#eeMap'); };
+    box.querySelector('#eeHosts').addEventListener('click', () => { sync(); calHostsEditor({ clubIds: e.clubIds, hosts: e.hosts }, { token: tok }, r => { e.hosts = r; paint('Hosts updated — press Save changes to publish.', true); }); });
     box.querySelector('#eeDesign').addEventListener('click', () => { sync(); calDesigner({ desc: e.desc, blocks: e.blocks, theme: e.theme }, { token: tok, title: e.title }, r => { e.desc = r.desc; e.blocks = r.blocks; e.theme = r.theme; paint('Design updated — press Save changes to publish it.', true); }); });
     const fb = box.querySelector('#eeForm'); if(fb) fb.addEventListener('click', () => { sync(); openFormBuilder(e.form, f2 => { if(f2){ e.form = f2; } paint('Questions updated — press Save changes to publish them.', true); }); });
-    box.querySelector('#eeView').addEventListener('click', () => { sync(); const w = document.createElement('div'); w.className = 'fb-page'; w.innerHTML = `<div class="fb-wrap"><div style="margin-bottom:10px;"><button type="button" class="fb-mini" id="eeClose">← Back to editing</button></div><div class="fb-card">${calCoverHtml(e)}<p class="av-msg" style="margin:0 0 4px;">🏷 ${escapeCm(e.clubTitle || '')}</p><h3 style="margin:0 0 4px;${calTitleStyle(e)}">${escapeCm(e.title)}</h3><p class="idea-pop-date">📅 ${escapeCm(e.date ? ideaLongDate(e.date) : 'Date to be decided')}${e.time ? ' · ⏰ ' + escapeCm(e.time) : ''}</p>${e.place ? `<p style="margin:4px 0;">📍 ${escapeCm(e.place)}</p>` : ''}${calMapHtml(e)}${calDescHtml(e)}${e.form ? `<div class="fb-card" style="box-shadow:none;margin-top:10px;"><h3 style="margin:0 0 4px;">📝 ${escapeCm(e.form.title)}</h3>${e.form.intro ? richHtml(e.form.intro) : ''}${calFormFieldsHtml(e.form, {}, false)}<button type="button" class="club-guide-btn" disabled style="width:100%;text-align:center;">Submit (preview)</button>${calFormFooterHtml(e.form)}</div>` : ''}</div></div>`; document.body.appendChild(w); w.querySelector('#eeClose').addEventListener('click', () => w.remove()); });
+    box.querySelector('#eeView').addEventListener('click', () => { sync(); const w = document.createElement('div'); w.className = 'fb-page'; w.innerHTML = `<div class="fb-wrap"><div style="margin-bottom:10px;"><button type="button" class="fb-mini" id="eeClose">← Back to editing</button></div><div class="fb-card">${calCoverHtml(e)}${calHostsHtml(e)}<p class="av-msg" style="margin:0 0 4px;">🏷 ${escapeCm(e.clubTitle || '')}</p><h3 style="margin:0 0 4px;${calTitleStyle(e)}">${escapeCm(e.title)}</h3><p class="idea-pop-date">📅 ${escapeCm(e.date ? ideaLongDate(e.date) : 'Date to be decided')}${e.time ? ' · ⏰ ' + escapeCm(e.time) : ''}</p>${e.place ? `<p style="margin:4px 0;">📍 ${escapeCm(e.place)}</p>` : ''}${calMapHtml(e)}${calDescHtml(e)}${e.form ? `<div class="fb-card" style="box-shadow:none;margin-top:10px;"><h3 style="margin:0 0 4px;">📝 ${escapeCm(e.form.title)}</h3>${e.form.intro ? richHtml(e.form.intro) : ''}${calFormFieldsHtml(e.form, {}, false)}<button type="button" class="club-guide-btn" disabled style="width:100%;text-align:center;">Submit (preview)</button>${calFormFooterHtml(e.form)}</div>` : ''}</div></div>`; document.body.appendChild(w); w.querySelector('#eeClose').addEventListener('click', () => w.remove()); });
     box.querySelector('#eeSave').addEventListener('click', async ev2 => {
       sync(); ev2.target.disabled = true; const m = box.querySelector('#eeMsg'); m.style.color = '#776867'; m.textContent = 'Saving…';
       try {
-        const body = { title: e.title, time: e.time, place: e.place, mapUrl: e.mapUrl, desc: e.desc, blocks: e.blocks, theme: e.theme };
+        const body = { title: e.title, time: e.time, place: e.place, mapUrl: e.mapUrl, desc: e.desc, blocks: e.blocks, theme: e.theme, hosts: e.hosts };
         if(!e.tbd) body.date = e.date;
         if(e.form) body.form = e.form;
         const r = await fetch('/api/event-edit/' + encodeURIComponent(tok), { method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
         const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || 'Could not save');
         e = j.event; paint('✅ Saved — the page is updated.', true);
       } catch(err){ ev2.target.disabled = false; m.style.color = '#c00'; m.textContent = err.message; }
+    });
+  };
+  paint();
+}
+
+// ---- Hosts: round logos at the top of an event page (the event's clubs + any outside organisations), each can link somewhere ----
+function calHostLogo(row){
+  const clubs = typeof clubsData !== 'undefined' ? clubsData : [], cl = id => clubs.find(c => c.id === id) || null;
+  if(row.logo) return { src: '/api/cal-img/' + encodeURIComponent(row.logo), emoji: '' };
+  const c = cl(row.logoClub) || cl(row.club);
+  return { src: (c && c.logo) || '', emoji: (c && c.emoji) || '' };
+}
+// What to show, in order: the saved host entries (clubs only while they're still on the event), then any club of the event that has no entry yet.
+function calHostRows(d){
+  const clubs = typeof clubsData !== 'undefined' ? clubsData : [], ids = Array.isArray(d.clubIds) && d.clubIds.length ? d.clubIds : (d.clubId ? [d.clubId] : []);
+  const out = [], used = new Set();
+  (Array.isArray(d.hosts) ? d.hosts : []).forEach(h => {
+    if(h.club){ if(!ids.includes(h.club) || !clubs.some(c => c.id === h.club)) return; used.add(h.club); }
+    out.push({ ...h });
+  });
+  ids.forEach(id => { if(!used.has(id) && clubs.some(c => c.id === id)) out.push({ id: 'c-' + id, club: id }); });
+  return out;
+}
+function calHostName(row){ const c = (typeof clubsData !== 'undefined' ? clubsData : []).find(x => x.id === row.club); return row.name || (c && c.title) || ''; }
+function calHostsHtml(d){
+  const rows = calHostRows(d).filter(r => !r.hide); if(!rows.length) return '';
+  const items = rows.map(r => {
+    const lg = calHostLogo(r), nm = calHostName(r), ok = /^(https:\/\/|mailto:|tel:)/i.test(r.link || '');
+    const circle = `<span style="display:flex;align-items:center;justify-content:center;width:68px;height:68px;border-radius:50%;background:#fff;border:2px solid #f2d8d7;overflow:hidden;font-size:30px;box-shadow:0 2px 6px rgba(0,0,0,.12);">${lg.src ? `<img src="${escapeCm(lg.src)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : escapeCm(lg.emoji || (nm || '?').charAt(0).toUpperCase())}</span>`;
+    const inner = `${circle}<span style="display:block;max-width:92px;margin-top:4px;font-size:12px;font-weight:700;line-height:1.2;color:#373d3b;text-align:center;overflow-wrap:anywhere;">${escapeCm(nm)}</span>`;
+    return ok ? `<a href="${escapeCm(r.link)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeCm(nm)}" style="display:flex;flex-direction:column;align-items:center;text-decoration:none;">${inner}</a>` : `<div style="display:flex;flex-direction:column;align-items:center;">${inner}</div>`;
+  }).join('');
+  return `<div class="calHosts" style="display:flex;flex-wrap:wrap;justify-content:center;gap:12px 16px;margin:4px 0 12px;">${items}</div>`;
+}
+// The hosts editor: clubs that are on the event, plus outside organisations; name, link and logo (upload one, or pick a club's logo) for each.
+function calHostsEditor(d, ctx, onDone){
+  const clubs = typeof clubsData !== 'undefined' ? clubsData : [];
+  const rows = calHostRows(d).map(r => ({ ...r }));
+  const page = document.createElement('div'); page.className = 'fb-page'; document.body.appendChild(page);
+  const prevOv = document.body.style.overflow; document.body.style.overflow = 'hidden';
+  const nid = () => Math.random().toString(36).slice(2, 10);
+  let msg = '', pick = -1;
+  const finish = () => { page.remove(); document.body.style.overflow = prevOv; };
+  const paint = () => {
+    const card = (r, i) => {
+      const lg = calHostLogo(r), nm = calHostName(r), c = clubs.find(x => x.id === r.club);
+      return `<div class="fb-card" data-h="${i}" style="${r.hide ? 'opacity:.6;' : ''}">
+        <div style="display:flex;gap:10px;align-items:center;"><span style="flex:none;display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background:#fff;border:2px solid #f2d8d7;overflow:hidden;font-size:28px;">${lg.src ? `<img src="${escapeCm(lg.src)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : escapeCm(lg.emoji || (nm || '?').charAt(0).toUpperCase())}</span>
+          <div style="flex:1;min-width:0;"><strong>${c ? '🏛 ' + escapeCm(c.title) : '🌐 Organization'}</strong>${r.hide ? ' <small>(hidden)</small>' : ''}<div style="font-size:12px;color:#776867;">${c ? 'A club on this event' : 'Not a club on the site'}</div></div>
+          <button type="button" class="fb-mini hUp" data-i="${i}" ${i === 0 ? 'disabled' : ''}>▲</button><button type="button" class="fb-mini hDown" data-i="${i}" ${i === rows.length - 1 ? 'disabled' : ''}>▼</button></div>
+        <input class="hF" data-i="${i}" data-f="name" type="text" maxlength="60" placeholder="${c ? 'Name (leave empty to use “' + escapeCm(c.title) + '”)' : 'Organization name'}" value="${escapeCm(r.name || '')}" style="margin-top:8px;">
+        <input class="hF" data-i="${i}" data-f="link" type="url" inputmode="url" autocapitalize="none" placeholder="Link when tapped — https://… (website, Instagram…)" value="${escapeCm(r.link || '')}" style="margin-top:6px;">
+        <div class="fb-row"><button type="button" class="fb-mini hUp2" data-i="${i}">⬆ Upload logo</button><button type="button" class="fb-mini hPick" data-i="${i}">🏛 Use a club’s logo</button>${(r.logo || r.logoClub) ? `<button type="button" class="fb-mini hDef" data-i="${i}">↺ ${c ? 'Default logo' : 'Remove logo'}</button>` : ''}${c ? `<button type="button" class="fb-mini hHide" data-i="${i}">${r.hide ? '👁 Show' : '🚫 Hide'}</button>` : `<button type="button" class="fb-mini hDel" data-i="${i}" style="background:#fdecea;">🗑 Remove</button>`}</div>
+        ${pick === i ? `<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;padding:8px;border-radius:12px;background:#fef7f4;">${clubs.filter(x => x.logo).map(x => `<button type="button" class="hClubLogo" data-i="${i}" data-c="${escapeCm(x.id)}" title="${escapeCm(x.title)}" style="width:56px;height:56px;border-radius:50%;border:2px solid #f2d8d7;background:#fff;padding:0;overflow:hidden;cursor:pointer;"><img src="${escapeCm(x.logo)}" alt="${escapeCm(x.title)}" style="width:100%;height:100%;object-fit:contain;"></button>`).join('')}</div>` : ''}
+      </div>`;
+    };
+    page.innerHTML = `<div class="fb-wrap">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;"><button type="button" class="fb-mini" id="hCancel">✕ Close</button><button type="button" class="club-guide-btn" id="hDone" style="padding:8px 20px;text-align:center;background:var(--brand-rose);color:#fff;">✓ Done</button></div>
+      <h2 style="margin:0 0 8px;">🏛 Hosts &amp; logos</h2>
+      <p class="ideas-hint" style="text-align:left;margin:0 0 10px;">These show as round logos at the top of the page, each with its own link. The clubs are the ones ticked on the event (tick more than one for a collab). Add outside organisations below, and upload their logos.</p>
+      <div id="hPreview" style="margin-bottom:10px;"></div>
+      ${rows.length ? rows.map(card).join('') : '<p class="av-msg">No hosts yet — tick a club on the event, or add an organization.</p>'}
+      <div class="fb-card"><button type="button" class="fb-mini" id="hAdd">➕ Add an organization</button><input type="file" id="hFile" accept="image/*" hidden></div>
+      <div id="hMsg" style="color:#c00;font-size:13px;min-height:18px;margin-bottom:8px;">${escapeCm(msg)}</div></div>`;
+    page.querySelector('#hPreview').innerHTML = calHostsHtml({ clubIds: d.clubIds, hosts: rows });
+    const q = (s, fn) => page.querySelectorAll(s).forEach(fn);
+    const file = page.querySelector('#hFile'); let target = -1;
+    file.addEventListener('change', async () => {
+      const f = file.files[0]; file.value = ''; if(!f || target < 0) return;
+      msg = 'Uploading…'; page.querySelector('#hMsg').textContent = msg;
+      try { const id = await calUploadImage(f, ctx); rows[target].logo = id; delete rows[target].logoClub; msg = ''; } catch(err){ msg = err.message; }
+      paint();
+    });
+    q('.hF', el => el.addEventListener('input', () => { const r = rows[Number(el.dataset.i)]; r[el.dataset.f] = el.value; page.querySelector('#hPreview').innerHTML = calHostsHtml({ clubIds: d.clubIds, hosts: rows }); }));
+    q('.hUp', b => b.addEventListener('click', () => { const i = Number(b.dataset.i); [rows[i - 1], rows[i]] = [rows[i], rows[i - 1]]; paint(); }));
+    q('.hDown', b => b.addEventListener('click', () => { const i = Number(b.dataset.i); [rows[i + 1], rows[i]] = [rows[i], rows[i + 1]]; paint(); }));
+    q('.hUp2', b => b.addEventListener('click', () => { target = Number(b.dataset.i); file.click(); }));
+    q('.hPick', b => b.addEventListener('click', () => { const i = Number(b.dataset.i); pick = pick === i ? -1 : i; paint(); }));
+    q('.hClubLogo', b => b.addEventListener('click', () => { const r = rows[Number(b.dataset.i)]; r.logoClub = b.dataset.c; delete r.logo; pick = -1; paint(); }));
+    q('.hDef', b => b.addEventListener('click', () => { const r = rows[Number(b.dataset.i)]; delete r.logo; delete r.logoClub; paint(); }));
+    q('.hHide', b => b.addEventListener('click', () => { const r = rows[Number(b.dataset.i)]; if(r.hide) delete r.hide; else r.hide = true; paint(); }));
+    q('.hDel', b => b.addEventListener('click', () => { rows.splice(Number(b.dataset.i), 1); paint(); }));
+    page.querySelector('#hAdd').addEventListener('click', () => { rows.push({ id: nid(), name: '' }); paint(); const n = page.querySelectorAll('.hF[data-f="name"]'); if(n.length){ n[n.length - 1].scrollIntoView({ block:'center' }); n[n.length - 1].focus({ preventScroll:true }); } });
+    page.querySelector('#hCancel').addEventListener('click', () => { if(confirm('Close without keeping your changes?')) finish(); });
+    page.querySelector('#hDone').addEventListener('click', () => {
+      const bad = rows.findIndex(r => !r.club && !String(r.name || '').trim());
+      if(bad >= 0){ msg = `Give organization ${bad + 1} a name (or remove it).`; paint(); return; }
+      const badLink = rows.findIndex(r => r.link && String(r.link).trim() && !/^(https:\/\/|mailto:|tel:)/i.test(String(r.link).trim()));
+      if(badLink >= 0){ msg = 'A link must start with https:// (or mailto: / tel:).'; paint(); return; }
+      finish(); onDone(rows.map(r => ({ ...r, link: String(r.link || '').trim(), name: String(r.name || '').trim() })));
     });
   };
   paint();
@@ -7234,6 +7326,7 @@ function clubCalForm(ev, presetDate){
       <input id="cfAttSearch" type="search" placeholder="Search a member by name…" autocomplete="off" style="${f}margin-bottom:4px;">
       <div id="cfAttResults" style="max-height:22vh;overflow:auto;margin-bottom:6px;"></div>
       <div style="display:flex;gap:6px;margin-bottom:8px;"><input id="cfGuestName" type="text" maxlength="30" placeholder="Or add a name (no profile needed)" style="flex:1;min-width:0;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:16px;"><button type="button" id="cfGuestAdd" class="club-guide-btn" style="padding:6px 14px;text-align:center;">+ Add</button></div>`}
+    <button type="button" id="cfHostsBtn" class="club-guide-btn" style="width:100%;margin:0 0 8px;text-align:center;background:#f2d8d7;"></button>
     <button type="button" id="cfDesignBtn" class="club-guide-btn" style="width:100%;margin:0 0 8px;text-align:center;background:#f2d8d7;"></button>
     <button type="button" id="cfFormBtn" class="club-guide-btn" style="width:100%;margin:0 0 8px;text-align:center;background:#fff3cd;"></button>
     <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">With a form, tapping the event opens the form straight away — for members and for people without an account (they can fill it without logging in).</p>
@@ -7244,6 +7337,11 @@ function clubCalForm(ev, presetDate){
     const sync = () => { dt.disabled = tb.checked; rb.disabled = tb.checked; dt.style.opacity = rb.style.opacity = tb.checked ? '.4' : '1'; };
     tb.addEventListener('change', sync); sync(); }
   let draftForm = ev ? (ev.form || null) : null;
+  let hosts = ev ? (ev.hosts || []) : [];
+  { const hb = wrap.querySelector('#cfHostsBtn'), ids = () => [...wrap.querySelectorAll('.cf-club:checked')].map(x => x.value);
+    const paintH = () => { const n = calHostRows({ clubIds: ids(), hosts }).filter(r => !r.hide).length; hb.textContent = `🏛 Hosts & logos (${n} shown at the top) — tap to edit`; };
+    paintH(); wrap.querySelectorAll('.cf-club').forEach(c => c.addEventListener('change', paintH));
+    hb.addEventListener('click', () => calHostsEditor({ clubIds: ids(), hosts }, { evId: ev ? ev.id : '' }, r => { hosts = r; paintH(); })); }
   let design = { blocks: ev ? (ev.blocks || []) : [], theme: ev ? (ev.theme || null) : null };
   { const db = wrap.querySelector('#cfDesignBtn'), paintD = () => { db.textContent = (design.blocks.length || design.theme) ? `🎨 Page design (${design.blocks.length} block${design.blocks.length === 1 ? '' : 's'}${design.theme && design.theme.cover ? ' + cover' : ''}) — tap to edit` : '🎨 Design the page (photos, maps, text styles, buttons…)'; };
     paintD(); db.addEventListener('click', () => calDesigner({ desc: wrap.querySelector('#cfDesc').value, blocks: design.blocks, theme: design.theme }, { evId: ev ? ev.id : '', title: wrap.querySelector('#cfTitle').value }, r => { design = { blocks: r.blocks, theme: r.theme }; wrap.querySelector('#cfDesc').value = r.desc; paintD(); })); }
@@ -7271,7 +7369,7 @@ function clubCalForm(ev, presetDate){
   wrap.querySelector('#cfSave').addEventListener('click', async e => {
     const body = { title: wrap.querySelector('#cfTitle').value, date: wrap.querySelector('#cfDate').value, time: wrap.querySelector('#cfTime').value, place: wrap.querySelector('#cfPlace').value, mapUrl: cleanMapLink(wrap.querySelector('#cfMap').value), rsvpBy: wrap.querySelector('#cfRsvpBy').value, desc: wrap.querySelector('#cfDesc').value, capacity: parseInt(wrap.querySelector('#cfCap').value, 10) || 0 };
     body.clubIds = [...wrap.querySelectorAll('.cf-club:checked')].map(x => x.value);
-    body.blocks = design.blocks; body.theme = design.theme;
+    body.blocks = design.blocks; body.theme = design.theme; body.hosts = hosts;
     body.tbd = wrap.querySelector('#cfTbd').checked; if(body.tbd){ body.date = ''; body.rsvpBy = ''; }
     body.form = draftForm ? (() => { const c = { ...draftForm }; delete c.rsvpBy; delete c.desc; return c; })() : null; // the date lives in the event's own field above
     if(!ev) body.attendees = picked.map(a => a.userId ? { userId:a.userId } : { name:a.name });

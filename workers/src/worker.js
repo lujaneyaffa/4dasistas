@@ -1352,6 +1352,21 @@ const sanitizeCalBlocks = (arr) => {
   }
   return out;
 };
+// Hosts shown as round logos at the top of the page: a club of the event (can override its name / logo / link, or be hidden) or an outside organisation. A logo is an uploaded photo (`logo`) or another club's logo (`logoClub`).
+const sanitizeCalHosts = (arr) => {
+  const out = [], seen = new Set(), txt = (v, n) => String(v || "").replace(/[\x00-\x1f\x7f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
+  for (const h of (Array.isArray(arr) ? arr : []).slice(0, 12)) {
+    if (!h || typeof h !== "object") continue;
+    const club = /^[\w-]{1,60}$/.test(String(h.club || "")) ? String(h.club) : "", name = txt(h.name, 60);
+    if (!club && !name) continue;
+    let id = /^[a-z0-9]{3,16}$/.test(String(h.id || "")) ? String(h.id) : crypto.randomUUID().slice(0, 8);
+    if (seen.has(id)) id = crypto.randomUUID().slice(0, 8);
+    seen.add(id);
+    const logo = CAL_IMG_RE.test(String(h.logo || "")) ? String(h.logo) : "", logoClub = !logo && /^[\w-]{1,60}$/.test(String(h.logoClub || "")) ? String(h.logoClub) : "", link = calLinkOk(h.link);
+    out.push({ id, ...(club ? { club } : {}), ...(name ? { name } : {}), ...(logo ? { logo } : {}), ...(logoClub ? { logoClub } : {}), ...(link ? { link } : {}), ...(club && h.hide ? { hide: true } : {}) });
+  }
+  return out;
+};
 const sanitizeCalTheme = (t) => {
   if (!t || typeof t !== "object") return null;
   const o = {}, hex = (v) => (/^#[0-9a-f]{6}$/i.test(String(v || "")) ? String(v).toLowerCase() : "");
@@ -1363,9 +1378,9 @@ const sanitizeCalTheme = (t) => {
   return Object.keys(o).length ? o : null;
 };
 // Which design bits a request body sets (undefined = leave as is).
-const calDesignFields = (b) => { const o = {}; if (b.blocks !== undefined) o.blocks = sanitizeCalBlocks(b.blocks); if (b.theme !== undefined) o.theme = sanitizeCalTheme(b.theme); return o; };
-const calDesignFieldsObj = (b) => { const d = calDesignFields(b), o = {}; if (d.blocks && d.blocks.length) o.blocks = d.blocks; if (d.theme) o.theme = d.theme; return o; };
-const calApplyDesign = (ev, d) => { if (d.blocks !== undefined) { if (d.blocks.length) ev.blocks = d.blocks; else delete ev.blocks; } if (d.theme !== undefined) { if (d.theme) ev.theme = d.theme; else delete ev.theme; } };
+const calDesignFields = (b) => { const o = {}; if (b.blocks !== undefined) o.blocks = sanitizeCalBlocks(b.blocks); if (b.theme !== undefined) o.theme = sanitizeCalTheme(b.theme); if (b.hosts !== undefined) o.hosts = sanitizeCalHosts(b.hosts); return o; };
+const calDesignFieldsObj = (b) => { const d = calDesignFields(b), o = {}; if (d.blocks && d.blocks.length) o.blocks = d.blocks; if (d.theme) o.theme = d.theme; if (d.hosts && d.hosts.length) o.hosts = d.hosts; return o; };
+const calApplyDesign = (ev, d) => { if (d.blocks !== undefined) { if (d.blocks.length) ev.blocks = d.blocks; else delete ev.blocks; } if (d.theme !== undefined) { if (d.theme) ev.theme = d.theme; else delete ev.theme; } if (d.hosts !== undefined) { if (d.hosts.length) ev.hosts = d.hosts; else delete ev.hosts; } };
 let _calImgReady = false;
 const calImgEnsure = async (env) => { if (_calImgReady) return; await env.DB.prepare("CREATE TABLE IF NOT EXISTS cal_images (id TEXT PRIMARY KEY, ev TEXT, ctype TEXT, b64 TEXT NOT NULL, at INTEGER)").run(); _calImgReady = true; };
 const calImgSave = async (request, env, evId) => {
@@ -1381,7 +1396,7 @@ const calImgSave = async (request, env, evId) => {
   await env.DB.prepare("INSERT INTO cal_images (id, ev, ctype, b64, at) VALUES (?, ?, ?, ?, ?)").bind(id, evId || "", ctype, btoa(bin), Date.now()).run();
   return { id, url: `/api/cal-img/${id}` };
 };
-const calEditSnap = (ev) => ({ at: Date.now(), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", rsvpBy: ev.rsvpBy || "", blocks: ev.blocks || null, theme: ev.theme || null, form: ev.form || null });
+const calEditSnap = (ev) => ({ at: Date.now(), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", rsvpBy: ev.rsvpBy || "", blocks: ev.blocks || null, theme: ev.theme || null, hosts: ev.hosts || null, form: ev.form || null });
 // Check one person's answers against the form; returns {answers} or {error}.
 // Which add-ons were ticked + the total owed (only when the base amount is a number like "$15").
 const calAddonSelection = (form, ids) => {
@@ -2303,7 +2318,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (editMatch) {
       const tok = editMatch[1], all0 = await readClubCal(env), ev0 = all0.find((e) => e.editToken === tok);
       if (!ev0) return jsonResponse({ error: "This edit link isn't active any more — ask the organiser for a new one" }, 404, corsHeaders);
-      const view = (e) => ({ id: e.id, slug: e.slug || "", title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", tbd: !!e.tbd, blocks: e.blocks || [], theme: e.theme || null, form: e.form ? { title: e.form.title, intro: e.form.intro || "", footer: e.form.footer || "", fields: e.form.fields } : null, hasPayment: !!(e.form && e.form.payment), clubTitle: calClubs(e).map((c) => (roster0.find((r) => r.id === c) || {}).title || "").filter(Boolean).join(" × ") });
+      const view = (e) => ({ id: e.id, slug: e.slug || "", title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", tbd: !!e.tbd, blocks: e.blocks || [], theme: e.theme || null, hosts: e.hosts || [], clubIds: calClubs(e), form: e.form ? { title: e.form.title, intro: e.form.intro || "", footer: e.form.footer || "", fields: e.form.fields } : null, hasPayment: !!(e.form && e.form.payment), clubTitle: calClubs(e).map((c) => (roster0.find((r) => r.id === c) || {}).title || "").filter(Boolean).join(" × ") });
       const roster0 = await readClubRoster(env);
       if (editMatch[2] === "/image" && request.method === "POST") { const r = await calImgSave(request, env, ev0.id); return r.error ? jsonResponse({ error: r.error }, 400, corsHeaders) : jsonResponse(r, 201, corsHeaders); }
       if (!editMatch[2] && request.method === "GET") return jsonResponse({ event: view(ev0) }, 200, corsHeaders);
@@ -2385,7 +2400,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!who || !(who.id.startsWith("m:") || who.id === "admin")) {
           // A PUBLICIZED event (publicForm): anyone can open its form straight away and submit it with just a name — no account needed.
           if (ev.form) { // ANY event with a form can be filled in without an account
-            if (!calMatch[2] && M === "GET") return jsonResponse({ id: ev.id, slug: ev.slug, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, publicForm: true, form: ev.form, guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) }, 200, corsHeaders);
+            if (!calMatch[2] && M === "GET") return jsonResponse({ id: ev.id, slug: ev.slug, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], clubIds: calClubs(ev), publicForm: true, form: ev.form, guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) }, 200, corsHeaders);
             if (calMatch[2] === "/form" && M === "POST") {
               if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
               let fb; try { fb = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
@@ -2425,7 +2440,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (uid) for (const cid of calClubs(ev)) if ((await readClubMemberIds(env, cid)).includes(uid)) { inClub = true; break; }
         const mine = (ev.rsvps || []).find((r) => r.id === uid);
         if (!calMatch[2] && M === "GET") {
-          return jsonResponse({ id: ev.id, slug: ev.slug, clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy),
+          return jsonResponse({ id: ev.id, slug: ev.slug, clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy),
             going: (ev.rsvps || []).filter((r) => r.status === "going").length, mine: mine ? mine.status : null, inClub,
             publicForm: !!ev.form, form: ev.form || null, ...calCapInfo(ev), waitPos: mine && mine.status === "waitlist" ? calWaitPos(ev, uid) : 0, claimedPaid: !!(mine && mine.claimedPaid), paid: !!(mine && mine.paid), myAddons: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).addons || []) : [], myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, 200, corsHeaders);
         }
@@ -4694,7 +4709,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const canEv = (e) => calClubs(e).some(canClub) || canForm(e);
       const roster = await readClubRoster(env);
       const clubTitle = (id) => (roster.find((c) => c.id === id) || {}).title || "";
-      const view = (e) => ({ id: e.id, slug: e.slug || "", clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", blocks: e.blocks || [], theme: e.theme || null, editToken: canForm(e) ? (e.editToken || "") : "", histN: e.histN || 0, rsvpBy: e.rsvpBy || "", form: canForm(e) ? (e.form || null) : null, hasForm: !!e.form, canForm: canForm(e), ...(leadCtx ? {} : { formLeads: e.formLeads || [] }), publicForm: !!e.publicForm, capacity: calCap(e), rsvps: e.rsvps || [], ...(e.tbd ? { tbd: true, interest: e.interest || [] } : {}) });
+      const view = (e) => ({ id: e.id, slug: e.slug || "", clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", blocks: e.blocks || [], theme: e.theme || null, hosts: e.hosts || [], editToken: canForm(e) ? (e.editToken || "") : "", histN: e.histN || 0, rsvpBy: e.rsvpBy || "", form: canForm(e) ? (e.form || null) : null, hasForm: !!e.form, canForm: canForm(e), ...(leadCtx ? {} : { formLeads: e.formLeads || [] }), publicForm: !!e.publicForm, capacity: calCap(e), rsvps: e.rsvps || [], ...(e.tbd ? { tbd: true, interest: e.interest || [] } : {}) });
       const all = await readClubCal(env);
       if (!adminCalMatch[1] && M === "GET") return jsonResponse({ events: all.filter(canEv).sort((a, b) => a.date.localeCompare(b.date)).map(view) }, 200, corsHeaders);
       let body = {};
@@ -4767,7 +4782,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!h.length) return jsonResponse({ error: "Nothing to undo" }, 400, corsHeaders);
         const sn = h.shift(), keepPay = ev.form && ev.form.payment;
         Object.assign(ev, { title: sn.title, date: sn.date, time: sn.time, place: sn.place, mapUrl: sn.mapUrl, desc: sn.desc, rsvpBy: sn.rsvpBy });
-        for (const k of ["blocks", "theme"]) { if (sn[k]) ev[k] = sn[k]; else delete ev[k]; }
+        for (const k of ["blocks", "theme", "hosts"]) { if (sn[k]) ev[k] = sn[k]; else delete ev[k]; }
         if (sn.form) { ev.form = sn.form; if (keepPay) ev.form.payment = keepPay; else delete ev.form.payment; } else delete ev.form;
         ev.histN = h.length; await writeClubCal(env, all); await env.SITE_DATA.put(hk, JSON.stringify(h));
         return jsonResponse({ ok: true, event: view(ev) }, 200, corsHeaders);
