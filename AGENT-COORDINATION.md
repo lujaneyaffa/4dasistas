@@ -1360,3 +1360,5 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - 2026-10-29: Home Featured: ONE business of the day (tall card = 2 slots; worker rotation uses 1 slot for biz). Event page: removed empty 76px left strip (body.form-standalone padding-left:0). sw v257.
 
 - 2026-10-29: Event page sections now reorderable/hideable (theme.order/theme.hide; designer card "Page layout"; calSec/calCompose; default: location text at bottom, club tag hidden when partner logos shown). Home Featured cards fuller (desc snippet + View details). Admin badminton Players list links to /badminton?player=ID#players (new deep link in badminton.html). sw v258.
+
+- 2026-10-29: badminton.html: removed ISNA wording and the ISNA logo/ampersand from the footer (now only 4DS). sw v261.
