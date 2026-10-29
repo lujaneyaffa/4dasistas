@@ -421,8 +421,8 @@
   body.form-standalone{ padding-left:0 !important; } /* no tab rail on an event page, so no empty strip where it was */
   body.form-standalone nav.tabs, body.form-standalone .pwr-btn{ display:none !important; } /* an event page keeps the 4DS logo banner and the normal footer, but no tab bar / back button */
   .efBrand{ display:block; text-align:center; font-weight:800; letter-spacing:.5px; color:var(--brand-rose); text-decoration:none; font-size:15px; margin:0 0 4px; }
-  .efLinkEnd{ order:99; margin-top:14px; }
-  .efMapEnd{ order:98; }
+  .efs[data-s=link]{ margin-top:14px; }
+  .efs{ min-width:0; } #efBox .efTop{ display:contents; }
   .pgBar{ position:sticky; top:0; z-index:20; background:#fef7f4; padding:8px 0 6px; border-bottom:2px solid #f2d8d7; } .fb-page .pgBar{ margin:0 -2px; padding-left:2px; padding-right:2px; }
   .pgJump{ display:flex; gap:6px; overflow-x:auto; padding:6px 0 2px; } .pgJ{ flex:none; border:2px solid #f2d8d7; background:#fff; border-radius:999px; padding:6px 12px; min-height:36px; font:inherit; font-size:13px; font-weight:700; color:#76220b; cursor:pointer; }
   .pgEd .fb-card{ box-shadow:none; }
@@ -997,7 +997,7 @@
   .hf-when{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.03em; color:#a8505f; }
   .hf-sub{ font-size:13px; color:#555; }
   .hf-clamp{ display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
-  .hf-biz{ cursor:default; } .hf-tall{ height:322px; flex-basis:322px; } .hf-tall .hf-clamp{ -webkit-line-clamp:8; } .hf-tall strong{ font-size:18px; }
+  .hf-more{ margin-top:auto; font-size:13px; font-weight:800; color:var(--brand-brown,#76220b); } .hf-biz{ cursor:default; } .hf-card .hf-clamp{ -webkit-line-clamp:2; flex:0 0 auto; } .hf-tall{ height:322px; flex-basis:322px; justify-content:center; align-items:center; text-align:center; gap:10px; padding:20px 18px; } .hf-tall strong{ font-size:22px !important; } .hf-tall .hf-when{ white-space:normal; text-align:center; } .hf-tall .hf-sub{ font-size:15px; } .hf-tall .hf-links{ justify-content:center; margin-top:6px; } .hf-tall .hf-links a{ padding:8px 16px; border:2px solid var(--brand-brown,#76220b); border-radius:999px; text-decoration:none; } .hf-tall .hf-clamp{ -webkit-line-clamp:6; }
   .hf-links{ display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:6px; font-size:13px; font-weight:700; }
   .hf-links a{ color:var(--brand-brown,#76220b); }
   .hf-empty{ text-align:center; font-size:13px; color:#776867; margin:0; }
@@ -6384,21 +6384,19 @@ async function clubCalPublicCard(box, id){
     const inp = 'class="fb-in"';
     if(!d.form){ // no sign-up form: the same page, with Log in / Sign up to RSVP
       const past = calIsPast(d.date);
-      box.innerHTML = `${calCoverHtml(d)}${calHostsHtml(d)}<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p><h3 style="margin:0 0 6px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>
-        <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calPriceHtml(d)}
-        ${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}${calDescHtml(d)}
-        ${d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}${past ? '' : calSpotsHtml(d)}
-        ${past ? '<p class="av-msg" style="margin:8px 0 0;">This event has already happened.</p>' : `<p class="av-msg" style="margin:10px 0;">Log in or sign up to RSVP.</p><div style="display:flex;gap:10px;"><button type="button" class="club-guide-btn pfL" style="flex:1;text-align:center;">Log In</button><button type="button" class="fall-cta-btn join-club-btn pfS" style="flex:1;">Sign Up</button></div>`}
-        <div class="efMapEnd">${calMapHtml(d, true)}</div><div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`;
+      const clubP = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>`;
+      box.innerHTML = calCompose(d, [['cover', calCoverHtml(d)], ['hosts', calHostsHtml(d)], ['club', clubP], ['title', `<h3 style="margin:0 0 6px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>`],
+        ['date', `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>`], ['price', calPriceHtml(d)],
+        ['place', d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''], ['map', calMapHtml(d)], ['desc', calDescHtml(d)],
+        ['rsvpby', d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''], ['spots', past ? '' : calSpotsHtml(d)],
+        ['action', past ? '<p class="av-msg" style="margin:8px 0 0;">This event has already happened.</p>' : `<p class="av-msg" style="margin:10px 0;">Log in or sign up to RSVP.</p><div style="display:flex;gap:10px;"><button type="button" class="club-guide-btn pfL" style="flex:1;text-align:center;">Log In</button><button type="button" class="fall-cta-btn join-club-btn pfS" style="flex:1;">Sign Up</button></div>`],
+        ['link', calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')]]);
       wireCalCopy(box); calAttendeesInto(box, id, d.date);
       const lb = box.querySelector('.pfL'); if(lb) lb.addEventListener('click', () => { calRememberOpen(id); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); });
       const sb = box.querySelector('.pfS'); if(sb) sb.addEventListener('click', () => { calRememberOpen(id); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); goToTab('fallsignup'); });
       return;
     }
-    box.innerHTML = `${calCoverHtml(d)}${calHostsHtml(d)}<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p><h3 style="margin:0 0 4px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>
-      <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calPriceHtml(d)}${d.rsvpBy ? `<p style="margin:4px 0;font-weight:700;color:${d.closed ? '#b3261e' : '#76220b'};">⏳ ${d.closed ? 'Sign-ups are closed' : 'Sign up by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}${calDescHtml(d)}
-      ${d.closed ? '<p style="font-weight:700;">🔒 Sign-ups are closed.</p>' : ''}${calSpotsHtml(d)}
-      <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 8px;">1 · 👤 About you</h3>
+    const formHtml = `<div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 8px;">1 · 👤 About you</h3>
         <div style="display:flex;gap:10px;flex-wrap:wrap;"><button type="button" class="club-guide-btn pfModeGuest" style="flex:1;min-width:140px;min-height:48px;text-align:center;">⚡ Continue as a guest</button><button type="button" class="club-guide-btn pfModeIn" style="flex:1;min-width:140px;min-height:48px;text-align:center;">👤 Sign in</button></div>
         <div class="pfGuestBox" style="display:none;margin-top:12px;"><p class="ideas-hint" style="text-align:left;margin:0 0 8px;">Just your name &amp; phone — no account needed. You can always make one later.</p>
           <div class="fb-q"><label>Your full name <span class="req">*</span></label><input ${inp} data-base="name" type="text" maxlength="60" autocomplete="name" placeholder="First and last name"></div>
@@ -6422,7 +6420,12 @@ async function clubCalPublicCard(box, id){
         ${calAddonsHtml(d.form, [])}
         ${calPayInFormHtml(d.form)}
         <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Submit</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}</div>`;
-    box.insertAdjacentHTML('beforeend', `<div class="efMapEnd">${calMapHtml(d, true)}</div><div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`);
+    box.innerHTML = calCompose(d, [['cover', calCoverHtml(d)], ['hosts', calHostsHtml(d)], ['club', `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>`], ['title', `<h3 style="margin:0 0 4px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>`],
+      ['date', `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>`], ['price', calPriceHtml(d)],
+      ['rsvpby', d.rsvpBy ? `<p style="margin:4px 0;font-weight:700;color:${d.closed ? '#b3261e' : '#76220b'};">⏳ ${d.closed ? 'Sign-ups are closed' : 'Sign up by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''],
+      ['place', d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''], ['map', calMapHtml(d)], ['desc', calDescHtml(d)],
+      ['action', d.closed ? '<p style="font-weight:700;">🔒 Sign-ups are closed.</p>' : ''], ['spots', calSpotsHtml(d)], ['form', formHtml],
+      ['link', calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')]]);
     wireCalCopy(box); wireCalAddons(box, d.form); calMountLocations(box); calAttendeesInto(box, d.id, d.date);
     // Section 1 starts as two buttons; only the chosen path's fields appear: guest (name + phone), sign in (find yourself + PIN), or create an account.
     let mode = '';
@@ -6537,26 +6540,25 @@ async function clubCalMemberCard(box, id){
     const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id), { headers: ideaHeaders() }); calUpgradeUrl(d);
     box.innerHTML = '';
     const top = document.createElement('div'), formBox = document.createElement('div');
-    const linkEnd = document.createElement('div'); linkEnd.className = 'efLinkEnd';
+    const linkEnd = document.createElement('div');
     linkEnd.innerHTML = calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:'); wireCalCopy(linkEnd);
-    const mapEnd = document.createElement('div'); mapEnd.className = 'efMapEnd'; mapEnd.innerHTML = calMapHtml(d, true);
-    box.append(top, formBox, mapEnd, linkEnd); // details on top, then the form (and payment / description); the copyable link sits at the very bottom (efLinkEnd is ordered last)
+    top.className = 'efTop'; formBox.className = 'efs'; formBox.dataset.s = 'form'; formBox.style.order = String(calSecOrder(d).indexOf('form') * 10 + 10);
+    linkEnd.className = 'efs'; linkEnd.dataset.s = 'link'; linkEnd.style.order = String(calSecOrder(d).indexOf('link') * 10 + 10); if(calHiddenSecs(d).includes('link')) linkEnd.hidden = true;
+    box.append(top, formBox, linkEnd); // details on top, then the form (and payment / description); the copyable link sits at the very bottom (efLinkEnd is ordered last)
     calAttendeesInto(box, id, d.date);
     let syncCancel = () => {};
     const paint = () => {
       syncCancel();
       const past = calIsPast(d.date);
       const label = past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going — tap to cancel" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — tap to leave` : d.mine === 'pending' ? '⏳ Requested — waiting for approval (tap to cancel)' : d.inClub ? (d.capacity && !d.spotsLeft ? '🎟️ Join the waitlist' : '🎟️ RSVP — I\'m going') : '🎟️ Request to RSVP';
-      top.innerHTML = `${calCoverHtml(d)}${calHostsHtml(d)}<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>
-        <h3 style="margin:0 0 6px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>
-        <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calPriceHtml(d)}
-        ${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}
-        ${calDescHtml(d)}
-        ${d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}
-        <p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} ${past ? 'attended' : 'going'}</p>${past ? '' : calSpotsHtml(d)}
-        ${d.form ? `<p style="margin:6px 0;font-weight:700;">${past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — we'll move you up if a spot opens` : d.mine === 'pending' ? '⏳ Requested — waiting for approval' : d.closed ? '🔒 Sign-ups are closed' : d.capacity && !d.spotsLeft ? 'Fill in the form below to join the waitlist 👇' : 'Fill in the form below to sign up 👇'}</p>${d.mine && !past ? '<button type="button" class="av-link calRsvpBtn">Cancel my RSVP</button>' : ''}` : (!d.inClub && !d.mine && !past ? `<a class="club-guide-btn calAskWa" href="https://wa.me/u/${ORGANISER_WA_USERNAME}?text=${waEnc(calAskMessage(d))}" target="_blank" rel="noopener" style="display:block;box-sizing:border-box;width:100%;text-align:center;text-decoration:none;background:#25a244;color:#fff;border-color:#1c7a33;">💬 Ask on WhatsApp if there's a spot</a><p class="ideas-hint" style="margin:6px 0 0;">This event is for ${escapeCm(d.clubTitle || 'a club')} members. Tap to message us — a note is already written for you.</p>` : `<button type="button" class="club-guide-btn calRsvpBtn" ${(d.closed || past) && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>`)}
+      const actionHtml = `${d.form ? `<p style="margin:6px 0;font-weight:700;">${past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — we'll move you up if a spot opens` : d.mine === 'pending' ? '⏳ Requested — waiting for approval' : d.closed ? '🔒 Sign-ups are closed' : d.capacity && !d.spotsLeft ? 'Fill in the form below to join the waitlist 👇' : 'Fill in the form below to sign up 👇'}</p>${d.mine && !past ? '<button type="button" class="av-link calRsvpBtn">Cancel my RSVP</button>' : ''}` : (!d.inClub && !d.mine && !past ? `<a class="club-guide-btn calAskWa" href="https://wa.me/u/${ORGANISER_WA_USERNAME}?text=${waEnc(calAskMessage(d))}" target="_blank" rel="noopener" style="display:block;box-sizing:border-box;width:100%;text-align:center;text-decoration:none;background:#25a244;color:#fff;border-color:#1c7a33;">💬 Ask on WhatsApp if there's a spot</a><p class="ideas-hint" style="margin:6px 0 0;">This event is for ${escapeCm(d.clubTitle || 'a club')} members. Tap to message us — a note is already written for you.</p>` : `<button type="button" class="club-guide-btn calRsvpBtn" ${(d.closed || past) && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>`)}
         <div class="calRsvpMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>
         ${(!past && d.mine === 'going') ? '<button type="button" class="club-guide-btn calAddCal" style="width:100%;min-height:46px;margin-top:4px;">📆 Add to my calendar</button>' : ''}`;
+      top.innerHTML = calCompose(d, [['cover', calCoverHtml(d)], ['hosts', calHostsHtml(d)], ['club', `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>`], ['title', `<h3 style="margin:0 0 6px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>`],
+        ['date', `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>`], ['price', calPriceHtml(d)],
+        ['place', d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''], ['map', calMapHtml(d)], ['desc', calDescHtml(d)],
+        ['rsvpby', d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''],
+        ['going', `<p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} ${past ? 'attended' : 'going'}</p>`], ['spots', past ? '' : calSpotsHtml(d)], ['action', actionHtml]]);
       wireCalCopy(top);
       { const ac = top.querySelector('.calAddCal'); if(ac) ac.addEventListener('click', () => openEventIcs(d.id)); }
       const rsvpBtn = top.querySelector('.calRsvpBtn'); // (an event with a form has no RSVP button until you've signed up — only a 'Cancel my RSVP' link)
@@ -7037,7 +7039,7 @@ async function calUploadImage(file, ctx){
 // The page designer: a full-screen editor for the description, the look (cover photo, colour, font) and the blocks.
 const CAL_BLOCK_TYPES = [['text', '📝 Text'], ['image', '🖼 Photo'], ['map', '🗺 Map'], ['button', '🔘 Button'], ['video', '▶️ Video'], ['divider', '― Line']];
 function calDesigner(initial, opts, onDone){
-  const st = JSON.parse(JSON.stringify({ desc: initial.desc || '', blocks: initial.blocks || [], theme: initial.theme || {} }));
+  const st = JSON.parse(JSON.stringify({ desc: initial.desc || '', blocks: initial.blocks || [], theme: initial.theme || {}, hosts: initial.hosts || [], clubId: initial.clubId || '', clubIds: initial.clubIds || [] }));
   const emb = !!(opts && opts.into); // embedded in the one-page editor: no header / Done / Preview of its own
   const page = emb ? opts.into : document.createElement('div'); if(!emb){ page.className = 'fb-page'; document.body.appendChild(page); }
   const prevOv = document.body.style.overflow; if(!emb) document.body.style.overflow = 'hidden';
@@ -7088,6 +7090,9 @@ function calDesigner(initial, opts, onDone){
           <label style="font-size:13px;font-weight:700;">Title <select id="dsTA"><option value="">Left</option><option value="center" ${t.titleAlign === 'center' ? 'selected' : ''}>Centred</option></select></label></div>
         <div class="fb-row" style="margin-top:10px;"><label style="font-size:13px;font-weight:700;">🗺️ Map size <select id="dsMS"><option value="">Medium</option><option value="s" ${t.mapSize === 's' ? 'selected' : ''}>Small</option><option value="l" ${t.mapSize === 'l' ? 'selected' : ''}>Large</option><option value="off" ${t.mapSize === 'off' ? 'selected' : ''}>No map — just a link</option></select></label>
           <label style="font-size:13px;font-weight:700;">Map position <select id="dsMP"><option value="">Under the place (top)</option><option value="bottom" ${t.mapPos === 'bottom' ? 'selected' : ''}>Very bottom of the page</option></select></label></div></div>
+      <div class="fb-card"><strong>📐 Page layout — order &amp; what shows</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">Move every part of the page up or down, or switch it off. This is the order people see, top to bottom.</p>
+        ${(() => { const ord = calSecOrder(st), hid = calHiddenSecs(st); return ord.map((k, i) => { const lab = (CAL_SECS.find(x => x[0] === k) || [k, k])[1], lock = CAL_SEC_LOCKED.includes(k); return `<div class="dsLayRow" style="display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid rgba(0,0,0,.08);"><span style="flex:1;font-size:14px;${hid.includes(k) ? 'opacity:.45;text-decoration:line-through;' : ''}">${lab}</span><button type="button" class="fb-mini dsLayUp" data-k="${k}" ${i === 0 ? 'disabled' : ''} aria-label="Move up">▲</button><button type="button" class="fb-mini dsLayDn" data-k="${k}" ${i === ord.length - 1 ? 'disabled' : ''} aria-label="Move down">▼</button>${lock ? '<span style="width:64px;"></span>' : `<label style="font-size:12px;width:64px;display:flex;gap:4px;align-items:center;"><input type="checkbox" class="dsLayShow" data-k="${k}" ${hid.includes(k) ? '' : 'checked'}> show</label>`}</div>`; }).join(''); })()}
+        ${(t.order || t.hide) ? '<button type="button" class="fb-mini" id="dsLayReset" style="margin-top:8px;">↺ Back to the standard layout</button>' : ''}</div>
       <div class="fb-card"><strong>📄 Description</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">The words at the top of the page. Select text, then tap B, I, a colour…</p><textarea id="dsDesc" data-rich rows="6" maxlength="3000" placeholder="What the event is, what to bring, where to meet…">${escapeCm(st.desc)}</textarea></div>
       ${st.blocks.map(blockCard).join('')}
       <div class="fb-card"><strong>➕ Add to the page</strong><div class="fb-row">${CAL_BLOCK_TYPES.map(([k, l]) => `<button type="button" class="fb-mini dsAdd" data-t="${k}">${l}</button>`).join('')}<input type="file" id="dsPhotoIn" accept="image/*" multiple hidden></div></div>
@@ -7107,6 +7112,9 @@ function calDesigner(initial, opts, onDone){
     page.querySelector('#dsBg').addEventListener('change', e => { if(e.target.value) st.theme.bg = e.target.value; else delete st.theme.bg; });
     page.querySelector('#dsMS').addEventListener('change', e => { if(e.target.value) st.theme.mapSize = e.target.value; else delete st.theme.mapSize; });
     page.querySelector('#dsMP').addEventListener('change', e => { if(e.target.value) st.theme.mapPos = e.target.value; else delete st.theme.mapPos; });
+    q('.dsLayUp,.dsLayDn', b => b.addEventListener('click', () => { const ord = calSecOrder(st), i = ord.indexOf(b.dataset.k), j = b.classList.contains('dsLayUp') ? i - 1 : i + 1; if(j < 0 || j >= ord.length) return; [ord[i], ord[j]] = [ord[j], ord[i]]; st.theme.hide = calHiddenSecs(st).slice(); st.theme.order = ord; paint(); }));
+    q('.dsLayShow', c => c.addEventListener('change', () => { const hid = calHiddenSecs(st).filter(k => k !== c.dataset.k); if(!c.checked) hid.push(c.dataset.k); st.theme.order = calSecOrder(st); st.theme.hide = hid; paint(); }));
+    { const r = page.querySelector('#dsLayReset'); if(r) r.addEventListener('click', () => { delete st.theme.order; delete st.theme.hide; delete st.theme.mapPos; paint(); }); }
     page.querySelector('#dsTA').addEventListener('change', e => { if(e.target.value) st.theme.titleAlign = e.target.value; else delete st.theme.titleAlign; });
     q('.dsF', el => el.addEventListener('input', () => { st.blocks[Number(el.dataset.i)][el.dataset.f] = el.value; }));
     q('.dsUp', b => b.addEventListener('click', () => { const i = Number(b.dataset.i); [st.blocks[i - 1], st.blocks[i]] = [st.blocks[i], st.blocks[i - 1]]; paint(); }));
@@ -7269,10 +7277,22 @@ function calPriceHtml(d, compact){
 }
 // A pinned map on the event page: the pasted Google Maps link (exact spot), else the place text — embedded, plus an 'Open in Google Maps' link.
 // bottom = true asks for the copy that sits at the very end of the page (only when the admin chose "very bottom"); otherwise the one under the place.
-function calMapHtml(d, bottom){
+// ---- Event page layout: every part of the page is a section that can be reordered or hidden (theme.order / theme.hide, set in the page designer) ----
+const CAL_SECS = [['cover','🖼 Cover photo'],['hosts','🤝 Partner / host logos'],['club','🏷 Club tag'],['title','Title'],['date','📅 Date & time'],['price','🎟 Price'],['rsvpby','⏳ Sign-up deadline'],['map','🗺 Map'],['desc','📝 Description & blocks'],['spots','Spots left'],['going','👥 How many are going'],['action','RSVP / sign-up buttons'],['form','📋 The sign-up form'],['place','📍 Location text'],['link','🔗 Share link']];
+const CAL_SEC_LOCKED = ['action', 'form']; // can be moved, but never hidden (people need them)
+function calHiddenSecs(d){ const t = d.theme || {}; if(Array.isArray(t.hide)) return t.hide; return calHostRows(d).some(r => !r.hide) ? ['club'] : []; } // a collaboration shows the partners' logos instead of the club tag, unless you choose otherwise
+function calSecOrder(d){
+  const t = d.theme || {}, keys = CAL_SECS.map(x => x[0]); let ord;
+  if(Array.isArray(t.order) && t.order.length){ ord = t.order.filter(k => keys.includes(k)); keys.forEach(k => { if(!ord.includes(k)) { const li = ord.indexOf('link'); ord.splice(li >= 0 ? li : ord.length, 0, k); } }); }
+  else { const bot = t.mapPos === 'bottom'; ord = ['cover', 'hosts', 'club', 'title', 'date', 'price', 'rsvpby']; if(!bot) ord.push('map'); ord.push('desc', 'spots', 'going', 'action', 'form', 'place'); if(bot) ord.push('map'); ord.push('link'); }
+  return ord;
+}
+function calSecStyle(d, k){ return 'order:' + (calSecOrder(d).indexOf(k) * 10 + 10); }
+function calSec(d, k, html){ if(!html || !String(html).trim()) return ''; if(!CAL_SEC_LOCKED.includes(k) && calHiddenSecs(d).includes(k)) return ''; return `<div class="efs" data-s="${k}" style="${calSecStyle(d, k)}">${html}</div>`; }
+function calCompose(d, parts){ const ord = calSecOrder(d); return parts.map(([k, h]) => [k, calSec(d, k, h)]).filter(x => x[1]).sort((a, b) => ord.indexOf(a[0]) - ord.indexOf(b[0])).map(x => x[1]).join(''); }
+function calMapHtml(d){
   const t = d.theme || {}, map = safeMapUrl(d.mapUrl), q = String(d.place || '').trim();
   if(!map && !q) return '';
-  if((t.mapPos === 'bottom') !== !!bottom) return '';
   const hgt = { s:130, m:230, l:340 }[t.mapSize] || 230;
   const src = ideaMapEmbedUrl({ mapUrl: map, title: q || d.title || '' });
   const open = map || ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q));
@@ -7598,7 +7618,7 @@ function calPageEditor(ev, opts){
   // ---- the three embedded editors ----
   const ids = () => link ? (ev.clubIds || [ev.clubId]) : [...host.querySelectorAll('.cf-club:checked')].map(x => x.value);
   const hostsP = calHostsEditor({ clubIds: ids(), hosts: ev ? (ev.hosts || []) : [] }, { into: q('#pgHosts'), evId: ev ? ev.id : '', token: opts.token }, () => {});
-  const designP = calDesigner({ desc: ev ? ev.desc : '', blocks: ev ? (ev.blocks || []) : [], theme: ev ? (ev.theme || null) : null }, { into: q('#pgDesign'), evId: ev ? ev.id : '', token: opts.token, title: ev ? ev.title : '' }, () => {});
+  const designP = calDesigner({ desc: ev ? ev.desc : '', blocks: ev ? (ev.blocks || []) : [], theme: ev ? (ev.theme || null) : null, hosts: ev ? (ev.hosts || []) : [], clubId: ev ? ev.clubId : '', clubIds: ev ? ev.clubIds : [] }, { into: q('#pgDesign'), evId: ev ? ev.id : '', token: opts.token, title: ev ? ev.title : '' }, () => {});
   const formP = openFormBuilder(ev ? (ev.form || null) : null, () => {}, { into: q('#pgForm'), scroller, noPayment: link });
   if(!link){ host.querySelectorAll('.cf-club').forEach(c => c.addEventListener('change', () => hostsP.setClubs(ids()))); mountClubCalPlace(host); }
   // ---- TBD toggles the date fields ----
@@ -8573,13 +8593,14 @@ function homeBusinessesOfDay(){
   return [pool[day % pool.length]];
 }
 function homeFeaturedInner(){
-  const evCard = (id, title, when, sub) => `<button type="button" class="hf-card" data-id="${escapeCm(id)}"><span class="hf-when">${escapeCm(when)}</span><strong>${escapeCm(title)}</strong>${sub ? `<span class="hf-sub">${escapeCm(sub)}</span>` : ''}</button>`;
+  const snip = t => String(t || '').replace(/\s+/g, ' ').trim();
+  const evCard = (id, title, when, sub, desc) => `<button type="button" class="hf-card" data-id="${escapeCm(id)}"><span class="hf-when">${escapeCm(when)}</span><strong>${escapeCm(title)}</strong>${sub ? `<span class="hf-sub">📍 ${escapeCm(sub)}</span>` : ''}${snip(desc) ? `<span class="hf-sub hf-clamp">${escapeCm(snip(desc))}</span>` : ''}<span class="hf-more">View details →</span></button>`;
   const F = state.featured;
   const pubSrc = F ? F.public.map(x => homeFeatPubEntry(x.id)).filter(Boolean) : homeFeaturedEvents();
   const hostedSrc = F ? F.hosted.map(x => (CLUB_CAL_ITEMS || []).find(e => e.id === 'clubcal:' + x.id)).filter(Boolean) : homeFeaturedHosted();
   const bizSrc = F ? F.biz.map(x => (resourcesData || []).find(r => String(r.id) === String(x.id))).filter(Boolean) : homeBusinessesOfDay();
-  const pub = pubSrc.map(({ item, when }) => evCard(item.id, emojiTitle(item), when + (eventTimeLabel(item) && eventTimeLabel(item) !== 'All day' ? ' · ' + eventTimeLabel(item) : ''), cityLabel(item) || ''));
-  const hosted = hostedSrc.map(e => evCard(e.id, e.title, calDateLabel(e.calDate) + (e.time ? ' · ' + formatTime12h(e.time) : ''), e.location || ''));
+  const pub = pubSrc.map(({ item, when }) => evCard(item.id, emojiTitle(item), when + (eventTimeLabel(item) && eventTimeLabel(item) !== 'All day' ? ' · ' + eventTimeLabel(item) : ''), cityLabel(item) || '', item.desc));
+  const hosted = hostedSrc.map(e => evCard(e.id, e.title, calDateLabel(e.calDate) + (e.time ? ' · ' + formatTime12h(e.time) : ''), e.location || '', e.desc));
   const bizCards = bizSrc.slice(0, 1).map(b => `<div class="hf-card hf-biz hf-tall"><span class="hf-when">${escapeCm(b.type || 'Business')}${b.location ? ' · ' + escapeCm(b.location) : ''}</span><strong>${escapeCm(b.title)}</strong><span class="hf-sub hf-clamp">${escapeCm(b.desc)}</span><span class="hf-links">${b.website ? `<a href="${escapeCm(b.website)}" target="_blank" rel="noopener">Website</a>` : ''}${b.instagram ? `<a href="${escapeCm(b.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ''}<a href="#/resources/${escapeCm(b.category)}">See in Directory</a></span></div>`);
   const col = (title, cards, empty) => { const c = cards.slice(0, 2); while(c.length < (title.includes('Businesses') ? 1 : 2)) c.push(`<div class="hf-card hf-ph"><span>${c.length ? '✨ More soon' : empty}</span></div>`); return `<div class="hf-col"><h4>${title}</h4>${c.join('')}</div>`; };
   return col('📅 Public events', pub, 'Nothing coming up yet.') + col('🌸 Hosted by 4DS', hosted, 'New 4DS events are on the way.') + col('🏪 Businesses of the day', bizCards, 'Check the Directory!');
@@ -12522,17 +12543,17 @@ function bmImportHtml(){
     <div style="display:flex;gap:6px;margin-bottom:10px;"><input id="bmCoachPw" type="text" placeholder="New coach password (6+ characters)" autocomplete="off" style="${inp}flex:1;min-width:0;"><button type="button" class="club-guide-btn" id="bmCoachSet" style="padding:6px 12px;">Set</button></div>
     <p style="margin:0 0 4px;font-weight:700;">📱 iPad kiosk</p><p style="font-size:12px;color:#776867;margin:0 0 6px;">Open <b>4dasistas.ca/badminton#kiosk</b> on the iPad and type the password <b>4ds1234</b> once. There is no key to generate any more.</p>
     <hr style="border:none;border-top:1px solid rgba(0,0,0,.1);margin:10px 0;">
-    <p style="margin:0 0 4px;font-weight:700;">👥 Players (${c.players ?? 0})</p><p style="font-size:12px;color:#776867;margin:0 0 6px;">Tap a name to open their profile.</p>
+    <p style="margin:0 0 4px;font-weight:700;">👥 Players (${c.players ?? 0})</p><p style="font-size:12px;color:#776867;margin:0 0 6px;">Tap a name to open their badminton profile — the same one as on the badminton site (stats, wins, attendance). “4DS profile” opens their 4DS account.</p>
     <input id="bmPlSearch" type="search" placeholder="🔍 Search players…" autocomplete="off" style="${inp}width:100%;margin-bottom:6px;"><div id="bmPlBox" style="max-height:320px;overflow:auto;"><p class="av-msg">Loading…</p></div>
     <div id="bmSetMsg" style="font-size:13px;min-height:16px;margin-top:6px;"></div></div>`;
 }
 async function bmPlayersLoad(){
   const box = document.getElementById('bmPlBox'); if(!box) return;
-  if(!state.bmPlayers){ try { const r = await fetch('/api/admin/badminton/players', { credentials:'include', cache:'no-store' }); const d = await r.json().catch(() => ({})); state.bmPlayers = r.ok ? (d.players || []) : []; } catch { state.bmPlayers = []; } }
+  if(!state.bmPlayers){ try { const r = await fetch('/api/admin/badminton/players', { credentials:'include', cache:'no-store' }); const d = await r.json().catch(() => ({})); if(r.ok) state.bmPlayers = d.players || []; else { box.innerHTML = `<p class="av-msg" style="color:#c00;">Could not load players (${escapeCm(d.error || r.status)}). Try again.</p>`; return; } } catch { box.innerHTML = '<p class="av-msg" style="color:#c00;">Could not load players. Try again.</p>'; return; } }
   const paint = () => {
     const q = (document.getElementById('bmPlSearch') || {}).value || '', ql = q.trim().toLowerCase();
     const list = state.bmPlayers.filter(p => !ql || `${p.label} ${p.username || ''}`.toLowerCase().includes(ql));
-    box.innerHTML = list.map(p => `<div style="display:flex;gap:6px;align-items:center;padding:6px 0;border-top:1px solid rgba(0,0,0,.08);font-size:14px;"><span style="flex:1;min-width:0;">${p.uid ? `<button type="button" class="bmPlOpen" data-uid="${escapeCm(p.uid)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(p.label)}</button>` : `<b>${escapeCm(p.label)}</b>`}<br><small style="color:#776867;">${p.level ? escapeCm(p.level) + ' · ' : ''}${p.games} game${p.games === 1 ? '' : 's'}${p.uid ? ' · 4DS account' : ' · not linked to a 4DS account'}</small></span></div>`).join('') || '<p class="av-msg">No players found.</p>';
+    box.innerHTML = list.map(p => `<div style="display:flex;gap:6px;align-items:center;padding:6px 0;border-top:1px solid rgba(0,0,0,.08);font-size:14px;"><span style="flex:1;min-width:0;"><a href="/badminton?player=${encodeURIComponent(p.id)}#players" target="_blank" rel="noopener" style="font-weight:700;color:inherit;">${escapeCm(p.label)}</a><br><small style="color:#776867;">${p.level ? escapeCm(p.level) + ' · ' : ''}${p.games} game${p.games === 1 ? '' : 's'}${p.uid ? '' : ' · not linked to a 4DS account'}</small></span>${p.uid ? `<button type="button" class="fb-mini bmPlOpen" data-uid="${escapeCm(p.uid)}">4DS profile</button>` : ''}</div>`).join('') || '<p class="av-msg">No players found.</p>';
     box.querySelectorAll('.bmPlOpen').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.uid)));
   };
   paint(); const si = document.getElementById('bmPlSearch'); if(si && !si.dataset.on){ si.dataset.on = '1'; si.addEventListener('input', paint); }

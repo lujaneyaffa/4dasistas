@@ -1465,6 +1465,9 @@ const sanitizeCalTheme = (t) => {
   if (t.titleAlign === "center") o.titleAlign = "center";
   if (["s", "l", "off"].includes(t.mapSize)) o.mapSize = t.mapSize; // map size on the page (medium is the default)
   if (t.mapPos === "bottom") o.mapPos = "bottom"; // map at the very end of the page
+  const SEC = ["cover", "hosts", "club", "title", "date", "price", "rsvpby", "map", "desc", "spots", "going", "action", "form", "place", "link"];
+  if (Array.isArray(t.order)) { const ord = [...new Set(t.order.map(String).filter((k) => SEC.includes(k)))]; if (ord.length) o.order = ord; } // page sections, top to bottom
+  if (Array.isArray(t.hide)) o.hide = [...new Set(t.hide.map(String).filter((k) => SEC.includes(k) && k !== "action" && k !== "form"))]; // sections switched off ([] = show all)
   return Object.keys(o).length ? o : null;
 };
 // Which design bits a request body sets (undefined = leave as is).
