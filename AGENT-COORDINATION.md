@@ -1328,3 +1328,5 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - 2026-08-22 — GitHub Copilot — `index.html`, `data/clubs.json` — Added Travel tab, live search suggestions, circular club icons, Field club rename, FAQ label, mosque programming split into Activities/Resources as Mosque Programs.
 
 - 2026-10-29: Payment inside the form. Payment box + "I have sent my payment" tick sit just above Submit (public + member forms); builder has an Optional/Required select (payment.required). Server rejects NEW sign-ups without paidClaim when required (guest, new-account and member paths) and sets rsvp.claimedPaid when ticked. sw v243.
+
+- 2026-10-29: Home (visitors): bubbles now 5 and much bigger on desktop (5 across, up to 1100px wide); new "Featured Today" section under them (2 public events, 2 upcoming 4DS-hosted events, business of the day from the directory, rotates daily) and the old Contribute bubble became the "Add more" button below it (chooser: calendar event or directory business/resource). Code: homeFeaturedHtml/homeFeaturedInner in index.html. sw v244.
