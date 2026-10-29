@@ -1,6 +1,19 @@
 {
   "updates": [
     {
+      "no": 30,
+      "date": "2026-10-28",
+      "title": "Beautiful event pages",
+      "items": [
+        {
+          "text": "✨ Event pages can now have bold/italic text, headings, colours, photos, maps, buttons and videos."
+        },
+        {
+          "text": "✨ Event forms are now clean shareable pages. Sign up as a guest in a few taps or sign in."
+        }
+      ]
+    },
+    {
       "no": 29,
       "date": "2026-10-28",
       "title": "Big events: spots, waitlists and reminders",

@@ -1319,6 +1319,69 @@ const sanitizeCalForm = (f) => {
   }
   return out;
 };
+// ---- Event page design: text uses a tiny markup the browser renders safely (**bold**, *italic*, links…); the page is also a list of BLOCKS (text, photo, map, button, video, divider) plus a theme ----
+const CAL_IMG_RE = /^[a-z0-9]{8,24}$/;
+const calHttps = (v, n = 500) => { try { const u = new URL(String(v || "").trim()); return u.protocol === "https:" && u.href.length <= n ? u.href : ""; } catch { return ""; } };
+const calLinkOk = (v) => { const t = String(v || "").trim(); if (/^(mailto:|tel:)[^\s<>"']{3,120}$/i.test(t)) return t; return calHttps(t); };
+const calEmbedSrc = (v) => { // a Google Maps "Embed a map" iframe (or just its src) -> the safe src, else ""
+  const m = String(v || "").match(/src\s*=\s*["']([^"']+)["']/i), raw = (m ? m[1] : String(v || "")).trim().replace(/&amp;/g, "&");
+  try { const u = new URL(raw); return u.protocol === "https:" && u.hostname === "www.google.com" && u.pathname.startsWith("/maps/embed") && u.href.length <= 1500 ? u.href : ""; } catch { return ""; }
+};
+const calYoutubeId = (v) => { const m = String(v || "").match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([\w-]{11})/i); return m ? m[1] : ""; };
+const sanitizeCalBlocks = (arr) => {
+  const out = [], seen = new Set(), txt = (v, n) => String(v || "").replace(/[\x00-\x08\x0b-\x1f\x7f<>]/g, " ").trim().slice(0, n);
+  const pick = (v, list, d) => (list.includes(v) ? v : d);
+  for (const b of (Array.isArray(arr) ? arr : []).slice(0, 40)) {
+    if (!b || typeof b !== "object") continue;
+    let id = /^[a-z0-9]{3,16}$/.test(String(b.id || "")) ? String(b.id) : crypto.randomUUID().slice(0, 8);
+    if (seen.has(id)) id = crypto.randomUUID().slice(0, 8);
+    let o = null;
+    if (b.type === "text") { const t = txt(b.text, 4000); if (t) o = { type: "text", text: t, align: pick(b.align, ["left", "center", "right"], "left") }; }
+    else if (b.type === "image") {
+      const img = CAL_IMG_RE.test(String(b.img || "")) ? String(b.img) : "", url = img ? "" : calHttps(b.url);
+      if (img || url) { o = { type: "image", ...(img ? { img } : { url }), caption: txt(b.caption, 300), size: pick(b.size, ["small", "medium", "large", "full"], "full"), align: pick(b.align, ["left", "center", "right"], "center") }; const lk = calLinkOk(b.link); if (lk) o.link = lk; }
+    }
+    else if (b.type === "map") {
+      const embed = calEmbedSrc(b.embed), link = b.link ? (isGoogleMapsUrl(b.link) || "") : "", q = txt(b.q, 200);
+      if (embed || link || q) o = { type: "map", ...(embed ? { embed } : {}), ...(link ? { link } : {}), ...(q ? { q } : {}), height: pick(b.height, ["small", "medium", "large"], "medium"), caption: txt(b.caption, 300) };
+    }
+    else if (b.type === "button") { const label = txt(b.label, 60), url = calLinkOk(b.url); if (label && url) o = { type: "button", label, url, style: pick(b.style, ["solid", "outline"], "solid"), align: pick(b.align, ["left", "center", "right"], "center") }; }
+    else if (b.type === "video") { const vid = calYoutubeId(b.url || b.vid); if (vid) o = { type: "video", vid, caption: txt(b.caption, 300) }; }
+    else if (b.type === "divider") o = { type: "divider" };
+    if (o) { seen.add(id); out.push({ id, ...o }); }
+  }
+  return out;
+};
+const sanitizeCalTheme = (t) => {
+  if (!t || typeof t !== "object") return null;
+  const o = {}, hex = (v) => (/^#[0-9a-f]{6}$/i.test(String(v || "")) ? String(v).toLowerCase() : "");
+  if (hex(t.accent)) o.accent = hex(t.accent);
+  if (hex(t.bg)) o.bg = hex(t.bg);
+  if (CAL_IMG_RE.test(String(t.cover || ""))) o.cover = String(t.cover);
+  if (["serif", "rounded", "mono"].includes(t.font)) o.font = t.font;
+  if (t.titleAlign === "center") o.titleAlign = "center";
+  return Object.keys(o).length ? o : null;
+};
+// Which design bits a request body sets (undefined = leave as is).
+const calDesignFields = (b) => { const o = {}; if (b.blocks !== undefined) o.blocks = sanitizeCalBlocks(b.blocks); if (b.theme !== undefined) o.theme = sanitizeCalTheme(b.theme); return o; };
+const calDesignFieldsObj = (b) => { const d = calDesignFields(b), o = {}; if (d.blocks && d.blocks.length) o.blocks = d.blocks; if (d.theme) o.theme = d.theme; return o; };
+const calApplyDesign = (ev, d) => { if (d.blocks !== undefined) { if (d.blocks.length) ev.blocks = d.blocks; else delete ev.blocks; } if (d.theme !== undefined) { if (d.theme) ev.theme = d.theme; else delete ev.theme; } };
+let _calImgReady = false;
+const calImgEnsure = async (env) => { if (_calImgReady) return; await env.DB.prepare("CREATE TABLE IF NOT EXISTS cal_images (id TEXT PRIMARY KEY, ev TEXT, ctype TEXT, b64 TEXT NOT NULL, at INTEGER)").run(); _calImgReady = true; };
+const calImgSave = async (request, env, evId) => {
+  const ctype = (request.headers.get("Content-Type") || "").split(";")[0].trim();
+  if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(ctype)) return { error: "Photos only (JPG, PNG, WebP or GIF)" };
+  const buf = new Uint8Array(await request.arrayBuffer());
+  if (!buf.length) return { error: "Empty photo" };
+  if (buf.length > 900000) return { error: "That photo is too big — try a smaller one" };
+  await calImgEnsure(env);
+  if (evId) { const n = (await env.DB.prepare("SELECT COUNT(*) AS n FROM cal_images WHERE ev = ?").bind(evId).first()).n; if (n >= 40) return { error: "This event already has 40 photos" }; }
+  let bin = ""; for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
+  const id = Array.from(crypto.getRandomValues(new Uint8Array(9)), (x) => (x % 36).toString(36)).join("");
+  await env.DB.prepare("INSERT INTO cal_images (id, ev, ctype, b64, at) VALUES (?, ?, ?, ?, ?)").bind(id, evId || "", ctype, btoa(bin), Date.now()).run();
+  return { id, url: `/api/cal-img/${id}` };
+};
+const calEditSnap = (ev) => ({ at: Date.now(), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", rsvpBy: ev.rsvpBy || "", blocks: ev.blocks || null, theme: ev.theme || null, form: ev.form || null });
 // Check one person's answers against the form; returns {answers} or {error}.
 // Which add-ons were ticked + the total owed (only when the base amount is a number like "$15").
 const calAddonSelection = (form, ids) => {
@@ -2223,6 +2286,54 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ results: _memberSearchCache.people.filter((p) => p.low.includes(q)).slice(0, 6).map((p) => ({ username: p.username, name: short(p.name) })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     // ---- Club calendar (public list; member details + RSVP) ----
+    // ---- Event photos (uploaded by an admin or a page editor): stored in D1, served with long caching ----
+    const imgMatch = path.match(/^\/api\/cal-img\/([a-z0-9]{8,24})$/);
+    if (imgMatch && request.method === "GET") {
+      const ck = new Request(`${url.origin}/api/cal-img/${imgMatch[1]}`), hit = await caches.default.match(ck);
+      if (hit) return hit;
+      await calImgEnsure(env);
+      const f = await env.DB.prepare("SELECT ctype, b64 FROM cal_images WHERE id = ?").bind(imgMatch[1]).first();
+      if (!f) return new Response("Not found", { status: 404, headers: corsHeaders });
+      const res = new Response(Uint8Array.from(atob(f.b64), (c) => c.charCodeAt(0)), { status: 200, headers: { ...corsHeaders, "Content-Type": f.ctype || "image/jpeg", "Cache-Control": "public, max-age=31536000, immutable" } });
+      ctx.waitUntil(caches.default.put(ck, res.clone()));
+      return res;
+    }
+    // ---- "Anyone with this link can edit the page": a secret link per event (made/turned off by an admin). Editors change the page's CONTENT only: not who's signed up, the club, the spots or the payment details. ----
+    const editMatch = path.match(/^\/api\/event-edit\/([a-f0-9]{24})(\/image)?\/?$/);
+    if (editMatch) {
+      const tok = editMatch[1], all0 = await readClubCal(env), ev0 = all0.find((e) => e.editToken === tok);
+      if (!ev0) return jsonResponse({ error: "This edit link isn't active any more — ask the organiser for a new one" }, 404, corsHeaders);
+      const view = (e) => ({ id: e.id, slug: e.slug || "", title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", tbd: !!e.tbd, blocks: e.blocks || [], theme: e.theme || null, form: e.form ? { title: e.form.title, intro: e.form.intro || "", footer: e.form.footer || "", fields: e.form.fields } : null, hasPayment: !!(e.form && e.form.payment), clubTitle: calClubs(e).map((c) => (roster0.find((r) => r.id === c) || {}).title || "").filter(Boolean).join(" × ") });
+      const roster0 = await readClubRoster(env);
+      if (editMatch[2] === "/image" && request.method === "POST") { const r = await calImgSave(request, env, ev0.id); return r.error ? jsonResponse({ error: r.error }, 400, corsHeaders) : jsonResponse(r, 201, corsHeaders); }
+      if (!editMatch[2] && request.method === "GET") return jsonResponse({ event: view(ev0) }, 200, corsHeaders);
+      if (!editMatch[2] && request.method === "PUT") {
+        let body = {}; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+        if (String(body.mapUrl || "").trim() && !isGoogleMapsUrl(body.mapUrl)) return jsonResponse({ error: "That isn't a Google Maps link — in Google Maps tap Share → Copy link" }, 400, corsHeaders);
+        const f = calFields({ ...ev0, title: body.title !== undefined ? body.title : ev0.title, date: body.date !== undefined ? body.date : ev0.date, time: body.time !== undefined ? body.time : ev0.time, place: body.place !== undefined ? body.place : ev0.place, mapUrl: body.mapUrl !== undefined ? body.mapUrl : ev0.mapUrl, desc: body.desc !== undefined ? body.desc : ev0.desc, rsvpBy: body.rsvpBy !== undefined ? body.rsvpBy : ev0.rsvpBy, capacity: calCap(ev0) });
+        if (f.title.length < 3) return jsonResponse({ error: "Give the event a name (3+ letters)" }, 400, corsHeaders);
+        if (!ev0.tbd && !isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
+        if (ev0.tbd) { f.date = ""; f.rsvpBy = ""; }
+        const design = calDesignFields(body);
+        let cf = null; const formGiven = body.form !== undefined;
+        if (formGiven && body.form) { cf = sanitizeCalForm(body.form); if (cf) { delete cf.rsvpBy; delete cf.desc; if (ev0.form && ev0.form.payment) cf.payment = ev0.form.payment; else delete cf.payment; } } // editors never touch the payment details
+        const newSlug = f.title !== ev0.title ? calMakeSlug(all0, { ...ev0, title: f.title, slug: "" }) : "";
+        const hk = `calhist:${ev0.id}`; let hist = []; try { hist = JSON.parse((await env.SITE_DATA.get(hk)) || "[]"); } catch {}
+        hist = [calEditSnap(ev0), ...hist].slice(0, 5); // the last 5 versions are kept so an admin can undo
+        const out = await calMutate(env, ev0.id, (ev) => {
+          Object.assign(ev, f); ev.histN = hist.length;
+          if (newSlug && newSlug !== ev.slug) { ev.oldSlugs = [...new Set([...(ev.oldSlugs || []), ev.slug].filter(Boolean))].slice(-5); ev.slug = newSlug; }
+          calApplyDesign(ev, design);
+          if (formGiven && cf) ev.form = cf;
+          ev.editedAt = Date.now(); ev.editedVia = "link";
+        });
+        if (!out) return jsonResponse({ error: "Busy right now — try again in a moment" }, 503, corsHeaders);
+        try { await env.SITE_DATA.put(hk, JSON.stringify(hist)); } catch {}
+        return jsonResponse({ ok: true, event: view(out) }, 200, corsHeaders);
+      }
+      return jsonResponse({ error: "Not allowed" }, 405, corsHeaders);
+    }
+
     const calMatch = path.match(/^\/api\/club-calendar(?:\/([^/]+)(\/rsvp|\/form|\/attendees|\/interest|\/paid)?)?\/?$/);
     if (calMatch) {
       const M = request.method;
@@ -2274,7 +2385,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!who || !(who.id.startsWith("m:") || who.id === "admin")) {
           // A PUBLICIZED event (publicForm): anyone can open its form straight away and submit it with just a name — no account needed.
           if (ev.form) { // ANY event with a form can be filled in without an account
-            if (!calMatch[2] && M === "GET") return jsonResponse({ id: ev.id, slug: ev.slug, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", publicForm: true, form: ev.form, guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) }, 200, corsHeaders);
+            if (!calMatch[2] && M === "GET") return jsonResponse({ id: ev.id, slug: ev.slug, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, publicForm: true, form: ev.form, guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) }, 200, corsHeaders);
             if (calMatch[2] === "/form" && M === "POST") {
               if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
               let fb; try { fb = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
@@ -2314,7 +2425,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (uid) for (const cid of calClubs(ev)) if ((await readClubMemberIds(env, cid)).includes(uid)) { inClub = true; break; }
         const mine = (ev.rsvps || []).find((r) => r.id === uid);
         if (!calMatch[2] && M === "GET") {
-          return jsonResponse({ id: ev.id, slug: ev.slug, clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy),
+          return jsonResponse({ id: ev.id, slug: ev.slug, clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy),
             going: (ev.rsvps || []).filter((r) => r.status === "going").length, mine: mine ? mine.status : null, inClub,
             publicForm: !!ev.form, form: ev.form || null, ...calCapInfo(ev), waitPos: mine && mine.status === "waitlist" ? calWaitPos(ev, uid) : 0, claimedPaid: !!(mine && mine.claimedPaid), paid: !!(mine && mine.paid), myAddons: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).addons || []) : [], myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, 200, corsHeaders);
         }
@@ -4563,6 +4674,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // Admin: create/list/delete per-club events
     // ---- Club calendar admin: main admin = every club; a club admin = only their own clubs ----
+    if (path === "/api/admin/club-cal/image" && request.method === "POST") { // photos for an event page (main admin or a club admin)
+      const r = await calImgSave(request, env, String(url.searchParams.get("ev") || "").slice(0, 60));
+      return r.error ? jsonResponse({ error: r.error }, 400, corsHeaders) : jsonResponse(r, 201, corsHeaders);
+    }
     const adminCalRespMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/responses\/?$/);
     if (adminCalRespMatch && request.method === "GET") {
       const ev = (await readClubCal(env)).find((e) => e.id === adminCalRespMatch[1]);
@@ -4570,7 +4685,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
       return jsonResponse({ form: ev.form || null, responses: Object.keys(map).map((uid) => ({ userId: uid, name: map[uid].name, contact: map[uid].contact || "", guest: !!map[uid].guest, paid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).paid, claimedPaid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).claimedPaid, status: ((ev.rsvps || []).find((x) => x.id === uid) || {}).status || "", addons: map[uid].addons || [], total: map[uid].total ?? null, answers: map[uid].answers, at: map[uid].at })).sort((a, b) => a.at - b.at) }, 200, corsHeaders);
     }
-    const adminCalMatch = path.match(/^\/api\/admin\/club-cal(?:\/([^/]+)(?:\/rsvp\/([^/]+)\/(accept|decline|remove|add|paid|unpaid)|\/(message))?)?\/?$/);
+    const adminCalMatch = path.match(/^\/api\/admin\/club-cal(?:\/([^/]+)(?:\/rsvp\/([^/]+)\/(accept|decline|remove|add|paid|unpaid)|\/(message|edit-link|restore))?)?\/?$/);
     if (adminCalMatch) {
       const M = request.method;
       const canClub = (cid) => !leadCtx || leadCtx.clubs.includes(cid);
@@ -4579,7 +4694,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const canEv = (e) => calClubs(e).some(canClub) || canForm(e);
       const roster = await readClubRoster(env);
       const clubTitle = (id) => (roster.find((c) => c.id === id) || {}).title || "";
-      const view = (e) => ({ id: e.id, slug: e.slug || "", clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", form: canForm(e) ? (e.form || null) : null, hasForm: !!e.form, canForm: canForm(e), ...(leadCtx ? {} : { formLeads: e.formLeads || [] }), publicForm: !!e.publicForm, capacity: calCap(e), rsvps: e.rsvps || [], ...(e.tbd ? { tbd: true, interest: e.interest || [] } : {}) });
+      const view = (e) => ({ id: e.id, slug: e.slug || "", clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", blocks: e.blocks || [], theme: e.theme || null, editToken: canForm(e) ? (e.editToken || "") : "", histN: e.histN || 0, rsvpBy: e.rsvpBy || "", form: canForm(e) ? (e.form || null) : null, hasForm: !!e.form, canForm: canForm(e), ...(leadCtx ? {} : { formLeads: e.formLeads || [] }), publicForm: !!e.publicForm, capacity: calCap(e), rsvps: e.rsvps || [], ...(e.tbd ? { tbd: true, interest: e.interest || [] } : {}) });
       const all = await readClubCal(env);
       if (!adminCalMatch[1] && M === "GET") return jsonResponse({ events: all.filter(canEv).sort((a, b) => a.date.localeCompare(b.date)).map(view) }, 200, corsHeaders);
       let body = {};
@@ -4594,7 +4709,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (f.title.length < 3) return jsonResponse({ error: "Give the event a name (3+ letters)" }, 400, corsHeaders);
         const tbd = !!body.tbd; // "date to be decided": members of the club can show interest instead of RSVPing
         if (tbd) { f.date = ""; f.rsvpBy = ""; } else if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
-        const ev = { id: crypto.randomUUID(), clubId, clubIds, ...f, ...(tbd ? { tbd: true, interest: [] } : {}), rsvps: [], at: Date.now() };
+        const ev = { id: crypto.randomUUID(), clubId, clubIds, ...f, ...calDesignFieldsObj(body), ...(tbd ? { tbd: true, interest: [] } : {}), rsvps: [], at: Date.now() };
         { const cf = sanitizeCalForm(body.form); if (cf && !tbd) { if (cf.rsvpBy !== undefined) { ev.rsvpBy = cf.rsvpBy || ev.rsvpBy || ""; } if (cf.desc !== undefined) ev.desc = cf.desc; delete cf.rsvpBy; delete cf.desc; ev.form = cf; if (leadCtx) ev.formLeads = [leadCtx.username]; } }
         if (body.publicForm) ev.publicForm = true;
         // Attendees chosen right in the "Add event" form: members (by id) and people without a profile (by name).
@@ -4620,7 +4735,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const wantTbd = body.tbd !== undefined ? !!body.tbd : !!ev.tbd;
         if (wantTbd) { f.date = ""; f.rsvpBy = ""; } else if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
         const capBefore = calCap(ev), titleBefore = ev.title;
-        Object.assign(ev, f);
+        Object.assign(ev, f); calApplyDesign(ev, calDesignFields(body));
         if (ev.slug && ev.title !== titleBefore) { ev.oldSlugs = [...new Set([...(ev.oldSlugs || []), ev.slug])].slice(-5); ev.slug = ""; ev.slug = calMakeSlug(all, ev); } // renamed: new readable link, the old one still works
         if (wantTbd) { ev.tbd = true; ev.interest = ev.interest || []; } else delete ev.tbd; // (the interest list stays on the event so the admin still sees who was keen)
         if (body.form !== undefined) { // (a club admin without access never sees the form, so their edit of the event details must not touch it)
@@ -4639,7 +4754,24 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (calCap(ev) !== capBefore) ctx.waitUntil((async () => { await calSyncSpots(env, ev); await calPromote(env, ctx, ev.id); })()); // limit changed: rebuild the claims, and let waitlisted people in if there's room now
         return jsonResponse({ ok: true, event: view(ev) }, 200, corsHeaders);
       }
-      if (!adminCalMatch[2] && M === "DELETE") { await writeClubCal(env, all.filter((e) => e.id !== ev.id)); await env.SITE_DATA.delete(calFormKey(ev.id)).catch(() => {}); ctx.waitUntil(calSyncSpots(env, { id: ev.id, capacity: 0 }).catch(() => {})); return jsonResponse({ ok: true }, 200, corsHeaders); }
+      if (!adminCalMatch[2] && M === "DELETE") { await writeClubCal(env, all.filter((e) => e.id !== ev.id)); await env.SITE_DATA.delete(calFormKey(ev.id)).catch(() => {}); await env.SITE_DATA.delete(`calhist:${ev.id}`).catch(() => {}); ctx.waitUntil(calSyncSpots(env, { id: ev.id, capacity: 0 }).catch(() => {})); return jsonResponse({ ok: true }, 200, corsHeaders); }
+      if (adminCalMatch[4] === "edit-link" && M === "POST") { // make / replace / turn off the secret "anyone with this link can edit the page" link
+        if (!canForm(ev)) return jsonResponse({ error: "Ask the main admin to give you access to this event's form" }, 403, corsHeaders);
+        if (body.action === "off") delete ev.editToken; else ev.editToken = Array.from(crypto.getRandomValues(new Uint8Array(12)), (x) => x.toString(16).padStart(2, "0")).join("");
+        await writeClubCal(env, all);
+        return jsonResponse({ ok: true, editToken: ev.editToken || "" }, 200, corsHeaders);
+      }
+      if (adminCalMatch[4] === "restore" && M === "POST") { // undo the last edit made through the edit link
+        if (!canForm(ev)) return jsonResponse({ error: "Ask the main admin to give you access to this event's form" }, 403, corsHeaders);
+        const hk = `calhist:${ev.id}`; let h = []; try { h = JSON.parse((await env.SITE_DATA.get(hk)) || "[]"); } catch {}
+        if (!h.length) return jsonResponse({ error: "Nothing to undo" }, 400, corsHeaders);
+        const sn = h.shift(), keepPay = ev.form && ev.form.payment;
+        Object.assign(ev, { title: sn.title, date: sn.date, time: sn.time, place: sn.place, mapUrl: sn.mapUrl, desc: sn.desc, rsvpBy: sn.rsvpBy });
+        for (const k of ["blocks", "theme"]) { if (sn[k]) ev[k] = sn[k]; else delete ev[k]; }
+        if (sn.form) { ev.form = sn.form; if (keepPay) ev.form.payment = keepPay; else delete ev.form.payment; } else delete ev.form;
+        ev.histN = h.length; await writeClubCal(env, all); await env.SITE_DATA.put(hk, JSON.stringify(h));
+        return jsonResponse({ ok: true, event: view(ev) }, 200, corsHeaders);
+      }
       if (adminCalMatch[4] === "message" && M === "POST") { // message everyone who's going (a few at a time: the page calls again with `offset` until `next` is null)
         const text = String(body.text || "").replace(/[\x00-\x1f\x7f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, 300);
         if (text.length < 3) return jsonResponse({ error: "Write the message first (3+ letters)" }, 400, corsHeaders);
