@@ -983,14 +983,17 @@
   @media (min-width:700px){ .home-bubbles{ max-width:1100px; gap:18px; } .home-bubble{ flex-basis:calc((100% - 72px) / 5); } .home-bubble .hb-ic{ font-size:clamp(52px,6.5vw,92px); } .home-bubble .hb-l{ font-size:clamp(12px,1.3vw,17px); letter-spacing:0; } }
   .home-feat{ max-width:1100px; margin:0 auto 24px; padding:0 4px; }
   .home-feat > h3{ text-align:center; margin:0 0 12px; font-size:22px; }
-  .hf-grid{ display:grid; grid-template-columns:1fr; gap:14px; }
-  @media (min-width:800px){ .hf-grid{ grid-template-columns:repeat(3,1fr); } }
-  .hf-col h4{ margin:0 0 8px; font-size:15px; text-align:center; color:var(--brand-brown,#76220b); }
-  .hf-card{ display:flex; flex-direction:column; gap:3px; width:100%; text-align:left; margin:0 0 8px; padding:12px 14px; border-radius:16px; background:#fff; border:2px solid var(--brand-brown,#76220b); box-shadow:3px 3px 0 var(--brand-brown,#76220b); font:inherit; color:inherit; cursor:pointer; box-sizing:border-box; }
-  .hf-card strong{ font-size:16px; line-height:1.25; }
+  .hf-grid{ display:grid; grid-template-columns:minmax(0,1fr); gap:14px; }
+  @media (min-width:800px){ .hf-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+  .hf-col{ min-width:0; display:flex; flex-direction:column; gap:10px; }
+  .hf-col h4{ margin:0; height:22px; line-height:22px; font-size:15px; text-align:center; color:var(--brand-brown,#76220b); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hf-card{ display:flex; flex-direction:column; gap:3px; width:100%; height:156px; flex:0 0 156px; overflow:hidden; text-align:left; margin:0; padding:12px 14px; border-radius:16px; background:#fff; border:2px solid var(--brand-brown,#76220b); box-shadow:3px 3px 0 var(--brand-brown,#76220b); font:inherit; color:inherit; cursor:pointer; box-sizing:border-box; }
+  .hf-card strong{ font-size:16px; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .hf-when, .hf-sub:not(.hf-clamp){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hf-ph{ align-items:center; justify-content:center; text-align:center; background:#fdf6f4; border-style:dashed; box-shadow:none; cursor:default; color:#776867; font-size:14px; }
   .hf-when{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.03em; color:#a8505f; }
   .hf-sub{ font-size:13px; color:#555; }
-  .hf-clamp{ display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
+  .hf-clamp{ display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
   .hf-biz{ cursor:default; }
   .hf-links{ display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:6px; font-size:13px; font-weight:700; }
   .hf-links a{ color:var(--brand-brown,#76220b); }
@@ -8540,7 +8543,7 @@ function homeFeaturedInner(){
   const pub = homeFeaturedEvents().map(({ item, when }) => evCard(item.id, emojiTitle(item), when + (eventTimeLabel(item) && eventTimeLabel(item) !== 'All day' ? ' · ' + eventTimeLabel(item) : ''), cityLabel(item) || ''));
   const hosted = homeFeaturedHosted().map(e => evCard(e.id, e.title, calDateLabel(e.calDate) + (e.time ? ' · ' + formatTime12h(e.time) : ''), e.location || ''));
   const bizCards = homeBusinessesOfDay().map(b => `<div class="hf-card hf-biz"><span class="hf-when">${escapeCm(b.type || 'Business')}${b.location ? ' · ' + escapeCm(b.location) : ''}</span><strong>${escapeCm(b.title)}</strong><span class="hf-sub hf-clamp">${escapeCm(b.desc)}</span><span class="hf-links">${b.website ? `<a href="${escapeCm(b.website)}" target="_blank" rel="noopener">Website</a>` : ''}${b.instagram ? `<a href="${escapeCm(b.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ''}<a href="#/resources/${escapeCm(b.category)}">See in Directory</a></span></div>`);
-  const col = (title, cards, empty) => `<div class="hf-col"><h4>${title}</h4>${cards.join('') || `<p class="hf-empty">${empty}</p>`}</div>`;
+  const col = (title, cards, empty) => { const c = cards.slice(0, 2); while(c.length < 2) c.push(`<div class="hf-card hf-ph"><span>${c.length ? '✨ More soon' : empty}</span></div>`); return `<div class="hf-col"><h4>${title}</h4>${c.join('')}</div>`; };
   return col('📅 Public events', pub, 'Nothing coming up yet.') + col('🌸 Hosted by 4DS', hosted, 'New 4DS events are on the way.') + col('🏪 Businesses of the day', bizCards, 'Check the Directory!');
 }
 function homeFeaturedHtml(){
