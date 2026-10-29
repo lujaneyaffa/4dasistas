@@ -3596,6 +3596,12 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (path.endsWith("coach-password")) await env.SITE_DATA.put("bm:coachpw", await sha256Hex("bmcoach:" + v)); else await env.SITE_DATA.put("bm:kioskkey", await sha256Hex("bmkiosk:" + v));
         return jsonResponse({ ok: true }, 200, corsHeaders);
       }
+      if (path === "/api/admin/badminton/players" && request.method === "GET") {
+        const players = await bmLoadRows(env, "players"), games = await bmLoadRows(env, "games");
+        const label = (r) => r.row.full_name || r.row.name || r.id;
+        const gameCount = new Map(); for (const g of games) { const seen = new Set(); for (const f of ["winners", "losers"]) { let arr = Array.isArray(g.row[f]) ? g.row[f] : (() => { try { return JSON.parse(g.row[f]); } catch { return []; } })(); for (const v of arr || []) { const pl = players.find((q) => [q.row.id, q.row.name, q.row.nickname, q.row.full_name].filter(Boolean).map(String).includes(String(v))); if (pl && !seen.has(pl.id)) { seen.add(pl.id); gameCount.set(pl.id, (gameCount.get(pl.id) || 0) + 1); } } } }
+        return jsonResponse({ players: players.map((r) => ({ id: r.id, label: label(r), level: r.row.level || null, uid: r.uid || null, games: gameCount.get(r.id) || 0 })).sort((a, b) => a.label.localeCompare(b.label)) }, 200, corsHeaders);
+      }
       if (path === "/api/admin/badminton/match-report" && request.method === "GET") {
         const players = await bmLoadRows(env, "players"), users = await listAllUsers(env), games = await bmLoadRows(env, "games");
         const label = (r) => r.row.full_name || r.row.name || r.id;

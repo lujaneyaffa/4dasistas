@@ -437,7 +437,7 @@
   .fb-handle:active{ cursor:grabbing; }
   .fb-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; }
   .fb-mini{ border:2px solid var(--brand-brown); background:#fff; border-radius:999px; padding:5px 12px; font:inherit; font-weight:700; font-size:13px; cursor:pointer; }
-  .fb-q{ margin:0 0 12px; } .fb-q > label{ display:block; font-weight:700; margin:0 0 4px; white-space:pre-wrap; overflow-wrap:break-word; } .fb-q .req{ color:#b3261e; }
+  .fb-q{ margin:0 0 12px; } .fb-q > label{ display:block; font-weight:700; margin:0 0 4px; white-space:pre-wrap; overflow-wrap:break-word; } .fb-q .req{ color:#b3261e; } .fb-q > label.fbRich{ font-weight:400; }
   .fb-opt{ display:flex; align-items:center; gap:8px; padding:4px 0; }
   .mini-cal{ max-width:420px; margin:0 auto; padding:10px 10px 12px; border:2px solid var(--brand-brown); border-radius:18px; background:#fff; box-shadow:3px 3px 0 var(--brand-brown); }
   .mc-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; font-size:15px; }
@@ -990,6 +990,7 @@
   .hf-col h4{ margin:0; height:22px; line-height:22px; font-size:15px; text-align:center; color:var(--brand-brown,#76220b); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .hf-card{ display:flex; flex-direction:column; gap:3px; width:100%; height:156px; flex:0 0 156px; overflow:hidden; text-align:left; margin:0; padding:12px 14px; border-radius:16px; background:#fff; border:2px solid var(--brand-brown,#76220b); box-shadow:3px 3px 0 var(--brand-brown,#76220b); font:inherit; color:inherit; cursor:pointer; box-sizing:border-box; }
   .hf-card strong{ font-size:16px; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  @media (max-width:799px){ .home-feat{ margin-bottom:14px; } .home-feat > h3{ margin-bottom:6px; font-size:20px; } .hf-grid{ gap:10px; } .hf-col{ gap:6px; } .hf-col h4{ height:auto; line-height:1.2; font-size:14px; text-align:left; padding:0 2px; } .hf-card{ height:auto; flex:0 0 auto; min-height:0; padding:9px 12px; box-shadow:2px 2px 0 var(--brand-brown,#76220b); } .hf-card strong{ font-size:15px; } .hf-ph{ padding:6px 12px; font-size:13px; } .hf-links{ margin-top:2px; } .hf-add{ margin-top:2px; } }
   .hf-when, .hf-sub:not(.hf-clamp){ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .hf-ph{ align-items:center; justify-content:center; text-align:center; background:#fdf6f4; border-style:dashed; box-shadow:none; cursor:default; color:#776867; font-size:14px; }
   .hf-when{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.03em; color:#a8505f; }
@@ -6582,9 +6583,9 @@ async function clubCalMemberCard(box, id){
       syncCancel();
       wireCalAddons(formBox, d.form); calMountLocations(formBox);
       formBox.addEventListener('click', async ev2 => { // "I've sent my payment"
-        const pb2 = ev2.target.closest('.calPaidBtn'); if(!pb2) return; pb2.disabled = true;
+        const pb2 = ev2.target.closest('.calPaidBtn'); if(!pb2) return; // the link itself opens WhatsApp; we also record the claim
         try { await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/paid', { method:'POST', headers: ideaHeaders() }); d.claimedPaid = true; formBox.querySelector('.calPayBox').innerHTML = calPayBoxHtml(d); admToastLite('✓ Thanks — the organiser will confirm'); }
-        catch(err){ pb2.disabled = false; admToastLite(err.message); }
+        catch(err){ admToastLite(err.message); }
       });
       formBox.querySelector('.calFormSend').addEventListener('click', async e => {
         const m = formBox.querySelector('.calFormMsg'); { const pe = calPayCheck(formBox, d.form); if(pe){ m.style.color = '#c00'; m.textContent = pe; return; } }
@@ -6695,7 +6696,7 @@ const FB_TYPES = [['text', 'Short answer'], ['longtext', 'Long answer'], ['choic
 function calFormFieldsHtml(form, answers, locked){
   const a = answers || {}, dis = locked ? 'disabled' : '';
   return form.fields.map(f => {
-    const v = a[f.id], lab = `<label>${richLine(f.label)}${f.required ? ' <span class="req">*</span>' : ''}</label>`;
+    const v = a[f.id], lab = `<label${/\*\*|__|~~|==|\{[a-z ]+\}|^#|\n|(^|[^*\w])\*[^*\s]/.test(String(f.label || '')) ? ' class="fbRich"' : ''}>${richLine(f.label)}${f.required ? ' <span class="req">*</span>' : ''}</label>`;
     let inp;
     if(f.type === 'longtext') inp = `<textarea class="fb-in" data-fid="${f.id}" rows="3" maxlength="1000" ${dis}>${escapeCm(v || '')}</textarea>`;
     else if(f.type === 'number') inp = `<input class="fb-in" data-fid="${f.id}" type="number" inputmode="decimal" value="${escapeCm(v || '')}" ${dis}>`;
@@ -6764,9 +6765,16 @@ function calSpotsHtml(d){
   return `<p style="margin:6px 0;font-weight:700;color:${left > 0 ? '#2a7a4a' : '#b3261e'};">🎟️ ${left > 0 ? left + ' of ' + d.capacity + ' spots left' : 'Full — all ' + d.capacity + ' spots are taken, but you can join the waitlist'}${d.waitCount ? ` <small style="font-weight:400;color:#776867;">(${d.waitCount} waiting)</small>` : ''}</p>`;
 }
 // Payment box + "I've sent my payment" (only for people who are actually going)
+function calPaidMessage(d){
+  const me = getCmSession() || {}, t = calTotalFor(d.form, d.myAddons || []), amt = t.total != null ? ' (' + calMoney(t.total, t.sym) + ')' : '', when = d.date ? ' on ' + ideaLongDate(d.date) : '';
+  return `Hi 4DASISTAS! 🌸 This is ${me.name || 'a member'}${me.username ? ' (username: ' + me.username + ')' : ''}. I've sent my payment${amt} for "${d.title}"${when}. Could you please confirm you received it? Thank you so much!`;
+}
+function calPaidWaLink(d, cls, label, extra){
+  return `<a class="club-guide-btn ${cls}" href="https://wa.me/u/${ORGANISER_WA_USERNAME}?text=${waEnc(calPaidMessage(d))}" target="_blank" rel="noopener" style="display:block;box-sizing:border-box;width:100%;margin-top:8px;text-align:center;text-decoration:none;background:#25a244;color:#fff;border-color:#1c7a33;${extra || ''}">${label}</a>`;
+}
 function calPayBoxHtml(d){
   if(!d.form || !d.form.payment || d.mine !== 'going') return '';
-  return calPayHtml(d.form, '', d.myAddons) + (d.paid ? '<p style="margin:8px 0 0;font-weight:700;color:#2a7a4a;">✅ Payment received — thank you!</p>' : d.claimedPaid ? '<p style="margin:8px 0 0;font-weight:700;color:#2a7a4a;">✔️ You told us you paid — the organiser will confirm it.</p>' : '<button type="button" class="club-guide-btn calPaidBtn" style="width:100%;margin-top:8px;text-align:center;">✅ I\'ve sent my payment</button>');
+  return calPayHtml(d.form, '', d.myAddons) + (d.paid ? '<p style="margin:8px 0 0;font-weight:700;color:#2a7a4a;">✅ Payment received — thank you!</p>' : d.claimedPaid ? '<p style="margin:8px 0 0;font-weight:700;color:#2a7a4a;">✔️ You told us you paid — the organiser will confirm it.</p>' + calPaidWaLink(d, 'calPaidAgain', '💬 Message us on WhatsApp again', 'background:#fff;color:#1c7a33;') : calPaidWaLink(d, 'calPaidBtn', '✅ I\'ve paid — confirm on WhatsApp') + '<p class="ideas-hint" style="margin:6px 0 0;">Opens WhatsApp with a message to 4DASISTAS already written — just press send.</p>');
 }
 function calSignedUpHtml(d, r, addons, quick){
   const wl = r && r.eventStatus === 'waitlist';
@@ -10686,7 +10694,7 @@ function wireAdmEvents(){
 }
 function wireAdmCalendar(){
   wireAdmEvents();
-  const add = document.getElementById('admEvAdd'); if(add) add.addEventListener('click', () => openEventCreate());
+  const add = document.getElementById('admEvAdd'); if(add) add.addEventListener('click', () => { const { wrap, close } = ideaPopup('<h3 style="margin:0 0 6px;">➕ Add an event</h3><p class="ideas-hint" style="text-align:left;margin:0 0 10px;">What kind of event is it?</p><div style="display:flex;flex-direction:column;gap:8px;"><button type="button" class="club-guide-btn" id="aePub" style="text-align:center;">📅 Public event<br><small>listed on the public calendar for everyone</small></button><button type="button" class="club-guide-btn" id="aeHost" style="text-align:center;background:var(--brand-rose);color:#fff;">🌸 Hosted by 4DS<br><small>sign-ups, spots, form &amp; payment</small></button></div>'); wrap.querySelector('#aePub').addEventListener('click', () => { close(); openEventCreate(); }); wrap.querySelector('#aeHost').addEventListener('click', () => { close(); clubCalForm(null); }); });
   const q = document.getElementById('admEvQ');
   const wireEdits = root => root.querySelectorAll('.adm-ev-edit').forEach(b => b.addEventListener('click', () => openEventEdit(b.dataset.evid)));
   if(q){ q.addEventListener('input', () => { state.admEvQ = q.value; const r = document.getElementById('admEvResults'); r.innerHTML = admEvResultsHtml(); wireEdits(r); }); wireEdits(document.getElementById('admEvResults')); }
@@ -11674,10 +11682,9 @@ function renderClubAdminPanel(){
   }
   const clubId = state.cmAdminClub;
   // Old tab names still land somewhere sensible (the admin page used to have 8 tabs; it now has 6)
-  const OLD_GROUPS = { team:'settings', directory:'settings', badminton:'programs', steps:'programs', calendar:'events', profiles:'people' };
-  if(state.admGroup === 'calendar') state.admEvSub = 'main';
+  const OLD_GROUPS = { team:'settings', directory:'settings', badminton:'programs', steps:'programs', profiles:'people' };
   const grp = OLD_GROUPS[state.admGroup] || state.admGroup;
-  const allowedGroups = lead ? ['clubs', 'events', 'people'] : ['todo', 'events', 'clubs', 'people', 'programs', 'settings'];
+  const allowedGroups = lead ? ['clubs', 'events', 'people'] : ['todo', 'events', 'calendar', 'clubs', 'people', 'programs', 'settings'];
   const gsel = allowedGroups.includes(grp) ? grp : (lead ? 'clubs' : 'todo');
   // Club events + quick member (per club) — lives in the Clubs grid
   const clubToolsHtml = `
@@ -11738,10 +11745,8 @@ function renderClubAdminPanel(){
     ${admSec('evform', '📝 Event submission form (what people fill to suggest an event)', admEvFormHtml(), false)}
     ${admSec('labels-ev', '🏷️ Names of event genres', labelsAdminHtml('event'), false)}
   `;
-  const evSub = !lead && state.admEvSub === 'main' ? 'main' : 'club';
-  const evChip = (k, l) => `<button type="button" class="filter-chip${evSub === k ? ' active' : ''}" data-evsub="${k}">${l}</button>`;
-  const eventsGrid = lead ? admCeHtml() : admSec('featured', '⭐ Featured on the Home page', '<div id="admFeat"><p class="ideas-hint">Loading…</p></div>', true) + `<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0 4px;">${evChip('club', '🎟️ Club events (RSVPs, forms)')}${evChip('main', '📅 Main calendar (public events)')}</div>
-    <p class="ideas-hint" style="margin:0 0 8px;">${evSub === 'club' ? 'Events that belong to a club: sign-ups, spots, payments, answers.' : 'The public calendar everyone sees, plus events people submit.'}</p>${evSub === 'club' ? admCeHtml() : calendarGrid}`;
+  const eventsGrid = lead ? admCeHtml() : admSec('featured', '⭐ Featured on the Home page', '<div id="admFeat"><p class="ideas-hint">Loading…</p></div>', true) + `<p class="ideas-hint" style="margin:10px 0 8px;">4DS activities: events hosted by 4DS or a club — sign-ups, spots, payments, answers.</p>${admCeHtml()}`;
+  const calendarTabGrid = `<p class="ideas-hint" style="margin:6px 0 8px;">The calendar. Add an event that is <b>public</b> (listed for everyone) or <b>hosted by 4DS</b> (sign-ups, form, payment) — both use the same full event page as the 4DS activities tab.</p>${calendarGrid}`;
   const settingsGrid = lead ? '' : `
     ${admSec('database', '🗄️ Database &amp; backups (move to D1)', d1AdminHtml(), false)}
     ${directoryGrid}
@@ -11785,7 +11790,7 @@ function renderClubAdminPanel(){
     ${lead ? '' : admNeedsHtml()}
     ${admGroupTilesHtml(lead, gsel)}
     ${admFinderHtml(lead)}
-    ${gsel === 'todo' ? todoGrid : gsel === 'clubs' ? clubsGrid : gsel === 'events' ? eventsGrid : gsel === 'settings' ? settingsGrid : gsel === 'programs' ? programsGrid : profilesGrid}
+    ${gsel === 'todo' ? todoGrid : gsel === 'clubs' ? clubsGrid : gsel === 'events' ? eventsGrid : gsel === 'calendar' ? calendarTabGrid : gsel === 'settings' ? settingsGrid : gsel === 'programs' ? programsGrid : profilesGrid}
   </div>`;
 }
 // ⭐ Featured on Home: pin specific events / businesses for as long as you like; anything left empty is picked automatically each day (no repeats until everything has had a turn).
@@ -11860,7 +11865,8 @@ function admGroupTilesHtml(lead, cur){
   const n = state.admNeeds || {};
   return `<div class="adm-tiles" style="grid-template-columns:repeat(${lead ? 3 : 3}, minmax(0,1fr));">
     ${lead ? '' : tile('todo', '🔔', 'To do', 'Requests &amp; submissions to approve', admInboxCount() + (n.stayTodo || 0))}
-    ${tile('events', '🎟️', 'Events', lead ? 'Sign-ups · forms · answers' : 'Club events &amp; the main calendar', (n.pendingRsvps || 0) + (n.unpaid || 0))}
+    ${tile('events', '🎟️', '4DS activities', lead ? 'Sign-ups · forms · answers' : 'Hosted events · sign-ups · payments', (n.pendingRsvps || 0) + (n.unpaid || 0))}
+    ${lead ? '' : tile('calendar', '📅', 'Calendar', 'Add &amp; edit events · public or 4DS', '')}
     ${tile('clubs', '🏛️', 'Clubs', lead ? 'Requests · availability' : 'Clubs · links · availability · club admins', lead ? admInboxCount() : '')}
     ${tile('people', '👥', 'People', lead ? 'Profiles' : 'Profiles · messages', '')}
     ${lead ? '' : tile('programs', '🏸', 'Badminton &amp; Steps', 'Photos · kiosk · rounds', n.stepsStuck || '')}
@@ -11872,12 +11878,12 @@ const ADM_FIND = [
   ['Approve club join requests', 'join request approve accept decline member', 'todo', '', 'inbox'],
   ['Submitted events / resources to accept', 'submitted suggestion event resource accept reject', 'todo', '', 'inbox', true],
   ['Squads moving to clubs', 'squad stay confirm legacy', 'todo', '', 'stay', true],
-  ['Add a club event', 'add new club event create', 'events', 'club', 'clubcal'],
-  ['RSVPs, spots, waitlist, who paid, answers, CSV', 'rsvp spots capacity waitlist paid payment answers csv attendees message', 'events', 'club', 'clubcal'],
-  ['Sign-up form builder', 'form questions builder sign-up', 'events', 'club', 'clubcal'],
-  ['Main calendar: add or edit a public event', 'public calendar event add edit', 'events', 'main', 'evsearch', true],
-  ['Events people submitted', 'submitted events accept reject', 'events', 'main', 'evsubs', true],
-  ['Event genre names', 'genre label names categories events', 'events', 'main', 'labels-ev', true],
+  ['Add a 4DS activity (hosted event)', 'add new club event create hosted activity activities', 'events', '', 'clubcal'],
+  ['RSVPs, spots, waitlist, who paid, answers, CSV', 'rsvp spots capacity waitlist paid payment answers csv attendees message', 'events', '', 'clubcal'],
+  ['Sign-up form builder', 'form questions builder sign-up', 'events', '', 'clubcal'],
+  ['Main calendar: add or edit a public event', 'public calendar event add edit', 'calendar', '', 'evsearch', true],
+  ['Events people submitted', 'submitted events accept reject', 'calendar', '', 'evsubs', true],
+  ['Event genre names', 'genre label names categories events', 'calendar', '', 'labels-ev', true],
   ['Availability calendar', 'availability periods schedule', 'clubs', '', 'avail'],
   ['Club WhatsApp links', 'whatsapp group link club', 'clubs', '', 'clublinks', true],
   ['Add or edit clubs (name, logo, colour)', 'club directory add edit logo colour', 'clubs', '', 'clubdir', true],
@@ -12514,7 +12520,21 @@ function bmImportHtml(){
     <p style="margin:0 0 4px;font-weight:700;">🎽 Coach login ("Public admin")</p><p style="font-size:12px;color:#776867;margin:0 0 6px;">The coach logs in on the badminton page → Admin → Public admin with email <b>coach@4dasistas.ca</b> and this password. Can add only today's games and attendance. ${st.coachSet ? '✅ A password is set.' : '⚠️ Not set yet.'}</p>
     <div style="display:flex;gap:6px;margin-bottom:10px;"><input id="bmCoachPw" type="text" placeholder="New coach password (6+ characters)" autocomplete="off" style="${inp}flex:1;min-width:0;"><button type="button" class="club-guide-btn" id="bmCoachSet" style="padding:6px 12px;">Set</button></div>
     <p style="margin:0 0 4px;font-weight:700;">📱 iPad kiosk</p><p style="font-size:12px;color:#776867;margin:0 0 6px;">Open <b>4dasistas.ca/badminton#kiosk</b> on the iPad and type the password <b>4ds1234</b> once. There is no key to generate any more.</p>
+    <hr style="border:none;border-top:1px solid rgba(0,0,0,.1);margin:10px 0;">
+    <p style="margin:0 0 4px;font-weight:700;">👥 Players (${c.players ?? 0})</p><p style="font-size:12px;color:#776867;margin:0 0 6px;">Tap a name to open their profile.</p>
+    <input id="bmPlSearch" type="search" placeholder="🔍 Search players…" autocomplete="off" style="${inp}width:100%;margin-bottom:6px;"><div id="bmPlBox" style="max-height:320px;overflow:auto;"><p class="av-msg">Loading…</p></div>
     <div id="bmSetMsg" style="font-size:13px;min-height:16px;margin-top:6px;"></div></div>`;
+}
+async function bmPlayersLoad(){
+  const box = document.getElementById('bmPlBox'); if(!box) return;
+  if(!state.bmPlayers){ try { const r = await fetch('/api/admin/badminton/players', { credentials:'include', cache:'no-store' }); const d = await r.json().catch(() => ({})); state.bmPlayers = r.ok ? (d.players || []) : []; } catch { state.bmPlayers = []; } }
+  const paint = () => {
+    const q = (document.getElementById('bmPlSearch') || {}).value || '', ql = q.trim().toLowerCase();
+    const list = state.bmPlayers.filter(p => !ql || `${p.label} ${p.username || ''}`.toLowerCase().includes(ql));
+    box.innerHTML = list.map(p => `<div style="display:flex;gap:6px;align-items:center;padding:6px 0;border-top:1px solid rgba(0,0,0,.08);font-size:14px;"><span style="flex:1;min-width:0;">${p.uid ? `<button type="button" class="bmPlOpen" data-uid="${escapeCm(p.uid)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(p.label)}</button>` : `<b>${escapeCm(p.label)}</b>`}<br><small style="color:#776867;">${p.level ? escapeCm(p.level) + ' · ' : ''}${p.games} game${p.games === 1 ? '' : 's'}${p.uid ? ' · 4DS account' : ' · not linked to a 4DS account'}</small></span></div>`).join('') || '<p class="av-msg">No players found.</p>';
+    box.querySelectorAll('.bmPlOpen').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.uid)));
+  };
+  paint(); const si = document.getElementById('bmPlSearch'); if(si && !si.dataset.on){ si.dataset.on = '1'; si.addEventListener('input', paint); }
 }
 async function bmCopyPhotos(msg){
   let ok = 0, bad = 0;
@@ -12588,6 +12608,7 @@ function wireBmImport(){
   const mg = document.getElementById('bmMatchGo'); if(mg) mg.addEventListener('click', bmMatchLoad);
   const setMsg = document.getElementById('bmSetMsg');
   const setSecret = async (path, inputId) => { const v = document.getElementById(inputId).value; try { const r = await fetch(path, { method:'PUT', credentials:'include', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ value: v }) }); const d = await r.json().catch(() => ({})); if(!r.ok) throw new Error(d.error || 'Failed'); setMsg.style.color = '#2a7a4a'; setMsg.textContent = 'Saved ✓'; document.getElementById(inputId).value = ''; state.bmStatus = null; } catch(e){ setMsg.style.color = '#c00'; setMsg.textContent = e.message; } };
+  bmPlayersLoad();
   document.getElementById('bmCoachSet').addEventListener('click', () => setSecret('/api/admin/badminton/coach-password', 'bmCoachPw'));
   const ph = document.getElementById('bmPhotos'); if(ph) ph.addEventListener('click', async () => { const msg = document.getElementById('bmMsg'); msg.style.color = '#776867'; msg.textContent = 'Copying photos…'; try { await bmCopyPhotos(msg); state.bmStatus = null; render(); } catch(e){ msg.style.color = '#c00'; msg.textContent = e.message; } });
   go.addEventListener('click', async () => {
@@ -12623,7 +12644,7 @@ function stepsAdminHtml(){
     ${r.id ? `<p style="font-size:13px;margin:8px 0 2px;">👟 <b>${stepsFmt(r.steps)}</b> steps · ${r.people} people · 💛 <b>${stepsMoney(r.raised)}</b> pledged</p>
       ${(r.pledgeList || []).map(p => `<div style="display:flex;gap:6px;align-items:center;font-size:13px;padding:3px 0;"><span style="flex:1;">${escapeCm(p.name)}${p.member ? '' : ' <small>(sponsor)</small>'} — ${stepsMoney(p.per1000)}/1,000${p.cap ? ' (max ' + stepsMoney(p.cap) + ')' : ''}</span><button type="button" class="fb-mini sp-del" data-pid="${escapeCm(p.id)}">✕</button></div>`).join('')}
       <p style="margin:12px 0 4px;font-weight:700;font-size:13px;">👥 Participants (${(r.participantList || []).length})</p>
-      <div style="max-height:180px;overflow:auto;">${(r.participantList || []).map(x => `<div style="display:flex;gap:6px;align-items:center;font-size:13px;padding:3px 0;"><span style="flex:1;">${escapeCm(x.name)} <small style="color:#776867;">@${escapeCm(x.username)} · ${stepsFmt(x.steps)} steps${x.added ? ' · added by admin' : ''} · ${x.source === 'googlehealth' ? '🟢 Google' : x.source === 'apple' ? '🍎 Apple' : x.source === 'google' ? '🤖 Health Connect' : 'no source'} · ${x.lastSync ? 'synced ' + new Date(x.lastSync).toLocaleString('en-CA', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : 'never synced'}</small>${x.diag && !x.diag.ok ? `<br><small style="color:#a8505f;">⚠️ ${escapeCm(x.diag.msg)}</small>` : ''}</span><button type="button" class="fb-mini spp-del" data-rid="${escapeCm(r.id)}" data-uid="${escapeCm(x.id)}">✕</button></div>`).join('') || '<small style="color:#776867;">Nobody yet.</small>'}</div>
+      <div style="max-height:180px;overflow:auto;">${(r.participantList || []).map(x => `<div style="display:flex;gap:6px;align-items:center;font-size:13px;padding:3px 0;"><span style="flex:1;"><button type="button" class="adm-profile-link" data-user-id="${escapeCm(x.id)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(x.name)}</button> <small style="color:#776867;">@${escapeCm(x.username)} · ${stepsFmt(x.steps)} steps${x.added ? ' · added by admin' : ''} · ${x.source === 'googlehealth' ? '🟢 Google' : x.source === 'apple' ? '🍎 Apple' : x.source === 'google' ? '🤖 Health Connect' : 'no source'} · ${x.lastSync ? 'synced ' + new Date(x.lastSync).toLocaleString('en-CA', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : 'never synced'}</small>${x.diag && !x.diag.ok ? `<br><small style="color:#a8505f;">⚠️ ${escapeCm(x.diag.msg)}</small>` : ''}</span><button type="button" class="fb-mini spp-del" data-rid="${escapeCm(r.id)}" data-uid="${escapeCm(x.id)}">✕</button></div>`).join('') || '<small style="color:#776867;">Nobody yet.</small>'}</div>
       <input class="spp-search" data-rid="${escapeCm(r.id)}" type="search" placeholder="🔍 Search a member to add…" autocomplete="off" style="${inp}width:100%;margin-top:6px;"><div class="spp-results"></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;"><select class="spp-club" style="${inp}flex:1;min-width:140px;background:#fff;"><option value="">Add a whole club…</option>${(typeof clubsData !== 'undefined' ? clubsData : []).map(c => `<option value="${escapeCm(c.id)}">${escapeCm(c.title)}</option>`).join('')}</select><button type="button" class="fb-mini spp-club-add" data-rid="${escapeCm(r.id)}">Add club</button><button type="button" class="fb-mini spp-all" data-rid="${escapeCm(r.id)}">Add everyone</button></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;"><input class="sp-name" placeholder="Sponsor name" style="${inp}flex:2;min-width:110px;"><input class="sp-per" type="number" step="0.01" placeholder="$ per 1,000" style="${inp}flex:1;min-width:90px;"><input class="sp-cap" type="number" placeholder="Max $" style="${inp}flex:1;min-width:70px;"><button type="button" class="fb-mini sp-add" data-rid="${escapeCm(r.id)}">+ Add sponsor pledge</button></div>` : '<p class="ideas-hint" style="margin:6px 0 0;">Save to start collecting steps &amp; pledges.</p>'}
@@ -12651,6 +12672,7 @@ function wireStepsAdmin(){
     catch(e){ msg.style.color = '#c00'; msg.textContent = e.message; }
   }));
   const addP = async (body, what) => { try { const d = await leadApi('POST', '/api/admin/step-participants', body); state.stepsAdmin = null; render(); admToastLite('✓ Added ' + d.added + (d.added === 1 ? ' person' : ' people') + (what || '')); } catch(e){ alert(e.message); } };
+  document.querySelectorAll('[data-stepround] .adm-profile-link').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.userId)));
   document.querySelectorAll('.spp-del').forEach(b => b.addEventListener('click', async () => { try { await leadApi('DELETE', '/api/admin/step-participants/' + encodeURIComponent(b.dataset.rid) + '/' + encodeURIComponent(b.dataset.uid)); state.stepsAdmin = null; render(); } catch(e){ alert(e.message); } }));
   document.querySelectorAll('.spp-club-add').forEach(b => b.addEventListener('click', () => { const v = b.closest('[data-stepround]').querySelector('.spp-club').value; if(v) addP({ roundId: b.dataset.rid, clubId: v }, ' from that club'); }));
   document.querySelectorAll('.spp-all').forEach(b => b.addEventListener('click', () => { if(confirm('Add EVERY member to this challenge? They all get a notification.')) addP({ roundId: b.dataset.rid, everyone: true }); }));

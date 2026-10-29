@@ -1354,3 +1354,5 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - 2026-10-29: New public page child-safety.html (Google Play child safety standards URL: https://4dasistas.ca/child-safety). Play closed-testing track "Alpha" created (Canada), release = versionCode 3, needs 12 opted-in testers x 14 days (testers not added yet).
 
 - 2026-10-29: Settings -> About now has "Report a concern" (mailto admin@4dasistas.ca) + Child safety link (needed so the Play child-safety declaration "report in-app" is true). sw v254.
+
+- 2026-10-29: Admin: steps participants + new badminton Players list (GET /api/admin/badminton/players) open member profiles; new admin "Calendar" tab (Add event asks Public vs Hosted by 4DS); "Events" tab renamed "4DS activities"; paid-confirm button now opens WhatsApp to 4dasistas with prewritten text (calPaidMessage) and records claim; field-question bold only for marked text (.fbRich); phone Featured Today compact (no fixed 156px cards). sw v255.
