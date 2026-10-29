@@ -423,7 +423,7 @@
   .efBrand{ display:block; text-align:center; font-weight:800; letter-spacing:.5px; color:var(--brand-rose); text-decoration:none; font-size:15px; margin:0 0 4px; }
   .efLinkEnd{ order:99; margin-top:14px; }
   .rich{ line-height:1.5; overflow-wrap:anywhere; } .rich h2{ font-size:1.4em; margin:.5em 0 .2em; } .rich h3{ font-size:1.15em; margin:.5em 0 .2em; } .rich ul{ margin:.3em 0; padding-left:1.3em; } .rich blockquote{ border-left:4px solid #f2d8d7; margin:.4em 0; padding:.1em .8em; color:#555; } .rich mark{ background:#fff3b0; padding:0 2px; } .rich a{ color:#76220b; font-weight:700; } .rich .rGap{ height:.7em; } .rich hr{ border:0; border-top:2px solid #f2d8d7; margin:.8em 0; }
-  .richBar{ display:flex; flex-wrap:wrap; gap:4px; margin:0 0 4px; } .richB, .richColor{ min-width:36px; min-height:36px; border:2px solid var(--brand-brown); background:#fff; border-radius:10px; cursor:pointer; font-size:14px; padding:0 6px; } .richBar .richB, .richBar .richColor{ width:auto !important; flex:none; margin:0 !important; } .richPrev{ border:2px dashed #f2d8d7; border-radius:10px; padding:8px 10px; background:#fff; }
+  .richBar{ display:flex; flex-wrap:wrap; gap:4px; align-items:center; margin:0 0 6px; } .richSep{ width:1px; height:24px; background:#e0cfcc; margin:0 4px; } .richB.on{ background:#f2d8d7; } .richDot{ width:30px !important; min-width:30px !important; height:30px !important; min-height:30px !important; border-radius:50% !important; padding:0 !important; } .richEd{ border:2px solid var(--brand-brown); border-radius:10px; padding:10px 12px; background:#fff; font-size:16px; outline:none; overflow-wrap:anywhere; } .richEd:focus{ border-color:#ce8491; box-shadow:0 0 0 3px #f2d8d7; } .richEd.isEmpty:before{ content:attr(data-ph); color:#9a8d8c; float:left; height:0; pointer-events:none; } .richWrap.mini .richBar{ display:none; } .richWrap.mini:focus-within .richBar{ display:flex; } .richWrap.mini .richEd{ padding:8px 10px; } .richNote{ font-size:12px; min-height:0; margin:2px 0 0; } .richB, .richColor{ min-width:36px; min-height:36px; border:2px solid var(--brand-brown); background:#fff; border-radius:10px; cursor:pointer; font-size:14px; padding:0 6px; } .richBar .richB, .richBar .richColor{ width:auto !important; flex:none; margin:0 !important; } .richPrev{ border:2px dashed #f2d8d7; border-radius:10px; padding:8px 10px; background:#fff; }
   .fb-card{ background:#fff; border:2px solid var(--brand-brown); border-radius:16px; padding:12px; margin:0 0 12px; box-shadow:3px 3px 0 var(--brand-brown); }
   .fb-card input[type=text], .fb-card textarea, .fb-card select, .fb-in{ width:100%; box-sizing:border-box; padding:10px; border-radius:10px; border:2px solid var(--brand-brown); font:inherit; font-size:16px; background:#fff; }
   .fb-handle{ display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:10px; background:#f2d8d7; color:#76220b; font-size:20px; cursor:grab; touch-action:none; user-select:none; flex:0 0 34px; }
@@ -6594,7 +6594,7 @@ const FB_TYPES = [['text', 'Short answer'], ['longtext', 'Long answer'], ['choic
 function calFormFieldsHtml(form, answers, locked){
   const a = answers || {}, dis = locked ? 'disabled' : '';
   return form.fields.map(f => {
-    const v = a[f.id], lab = `<label>${escapeCm(f.label)}${f.required ? ' <span class="req">*</span>' : ''}</label>`;
+    const v = a[f.id], lab = `<label>${richLine(f.label)}${f.required ? ' <span class="req">*</span>' : ''}</label>`;
     let inp;
     if(f.type === 'longtext') inp = `<textarea class="fb-in" data-fid="${f.id}" rows="3" maxlength="1000" ${dis}>${escapeCm(v || '')}</textarea>`;
     else if(f.type === 'number') inp = `<input class="fb-in" data-fid="${f.id}" type="number" inputmode="decimal" value="${escapeCm(v || '')}" ${dis}>`;
@@ -6661,7 +6661,13 @@ function calOpenPending(){
 //   **bold**  *italic*  __underline__  ~~strike~~  ==highlight==  [text](https://link)   # Big heading  ## Smaller heading  - bullet  > quote  ---
 //   {rose}coloured{/}  {big}larger{/}  {small}smaller{/}  {center}centred{/}  (combine: {big rose center}text{/}) — each on one line
 const RICH_COLORS = { rose:'#ce8491', brown:'#76220b', green:'#2a7a4a', red:'#b3261e', blue:'#1a5fb4', gray:'#776867' };
-function richHtml(src){
+// One-line / inline versions: question labels are shown with their styling, and as plain text where only text fits (CSV, lists).
+function richLine(s){ return richInner(s).replace(/<div class="rGap"><\/div>/g, '<br>').replace(/<\/div><div>/g, '<br>').replace(/^<div>|<\/div>$/g, ''); }
+function richPlain(s){
+  return String(s == null ? '' : s).replace(/\{[a-z ]+\}|\{\/\}/g, '').replace(/\[([^\]]+)\]\([^)\s]+\)/g, '$1').replace(/\*\*|__|~~|==/g, '').replace(/(^|[^*\w])\*([^*\n]+)\*/g, '$1$2').replace(/^(#{1,2} |[-•>] )/gm, '');
+}
+function richHtml(src){ const i = richInner(src); return i ? '<div class="rich">' + i + '</div>' : ''; }
+function richInner(src){
   const raw = String(src == null ? '' : src).replace(/\r/g, ''); if(!raw.trim()) return '';
   const inline = t => {
     let h = escapeCm(t);
@@ -6685,48 +6691,138 @@ function richHtml(src){
     else out += '<div>' + inline(l) + '</div>';
   });
   if(list) out += '</ul>';
-  return '<div class="rich">' + out + '</div>';
+  return out;
 }
-// A formatting bar above a textarea marked data-rich (Bold, Italic, … colours, links, preview).
-function richApply(ta, k, extra){
-  const v = ta.value; let a = ta.selectionStart, b = ta.selectionEnd; const seg = v.slice(a, b);
-  const inl = { b:['**', '**'], i:['*', '*'], u:['__', '__'], s:['~~', '~~'], mark:['==', '=='], big:['{big}', '{/}'], small:['{small}', '{/}'], center:['{center}', '{/}'], color:['{' + extra + '}', '{/}'] };
-  if(inl[k]){
-    const [o, c] = inl[k];
-    if(!seg){ ta.setRangeText(o + 'text' + c, a, b, 'preserve'); ta.setSelectionRange(a + o.length, a + o.length + 4); }
-    else { const r = seg.split('\n').map(l => l.trim() ? o + l + c : l).join('\n'); ta.setRangeText(r, a, b, 'select'); }
-  } else if(k === 'link'){
-    const url = prompt('Link address (starts with https://):', 'https://'); if(!url || !/^https?:\/\//i.test(url.trim())) return;
-    const txt = seg || prompt('Words to show for the link:', '') || url.trim();
-    ta.setRangeText('[' + txt + '](' + url.trim() + ')', a, b, 'end');
-  } else { // line prefixes: heading / smaller heading / bullet / quote / divider
-    const pre = { h1:'# ', h2:'## ', ul:'- ', q:'> ' }[k];
-    const ls = v.lastIndexOf('\n', a - 1) + 1; let le = v.indexOf('\n', b); if(le < 0) le = v.length;
-    if(k === 'hr'){ ta.setRangeText('\n---\n', le, le, 'end'); }
-    else {
-      const lines = v.slice(ls, le).split('\n'), all = lines.every(l => !l.trim() || l.startsWith(pre));
-      ta.setRangeText(lines.map(l => !l.trim() ? l : all ? l.slice(pre.length) : pre + l.replace(/^(#{1,2}\s+|[-•>]\s+)/, '')).join('\n'), ls, le, 'select');
-    }
-  }
-  ta.focus(); ta.dispatchEvent(new Event('input', { bubbles:true }));
+// The text editor people actually see: what you type looks exactly like the result (bold is bold, colours are colours).
+// Under the hood the text is still saved as the tiny markup above, so older text opens fine and everything else keeps working.
+function richColorName(v){
+  const s = String(v || '').trim().toLowerCase(); let r, g, b, m;
+  if((m = s.match(/^#([0-9a-f]{6})$/))){ r = parseInt(m[1].slice(0, 2), 16); g = parseInt(m[1].slice(2, 4), 16); b = parseInt(m[1].slice(4, 6), 16); }
+  else if((m = s.match(/^#([0-9a-f]{3})$/))){ r = parseInt(m[1][0] + m[1][0], 16); g = parseInt(m[1][1] + m[1][1], 16); b = parseInt(m[1][2] + m[1][2], 16); }
+  else if((m = s.match(/rgba?\(\s*(\d+)[ ,]+(\d+)[ ,]+(\d+)/))){ r = +m[1]; g = +m[2]; b = +m[3]; }
+  else return '';
+  let best = '', bd = 1e9;
+  Object.keys(RICH_COLORS).forEach(k => { const h = RICH_COLORS[k]; const d = Math.hypot(r - parseInt(h.slice(1, 3), 16), g - parseInt(h.slice(3, 5), 16), b - parseInt(h.slice(5, 7), 16)); if(d < bd){ bd = d; best = k; } });
+  return bd < 60 ? best : ''; // anything not close to one of our colours (e.g. the normal text colour) is "no colour"
+}
+// Turn the editor's content back into the markup.
+function richSerialize(root){
+  const BLOCK = new Set(['DIV', 'P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BLOCKQUOTE', 'UL', 'OL', 'LI', 'HR', 'PRE']);
+  const wrap = (txt, o, c) => txt.split('\n').map(l => { const m = l.match(/^(\s*)([\s\S]*?)(\s*)$/); return m[2] ? m[1] + o + m[2] + c + m[3] : l; }).join('\n');
+  const classesOf = el => {
+    const cl = [], st = el.style || {}, tag = el.tagName.toLowerCase();
+    let col = '';
+    if(tag === 'font'){ col = richColorName(el.getAttribute('color')); const sz = parseInt(el.getAttribute('size'), 10); if(sz >= 4) cl.push('big'); else if(sz && sz <= 2) cl.push('small'); }
+    if(!col && st.color) col = richColorName(st.color);
+    if(col) cl.unshift(col);
+    const fs = String(st.fontSize || ''); if(/large|1\.[2-9]|[2-9]\d?\.?\d*em|1[6-9]px|[2-9]\d px/.test(fs) && !/small/.test(fs)) cl.push('big'); else if(/small|\.[5-9]\d*em|(^|\D)(9|10|11|12|13)px/.test(fs)) cl.push('small');
+    if(st.textAlign === 'center') cl.push('center'); else if(st.textAlign === 'right') cl.push('right');
+    return cl;
+  };
+  const inline = node => {
+    if(node.nodeType === 3) return node.nodeValue.replace(/[ ​]/g, ' ').replace(/\n/g, ' ');
+    if(node.nodeType !== 1) return '';
+    const tag = node.tagName.toLowerCase();
+    if(tag === 'br') return '\n';
+    if(tag === 'img') return '';
+    let t = [...node.childNodes].map(inline).join('');
+    if(!t.replace(/\s/g, '')) return t;
+    if(tag === 'b' || tag === 'strong' || (node.style && /^(bold|[6-9]00)$/.test(node.style.fontWeight))) t = wrap(t, '**', '**');
+    if(tag === 'i' || tag === 'em' || (node.style && node.style.fontStyle === 'italic')) t = wrap(t, '*', '*');
+    if(tag === 'u' || (node.style && /underline/.test(node.style.textDecorationLine || node.style.textDecoration || ''))) t = wrap(t, '__', '__');
+    if(tag === 's' || tag === 'strike' || tag === 'del' || (node.style && /line-through/.test(node.style.textDecorationLine || node.style.textDecoration || ''))) t = wrap(t, '~~', '~~');
+    if(tag === 'mark' || (node.style && node.style.backgroundColor && !/^(transparent|rgba\(0, 0, 0, 0\))$/.test(node.style.backgroundColor))) t = wrap(t, '==', '==');
+    if(tag === 'a'){ const h = node.getAttribute('href') || ''; if(/^(https?:\/\/|mailto:|tel:)/i.test(h)) t = '[' + t.replace(/\n/g, ' ') + '](' + h + ')'; }
+    if(tag === 'font' || tag === 'span'){ const cl = classesOf(node); if(cl.length) t = wrap(t, '{' + cl.join(' ') + '}', '{/}'); }
+    return t;
+  };
+  const lines = [];
+  const pushLine = (txt, pre, el) => {
+    let t = txt.replace(/\n+$/, '').replace(/^\n+/, '');
+    if(el){ const st = el.style || {}, al = st.textAlign || el.getAttribute('align') || ''; if((al === 'center' || al === 'right') && t.trim()) t = wrap(t, '{' + al + '}', '{/}'); }
+    lines.push(pre + t.split('\n').join(' '));
+  };
+  const walk = parent => {
+    let buf = '';
+    const flush = () => { if(buf.replace(/\s/g, '')){ pushLine(buf, ''); } buf = ''; };
+    [...parent.childNodes].forEach(n => {
+      if(n.nodeType === 1 && BLOCK.has(n.tagName)){
+        flush();
+        const tag = n.tagName;
+        if(tag === 'HR') lines.push('---');
+        else if(tag === 'UL' || tag === 'OL') [...n.children].forEach(li => { if(li.tagName === 'LI') pushLine([...li.childNodes].map(inline).join(''), '- '); });
+        else if(tag === 'LI') pushLine([...n.childNodes].map(inline).join(''), '- ');
+        else if(n.classList && n.classList.contains('rGap')) lines.push('');
+        else if([...n.children].some(c => BLOCK.has(c.tagName))){ const before = lines.length; walk(n); if(n.style && (n.style.textAlign === 'center' || n.style.textAlign === 'right')) for(let i = before; i < lines.length; i++) if(lines[i].trim() && !/^(# |## |- |> |---)/.test(lines[i])) lines[i] = '{' + n.style.textAlign + '}' + lines[i] + '{/}'; }
+        else {
+          const txt = [...n.childNodes].map(inline).join('');
+          const pre = /^H[12]$/.test(tag) ? '# ' : /^H[3-6]$/.test(tag) ? '## ' : tag === 'BLOCKQUOTE' ? '> ' : '';
+          if(!txt.replace(/\s/g, '') && !pre) lines.push(''); else pushLine(txt, pre, n);
+        }
+      } else buf += inline(n);
+    });
+    flush();
+  };
+  walk(root);
+  while(lines.length && !lines[lines.length - 1].trim()) lines.pop();
+  return lines.join('\n');
 }
 function richToolbarInit(root){
   (root || document).querySelectorAll('textarea[data-rich]').forEach(ta => {
     if(ta.dataset.richOn) return; ta.dataset.richOn = '1';
-    const btn = (k, label, title, st) => `<button type="button" class="richB" data-k="${k}" title="${title}" aria-label="${title}" style="${st || ''}">${label}</button>`;
+    const nat = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+    const max = parseInt(ta.getAttribute('maxlength'), 10) || 0, rows = parseInt(ta.getAttribute('rows'), 10) || 4;
+    const mini = ta.dataset.rich === 'mini', wrap = document.createElement('div'); wrap.className = 'richWrap' + (mini ? ' mini' : '');
     const bar = document.createElement('div'); bar.className = 'richBar';
-    bar.innerHTML = btn('b', 'B', 'Bold', 'font-weight:900') + btn('i', 'I', 'Italic', 'font-style:italic') + btn('u', 'U', 'Underline', 'text-decoration:underline') + btn('s', 'S', 'Strikethrough', 'text-decoration:line-through') + btn('mark', '🖍', 'Highlight') +
-      btn('h1', 'H1', 'Big heading', 'font-weight:800') + btn('h2', 'H2', 'Smaller heading', 'font-weight:700') + btn('big', 'A+', 'Bigger text') + btn('small', 'A−', 'Smaller text') + btn('ul', '•', 'Bullet list') + btn('q', '❝', 'Quote') + btn('center', '≡', 'Centre') + btn('link', '🔗', 'Add a link') + btn('hr', '―', 'Divider line') +
-      `<select class="richColor" aria-label="Text colour"><option value="">🎨</option>${Object.keys(RICH_COLORS).map(c => `<option value="${c}" style="color:${RICH_COLORS[c]}">${c}</option>`).join('')}</select>` + btn('eye', '👁', 'Preview');
-    ta.parentNode.insertBefore(bar, ta);
-    const prev = document.createElement('div'); prev.className = 'richPrev'; prev.style.display = 'none'; ta.after(prev);
-    bar.addEventListener('mousedown', e => { if(e.target.closest('.richB')) e.preventDefault(); }); // keep the selection in the textarea
+    const B = (k, label, title, st) => `<button type="button" class="richB" data-k="${k}" title="${title}" aria-label="${title}" style="${st || ''}">${label}</button>`;
+    bar.innerHTML = mini ? B('bold', 'B', 'Bold', 'font-weight:900') + B('italic', 'I', 'Italic', 'font-style:italic;font-family:serif') + B('underline', 'U', 'Underline', 'text-decoration:underline') + B('mark', '🖍', 'Highlight') + '<span class="richSep"></span>' + Object.keys(RICH_COLORS).map(c => `<button type="button" class="richDot richB" data-k="color" data-c="${c}" title="${c} text" aria-label="${c} text" style="background:${RICH_COLORS[c]};"></button>`).join('') + B('nocolor', 'Aa', 'Normal colour & size', 'font-size:12px') :
+      B('bold', 'B', 'Bold', 'font-weight:900') + B('italic', 'I', 'Italic', 'font-style:italic;font-family:serif') + B('underline', 'U', 'Underline', 'text-decoration:underline') + B('mark', '🖍', 'Highlight') +
+      '<span class="richSep"></span>' + B('title', 'Title', 'Big title line', 'font-weight:800') + B('sub', 'Subtitle', 'Smaller title line', 'font-weight:700') + B('ul', '• List', 'Bullet list') + B('center', 'Centre', 'Centre the line') +
+      '<span class="richSep"></span>' + B('big', 'A+', 'Bigger text') + B('small', 'A−', 'Smaller text') + B('link', '🔗 Link', 'Add a link') +
+      '<span class="richSep"></span>' + Object.keys(RICH_COLORS).map(c => `<button type="button" class="richDot richB" data-k="color" data-c="${c}" title="${c} text" aria-label="${c} text" style="background:${RICH_COLORS[c]};"></button>`).join('') + B('nocolor', 'Aa', 'Normal colour & size', 'font-size:12px') + B('clear', '✕ Clear', 'Remove all styling from the selection', 'font-size:12px');
+    const ed = document.createElement('div'); ed.className = 'richEd rich'; ed.contentEditable = 'true'; ed.setAttribute('role', 'textbox'); ed.setAttribute('aria-multiline', 'true'); ed.dataset.ph = ta.getAttribute('placeholder') || 'Start typing…'; ed.style.minHeight = mini ? '44px' : Math.max(90, rows * 24) + 'px';
+    const note = document.createElement('div'); note.className = 'richNote';
+    ta.parentNode.insertBefore(wrap, ta); wrap.append(bar, ed, note); ta.style.display = 'none';
+    let syncing = false;
+    const fill = v => { ed.innerHTML = richInner(v) || ''; ed.classList.toggle('isEmpty', !ed.textContent.trim() && !ed.querySelector('hr')); };
+    const push = () => {
+      syncing = true; const v = richSerialize(ed); nat.set.call(ta, v); ta.dispatchEvent(new Event('input', { bubbles:true })); syncing = false;
+      ed.classList.toggle('isEmpty', !ed.textContent.trim() && !ed.querySelector('hr'));
+      note.textContent = max && v.length > max * .85 ? `${v.length} / ${max} characters${v.length > max ? ' — too long, the end will be cut off' : ''}` : ''; note.style.color = v.length > max ? '#b3261e' : '#776867';
+    };
+    Object.defineProperty(ta, 'value', { configurable:true, get(){ return nat.get.call(this); }, set(v){ nat.set.call(this, v); if(!syncing) fill(String(v == null ? '' : v)); } });
+    fill(nat.get.call(ta));
+    ed.addEventListener('input', push);
+    ed.addEventListener('paste', e => { e.preventDefault(); const t = (e.clipboardData || window.clipboardData).getData('text/plain'); document.execCommand('insertText', false, t); }); // plain text only: no messy pasted styles
+    ed.addEventListener('keydown', e => { if((e.metaKey || e.ctrlKey) && !e.shiftKey && ['b', 'i', 'u'].includes(e.key.toLowerCase())){ e.preventDefault(); document.execCommand({ b:'bold', i:'italic', u:'underline' }[e.key.toLowerCase()]); push(); } });
+    const cmd = (c, v) => { ed.focus(); document.execCommand('styleWithCSS', false, false); document.execCommand(c, false, v); push(); };
+    const block = tag => { ed.focus(); const cur = String(document.queryCommandValue('formatBlock') || '').toLowerCase().replace(/[<>]/g, ''); document.execCommand('formatBlock', false, cur === tag ? 'div' : tag); push(); };
+    bar.addEventListener('mousedown', e => { if(e.target.closest('.richB')) e.preventDefault(); }); // keep the selection in the editor
     bar.addEventListener('click', e => {
-      const b = e.target.closest('.richB'); if(!b) return;
-      if(b.dataset.k === 'eye'){ const on = prev.style.display === 'none'; prev.innerHTML = on ? (richHtml(ta.value) || '<p class="ideas-hint">Nothing to preview yet.</p>') : ''; prev.style.display = on ? '' : 'none'; ta.style.display = on ? 'none' : ''; return; }
-      richApply(ta, b.dataset.k);
+      const b = e.target.closest('.richB'); if(!b) return; const k = b.dataset.k;
+      if(k === 'bold' || k === 'italic' || k === 'underline') cmd(k);
+      else if(k === 'mark'){ ed.focus(); document.execCommand('styleWithCSS', false, true); const on = /rgb\(255, 243, 176\)|#fff3b0/i.test(String(document.queryCommandValue('hiliteColor') || '')); document.execCommand('hiliteColor', false, on ? 'transparent' : '#fff3b0'); document.execCommand('styleWithCSS', false, false); push(); }
+      else if(k === 'title') block('h2');
+      else if(k === 'sub') block('h3');
+      else if(k === 'ul') cmd('insertUnorderedList');
+      else if(k === 'center') cmd(document.queryCommandState('justifyCenter') ? 'justifyLeft' : 'justifyCenter');
+      else if(k === 'big') cmd('fontSize', '5');
+      else if(k === 'small') cmd('fontSize', '2');
+      else if(k === 'color') cmd('foreColor', RICH_COLORS[b.dataset.c]);
+      else if(k === 'nocolor'){ cmd('foreColor', '#373d3b'); document.execCommand('fontSize', false, '3'); push(); }
+      else if(k === 'clear'){ ed.focus(); document.execCommand('removeFormat'); document.execCommand('hiliteColor', false, 'transparent'); push(); }
+      else if(k === 'link'){
+        const sel = window.getSelection(), saved = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null, txt = sel.toString();
+        const url = prompt('Where should the link go? (starts with https://)', 'https://'); if(!url || !/^https?:\/\/./i.test(url.trim())) return;
+        ed.focus(); if(saved){ sel.removeAllRanges(); sel.addRange(saved); }
+        if(txt) document.execCommand('createLink', false, url.trim());
+        else { const w = prompt('Words to show for the link:', ''); const a = document.createElement('a'); a.href = url.trim(); a.textContent = w || url.trim(); const r = sel.rangeCount ? sel.getRangeAt(0) : null; if(r && ed.contains(r.startContainer)){ r.deleteContents(); r.insertNode(a); r.setStartAfter(a); r.collapse(true); } else ed.appendChild(a); }
+        push();
+      }
     });
-    bar.querySelector('.richColor').addEventListener('change', e => { if(e.target.value){ richApply(ta, 'color', e.target.value); e.target.value = ''; } });
+    // light up B / I / U for the text under the cursor
+    const mark = () => { if(!ed.contains(document.activeElement) && document.activeElement !== ed) return; bar.querySelectorAll('[data-k=bold],[data-k=italic],[data-k=underline]').forEach(b => b.classList.toggle('on', !!document.queryCommandState(b.dataset.k))); };
+    document.addEventListener('selectionchange', mark);
   });
 }
 const CAL_FONTS = { serif:"Georgia,'Times New Roman',serif", rounded:"'Nunito','Trebuchet MS',ui-rounded,sans-serif", mono:"ui-monospace,Menlo,monospace" };
@@ -7125,7 +7221,7 @@ function openFormBuilder(initial, onDone, opts){
       return;
     }
     const cards = form.fields.map((f, i) => `<div class="fb-card" data-i="${i}">
-      <div style="display:flex;gap:8px;align-items:flex-start;"><span class="fb-handle" data-i="${i}" title="Drag to reorder" aria-label="Drag to reorder">⠿</span><textarea class="fb-label" data-i="${i}" rows="${Math.min(8, Math.max(1, Math.ceil(String(f.label || '').length / 38)))}" maxlength="1000" placeholder="Question ${i + 1} (as long as you like)" style="resize:vertical;">${escapeCm(f.label)}</textarea></div>
+      <div style="display:flex;gap:8px;align-items:flex-start;"><span class="fb-handle" data-i="${i}" title="Drag to reorder" aria-label="Drag to reorder">⠿</span><textarea class="fb-label" data-rich="mini" data-i="${i}" rows="${Math.min(8, Math.max(1, Math.ceil(String(f.label || '').length / 38)))}" maxlength="1000" placeholder="Question ${i + 1} (as long as you like)" style="resize:vertical;">${escapeCm(f.label)}</textarea></div>
       <div class="fb-row"><select class="fb-type" data-i="${i}">${FB_TYPES.map(([k, l]) => `<option value="${k}" ${f.type === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
         <label class="fb-opt" style="margin:0;"><input type="checkbox" class="fb-req" data-i="${i}" ${f.required ? 'checked' : ''} style="width:20px;height:20px;"> Required</label></div>
       ${f.type === 'choice' || f.type === 'multi' ? `<textarea class="fb-opts" data-i="${i}" rows="3" placeholder="One option per line (at least 2)" style="margin-top:8px;">${escapeCm((f.options || []).join('\n'))}</textarea>` : ''}
@@ -7248,13 +7344,13 @@ async function clubCalShowResponses(ev, box){
     // 📍 Location questions: a map with a pin per person (carpooling / picking a meeting spot)
     d.form.fields.filter(f => f.type === 'location').forEach(f => {
       const pins = d.responses.filter(r => r.answers && r.answers[f.id] && typeof r.answers[f.id] === 'object' && r.answers[f.id].lat != null);
-      const b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'fb-mini'; b2.style.cssText = 'margin:8px 8px 0 0;'; b2.textContent = `🗺️ Map: ${f.label.slice(0, 40)} (${pins.length} pin${pins.length === 1 ? '' : 's'})`;
+      const b2 = document.createElement('button'); b2.type = 'button'; b2.className = 'fb-mini'; b2.style.cssText = 'margin:8px 8px 0 0;'; b2.textContent = `🗺️ Map: ${richPlain(f.label).slice(0, 40)} (${pins.length} pin${pins.length === 1 ? '' : 's'})`;
       b2.addEventListener('click', () => clubCalLocationMap(ev, f, d.responses)); box.appendChild(b2);
     });
     box.querySelector('#calCsv').addEventListener('click', () => {
       const esc = v => '"' + String(v).replace(/"/g, '""') + '"';
       const aoLabel = r => (r.addons || []).map(id => (((d.form.payment || {}).addons || []).find(a => a.id === id) || {}).label || '').filter(Boolean).join('; ');
-      const rows = [['Name', 'Contact', 'Status'].concat(d.form.payment ? ['Paid', 'Add-ons', 'Total due'] : []).concat(d.form.fields.map(f => f.label))].concat(d.responses.map(r => [r.name, r.contact || '', r.status === 'waitlist' ? 'Waitlist' : r.status === 'going' ? 'Going' : (r.status || '')].concat(d.form.payment ? [r.paid ? 'Yes' : 'No', aoLabel(r), r.total != null ? r.total : ''] : []).concat(d.form.fields.map(f => fmt(f, (r.answers || {})[f.id]).replace('—', '')))));
+      const rows = [['Name', 'Contact', 'Status'].concat(d.form.payment ? ['Paid', 'Add-ons', 'Total due'] : []).concat(d.form.fields.map(f => richPlain(f.label)))].concat(d.responses.map(r => [r.name, r.contact || '', r.status === 'waitlist' ? 'Waitlist' : r.status === 'going' ? 'Going' : (r.status || '')].concat(d.form.payment ? [r.paid ? 'Yes' : 'No', aoLabel(r), r.total != null ? r.total : ''] : []).concat(d.form.fields.map(f => fmt(f, (r.answers || {})[f.id]).replace('—', '')))));
       const blob = new Blob([rows.map(r => r.map(esc).join(',')).join('\n')], { type:'text/csv' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (ev.title || 'form').replace(/[^\w-]+/g, '_') + '-responses.csv'; a.click();
     });
@@ -7264,7 +7360,7 @@ async function clubCalShowResponses(ev, box){
 function clubCalLocationMap(ev, field, responses){
   const rows = responses.filter(r => r.answers && r.answers[field.id] && typeof r.answers[field.id] === 'object' && r.answers[field.id].address);
   const pins = rows.filter(r => r.answers[field.id].lat != null);
-  const { wrap } = ideaPopup(`<h3 style="margin:0 0 4px;">🗺️ ${escapeCm(ev.title)}</h3><p class="ideas-hint" style="text-align:left;margin:0 0 6px;">${escapeCm(field.label)} — ${pins.length} pin${pins.length === 1 ? '' : 's'}${rows.length > pins.length ? ` (${rows.length - pins.length} typed an address without a pin)` : ''}</p>
+  const { wrap } = ideaPopup(`<h3 style="margin:0 0 4px;">🗺️ ${escapeCm(ev.title)}</h3><p class="ideas-hint" style="text-align:left;margin:0 0 6px;">${escapeCm(richPlain(field.label))} — ${pins.length} pin${pins.length === 1 ? '' : 's'}${rows.length > pins.length ? ` (${rows.length - pins.length} typed an address without a pin)` : ''}</p>
     <div id="clMap" style="height:min(340px,48vh);border:2px solid var(--brand-brown);border-radius:12px;"></div>
     <div style="max-height:26vh;overflow:auto;margin-top:8px;">${rows.map(r => `<div style="padding:5px 0;border-top:1px solid rgba(0,0,0,.1);font-size:14px;"><strong>${escapeCm(r.name)}</strong><br><span style="color:#555;">📍 ${escapeCm(r.answers[field.id].address)}</span> <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.answers[field.id].lat != null ? r.answers[field.id].lat + ',' + r.answers[field.id].lng : r.answers[field.id].address)}" target="_blank" rel="noopener" style="font-size:12px;">open ↗</a></div>`).join('') || '<p class="av-msg">No locations yet.</p>'}</div>`);
   const card = wrap.querySelector('.idea-pop-card'); if(card) card.style.cssText += ';max-width:min(560px,94vw);width:min(560px,94vw);';
@@ -10272,7 +10368,7 @@ function admEvFormHtml(){
     <label style="display:block;font-size:12px;font-weight:700;color:#776867;">Message at the top (optional)</label>
     <textarea id="evFormIntro" rows="2" maxlength="500" style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:15px;margin-bottom:8px;">${escapeCm(c.intro || '')}</textarea>
     <strong style="font-size:13px;">Extra questions (${qs.length})</strong>
-    ${qs.length ? `<ol style="margin:4px 0 8px 18px;padding:0;font-size:14px;">${qs.map(q => `<li>${escapeCm(q.label)}${q.required ? ' <span style="color:#b3261e;">*</span>' : ''} <small style="color:#776867;">(${escapeCm((FB_TYPES.find(t => t[0] === q.type) || [0, q.type])[1])})</small></li>`).join('')}</ol>` : '<p class="av-msg" style="margin:4px 0 8px;">None yet.</p>'}
+    ${qs.length ? `<ol style="margin:4px 0 8px 18px;padding:0;font-size:14px;">${qs.map(q => `<li>${escapeCm(richPlain(q.label))}${q.required ? ' <span style="color:#b3261e;">*</span>' : ''} <small style="color:#776867;">(${escapeCm((FB_TYPES.find(t => t[0] === q.type) || [0, q.type])[1])})</small></li>`).join('')}</ol>` : '<p class="av-msg" style="margin:4px 0 8px;">None yet.</p>'}
     <div class="fb-row"><button type="button" class="fb-mini" id="evFormEdit">${qs.length ? '✏️ Edit the questions' : '➕ Add questions'}</button><button type="button" class="club-guide-btn" id="evFormSave" style="padding:6px 18px;min-height:0;text-align:center;">Save</button><span id="evFormMsg" style="font-size:12px;"></span></div></div>`;
 }
 /* ---- Admin → Club Events: every club event in one list — edit it, build/edit its form, read the answers, manage who's coming ---- */
@@ -10712,7 +10808,7 @@ function eventSuggestionsAdminHtml(){
   if(!list) return '';
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Submitted events${list.length ? ` (${list.length})` : ''}</h4>
     ${list.length ? list.map(x => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
-      <span style="min-width:0;"><strong>${escapeCm(x.name)}</strong>${(x.extra || []).length ? `<br><span style="font-size:12px;">${x.extra.map(q => `<b>${escapeCm(q.label)}:</b> ${escapeCm(q.value)}`).join(' · ')}</span>` : ''}<br><span style="font-size:12px;color:#776867;">${escapeCm(x.date)} · ${escapeCm(x.city)}${x.genre ? ' · ' + escapeCm(x.genre === 'other' ? 'Other: ' + (x.genreOther || '') : x.genre) : ''}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
+      <span style="min-width:0;"><strong>${escapeCm(x.name)}</strong>${(x.extra || []).length ? `<br><span style="font-size:12px;">${x.extra.map(q => `<b>${escapeCm(richPlain(q.label))}:</b> ${escapeCm(q.value)}`).join(' · ')}</span>` : ''}<br><span style="font-size:12px;color:#776867;">${escapeCm(x.date)} · ${escapeCm(x.city)}${x.genre ? ' · ' + escapeCm(x.genre === 'other' ? 'Other: ' + (x.genreOther || '') : x.genre) : ''}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
       <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--brand-blush);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn event-sug-dismiss" data-sugid="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted events.</p>'}</div>`;
 }
 function joinRequestsAdminHtml(){

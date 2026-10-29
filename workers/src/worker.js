@@ -557,7 +557,7 @@ const notifyAdminOfFormSignup = (env, ctx, ev, person, answers, sel) => {
     + (person.contact ? emailRow("Contact", escapeHtml(person.contact)) : "")
     + (sel && sel.ids && sel.ids.length ? emailRow("Add-ons", escapeHtml((pay.addons || []).filter((a) => sel.ids.includes(a.id)).map((a) => a.label).join(", "))) : "")
     + (sel && sel.total != null ? emailRow("Total due", `<strong>${escapeHtml(String(sel.total))}</strong>`) : "")
-    + (form.fields || []).filter((f) => answers && answers[f.id] !== undefined).map((f) => emailRow(escapeHtml(f.label), escapeHtml(val(answers[f.id])))).join("");
+    + (form.fields || []).filter((f) => answers && answers[f.id] !== undefined).map((f) => emailRow(escapeHtml(calPlain(f.label)), escapeHtml(val(answers[f.id])))).join("");
   const html = emailShell(env, { emoji: "📝", title: "New event sign-up", preheader: `${person.name} → ${ev.title}`,
     body: `<table style="border-collapse:collapse;font-size:15px">${rows}</table><p style="margin:16px 0 4px">${emailBtn(`${origin}/#/admin`, "Open Club Events →")}</p>`,
     footer: "See everyone's answers, mark people paid and download a CSV under Admin → Club Events → 📋 Answers." });
@@ -1320,6 +1320,7 @@ const sanitizeCalForm = (f) => {
   return out;
 };
 // ---- Event page design: text uses a tiny markup the browser renders safely (**bold**, *italic*, links…); the page is also a list of BLOCKS (text, photo, map, button, video, divider) plus a theme ----
+const calPlain = (s) => String(s || "").replace(/\{[a-z ]+\}|\{\/\}/g, "").replace(/\[([^\]]+)\]\([^)\s]+\)/g, "$1").replace(/\*\*|__|~~|==/g, "").replace(/(^|[^*\w])\*([^*\n]+)\*/g, "$1$2");
 const CAL_IMG_RE = /^[a-z0-9]{8,24}$/;
 const calHttps = (v, n = 500) => { try { const u = new URL(String(v || "").trim()); return u.protocol === "https:" && u.href.length <= n ? u.href : ""; } catch { return ""; } };
 const calLinkOk = (v) => { const t = String(v || "").trim(); if (/^(mailto:|tel:)[^\s<>"']{3,120}$/i.test(t)) return t; return calHttps(t); };
@@ -1421,7 +1422,7 @@ const checkCalAnswers = (form, raw) => {
     }
     else v = String(v || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, fld.type === "longtext" ? 1000 : 200);
     const empty = Array.isArray(v) ? !v.length : v === "";
-    if (fld.required && empty) return { error: `Please answer: ${fld.label}` };
+    if (fld.required && empty) return { error: `Please answer: ${calPlain(fld.label)}` };
     if (!empty) answers[fld.id] = v;
   }
   return { answers };
