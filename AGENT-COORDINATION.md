@@ -1346,3 +1346,5 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - 2026-10-29: (1) Event page map: theme.mapSize (s/m/l/off = link only) and theme.mapPos (bottom = very end of page) set in the editor design card; calMapHtml(d, bottom). (2) Club LEADER EMAILS: private KV `clubleaderemails` {clubId:[emails]} (NOT in public clubs.json); admin GET /api/admin/club-leader-emails, PUT /api/admin/club-leader-emails/:clubId; Admin -> Clubs -> Club links has a leader-email box per club; notifyAdminOfJoinRequest now also emails those leaders (Resend). sw v251.
 
 - 2026-10-29: Home bubbles on phones: smaller/narrower label so LEADERBOARDS is no longer clipped (was cut to LEADERBOAR). sw v252.
+
+- 2026-10-29: New public page delete-account.html (steps to delete account; needed for Google Play Data safety "Delete account URL").
