@@ -422,12 +422,15 @@ const postResend = (env, payload) => env.__capture
   : fetch("https://api.resend.com/emails", { method: "POST", headers: { "Authorization": `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
 // ---- Email theme: the same look as the website (cream page, rose header, brown outlines, rounded pills).
 const emailBtn = (href, label, bg = "#ce8491", color = "#fff") => `<a href="${escapeHtml(href)}" style="display:inline-block;margin:4px 6px 4px 0;padding:12px 20px;border-radius:999px;background:${bg};color:${color};border:2px solid #76220b;font-weight:700;text-decoration:none;font-size:15px;font-family:Arial,Helvetica,sans-serif">${label}</a>`;
-const emailRow = (label, value) => `<tr><td style="padding:7px 14px 7px 0;color:#776867;font-size:12px;text-transform:uppercase;letter-spacing:.6px;vertical-align:top;white-space:nowrap">${label}</td><td style="padding:7px 0;vertical-align:top;color:#373d3b"><strong>${value}</strong></td></tr>`;
+const emailRow = (label, value) => `<tr><td width="34%" style="padding:7px 12px 7px 0;color:#776867;font-size:12px;text-transform:uppercase;letter-spacing:.6px;vertical-align:top;word-break:break-word">${label}</td><td style="padding:7px 0;vertical-align:top;color:#373d3b;word-break:break-word;overflow-wrap:anywhere"><strong>${value}</strong></td></tr>`;
+// A long answer to a long question: label on top, answer underneath (wraps cleanly on a phone, line breaks kept).
+const emailAnswer = (label, value) => `<tr><td style="padding:10px 0;border-top:1px solid #f2d8d7;vertical-align:top"><div style="font-size:12px;line-height:1.4;color:#776867;word-break:break-word;overflow-wrap:anywhere">${String(label).replace(/\n/g, "<br>")}</div><div style="margin-top:3px;font-size:15px;line-height:1.5;color:#373d3b;font-weight:700;word-break:break-word;overflow-wrap:anywhere">${String(value).replace(/\n/g, "<br>") || "—"}</div></td></tr>`;
+const emailTable = (rows) => `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:15px;table-layout:fixed;width:100%">${rows}</table>`;
 const emailChip = (text) => `<span style="display:inline-block;padding:3px 12px;border-radius:999px;background:#f2d8d7;color:#76220b;border:1.5px solid #ce8491;font-size:13px;font-weight:700">${text}</span>`;
 const emailNote = (html) => `<div style="margin:12px 0;padding:12px 14px;border-radius:14px;background:#fef7f4;border:2px solid #f2d8d7;color:#76220b;font-size:14px">${html}</div>`;
 const emailShell = (env, { title, emoji = "✨", preheader = "", body = "", footer = "" }) => {
   const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
-  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#fef7f4">
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="x-apple-disable-message-reformatting"></head><body style="margin:0;padding:0;background:#fef7f4;-webkit-text-size-adjust:100%">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(preheader)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fef7f4"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
@@ -541,7 +544,7 @@ const notifyAdminOfSuggestion = async (env, ctx, kind, sug) => {
   const comments = sug.comments ? emailNote(`<div style="font-size:12px;opacity:.8;margin-bottom:2px">💬 Comments from the submitter</div>${escapeHtml(sug.comments).replace(/\n/g, "<br>")}`) : "";
   const html = emailShell(env, {
     emoji: isEvent ? "🗓️" : "🛍️", title: `New ${isEvent ? "event" : "resource"} submitted`, preheader: isEvent ? `${sug.name} · ${sug.city} · ${sug.date}` : `${sug.title} · ${sug.city}`,
-    body: `<table style="border-collapse:collapse;font-size:15px">${rows}</table>${comments}<p style="margin:16px 0 4px">${emailBtn(await reviewUrlFor(env, kind, sug.id, "accept"), "✅ Accept", "#2a7a4a")}${emailBtn(await reviewUrlFor(env, kind, sug.id, "edit"), "✏️ Edit", "#ce8491")}${emailBtn(await reviewUrlFor(env, kind, sug.id, "deny"), "❌ Deny", "#b3261e")}</p>`,
+    body: `${emailTable(rows)}${comments}<p style="margin:16px 0 4px">${emailBtn(await reviewUrlFor(env, kind, sug.id, "accept"), "✅ Accept", "#2a7a4a")}${emailBtn(await reviewUrlFor(env, kind, sug.id, "edit"), "✏️ Edit", "#ce8491")}${emailBtn(await reviewUrlFor(env, kind, sug.id, "deny"), "❌ Deny", "#b3261e")}</p>`,
     footer: `Each button opens a review page — nothing happens until you confirm there. You can also find it on your admin page under <strong>Notifications</strong>.` });
   sendAdminEmail(env, ctx, isEvent ? `Event submitted: ${sug.name} (${sug.city}, ${sug.date})` : `Resource submitted: ${sug.title} (${sug.city})`, html);
 };
@@ -551,15 +554,15 @@ const notifyAdminOfFormSignup = (env, ctx, ev, person, answers, sel) => {
   const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
   const form = ev.form || { fields: [] }, pay = form.payment || {};
   const val = (v) => Array.isArray(v) ? v.join(", ") : (v && typeof v === "object" ? String(v.address || "") : (/^data:image\//.test(String(v)) ? "(signed)" : String(v)));
-  const rows = emailRow("Event", `${escapeHtml(ev.title)} · ${escapeHtml(ev.date)}`)
+  const details = emailRow("Event", `${escapeHtml(ev.title)} · ${escapeHtml(ev.date)}`)
     + emailRow("Name", escapeHtml(person.name) + (person.newAccount ? ' <span style="color:#2a7a4a">(new account)</span>' : ""))
     + (person.phone ? emailRow("Phone", escapeHtml(person.phone)) : "")
     + (person.contact ? emailRow("Contact", escapeHtml(person.contact)) : "")
     + (sel && sel.ids && sel.ids.length ? emailRow("Add-ons", escapeHtml((pay.addons || []).filter((a) => sel.ids.includes(a.id)).map((a) => a.label).join(", "))) : "")
-    + (sel && sel.total != null ? emailRow("Total due", `<strong>${escapeHtml(String(sel.total))}</strong>`) : "")
-    + (form.fields || []).filter((f) => answers && answers[f.id] !== undefined).map((f) => emailRow(escapeHtml(calPlain(f.label)), escapeHtml(val(answers[f.id])))).join("");
+    + (sel && sel.total != null ? emailRow("Total due", escapeHtml(String(sel.total))) : "");
+  const qa = (form.fields || []).filter((f) => answers && answers[f.id] !== undefined).map((f) => emailAnswer(escapeHtml(calPlain(f.label)), escapeHtml(val(answers[f.id])))).join("");
   const html = emailShell(env, { emoji: "📝", title: "New event sign-up", preheader: `${person.name} → ${ev.title}`,
-    body: `<table style="border-collapse:collapse;font-size:15px">${rows}</table><p style="margin:16px 0 4px">${emailBtn(`${origin}/#/admin`, "Open Club Events →")}</p>`,
+    body: `${emailTable(details)}${qa ? `<div style="margin:18px 0 4px;font-size:13px;font-weight:700;color:#76220b;letter-spacing:.6px;text-transform:uppercase">Their answers</div>${emailTable(qa)}` : ""}<p style="margin:18px 0 4px">${emailBtn(`${origin}/#/admin`, "Open Club Events →")}</p>`,
     footer: "See everyone's answers, mark people paid and download a CSV under Admin → Club Events → 📋 Answers." });
   sendAdminEmail(env, ctx, `Sign-up: ${person.name} → ${ev.title}`, html);
 };

@@ -6439,6 +6439,41 @@ async function clubCalPublicCard(box, id){
   }
 }
 // One event's full details + RSVP button, painted into `box` (used by the single-event popup and by the day popup that lists several).
+// Dropping out of an event: ask first, then offer a pre-written WhatsApp message to the organiser (the 4DASISTAS WhatsApp username).
+const ORGANISER_WA_USERNAME = '4dasistas';
+function calCancelMessage(d){
+  const me = getCmSession() || {}, when = d.date ? ' on ' + ideaLongDate(d.date) : '';
+  return `Hi 4DASISTAS! 🌸 This is ${me.name || 'a member'}${me.username ? ' (username: ' + me.username + ')' : ''}. I'm sorry, I can no longer come to "${d.title}"${when}, so I've cancelled my registration in the app.${d.paid || d.claimedPaid ? ' I had already paid for my spot, so could you let me know about the payment? ' : ' '}Thank you so much!`;
+}
+function calCancelFlow(d, id, onDone){
+  const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 8px;">Cancel your registration?</h3>
+    <p style="margin:0 0 6px;">Are you sure you want to drop out of <b>${escapeCm(d.title)}</b>?</p>
+    <p class="ideas-hint" style="text-align:left;margin:0 0 12px;">${d.mine === 'waitlist' ? "You'll leave the waitlist." : "Your spot will be freed up for someone else."}</p>
+    <div class="calCxMsg" style="font-size:13px;color:#c00;min-height:16px;margin-bottom:6px;"></div>
+    <button type="button" class="club-guide-btn calCxYes" style="width:100%;min-height:48px;text-align:center;background:#b3261e;border-color:#b3261e;color:#fff;margin-bottom:8px;">Yes, cancel my registration</button>
+    <button type="button" class="club-guide-btn calCxNo" style="width:100%;min-height:48px;text-align:center;">No, keep my spot</button>`);
+  wrap.querySelector('.calCxNo').addEventListener('click', close);
+  wrap.querySelector('.calCxYes').addEventListener('click', async e => {
+    e.target.disabled = true; wrap.querySelector('.calCxMsg').style.color = '#776867'; wrap.querySelector('.calCxMsg').textContent = 'Cancelling…';
+    try {
+      const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/rsvp', { method:'DELETE', headers: ideaHeaders() });
+      const msg = calCancelMessage(d); // (written before the paid flags are cleared)
+      d.mine = r.mine || null; d.going = r.going; d.waitPos = 0; if(d.capacity) d.spotsLeft = Math.max(0, d.capacity - r.going); state.myTodo = null;
+      close(); onDone();
+      const link = `https://wa.me/u/${ORGANISER_WA_USERNAME}?text=${waEnc(msg)}`;
+      const pop = ideaPopup(`<h3 style="margin:0 0 6px;">✅ Registration cancelled</h3>
+        <p style="margin:0 0 8px;">Please let the organiser know too, so they can plan. We wrote a message for you:</p>
+        <div style="max-height:30vh;overflow:auto;padding:10px;border-radius:12px;background:#fef7f4;border:2px dashed #f2d8d7;white-space:pre-wrap;font-size:14px;">${escapeCm(msg)}</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+          <a class="calCxWa" href="${escapeCm(link)}" target="_blank" rel="noopener" style="display:block;text-align:center;padding:13px 18px;border-radius:999px;background:#25a244;color:#fff;font-weight:800;text-decoration:none;">💬 Message the organiser on WhatsApp</a>
+          <button type="button" class="club-guide-btn calCxCopy" style="width:100%;min-height:46px;text-align:center;">📋 Copy the message</button>
+          <button type="button" class="club-guide-btn calCxClose" style="width:100%;min-height:46px;text-align:center;">Close</button></div>
+        <p class="ideas-hint" style="text-align:center;margin:8px 0 0;">WhatsApp username: <b>${escapeCm(ORGANISER_WA_USERNAME)}</b></p>`);
+      pop.wrap.querySelector('.calCxClose').addEventListener('click', pop.close);
+      pop.wrap.querySelector('.calCxCopy').addEventListener('click', async b => { try { await navigator.clipboard.writeText(msg); b.target.textContent = 'Copied ✓'; } catch { window.prompt('Copy this message:', msg); } });
+    } catch(err){ e.target.disabled = false; wrap.querySelector('.calCxMsg').style.color = '#c00'; wrap.querySelector('.calCxMsg').textContent = err.message; }
+  });
+}
 async function clubCalMemberCard(box, id){
   try {
     const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id), { headers: ideaHeaders() }); calUpgradeUrl(d);
@@ -6448,7 +6483,9 @@ async function clubCalMemberCard(box, id){
     linkEnd.innerHTML = calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:'); wireCalCopy(linkEnd);
     box.append(top, formBox, linkEnd); // details on top, then the form (and payment / description); the copyable link sits at the very bottom (efLinkEnd is ordered last)
     calAttendeesInto(box, id, d.date);
+    let syncCancel = () => {};
     const paint = () => {
+      syncCancel();
       const past = calIsPast(d.date);
       const label = past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going — tap to cancel" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — tap to leave` : d.mine === 'pending' ? '⏳ Requested — waiting for approval (tap to cancel)' : d.inClub ? (d.capacity && !d.spotsLeft ? '🎟️ Join the waitlist' : '🎟️ RSVP — I\'m going') : '🎟️ Request to RSVP';
       top.innerHTML = `${calCoverHtml(d)}${calHostsHtml(d)}<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>
@@ -6479,7 +6516,12 @@ async function clubCalMemberCard(box, id){
       <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 4px;">2 · 📝 Sign up</h3>${d.form.intro ? `<div style="margin:0 0 10px;">${richHtml(d.form.intro)}</div>` : ''}${calFormFieldsHtml(d.form, d.myAnswers, false)}
         ${calAddonsHtml(d.form, d.myAddons)}
         <button type="button" class="club-guide-btn calFormSend" ${d.closed && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">${d.closed && !d.mine ? '🔒 Sign-ups closed' : d.myAnswers ? 'Update my answers' : 'Submit & RSVP'}</button><div class="calFormMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>
+        <button type="button" class="club-guide-btn calCancelReg" hidden style="width:100%;min-height:46px;text-align:center;background:#fdecea;border-color:#b3261e;color:#b3261e;margin-top:4px;">❌ Cancel my registration</button>
         ${calFormFooterHtml(d.form)}<div class="calPayBox">${d.form.payment ? (d.myAnswers ? calPayBoxHtml(d) : `<p class="ideas-hint" style="margin:10px 0 0;">💳 you'll see how to pay right after you sign up.</p>`) : ''}</div></div>`;
+      const cxBtn = formBox.querySelector('.calCancelReg'), sendBtn = formBox.querySelector('.calFormSend');
+      syncCancel = () => { const past = calIsPast(d.date); cxBtn.hidden = !(d.mine && !past); sendBtn.textContent = d.closed && !d.mine ? '🔒 Sign-ups closed' : d.mine ? 'Update my answers' : d.myAnswers ? 'Register again' : 'Submit & RSVP'; };
+      cxBtn.addEventListener('click', () => calCancelFlow(d, id, () => { paint(); syncCancel(); admToastLite('Registration cancelled'); }));
+      syncCancel();
       wireCalAddons(formBox, d.form); calMountLocations(formBox);
       formBox.addEventListener('click', async ev2 => { // "I've sent my payment"
         const pb2 = ev2.target.closest('.calPaidBtn'); if(!pb2) return; pb2.disabled = true;
