@@ -979,15 +979,23 @@ const squadReqKey = (id, uid) => `squadreq:${id}:${uid}`;
 const squadLinkKey = (id) => `squadlink:${id}`;
 const readSquadMemberIds = async (env, id) => { try { return JSON.parse((await env.SITE_DATA.get(squadMembersKey(id))) || "[]"); } catch { return []; } };
 const writeSquadMemberIds = (env, id, ids) => env.SITE_DATA.put(squadMembersKey(id), JSON.stringify(ids));
+// Club leaders' email addresses are PRIVATE (their own KV key — never in the public clubs file): they get an email when someone asks to join their club.
+const LEADER_EMAILS_KEY = "clubleaderemails";
+const readLeaderEmails = async (env) => { try { const o = JSON.parse((await env.SITE_DATA.get(LEADER_EMAILS_KEY)) || "{}"); return o && typeof o === "object" ? o : {}; } catch { return {}; } };
 const notifyAdminOfJoinRequest = (env, ctx, user, club) => {
-  if (!env.RESEND_API_KEY || !env.ADMIN_NOTIFY_EMAIL) return;
+  if (!env.RESEND_API_KEY) return;
   const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
   const f = user.form || {};
   const picks = Array.isArray(f.ranked) && f.ranked.length ? `<p style="margin:0 0 6px"><strong>Their picks:</strong> ${f.ranked.slice(0, 4).map((c, i) => `${i + 1}. ${escapeHtml(c)}`).join(" &nbsp; ")}</p>` : "";
   const html = emailShell(env, { emoji: "🙋‍♀️", title: "New club join request", preheader: `${user.name} → ${club.title}`,
     body: `<p style="margin:0 0 6px"><strong>${escapeHtml(user.name)}</strong> <span style="color:#776867">@${escapeHtml(user.username)}</span> asked to join</p><p style="margin:0 0 14px">${emailChip(escapeHtml(club.title))}</p>${user.phone ? `<p style="margin:0 0 6px">📞 ${escapeHtml(user.phone)}</p>` : ""}${picks}${f.why ? emailNote(`<div style="font-size:12px;opacity:.8;margin-bottom:2px">💬 What they wrote</div>${escapeHtml(String(f.why).slice(0, 400)).replace(/\n/g, "<br>")}`) : ""}<p style="margin:16px 0 4px">${emailBtn(origin + "/#/admin", "Review the request →")}</p>`,
     footer: "Accept or decline under 🏛️ Clubs → Notifications on your admin page." });
-  sendAdminEmail(env, ctx, `Join request: ${user.name} → ${club.title}`, html);
+  const subject = `Join request: ${user.name} → ${club.title}`, from = env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>";
+  sendAdminEmail(env, ctx, subject, html);
+  ctx.waitUntil((async () => {
+    const mine = ((await readLeaderEmails(env))[club.id] || []).filter((e) => String(e).toLowerCase() !== String(env.ADMIN_NOTIFY_EMAIL || "").toLowerCase());
+    for (const to of mine.slice(0, 5)) await postResend(env, { from, to: [to], subject, html }).then(async (r) => { if (!r.ok) console.error("Resend rejected leader notification", r.status, (await r.text()).slice(0, 200)); }).catch((e) => console.error("Resend leader email failed", String(e)));
+  })());
 };
 
 // ---- Global username uniqueness index (username -> userId) ----
@@ -1424,6 +1432,8 @@ const sanitizeCalTheme = (t) => {
   if (CAL_IMG_RE.test(String(t.cover || ""))) o.cover = String(t.cover);
   if (["serif", "rounded", "mono"].includes(t.font)) o.font = t.font;
   if (t.titleAlign === "center") o.titleAlign = "center";
+  if (["s", "l", "off"].includes(t.mapSize)) o.mapSize = t.mapSize; // map size on the page (medium is the default)
+  if (t.mapPos === "bottom") o.mapPos = "bottom"; // map at the very end of the page
   return Object.keys(o).length ? o : null;
 };
 // Which design bits a request body sets (undefined = leave as is).
@@ -2739,7 +2749,19 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     const readEventFormCfg = async () => { try { const c = JSON.parse((await env.SITE_DATA.get("evsubform")) || "{}") || {}; return { intro: String(c.intro || ""), form: c.form && c.form.fields ? c.form : null }; } catch { return { intro: "", form: null }; } };
     if (path === "/api/event-form-config" && request.method === "GET") return jsonResponse(await readEventFormCfg(), 200, { ...corsHeaders, "Cache-Control": "no-store" });
     // SECURITY: the admin routes between here and the main admin guard further down run BEFORE that guard, so they check the main-admin session themselves.
-    if ((path === "/api/admin/event-form-config" || path.startsWith("/api/admin/featured") || path === "/api/admin/needs" || path === "/api/admin/steps" || path === "/api/admin/step-rounds" || path === "/api/admin/stay-status" || path.startsWith("/api/admin/step-pledges") || path.startsWith("/api/admin/step-participants") || path.startsWith("/api/admin/badminton/")) && !(await isAdminRequest(env, request))) return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
+    if ((path === "/api/admin/event-form-config" || path.startsWith("/api/admin/featured") || path.startsWith("/api/admin/club-leader-emails") || path === "/api/admin/needs" || path === "/api/admin/steps" || path === "/api/admin/step-rounds" || path === "/api/admin/stay-status" || path.startsWith("/api/admin/step-pledges") || path.startsWith("/api/admin/step-participants") || path.startsWith("/api/admin/badminton/")) && !(await isAdminRequest(env, request))) return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
+    if (path === "/api/admin/club-leader-emails" && request.method === "GET") return jsonResponse(await readLeaderEmails(env), 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    { const lm = path.match(/^\/api\/admin\/club-leader-emails\/([^/]+)\/?$/);
+      if (lm && request.method === "PUT") {
+        let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+        const raw = Array.isArray(body && body.emails) ? body.emails : String((body && body.emails) || "").split(/[,;\s]+/), out = [];
+        for (const e of raw) { const v = String(e || "").trim().toLowerCase(); if (!v) continue; if (!/^[^\s@<>"]{1,64}@[^\s@<>"]{1,200}\.[^\s@<>"]{2,}$/.test(v)) return jsonResponse({ error: `“${String(e).slice(0, 60)}” doesn't look like an email address` }, 400, corsHeaders); if (!out.includes(v)) out.push(v); }
+        if (out.length > 5) return jsonResponse({ error: "Up to 5 email addresses per club" }, 400, corsHeaders);
+        const id = decodeURIComponent(lm[1]), map = await readLeaderEmails(env);
+        if (out.length) map[id] = out; else delete map[id];
+        await env.SITE_DATA.put(LEADER_EMAILS_KEY, JSON.stringify(map));
+        return jsonResponse({ ok: true, emails: out }, 200, corsHeaders);
+      } }
     if (path === "/api/featured" && request.method === "GET") {
       const doc = await readFeat(env), today = featToday();
       return jsonResponse(await featResolve(env, doc, today, true), 200, { ...corsHeaders, "Cache-Control": "public, max-age=60" });

@@ -421,6 +421,7 @@
   body.form-standalone nav.tabs, body.form-standalone .pwr-btn{ display:none !important; } /* an event page keeps the 4DS logo banner and the normal footer, but no tab bar / back button */
   .efBrand{ display:block; text-align:center; font-weight:800; letter-spacing:.5px; color:var(--brand-rose); text-decoration:none; font-size:15px; margin:0 0 4px; }
   .efLinkEnd{ order:99; margin-top:14px; }
+  .efMapEnd{ order:98; }
   .pgBar{ position:sticky; top:0; z-index:20; background:#fef7f4; padding:8px 0 6px; border-bottom:2px solid #f2d8d7; } .fb-page .pgBar{ margin:0 -2px; padding-left:2px; padding-right:2px; }
   .pgJump{ display:flex; gap:6px; overflow-x:auto; padding:6px 0 2px; } .pgJ{ flex:none; border:2px solid #f2d8d7; background:#fff; border-radius:999px; padding:6px 12px; min-height:36px; font:inherit; font-size:13px; font-weight:700; color:#76220b; cursor:pointer; }
   .pgEd .fb-card{ box-shadow:none; }
@@ -6385,7 +6386,7 @@ async function clubCalPublicCard(box, id){
         ${d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}</p>` : ''}${calMapHtml(d)}${calDescHtml(d)}
         ${d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''}${past ? '' : calSpotsHtml(d)}
         ${past ? '<p class="av-msg" style="margin:8px 0 0;">This event has already happened.</p>' : `<p class="av-msg" style="margin:10px 0;">Log in or sign up to RSVP.</p><div style="display:flex;gap:10px;"><button type="button" class="club-guide-btn pfL" style="flex:1;text-align:center;">Log In</button><button type="button" class="fall-cta-btn join-club-btn pfS" style="flex:1;">Sign Up</button></div>`}
-        <div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`;
+        <div class="efMapEnd">${calMapHtml(d, true)}</div><div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`;
       wireCalCopy(box); calAttendeesInto(box, id, d.date);
       const lb = box.querySelector('.pfL'); if(lb) lb.addEventListener('click', () => { calRememberOpen(id); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); });
       const sb = box.querySelector('.pfS'); if(sb) sb.addEventListener('click', () => { calRememberOpen(id); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); goToTab('fallsignup'); });
@@ -6418,7 +6419,7 @@ async function clubCalPublicCard(box, id){
         ${calAddonsHtml(d.form, [])}
         ${calPayInFormHtml(d.form)}
         <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Submit</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}</div>`;
-    box.insertAdjacentHTML('beforeend', `<div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`);
+    box.insertAdjacentHTML('beforeend', `<div class="efMapEnd">${calMapHtml(d, true)}</div><div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`);
     wireCalCopy(box); wireCalAddons(box, d.form); calMountLocations(box); calAttendeesInto(box, d.id, d.date);
     // Section 1 starts as two buttons; only the chosen path's fields appear: guest (name + phone), sign in (find yourself + PIN), or create an account.
     let mode = '';
@@ -6535,7 +6536,8 @@ async function clubCalMemberCard(box, id){
     const top = document.createElement('div'), formBox = document.createElement('div');
     const linkEnd = document.createElement('div'); linkEnd.className = 'efLinkEnd';
     linkEnd.innerHTML = calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:'); wireCalCopy(linkEnd);
-    box.append(top, formBox, linkEnd); // details on top, then the form (and payment / description); the copyable link sits at the very bottom (efLinkEnd is ordered last)
+    const mapEnd = document.createElement('div'); mapEnd.className = 'efMapEnd'; mapEnd.innerHTML = calMapHtml(d, true);
+    box.append(top, formBox, mapEnd, linkEnd); // details on top, then the form (and payment / description); the copyable link sits at the very bottom (efLinkEnd is ordered last)
     calAttendeesInto(box, id, d.date);
     let syncCancel = () => {};
     const paint = () => {
@@ -7073,7 +7075,9 @@ function calDesigner(initial, opts, onDone){
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">${swatches.map(c => `<button type="button" class="dsSw" data-c="${c}" aria-label="${c}" style="width:34px;height:34px;border-radius:50%;border:3px solid ${t.accent === c ? '#000' : '#fff'};box-shadow:0 0 0 1px #999;background:${c};cursor:pointer;"></button>`).join('')}<label style="font-size:13px;">Custom <input type="color" id="dsCustom" value="${calHex(t.accent) || '#ce8491'}" style="vertical-align:middle;"></label>${t.accent ? '<button type="button" class="fb-mini" id="dsAccRm">Reset</button>' : ''}</div>
         <div class="fb-row" style="margin-top:10px;"><label style="font-size:13px;font-weight:700;">Font <select id="dsFont"><option value="">Standard</option><option value="serif" ${t.font === 'serif' ? 'selected' : ''}>Classic (serif)</option><option value="rounded" ${t.font === 'rounded' ? 'selected' : ''}>Soft &amp; round</option><option value="mono" ${t.font === 'mono' ? 'selected' : ''}>Typewriter</option></select></label>
           <label style="font-size:13px;font-weight:700;">Text background <select id="dsBg">${tints.map(([v, l]) => `<option value="${v}" ${(t.bg || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-          <label style="font-size:13px;font-weight:700;">Title <select id="dsTA"><option value="">Left</option><option value="center" ${t.titleAlign === 'center' ? 'selected' : ''}>Centred</option></select></label></div></div>
+          <label style="font-size:13px;font-weight:700;">Title <select id="dsTA"><option value="">Left</option><option value="center" ${t.titleAlign === 'center' ? 'selected' : ''}>Centred</option></select></label></div>
+        <div class="fb-row" style="margin-top:10px;"><label style="font-size:13px;font-weight:700;">🗺️ Map size <select id="dsMS"><option value="">Medium</option><option value="s" ${t.mapSize === 's' ? 'selected' : ''}>Small</option><option value="l" ${t.mapSize === 'l' ? 'selected' : ''}>Large</option><option value="off" ${t.mapSize === 'off' ? 'selected' : ''}>No map — just a link</option></select></label>
+          <label style="font-size:13px;font-weight:700;">Map position <select id="dsMP"><option value="">Under the place (top)</option><option value="bottom" ${t.mapPos === 'bottom' ? 'selected' : ''}>Very bottom of the page</option></select></label></div></div>
       <div class="fb-card"><strong>📄 Description</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">The words at the top of the page. Select text, then tap B, I, a colour…</p><textarea id="dsDesc" data-rich rows="6" maxlength="3000" placeholder="What the event is, what to bring, where to meet…">${escapeCm(st.desc)}</textarea></div>
       ${st.blocks.map(blockCard).join('')}
       <div class="fb-card"><strong>➕ Add to the page</strong><div class="fb-row">${CAL_BLOCK_TYPES.map(([k, l]) => `<button type="button" class="fb-mini dsAdd" data-t="${k}">${l}</button>`).join('')}<input type="file" id="dsPhotoIn" accept="image/*" multiple hidden></div></div>
@@ -7091,6 +7095,8 @@ function calDesigner(initial, opts, onDone){
     { const r = page.querySelector('#dsAccRm'); if(r) r.addEventListener('click', () => { delete st.theme.accent; paint(); }); }
     page.querySelector('#dsFont').addEventListener('change', e => { if(e.target.value) st.theme.font = e.target.value; else delete st.theme.font; });
     page.querySelector('#dsBg').addEventListener('change', e => { if(e.target.value) st.theme.bg = e.target.value; else delete st.theme.bg; });
+    page.querySelector('#dsMS').addEventListener('change', e => { if(e.target.value) st.theme.mapSize = e.target.value; else delete st.theme.mapSize; });
+    page.querySelector('#dsMP').addEventListener('change', e => { if(e.target.value) st.theme.mapPos = e.target.value; else delete st.theme.mapPos; });
     page.querySelector('#dsTA').addEventListener('change', e => { if(e.target.value) st.theme.titleAlign = e.target.value; else delete st.theme.titleAlign; });
     q('.dsF', el => el.addEventListener('input', () => { st.blocks[Number(el.dataset.i)][el.dataset.f] = el.value; }));
     q('.dsUp', b => b.addEventListener('click', () => { const i = Number(b.dataset.i); [st.blocks[i - 1], st.blocks[i]] = [st.blocks[i], st.blocks[i - 1]]; paint(); }));
@@ -7252,12 +7258,16 @@ function calPriceHtml(d, compact){
   return `<div class="calPrice" style="display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:${compact ? '0 0 10px' : '6px 0'};padding:9px 12px;border-radius:12px;background:#fdf0f2;border:2px solid #ce8491;"><span style="font-weight:800;color:#76220b;font-size:${compact ? '16' : '17'}px;">🎟️ ${amt ? 'Ticket price: ' + escapeCm(amt) : 'Optional extras'}</span>${ao.length ? `<span style="font-size:13px;color:#555;">${amt ? 'Optional extras: ' : ''}${ao.map(a => escapeCm(a.label) + ' +' + escapeCm(calMoney(Number(a.price) || 0, sym))).join(' · ')}</span>` : ''}</div>`;
 }
 // A pinned map on the event page: the pasted Google Maps link (exact spot), else the place text — embedded, plus an 'Open in Google Maps' link.
-function calMapHtml(d){
-  const map = safeMapUrl(d.mapUrl), q = String(d.place || '').trim();
+// bottom = true asks for the copy that sits at the very end of the page (only when the admin chose "very bottom"); otherwise the one under the place.
+function calMapHtml(d, bottom){
+  const t = d.theme || {}, map = safeMapUrl(d.mapUrl), q = String(d.place || '').trim();
   if(!map && !q) return '';
+  if((t.mapPos === 'bottom') !== !!bottom) return '';
+  const hgt = { s:130, m:230, l:340 }[t.mapSize] || 230;
   const src = ideaMapEmbedUrl({ mapUrl: map, title: q || d.title || '' });
   const open = map || ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q));
-  return `<div class="calMap" style="margin:8px 0;"><iframe title="Map of ${escapeCm(q || d.title || 'the event')}" src="${escapeCm(src)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" style="width:100%;height:230px;border:2px solid var(--brand-brown);border-radius:12px;display:block;"></iframe><a href="${escapeCm(open)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:4px;font-size:13px;font-weight:700;color:var(--brand-brown);">📍 Open in Google Maps ↗</a></div>`;
+  if(t.mapSize === 'off') return `<div class="calMap" style="margin:8px 0;"><a href="${escapeCm(open)}" target="_blank" rel="noopener" style="display:inline-block;font-size:14px;font-weight:700;color:var(--brand-brown);">📍 Open in Google Maps ↗</a></div>`;
+  return `<div class="calMap" style="margin:8px 0;"><iframe title="Map of ${escapeCm(q || d.title || 'the event')}" src="${escapeCm(src)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" style="width:100%;height:${hgt}px;border:2px solid var(--brand-brown);border-radius:12px;display:block;"></iframe><a href="${escapeCm(open)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:4px;font-size:13px;font-weight:700;color:var(--brand-brown);">📍 Open in Google Maps ↗</a></div>`;
 }
 // The description at the bottom of a form, and how to pay (the site shows it; it doesn't take the money itself).
 function calFormFooterHtml(form){ return form.footer ? `<div style="margin:10px 0 0;font-size:14px;color:#555;">${richHtml(form.footer)}</div>` : ''; }
@@ -11568,9 +11578,22 @@ function clubLinksHtml(){
   return `<div class="cp-box"><p class="ideas-hint" style="text-align:left;margin:0 0 8px;">The WhatsApp (or Instagram) link for each club. It goes into the “welcome” WhatsApp message as {link}. Leave empty to remove.</p>
     ${clubsData.map(c => `<div style="padding:8px 0;border-top:1px solid rgba(0,0,0,.1);"><strong>${c.emoji ? escapeCm(c.emoji) + ' ' : ''}${escapeCm(c.title)}</strong>
       <div class="fb-row" style="flex-wrap:nowrap;margin-top:4px;"><input type="url" class="cl-in" data-clid="${escapeCm(c.id)}" value="${escapeCm(c.signup || '')}" placeholder="https://chat.whatsapp.com/…" inputmode="url" autocapitalize="none" autocorrect="off" style="flex:1;min-width:0;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;"><button type="button" class="fb-mini cl-save" data-clid="${escapeCm(c.id)}">Save</button></div>
-      <div class="cl-msg" data-clid="${escapeCm(c.id)}" style="font-size:12px;min-height:14px;"></div></div>`).join('')}</div>`;
+      <div class="cl-msg" data-clid="${escapeCm(c.id)}" style="font-size:12px;min-height:14px;"></div>
+      <div class="fb-row" style="flex-wrap:nowrap;margin-top:2px;"><input type="text" class="cl-em" data-clid="${escapeCm(c.id)}" placeholder="📧 Leader email(s) — they're emailed about join requests" inputmode="email" autocapitalize="none" autocorrect="off" style="flex:1;min-width:0;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;"><button type="button" class="fb-mini cl-em-save" data-clid="${escapeCm(c.id)}">Save</button></div>
+      <div class="cl-em-msg" data-clid="${escapeCm(c.id)}" style="font-size:12px;min-height:14px;"></div></div>`).join('')}<p class="ideas-hint" style="text-align:left;margin:8px 0 0;">📧 Leader emails are private (only you can see them). Separate several with commas — up to 5 per club.</p></div>`;
 }
 function wireClubLinks(){
+  fetch('/api/admin/club-leader-emails', { credentials:'include', cache:'no-store' }).then(r => r.ok ? r.json() : {}).then(map => { document.querySelectorAll('.cl-em').forEach(i => { i.value = (map[i.dataset.clid] || []).join(', '); }); }).catch(() => {});
+  document.querySelectorAll('.cl-em-save').forEach(b => b.addEventListener('click', async () => {
+    const id = b.dataset.clid, inp = document.querySelector(`.cl-em[data-clid="${id}"]`), msg = document.querySelector(`.cl-em-msg[data-clid="${id}"]`);
+    b.disabled = true; msg.style.color = '#776867'; msg.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/admin/club-leader-emails/' + encodeURIComponent(id), { method:'PUT', headers:{ 'Content-Type':'application/json' }, credentials:'include', body: JSON.stringify({ emails: inp.value }) });
+      const j = await res.json().catch(() => ({})); if(!res.ok) throw new Error(j.error || 'Could not save');
+      inp.value = (j.emails || []).join(', '); msg.style.color = '#2a7a4a'; msg.textContent = (j.emails || []).length ? 'Saved ✓ — they will be emailed about join requests' : 'Emails removed ✓';
+    } catch(err){ msg.style.color = '#c00'; msg.textContent = err.message; }
+    b.disabled = false;
+  }));
   document.querySelectorAll('.cl-save').forEach(b => b.addEventListener('click', async () => {
     const id = b.dataset.clid, inp = document.querySelector(`.cl-in[data-clid="${id}"]`), msg = document.querySelector(`.cl-msg[data-clid="${id}"]`), v = inp.value.trim();
     if(v && !/^https:\/\//i.test(v)){ msg.style.color = '#c00'; msg.textContent = 'The link must start with https://'; return; }
