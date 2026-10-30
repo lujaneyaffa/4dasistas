@@ -1,4 +1,4 @@
-const CACHE_NAME = '4dasistas-v268';
+const CACHE_NAME = '4dasistas-v270';
 const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/app-icon.svg', '/assets/apple-touch-icon.png', '/assets/icon-192.png', '/assets/icon-512.png'];
 
 // Everything the app needs to open and show its content with no connection. Data files are added one by one so a missing
@@ -24,7 +24,9 @@ self.addEventListener('activate', event => {
 
 // Read-only API calls that are safe to show from the cache when offline. They are cached PER SIGN-IN (the key includes a hash
 // of the Authorization header), so one person's data can never be served to someone else who logs in on the same phone.
-const CACHEABLE_API = /^\/api\/(clubs|idea-availability|members|labels|avail-period)(\/|$)/;
+// Also 4DS events (list + each event page), your own account summary, the Home "Featured" picks, steps and badminton groups,
+// so the events you signed up for still open with no signal at the venue.
+const CACHEABLE_API = /^\/api\/(clubs|idea-availability|members|labels|avail-period|club-calendar|me|featured|steps\/public|bm\/leagues)(\/|$)/;
 async function apiCacheKey(request, url) {
   const auth = request.headers.get('Authorization') || '';
   let h = 'anon';

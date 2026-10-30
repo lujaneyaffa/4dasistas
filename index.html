@@ -40,8 +40,12 @@
 <link rel="apple-touch-icon" sizes="192x192" href="/assets/icon-192.png">
 <link rel="apple-touch-icon" sizes="512x512" href="/assets/icon-512.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/globe.gl"></script>
+<script>
+// Big map libraries load only when a map is actually opened (they used to block the first paint on every visit).
+const LIB_LEAFLET = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', LIB_GLOBE = 'https://unpkg.com/globe.gl';
+const _libs = {};
+function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = url; sc.async = true; sc.onload = ok; sc.onerror = () => { delete _libs[url]; no(new Error('Could not load the map')); }; document.head.appendChild(sc); }); }
+</script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Amiri:wght@700&family=Aref+Ruqaa:wght@700&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap');
 
@@ -2416,6 +2420,7 @@ function spreadTripPoints(points){
 }
 
 function renderTripEarthView(targetId='calendar-view', mapId='tripEarthMap', selectedItems=itemsForCategory('trips'), replaceTarget=true){
+  if(typeof Globe === 'undefined'){ const el = document.getElementById(targetId); if(el && replaceTarget) el.innerHTML = '<p class="av-msg" style="text-align:center;">Loading the globe…</p>'; loadLib(LIB_GLOBE).then(() => renderTripEarthView(targetId, mapId, selectedItems, replaceTarget)).catch(() => { if(el) el.innerHTML = '<p class="av-msg" style="text-align:center;">The globe could not load. Check your connection.</p>'; }); return; }
   const el = document.getElementById(targetId);
   if(replaceTarget) el.innerHTML = `<div id="${mapId}" class="calendar-map">
     <div class="trip-preview-popup" id="tripPreviewPopup" style="display:none;">
@@ -2907,6 +2912,40 @@ function resourceAddrHtml(r){
   return r.location ? `<div class="panel-addr">📍 ${r.location}${r.date ? ' · ' + r.date : ''}</div>` : '<div class="panel-addr">Location not provided</div>';
 }
 
+// 💗 Business reviews: members rate a business (1–5 hearts + a comment). Summary on each card, full list in a pop-up.
+function bizRevLoad(){
+  if(state.bizRevLoading) return; state.bizRevLoading = true;
+  fetch('/api/biz-reviews', { cache:'no-store' }).then(r => r.json()).then(j => { state.bizRevLoading = false; state.bizRev = j.summary || {}; if(state.tab === 'resources') renderResourceList(); }).catch(() => { state.bizRevLoading = false; state.bizRev = {}; });
+}
+function bizRevRowHtml(r){
+  if(!state.bizRev) bizRevLoad();
+  const x = (state.bizRev || {})[String(r.id)];
+  return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0;"><button type="button" class="biz-rv-open" data-bizid="${escapeCm(String(r.id))}" data-biztitle="${escapeCm(r.title)}" style="border:none;background:rgba(206,132,145,.15);border-radius:999px;padding:6px 12px;font:700 13px Outfit,system-ui,sans-serif;color:#76220b;cursor:pointer;">${x ? `💗 ${x.avg} · ${x.n} review${x.n === 1 ? '' : 's'}` : '💗 Be the first to review'}</button></div>`;
+}
+async function openBizReviews(id, title){
+  const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 2px;text-align:center;">💗 ${escapeCm(title)}</h3><p class="ideas-hint" style="text-align:center;margin:0 0 8px;">What sisters say about it</p><div id="brList"><p class="av-msg">Loading…</p></div><div id="brForm" style="margin-top:12px;border-top:2px dashed #f2d8d7;padding-top:10px;"></div>`);
+  const sess = getCmSession(), admin = state.cmAdminLoggedIn === true;
+  let list = [];
+  try { list = (await (await fetch('/api/biz-reviews/' + encodeURIComponent(id), { headers: sess ? ideaHeaders() : {}, credentials:'include', cache:'no-store' })).json()).reviews || []; } catch {}
+  const hearts = n => '💗'.repeat(n) + '🤍'.repeat(5 - n);
+  wrap.querySelector('#brList').innerHTML = list.length ? list.map(x => `<div style="padding:8px 0;border-top:1px solid rgba(0,0,0,.08);"><div style="display:flex;justify-content:space-between;gap:8px;"><b>${escapeCm(x.who)}${x.mine ? ' (you)' : ''}</b><span>${hearts(x.rating)}</span></div>${x.comment ? `<div style="font-size:14px;white-space:pre-wrap;margin-top:2px;">${escapeCm(x.comment)}</div>` : ''}${admin && x.uid ? `<button type="button" class="fb-mini br-del" data-uid="${escapeCm(x.uid)}" style="margin-top:4px;color:#b3261e;">Remove</button>` : ''}</div>`).join('') : '<p class="av-msg" style="text-align:center;">No reviews yet.</p>';
+  wrap.querySelectorAll('.br-del').forEach(b => b.addEventListener('click', async () => { if(!confirm('Remove this review?')) return; await fetch('/api/admin/biz-reviews/' + encodeURIComponent(id) + '/' + encodeURIComponent(b.dataset.uid), { method:'DELETE', credentials:'include' }); close(); state.bizRev = null; bizRevLoad(); openBizReviews(id, title); }));
+  const form = wrap.querySelector('#brForm');
+  if(!sess){ form.innerHTML = '<p class="ideas-hint" style="text-align:center;margin:0;">Log in to leave a review.</p>'; return; }
+  const mine = list.find(x => x.mine); let rating = mine ? mine.rating : 0;
+  form.innerHTML = `<p style="margin:0 0 4px;font-weight:700;text-align:center;">${mine ? 'Change your review' : 'Been here? Leave a review'}</p><div style="display:flex;justify-content:center;gap:6px;margin:4px 0 8px;">${[1, 2, 3, 4, 5].map(n => `<button type="button" class="br-h" data-n="${n}" aria-label="${n} heart${n > 1 ? 's' : ''}" style="border:none;background:none;font-size:30px;cursor:pointer;padding:0 2px;"></button>`).join('')}</div>
+    <textarea id="brText" rows="3" maxlength="400" placeholder="What did you love? (optional)" style="width:100%;box-sizing:border-box;padding:10px;border-radius:14px;border:2px solid #ce8491;font:inherit;font-size:16px;">${escapeCm(mine ? mine.comment : '')}</textarea>
+    <div id="brMsg" style="min-height:18px;font-size:13px;color:#c00;text-align:center;margin:4px 0;"></div><button type="button" id="brSend" class="club-guide-btn" style="width:100%;min-height:46px;background:#ce8491;color:#fff;">Post my review 💌</button>`;
+  const paint = () => form.querySelectorAll('.br-h').forEach(h => { h.textContent = Number(h.dataset.n) <= rating ? '💗' : '🤍'; });
+  paint(); form.querySelectorAll('.br-h').forEach(h => h.addEventListener('click', () => { rating = Number(h.dataset.n); paint(); }));
+  form.querySelector('#brSend').addEventListener('click', async e => {
+    const m = form.querySelector('#brMsg'); if(!rating){ m.textContent = 'Tap the hearts first 💗'; return; }
+    e.target.disabled = true;
+    try { const r = await fetch('/api/biz-reviews/' + encodeURIComponent(id), { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ rating, comment: form.querySelector('#brText').value }) }); const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || 'Could not post'); close(); admToastLite('Thank you! 💗'); state.bizRev = null; state.bizRevLoading = false; bizRevLoad(); }
+    catch(err){ m.textContent = err.message; e.target.disabled = false; }
+  });
+}
+document.addEventListener('click', e => { const b = e.target.closest('.biz-rv-open'); if(b) openBizReviews(b.dataset.bizid, b.dataset.biztitle); });
 function renderResourceList(){
   const el = document.getElementById('directory-view');
   const pagEl = document.getElementById('resourcePagination');
@@ -2934,6 +2973,7 @@ function renderResourceList(){
       ${r.ownedBy && ['cafes','restaurants','shops'].includes(r.category) ? `<div class="resource-owner"><strong>Owner:</strong> ${r.ownedBy}</div>` : r.ownedBy ? `<div class="owned-badge">${r.ownedBy}</div>` : ''}
       ${isMentalHealth ? `<div class="panel-desc mental-health-desc" id="mental-desc-${r.id}">${r.desc}</div><button type="button" class="link-btn secondary mental-health-more" data-reveal-resource="mental-desc-${r.id}">Learn More</button>` : `<div class="panel-desc">${r.desc}</div>`}
       ${resourceAddrHtml(r)}
+      ${isSmallBiz || ['cafes','restaurants','shops'].includes(r.category) ? bizRevRowHtml(r) : ''}
       <div class="panel-links">
         ${r.link ? `<a class="link-btn secondary" href="${escapeCm(r.link)}" target="_blank" rel="noopener">More Info</a>` : ''}
         ${r.mapsUrl ? `<a class="link-btn secondary" href="${r.mapsUrl}" target="_blank" rel="noopener">View on Google Maps</a>` : ''}
@@ -2965,6 +3005,7 @@ function renderResourceList(){
 }
 
 function renderResourceMap(){
+  if(typeof L === 'undefined'){ loadLib(LIB_LEAFLET).then(() => { if(state.tab === 'resources') renderResourceMap(); }).catch(() => {}); return; }
   const el = document.getElementById('directory-view');
   const legendItems = resourceFilterList.filter(f => f.key !== 'all');
   el.innerHTML = `${resAddBtnHtml()}<div class="resource-map-wrapper">
@@ -7568,7 +7609,8 @@ function clubCalLocationMap(ev, field, responses){
     <div style="max-height:26vh;overflow:auto;margin-top:8px;">${rows.map(r => `<div style="padding:5px 0;border-top:1px solid rgba(0,0,0,.1);font-size:14px;"><strong>${escapeCm(r.name)}</strong><br><span style="color:#555;">📍 ${escapeCm(r.answers[field.id].address)}</span> <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.answers[field.id].lat != null ? r.answers[field.id].lat + ',' + r.answers[field.id].lng : r.answers[field.id].address)}" target="_blank" rel="noopener" style="font-size:12px;">open ↗</a></div>`).join('') || '<p class="av-msg">No locations yet.</p>'}</div>`);
   const card = wrap.querySelector('.idea-pop-card'); if(card) card.style.cssText += ';max-width:min(560px,94vw);width:min(560px,94vw);';
   setTimeout(() => {
-    const el = wrap.querySelector('#clMap'); if(!el || typeof L === 'undefined') return;
+    const el = wrap.querySelector('#clMap'); if(!el) return;
+    if(typeof L === 'undefined'){ loadLib(LIB_LEAFLET).then(() => clubCalLocationMap(ev, field, responses)).then(() => wrap.remove()).catch(() => {}); return; }
     const map = L.map(el, { scrollWheelZoom:false }).setView([56.1, -96.0], 4);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:18, attribution:'© OpenStreetMap' }).addTo(map);
     const group = pins.map(r => L.marker([r.answers[field.id].lat, r.answers[field.id].lng]).addTo(map).bindPopup(`<strong>${escapeCm(r.name)}</strong><br>${escapeCm(r.answers[field.id].address)}`));
@@ -8121,7 +8163,9 @@ async function refreshMe(){
     const cur = getCmSession();
     if(!cur || cur.token !== session.token){ state.meLoading = false; return; }
     state.myPending = me.pending || [];
-    state.pushRegistered = !!me.push; state.notifOff = me.notifOff || [];
+    state.pushRegistered = !!me.push; state.notifOff = me.notifOff || []; state.meInvited = me.invited || 0;
+    // 💌 came through someone's invite link? Credit them once (the server only accepts it for a brand-new account).
+    try { const ref = localStorage.getItem('inviteRef'); if(ref){ localStorage.removeItem('inviteRef'); if(ref !== session.username) cmApiRaw('/api/me/referred-by', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.token }, body: JSON.stringify({ ref }) }).catch(() => {}); } } catch {}
     state.phoneConfirmed = !!me.phoneConfirmed; state.myPhone = me.phone || '';
     state.stayDue = !!(me.stayClubs && me.stayClubs.length && !me.stayDone);
     setCmSession(Object.assign({}, cur, { clubs: me.clubs || [], waitlist: me.waitlist || [] }));
@@ -8246,7 +8290,7 @@ function openSettingsPopup(){
     const denied = Notification.permission === 'denied', on = state.pushRegistered && Notification.permission === 'granted';
     box.innerHTML = `<p style="margin:0 0 8px;">${on ? '✅ Notifications are <strong>on</strong> for this account.' : denied ? '🚫 Notifications are blocked in your browser settings — allow them there, then come back.' : '🔕 Notifications are <strong>off</strong>.'}</p>
       ${denied ? '' : `<button type="button" id="stNotifBtn" style="${pill}">${on ? '🔕 Turn notifications off' : '🔔 Turn notifications on'}</button>`}<div id="stNotifMsg" style="font-size:13px;min-height:18px;margin-top:4px;color:#c00;"></div>`;
-    const CATS = [['reminders', '⏰ Availability reminders'], ['announcements', '📣 Announcements (new availability period, news)'], ['clubs', '🏛️ Club updates (requests approved or declined)'], ['events', '📅 New club events'], ['steps', '👟 Steps challenge updates'], ['badminton', '🏸 Badminton news']];
+    const CATS = [['reminders', '⏰ Availability reminders'], ['eventreminders', '🔔 Reminders for events you signed up for'], ['announcements', '📣 Announcements (new availability period, news)'], ['clubs', '🏛️ Club updates (requests approved or declined)'], ['events', '📅 New club events'], ['steps', '👟 Steps challenge updates'], ['badminton', '🏸 Badminton news']];
     const offSet = new Set(state.notifOff || []);
     box.insertAdjacentHTML('beforeend', `<p class="ideas-hint" style="text-align:left;margin:12px 0 4px;">Choose what you hear about:</p>${CATS.map(([k, l]) => `<label style="display:flex;align-items:center;gap:10px;padding:7px 0;font-size:14px;"><input type="checkbox" class="stCat" data-cat="${k}" ${offSet.has(k) ? '' : 'checked'} style="width:20px;height:20px;"> ${l}</label>`).join('')}<div id="stCatMsg" style="font-size:12px;min-height:16px;color:#2a7a4a;"></div>`);
     box.querySelectorAll('.stCat').forEach(c => c.addEventListener('change', async () => {
@@ -8746,6 +8790,39 @@ function placeSearchBar(){
 }
 
 // ---- Profile tab (like WhatsApp / Instagram): who you are, your settings, your activity, and everything that used to live in the menu ----
+// 💌 Invite a sister + 🏅 badges & streak on the profile page.
+try { const m = location.search.match(/[?&]ref=([a-z0-9._-]{2,60})/i); if(m && !getCmSession()) localStorage.setItem('inviteRef', m[1].toLowerCase()); } catch {}
+function profileInviteHtml(sess){
+  const n = state.meInvited || 0;
+  return `<div class="pf-card" style="padding:14px;text-align:center;"><div style="font-size:26px;">💌</div><b>Invite a sister</b><p class="ideas-hint" style="margin:4px 0 10px;">Share your own link. When a friend joins through it, it counts for you.</p>
+    <button type="button" class="club-guide-btn" id="pfInvite" style="width:100%;min-height:46px;background:#ce8491;color:#fff;text-align:center;">Share my invite link</button>
+    <p style="margin:8px 0 0;font-size:14px;">${n ? `You've brought <b>${n}</b> sister${n === 1 ? '' : 's'} 🎉` : 'No one yet — be the first to bring a friend!'}</p></div>`;
+}
+document.addEventListener('click', async e => {
+  if(!e.target.closest('#pfInvite')) return; const sess = getCmSession(); if(!sess) return;
+  const url = 'https://4dasistas.ca/?ref=' + encodeURIComponent(sess.username), text = 'Join me on 4DS 🌸 — events, clubs and sisters in the GTA:';
+  try { if(navigator.share){ await navigator.share({ title:'4DS', text, url }); return; } } catch(err){ if(err && err.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(text + ' ' + url); admToastLite('✓ Link copied — paste it to a friend'); } catch { prompt('Copy your invite link:', url); }
+});
+const PF_BADGES = [
+  ['first', '🌱', 'First event', a => a.events >= 1], ['regular', '⭐', '5 events', a => a.events >= 5], ['super', '🌟', '10 events', a => a.events >= 10], ['legend', '👑', '25 events', a => a.events >= 25],
+  ['streak3', '🔥', '3-week streak', a => a.bestStreak >= 3], ['connector', '💌', 'Brought a sister', a => a.invited >= 1], ['ambassador', '🏵️', 'Brought 5 sisters', a => a.invited >= 5],
+  ['clubs3', '🏛️', 'In 3 clubs', a => a.clubs >= 3], ['stepper', '👟', 'Steps challenge', a => a.steps]
+];
+function profileBadgesHtml(sess){
+  if(!state.meAttended && !state.meAttLoading){ state.meAttLoading = true; cmApiRaw('/api/me/attended', { headers: ideaHeaders(), cache:'no-store' }).then(d => { state.meAttended = d.activities || []; }).catch(() => { state.meAttended = []; }).then(() => { state.meAttLoading = false; if(state.tab === 'profile') render(); }); }
+  const acts = state.meAttended || [];
+  // streak = weeks in a row (Mon–Sun) with at least one activity, counting back from this week or last week
+  const wk = d => { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x.toLocaleDateString('en-CA'); };
+  const weeks = [...new Set(acts.map(a => wk(a.date)))].sort().reverse();
+  const prevWk = w => { const x = new Date(w + 'T12:00:00'); x.setDate(x.getDate() - 7); return x.toLocaleDateString('en-CA'); };
+  let streak = 0; { let cur = wk(new Date().toLocaleDateString('en-CA')); if(!weeks.includes(cur)) cur = prevWk(cur); while(weeks.includes(cur)){ streak++; cur = prevWk(cur); } }
+  let best = 0; { let run = 0, last = null; weeks.slice().reverse().forEach(w => { run = last && prevWk(w) === last ? run + 1 : 1; last = w; best = Math.max(best, run); }); }
+  const a = { events: acts.length, bestStreak: best, invited: state.meInvited || 0, clubs: (sess.clubs || []).length, steps: !!(state.lbSteps && state.lbSteps.mine && state.lbSteps.mine.joined) };
+  const got = PF_BADGES.filter(b => b[3](a)), next = PF_BADGES.find(b => !b[3](a));
+  return `<div class="pf-card" style="padding:14px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><b>🏅 My badges</b><span style="font-weight:800;color:#76220b;">${streak ? `🔥 ${streak}-week streak` : '<span style="font-weight:400;color:#776867;font-size:13px;">Come to an event this week to start a streak</span>'}</span></div>
+    ${state.meAttended ? `<div style="display:flex;flex-wrap:wrap;gap:8px;">${got.length ? got.map(b => `<span title="${escapeCm(b[2])}" style="display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:999px;background:#fef7f4;border:2px solid #f2d8d7;font-size:13px;font-weight:700;">${b[1]} ${escapeCm(b[2])}</span>`).join('') : '<span class="ideas-hint">Your first badge comes with your first event 🌱</span>'}</div>${next ? `<p class="ideas-hint" style="text-align:left;margin:8px 0 0;">Next: ${next[1]} ${escapeCm(next[2])}</p>` : ''}` : '<p class="av-msg" style="margin:0;">Loading…</p>'}</div>`;
+}
 function profileStatsHtml(sess){
   if(!state.lbSteps && !state.profStepsLoading){ state.profStepsLoading = true; cmApiRaw('/api/me/steps', { headers: ideaHeaders(), cache:'no-store' }).then(d => { state.lbSteps = d; }).catch(() => {}).then(() => { state.profStepsLoading = false; if(state.tab === 'profile') render(); }); }
   const m = state.lbSteps && state.lbSteps.mine, cell = (n, l) => `<div style="flex:1;text-align:center;"><div style="font-size:22px;font-weight:800;color:#76220b;">${n}</div><small style="color:#5b4d4b;">${l}</small></div>`;
@@ -8759,7 +8836,7 @@ function profilePageHtml(){
     : `<div style="text-align:center;padding:14px 0;"><div style="font-size:46px;">👤</div><h2 style="margin:6px 0;">Your profile</h2><p class="ideas-hint">Log in to see your clubs, activity and settings.</p><button type="button" class="club-guide-btn" data-pf="login" style="background:var(--brand-rose);color:#fff;min-height:48px;width:min(280px,100%);">Log in</button><br><button type="button" class="club-guide-btn" data-pf="signup" style="min-height:48px;width:min(280px,100%);margin-top:8px;">Sign up</button></div>`;
   const warn = staff ? `<div class="av-waitlist" style="margin:0 0 12px;text-align:center;">⚠️ You're currently logged in as ${staff}</div>` : '';
   return `<div class="pf-wrap" style="max-width:560px;margin:0 auto;padding:6px 4px 24px;"><div class="pf-head">${head}</div><div class="pf-body">${warn}
-    ${sess ? profileStatsHtml(sess) : ''}
+    ${sess ? profileStatsHtml(sess) + profileBadgesHtml(sess) + profileInviteHtml(sess) : ''}
     ${sess ? `<div class="pf-card">${row('settings', '⚙️', 'Settings &amp; profile')}${row('attended', '🏅', 'Activities I attended')}${row('steps', '👟', 'Steps challenge')}${row('badminton', '🏸', 'Badminton')}${row('clubs', '🏛️', '4DS Clubs')}</div>` : `<div class="pf-card">${row('clubs', '🏛️', '4DS Clubs')}</div>`}
     <div class="pf-card">${row('contribute', '➕', 'Contribute (event or resource)')}${row('whatsnew', '✨', "What's new")}${row('about', 'ℹ️', 'About 4DS')}${row('privacy', '📄', 'Privacy &amp; help')}</div>
     ${staff ? `<div class="pf-card">${row('adminpage', '🛠', 'Admin page')}${row('preview', '👁', 'Preview as a member')}${row(state.cmAdminLoggedIn === true ? 'adminout' : 'leadout', '🚪', 'Log out of ' + (state.cmAdminLoggedIn === true ? 'admin' : 'club admin'))}</div>` : ''}

@@ -629,7 +629,7 @@ const createMemberFromForm = async (env, ctx, ip, input) => {
 };
 // People search (to sign in from a form): first name + last initial only, ≥3 letters, rate-limited, cached.
 let _memberSearchCache = null;
-const NOTIF_CATS = ["reminders", "announcements", "clubs", "events", "steps", "badminton"];
+const NOTIF_CATS = ["reminders", "eventreminders", "announcements", "clubs", "events", "steps", "badminton"];
 // ---- Apple push (APNs) for the native iPhone app. Needs secrets APNS_KEY (the .p8 text), APNS_KEY_ID, APNS_TEAM_ID. The app's bundle id is the "topic". ----
 const APNS_TOPIC = "4DS";
 const _apnsJwt = { production: { at: 0, jwt: "" }, sandbox: { at: 0, jwt: "" } };
@@ -1634,26 +1634,32 @@ const calPromote = async (env, ctx, evId) => {
   } catch (e) { console.error("calPromote failed", String(e && e.message)); }
 };
 const calAfterRemoval = async (env, ctx, evId, pid) => { await calReleaseSpot(env, evId, pid); await calPromote(env, ctx, evId); };
-// Automatic reminders (run from the hourly cron, Toronto 8am–8pm): 2 days before and the morning of, to everyone going who has the app/push on.
+// Automatic reminders (run from the hourly cron): 2 days before and the morning of (Toronto 8am–8pm), plus ~2 hours before the start
+// when the event has a time like "6:30 PM" — to everyone going who has the app/push on.
 // A few people per run (each push costs several subrequests) with progress kept in KV, so a big event is covered within a few hours.
 const calSendReminders = async (env, ctx) => {
   const hr = Number(new Date().toLocaleString("en-CA", { timeZone: "America/Toronto", hour: "2-digit", hour12: false })) % 24;
-  if (hr < 8 || hr >= 20) return;
+  const daytime = hr >= 8 && hr < 20;
+  const nowMin = hr * 60 + Number(new Date().toLocaleString("en-CA", { timeZone: "America/Toronto", minute: "2-digit" }));
+  const startMin = (t) => { const m = String(t || "").match(/(\d{1,2})(?::(\d{2}))?\s*(a\.?m|p\.?m)?/i); if (!m) return null; let h = Number(m[1]) % 12; const ap = (m[3] || "").toLowerCase(); if (ap.startsWith("p") || (!ap && h >= 1 && h < 8)) h += 12; return h * 60 + Number(m[2] || 0); };
   const todayT = new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
   const soonT = new Date(Date.parse(todayT + "T12:00:00Z") + 2 * 86400000).toISOString().slice(0, 10);
   let budget = 10;
   for (const ev of await readClubCal(env)) {
     if (budget <= 0) break;
     if (ev.tbd || !ev.date || (ev.date !== todayT && ev.date !== soonT)) continue;
-    const kind = ev.date === todayT ? "day" : "soon", key = `evrem:${ev.id}:${kind}`;
+    const sm = ev.date === todayT ? startMin(ev.time) : null, hoursSoon = sm != null && nowMin > sm - 150 && nowMin <= sm - 45;
+    if (!daytime && !hoursSoon) continue;
+    const kind = hoursSoon ? "hours" : ev.date === todayT ? "day" : "soon", key = `evrem:${ev.id}:${kind}`;
     let st = {}; try { st = JSON.parse((await env.SITE_DATA.get(key)) || "{}") || {}; } catch {}
     if (st.done) continue;
+    if (kind === "day" && sm != null && nowMin > sm - 150) continue; // too close to the start: the "starting soon" one covers it
     const sent = new Set(st.sent || []);
     const todo = (ev.rsvps || []).filter((r) => r.status === "going" && !String(r.id).startsWith("g:") && !sent.has(r.id)).slice(0, budget);
     for (const r of todo) {
       const owes = ev.form && ev.form.payment && !r.paid;
       const when = kind === "day" ? "today" : "in 2 days";
-      try { await sendPushToUser(env, r.id, { title: kind === "day" ? `Today: ${ev.title} 🎉` : `${ev.title} is ${when}`, body: [ev.time ? `⏰ ${ev.time}` : "", ev.place ? `📍 ${ev.place}` : "", owes ? "💳 Don't forget to pay — details on the event page" : ""].filter(Boolean).join(" · ") || "Tap for the details", url: `/#/form/${ev.slug || ev.id}`, cat: "events" }); } catch {}
+      try { await sendPushToUser(env, r.id, { cat: "eventreminders", title: kind === "hours" ? `Starting soon: ${ev.title} ⏰` : kind === "day" ? `Today: ${ev.title} 🎉` : `${ev.title} is ${when}`, body: [ev.time ? `⏰ ${ev.time}` : "", ev.place ? `📍 ${ev.place}` : "", owes ? "💳 Don't forget to pay — details on the event page" : ""].filter(Boolean).join(" · ") || "Tap for the details", url: `/#/form/${ev.slug || ev.id}`, cat: "events" }); } catch {}
       sent.add(r.id); budget--;
     }
     const left = (ev.rsvps || []).filter((r) => r.status === "going" && !String(r.id).startsWith("g:") && !sent.has(r.id)).length;
@@ -2873,6 +2879,38 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       notifyAdminOfEventSuggestion(env, ctx, sug);
       return jsonResponse({ ok: true }, 201, corsHeaders);
     }
+    // ---- Business reviews in the Directory: signed-in members rate a business 1–5 hearts (+ optional comment). Public summary + list. ----
+    if (path.startsWith("/api/biz-reviews") || path.startsWith("/api/admin/biz-reviews")) {
+      if (!env.DB) return jsonResponse({ error: "Not available" }, 503, corsHeaders);
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS biz_reviews (user_id TEXT NOT NULL, biz_id TEXT NOT NULL, rating INTEGER NOT NULL, comment TEXT, at INTEGER, PRIMARY KEY (user_id, biz_id))").run();
+      if (path === "/api/biz-reviews" && request.method === "GET") {
+        const rows = (await env.DB.prepare("SELECT biz_id, AVG(rating) AS avg, COUNT(*) AS n FROM biz_reviews GROUP BY biz_id").all()).results || [];
+        const summary = {}; for (const r of rows) summary[r.biz_id] = { avg: Math.round(r.avg * 10) / 10, n: r.n };
+        return jsonResponse({ summary }, 200, { ...corsHeaders, "Cache-Control": "public, max-age=60" });
+      }
+      const one = path.match(/^\/api\/biz-reviews\/([^/]+)\/?$/);
+      if (one && request.method === "GET") {
+        const id = decodeURIComponent(one[1]).slice(0, 120), me = await memberIdFromRequest();
+        const rows = (await env.DB.prepare("SELECT user_id, rating, comment, at FROM biz_reviews WHERE biz_id = ? ORDER BY at DESC LIMIT 60").bind(id).all()).results || [];
+        const out = []; for (const r of rows) { const u = await readUser(env, r.user_id); const parts = String((u && u.name) || "Member").trim().split(/\s+/); out.push({ who: parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : parts[0], rating: r.rating, comment: r.comment || "", at: r.at, mine: !!me && r.user_id === me, uid: (await isAdminRequest(env, request)) ? r.user_id : undefined }); }
+        return jsonResponse({ reviews: out }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      }
+      if (one && request.method === "POST") {
+        const me = await memberIdFromRequest(); if (!me) return jsonResponse({ error: "Please log in to leave a review" }, 401, corsHeaders);
+        let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+        const rating = Math.round(Number(b.rating)); if (!(rating >= 1 && rating <= 5)) return jsonResponse({ error: "Tap the hearts to rate it" }, 400, corsHeaders);
+        const comment = String(b.comment || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 400);
+        await env.DB.prepare("INSERT OR REPLACE INTO biz_reviews (user_id, biz_id, rating, comment, at) VALUES (?, ?, ?, ?, ?)").bind(me, decodeURIComponent(one[1]).slice(0, 120), rating, comment, Date.now()).run();
+        return jsonResponse({ ok: true }, 200, corsHeaders);
+      }
+      const del = path.match(/^\/api\/admin\/biz-reviews\/([^/]+)\/([^/]+)\/?$/);
+      if (del && request.method === "DELETE") {
+        if (!(await isAdminRequest(env, request))) return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
+        await env.DB.prepare("DELETE FROM biz_reviews WHERE biz_id = ? AND user_id = ?").bind(decodeURIComponent(del[1]), decodeURIComponent(del[2])).run();
+        return jsonResponse({ ok: true }, 200, corsHeaders);
+      }
+      return jsonResponse({ error: "Not found" }, 404, corsHeaders);
+    }
     // ---- Public: anyone can suggest a resource (title, type, Instagram/WhatsApp link, city or Virtual). Stored for the admin + emailed. ----
     if (path === "/api/resource-suggestions" && request.method === "POST") {
       let body;
@@ -2942,6 +2980,20 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse(msg || { title: "4DASISTAS", body: "You have a new update — tap to open.", url: "/" }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     // Fresh membership + pending requests for the signed-in person (the cached session goes stale once an admin approves).
+    // 💌 Invite a sister: a new account (made in the last 2 hours) that arrived through someone's ?ref=<username> link is credited to them once.
+    if (path === "/api/me/referred-by" && request.method === "POST") {
+      const meId = await memberIdFromRequest(); const me = meId ? await readUser(env, meId) : null;
+      if (!me) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      if (me.referredBy || !me.createdAt || Date.now() - me.createdAt > 2 * 3600000) return jsonResponse({ ok: false }, 200, corsHeaders);
+      const refId = await findUserIdByUsername(env, String(b.ref || "").toLowerCase().slice(0, 60));
+      if (!refId || refId === me.id) return jsonResponse({ ok: false }, 200, corsHeaders);
+      const ref = await readUser(env, refId); if (!ref) return jsonResponse({ ok: false }, 200, corsHeaders);
+      me.referredBy = refId; await writeUser(env, me);
+      ref.invitedIds = [...new Set([...(Array.isArray(ref.invitedIds) ? ref.invitedIds : []), me.id])].slice(-500); await writeUser(env, ref);
+      ctx.waitUntil(sendPushToUser(env, refId, { title: "Your invite worked! 💌", body: `${String(me.name || "Someone").split(/\s+/)[0]} just joined 4DS through your link. You've brought ${ref.invitedIds.length} sister${ref.invitedIds.length === 1 ? "" : "s"}!`, url: "/#/profile" }).catch(() => {}));
+      return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
     if (path === "/api/me" && request.method === "GET") {
       const meId = await memberIdFromRequest();
       const me = meId ? await readUser(env, meId) : null;
@@ -2951,7 +3003,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const clubs = await allClubIdsContaining(env, me.id);
       let notices = [];
       try { notices = JSON.parse((await env.SITE_DATA.get(`notice:${me.id}`)) || "[]"); } catch {}
-      return jsonResponse({ ...publicUser(me), clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs), notices, push: (await readPushSubs(env, me.id)).length > 0, notifOff: Array.isArray(me.notifOff) ? me.notifOff : [], phone: me.phone || "", phoneConfirmed: !!(me.phoneConfirmedAt || me.phone), ...(await (async () => {
+      return jsonResponse({ ...publicUser(me), invited: Array.isArray(me.invitedIds) ? me.invitedIds.length : 0, clubs, pending: await pendingClubIdsFor(env, me.id), waitlist: visibleWaitlist(me, clubs), notices, push: (await readPushSubs(env, me.id)).length > 0, notifOff: Array.isArray(me.notifOff) ? me.notifOff : [], phone: me.phone || "", phoneConfirmed: !!(me.phoneConfirmedAt || me.phone), ...(await (async () => {
         // Squads became clubs: which of the four new clubs this person was in as a squad, and whether they've confirmed yet (the /stay page)
         return { stayClubs: await legacySquadClubsOf(env, me.id), stayDone: !!me.stayConfirmedAt };
       })()) }, 200, corsHeaders);

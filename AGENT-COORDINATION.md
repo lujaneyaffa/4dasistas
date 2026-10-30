@@ -1381,3 +1381,10 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - Worker: GET /api/bm/leagues (public), GET/PUT /api/admin/badminton/leagues; bmKioskLeague(); kiosk RPCs require the password's group to match p_league and tag attendance/games with `league` (attendance id suffix :<league>); bm/q inserts accept `league` (attendance id suffixed).
 - badminton.html: `?league=<id>` → sync XHR of leagues at start; LG (times/place), SEASON_DATES from group dates; games/attendance/past filtered by league (untagged = main); writes tagged; RSVPs main only; group switcher chips + place/day/time line; kiosk password stored per group (KIOSK_STORE suffix). lb frame posts {league,name}.
 - index.html: Admin → Badminton → 🏆 Leaderboards editor (bmLeaguesMount); Leaderboards tab shows one podium per group (one hidden lb frame per group, cache lbBmCacheAll).
+
+## 2026-10-30 — sw v269
+- Event reminders: + "Starting soon" push ~1–2.5 h before events whose time parses (e.g. "6:30 PM"); new notification category `eventreminders` (Settings switch "🔔 Reminders for events you signed up for").
+- Offline: service worker now also caches (per sign-in) GET /api/club-calendar, /api/me*, /api/featured, /api/steps/public, /api/bm/leagues.
+- Directory business reviews: D1 `biz_reviews` (user_id, biz_id, rating, comment, at); GET /api/biz-reviews (summary), GET/POST /api/biz-reviews/:id, DELETE /api/admin/biz-reviews/:id/:uid. Cards (cafes/restaurants/shops + small-biz filters) show "💗 4.6 · 3 reviews"; pop-up lists reviews + member form; admin can remove.
+- Invite a sister: ?ref=<username> saved before sign-in; after /api/me loads, POST /api/me/referred-by credits referrer once (account must be <2 h old); referrer gets a push; /api/me returns `invited`. Profile: invite card (share/copy link) + 🏅 badges (events 1/5/10/25, 3-week streak, invites 1/5, 3 clubs, steps) and current weekly streak from /api/me/attended.
+- Faster first load: leaflet.js and globe.gl no longer render-blocking; loaded on demand via loadLib() in renderTripEarthView / renderResourceMap / clubCalLocationMap.
