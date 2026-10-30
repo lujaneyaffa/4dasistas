@@ -6665,6 +6665,8 @@ async function clubCalMemberCard(box, id){
       syncCancel();
       wireCalAddons(formBox, d.form); calMountLocations(formBox);
       formBox.addEventListener('click', async ev2 => { // "I've sent my payment"
+        const sb = ev2.target.closest('.calStripeBtn');
+        if(sb){ sb.disabled = true; sb.textContent = 'Opening secure payment…'; try { const j = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/checkout', { method:'POST', headers: ideaHeaders() }); if(j && j.url){ location.href = j.url; return; } throw new Error('No payment page'); } catch(err){ sb.disabled = false; sb.textContent = '💳 Pay by card · Apple Pay · Google Pay'; admToastLite(err.message); } return; }
         const pb2 = ev2.target.closest('.calPaidBtn'); if(!pb2) return; // the link itself opens WhatsApp; we also record the claim
         try { await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/paid', { method:'POST', headers: ideaHeaders() }); d.claimedPaid = true; formBox.querySelector('.calPayBox').innerHTML = calPayBoxHtml(d); admToastLite('✓ Thanks — the organiser will confirm'); }
         catch(err){ admToastLite(err.message); }
@@ -6856,7 +6858,9 @@ function calPaidWaLink(d, cls, label, extra){
 }
 function calPayBoxHtml(d){
   if(!d.form || !d.form.payment || d.mine !== 'going') return '';
-  return calPayHtml(d.form, '', d.myAddons) + (d.paid ? '<p style="margin:8px 0 0;font-weight:700;color:#2a7a4a;">✅ Payment received — thank you!</p>' : d.claimedPaid ? '<p style="margin:8px 0 0;font-weight:700;color:#2a7a4a;">✔️ You told us you paid — the organiser will confirm it.</p>' + calPaidWaLink(d, 'calPaidAgain', '💬 Message us on WhatsApp again', 'background:#fff;color:#1c7a33;') : calPaidWaLink(d, 'calPaidBtn', '✅ I\'ve paid — confirm on WhatsApp') + '<p class="ideas-hint" style="margin:6px 0 0;">Opens WhatsApp with a message to 4DASISTAS already written — just press send.</p>');
+  const cardOk = d.cardPay && !d.paid && calTotalFor(d.form, d.myAddons || []).total != null;
+  const cardBtn = cardOk ? '<button type="button" class="club-guide-btn calStripeBtn" style="width:100%;margin-top:8px;text-align:center;background:#111;color:#fff;border-color:#111;">💳 Pay by card · Apple Pay · Google Pay</button><p class="ideas-hint" style="margin:6px 0 0;">Secure payment on Stripe. You\'ll get a message here as soon as it goes through.</p>' : '';
+  return calPayHtml(d.form, '', d.myAddons) + cardBtn + (d.paid ? '<p style="margin:8px 0 0;font-weight:700;color:#2a7a4a;">✅ Payment received — thank you!</p>' : d.claimedPaid ? '<p style="margin:8px 0 0;font-weight:700;color:#2a7a4a;">✔️ You told us you paid — the organiser will confirm it.</p>' + calPaidWaLink(d, 'calPaidAgain', '💬 Message us on WhatsApp again', 'background:#fff;color:#1c7a33;') : calPaidWaLink(d, 'calPaidBtn', '✅ I\'ve paid — confirm on WhatsApp') + '<p class="ideas-hint" style="margin:6px 0 0;">Opens WhatsApp with a message to 4DASISTAS already written — just press send.</p>');
 }
 function calSignedUpHtml(d, r, addons, quick){
   const wl = r && r.eventStatus === 'waitlist';

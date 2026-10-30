@@ -1508,6 +1508,25 @@ const calAddonSelection = (form, ids) => {
   const sum = picked.reduce((t, a) => t + a.price, 0);
   return { ids: picked.map((a) => a.id), total: Number.isFinite(base) ? Math.round((base + sum) * 100) / 100 : (picked.length ? Math.round(sum * 100) / 100 : null) };
 };
+// ---- Card payments through Stripe Checkout (Stripe's own page offers Apple Pay / Google Pay). Needs the secrets STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET; without them the site works as before.
+const stripeOn = (env) => /^sk_/.test(String(env.STRIPE_SECRET_KEY || "")) && !!env.STRIPE_WEBHOOK_SECRET;
+const stripeVerify = async (env, raw, header) => {
+  const hp = String(header || "").split(",").map((s) => s.trim().split("=")), t = (hp.find((p) => p[0] === "t") || [])[1], sigs = hp.filter((p) => p[0] === "v1").map((p) => p[1]);
+  if (!t || !sigs.length || !env.STRIPE_WEBHOOK_SECRET || Math.abs(Date.now() / 1000 - Number(t)) > 300) return false;
+  const exp = await hmacHex(env.STRIPE_WEBHOOK_SECRET, `${t}.${raw}`);
+  return sigs.some((s) => sameSig(s, exp));
+};
+// "Payment received" message: a push for members, an email for guests who left an email address. Sent when the organiser ticks Paid or when Stripe confirms a card payment.
+const calPaidNotify = (env, ctx, ev, r) => ctx.waitUntil((async () => {
+  const origin = env.SITE_ORIGIN || "https://4dasistas.ca", title = "Payment received 💚", text = `Thank you! Your payment for "${ev.title}" is confirmed — you're all set.`;
+  if (!String(r.id).startsWith("g:")) { try { await sendPushToUser(env, r.id, { title, body: text, url: `/#/form/${ev.slug || ev.id}`, cat: "events" }); } catch {} return; }
+  try {
+    const c = String(((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[r.id]) || {}).contact || "").trim();
+    if (!env.RESEND_API_KEY || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c)) return;
+    const html = emailShell(env, { emoji: "💚", title: "Payment received", preheader: ev.title, body: `<p style="margin:0 0 10px">Hi ${escapeHtml(r.name || "there")}, thank you! We've received your payment for</p><p style="margin:0 0 14px"><strong>${escapeHtml(ev.title)}</strong> · ${escapeHtml(ev.date)}</p><p style="margin:16px 0 4px">${emailBtn(`${origin}/#/form/${ev.slug || ev.id}`, "See the event →")}</p>`, footer: "You're all set 🌸" });
+    await postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [c], subject: `Payment received: ${ev.title}`, html });
+  } catch {}
+})());
 const checkCalAnswers = (form, raw) => {
   const answers = {};
   for (const fld of form.fields) {
@@ -2463,7 +2482,21 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ error: "Not allowed" }, 405, corsHeaders);
     }
 
-    const calMatch = path.match(/^\/api\/club-calendar(?:\/([^/]+)(\/rsvp|\/form|\/attendees|\/interest|\/paid)?)?\/?$/);
+    const calMatch = path.match(/^\/api\/club-calendar(?:\/([^/]+)(\/rsvp|\/form|\/attendees|\/interest|\/paid|\/checkout)?)?\/?$/);
+    if (path === "/api/stripe/webhook" && request.method === "POST") {
+      const raw = await request.text();
+      if (!(await stripeVerify(env, raw, request.headers.get("Stripe-Signature")))) return jsonResponse({ error: "Bad signature" }, 400, corsHeaders);
+      let evt; try { evt = JSON.parse(raw); } catch { return jsonResponse({ error: "Bad body" }, 400, corsHeaders); }
+      if (evt.type === "checkout.session.completed" || evt.type === "checkout.session.async_payment_succeeded") {
+        const s = (evt.data && evt.data.object) || {}, md = s.metadata || {};
+        if (s.payment_status === "paid" && md.ev && md.uid) {
+          let newly = false, rr = null;
+          const upd = await calMutate(env, md.ev, (e) => { const r = (e.rsvps || []).find((x) => x.id === md.uid); if (r && !r.paid) { r.paid = true; r.paidVia = "stripe"; delete r.claimedPaid; newly = true; rr = r; } });
+          if (newly && upd && rr) calPaidNotify(env, ctx, upd, rr);
+        }
+      }
+      return jsonResponse({ received: true }, 200, corsHeaders);
+    }
     if (calMatch) {
       const M = request.method;
       const roster = await readClubRoster(env);
@@ -2557,7 +2590,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!calMatch[2] && M === "GET") {
           return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], signup: ev.signup || "", rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy),
             going: (ev.rsvps || []).filter((r) => r.status === "going").length, mine: mine ? mine.status : null, inClub,
-            publicForm: !!ev.form, form: ev.form || null, ...calCapInfo(ev), waitPos: mine && mine.status === "waitlist" ? calWaitPos(ev, uid) : 0, claimedPaid: !!(mine && mine.claimedPaid), paid: !!(mine && mine.paid), myAddons: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).addons || []) : [], myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, who.id === "admin" || !!(mine && mine.status === "going")), 200, corsHeaders);
+            publicForm: !!ev.form, form: ev.form || null, ...calCapInfo(ev), waitPos: mine && mine.status === "waitlist" ? calWaitPos(ev, uid) : 0, claimedPaid: !!(mine && mine.claimedPaid), paid: !!(mine && mine.paid), cardPay: stripeOn(env), myAddons: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).addons || []) : [], myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, who.id === "admin" || !!(mine && mine.status === "going")), 200, corsHeaders);
         }
         if (calMatch[2] === "/form" && M === "POST") {
           if (!uid) return jsonResponse({ error: "Sign in as a member to fill the form" }, 403, corsHeaders);
@@ -2580,6 +2613,22 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
             notifyAdminOfFormSignup(env, ctx, ev, { name: who.name, newAccount: false }, chk.answers, calAddonSelection(ev.form, fb && fb.addons));
           }
           return jsonResponse({ ok: true, answers: chk.answers, addons: (map[uid] || {}).addons || [], total: (map[uid] || {}).total ?? null, mine: status, waitPos: status === "waitlist" ? calWaitPos(ev, uid) : 0, going: (ev.rsvps || []).filter((r) => r.status === "going").length, claimedPaid: !!(fb && fb.paidClaim === true && ev.form.payment) || !!(wasIn && wasIn.claimedPaid) }, 200, corsHeaders);
+        }
+        if (calMatch[2] === "/checkout" && M === "POST") { // pay by card (Apple Pay / Google Pay too) on Stripe's page; the webhook then ticks "Paid"
+          if (!stripeOn(env)) return jsonResponse({ error: "Card payments aren't switched on yet" }, 503, corsHeaders);
+          if (!uid || !mine || mine.status !== "going") return jsonResponse({ error: "Sign up for the event first" }, 403, corsHeaders);
+          if (mine.paid) return jsonResponse({ error: "You're already marked as paid" }, 400, corsHeaders);
+          if (!ev.form || !ev.form.payment) return jsonResponse({ error: "This event has no payment" }, 400, corsHeaders);
+          const total = Number(((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid]) || {}).total);
+          if (!Number.isFinite(total) || total < 0.5 || total > 5000) return jsonResponse({ error: "There's no card amount for this event — use the payment details above" }, 400, corsHeaders);
+          const origin = env.SITE_ORIGIN || "https://4dasistas.ca", back = `${origin}/#/form/${ev.slug || ev.id}`;
+          const p = new URLSearchParams({ mode: "payment", success_url: `${origin}/?paid=1#/form/${ev.slug || ev.id}`, cancel_url: back, client_reference_id: uid, "metadata[ev]": ev.id, "metadata[uid]": uid,
+            "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "cad", "line_items[0][price_data][unit_amount]": String(Math.round(total * 100)), "line_items[0][price_data][product_data][name]": String(ev.title).slice(0, 120),
+            "payment_intent_data[description]": `${ev.title} — ${who.name}`.slice(0, 250) });
+          const sr = await fetch("https://api.stripe.com/v1/checkout/sessions", { method: "POST", headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, "Content-Type": "application/x-www-form-urlencoded" }, body: p });
+          const sj = await sr.json().catch(() => ({}));
+          if (!sr.ok || !sj.url) { console.error("Stripe checkout failed", sr.status, JSON.stringify(sj).slice(0, 300)); return jsonResponse({ error: "Couldn't open the card page — please try again or use the payment details above" }, 502, corsHeaders); }
+          return jsonResponse({ ok: true, url: sj.url }, 200, corsHeaders);
         }
         if (calMatch[2] === "/paid" && M === "POST") { // "I've sent my payment": a flag the organiser sees next to the person's name until they confirm it
           if (!uid || !mine) return jsonResponse({ error: "Sign up for the event first" }, 403, corsHeaders);
@@ -5068,7 +5117,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if ((adminCalMatch[3] === "paid" || adminCalMatch[3] === "unpaid") && !canForm(ev)) return jsonResponse({ error: "Ask the main admin to give you access to this event's form" }, 403, corsHeaders);
         let freed = false;
         if (adminCalMatch[3] === "accept") { r.status = "going"; await calClaimSpot(env, ev, r.id, true); } // the organiser can always let someone in, even over the limit
-        else if (adminCalMatch[3] === "paid") { r.paid = true; delete r.claimedPaid; }
+        else if (adminCalMatch[3] === "paid") { const wasPaid = r.paid; r.paid = true; delete r.claimedPaid; if (!wasPaid) calPaidNotify(env, ctx, ev, r); }
         else if (adminCalMatch[3] === "unpaid") delete r.paid;
         else { ev.rsvps = ev.rsvps.filter((x) => x.id !== r.id); freed = true; }
         await writeClubCal(env, all);

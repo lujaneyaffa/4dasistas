@@ -1398,3 +1398,4 @@ _(most recent first — add new entries to the top, trim past ~15)_
 ## 2026-10-30 — sw v273
 - #/4ds-calendar: calendar locked to 4DS club events (category 'clubs'), category tabs replaced by a "🌸 4DS events" heading; state.cal4dsOnly; slug kept in currentSlugParts.
 - Club events now use their club's colours on every calendar view (clubTint() on day pips / today list / list tags with the club name; eventColor() returns the club colour).
+- 2026-10-30: Card payments via Stripe Checkout (Apple Pay/Google Pay): POST /api/club-calendar/:id/checkout, POST /api/stripe/webhook (signed), 'Pay by card' button in the pay box; automatic 'Payment received' push (members) / email (guests with email) when Paid is ticked or Stripe confirms. Needs secrets STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET (off until set). sw v274.
