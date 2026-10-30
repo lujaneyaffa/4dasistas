@@ -1367,3 +1367,7 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - Add a resource form: "📸 Find their Instagram" (type @username → Instagram's own profile embed → ✅ Yes fills the link; WhatsApp link still allowed), optional "Your email or phone" + note "In case there's an issue with the link, we'll contact you", button "Recommend it". Worker stores `contact` on ressug; shown in admin To do list, email and review page.
 - Form builder: payment card heading no longer says "(optional)".
 - New admin tab "📝 Event forms" (main admin + club admins): every event with a form → spreadsheet-style table of everyone who filled it in (sticky name column, status, paid, total, every answer), search, Everyone/Going/Waitlist/Not paid filters, tap row for full answers incl. signatures, CSV of current view. Functions admFormsHtml / wireAdmForms.
+
+## 2026-10-30 — sw v264
+- Leaderboards: badminton podium now shows last game night's standings every day incl. the day before; on game day it switches to "Tonight" and the hidden lb frame re-fetches games every 45s (live). "All standings ›"/"See all standings" replaced by "View club" → /badminton landing page.
+- badminton.html: public "📋 Open kiosk" card on the welcome view (hidden for admins). Kiosk password typed by a non-admin is stored with an expiry of 11:59 PM local that night (kKey/kSetKey JSON {k,exp}); admin-entered and old plain keys (club iPad) don't expire. NOTE: expiry is per device; the password itself stays the same until changed in Admin.
