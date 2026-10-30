@@ -994,8 +994,17 @@ const bmPlayerFor = async (env, user) => {
   await env.DB.prepare("INSERT OR IGNORE INTO bm_players (id, uid, data) VALUES (?, ?, ?)").bind(data.id, user.id, JSON.stringify(data)).run();
   return { id: data.id, data };
 };
-// The iPad kiosk is protected by one fixed password (4ds1234, any capitalisation, no token / key to generate).
-const bmKioskOk = async (env, key) => String(key || "").toUpperCase().replace(/[^A-Z0-9]/g, "") === "4DS1234";
+// The iPad kiosk: the main group uses one fixed password (4ds1234, any capitalisation). Each extra leaderboard group
+// ("league") has its own kiosk password, set by the main admin and stored hashed in KV bm:lgkey:<id>.
+const bmKioskNorm = (k) => String(k || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+const bmReadLeagues = async (env) => { try { const l = JSON.parse((await env.SITE_DATA.get("bm:leagues")) || "[]"); return Array.isArray(l) ? l : []; } catch { return []; } };
+const bmKioskLeague = async (env, key) => {
+  const k = bmKioskNorm(key); if (!k) return null;
+  if (k === "4DS1234") return "main";
+  for (const l of await bmReadLeagues(env)) { const h = await env.SITE_DATA.get(`bm:lgkey:${l.id}`); if (h && h === (await sha256Hex(`bmlg:${l.id}:${k}`))) return l.id; }
+  return null;
+};
+const bmKioskOk = async (env, key) => !!(await bmKioskLeague(env, key));
 const BM_HEARTS = ["❤️", "🧡", "💛", "💚", "💙", "💜", "🩷", "🤎"];
 const bmDigits = (p) => { const d = String(p || "").replace(/\D/g, ""); return d.length === 11 && d[0] === "1" ? d.slice(1) : d; };
 const bmDay = (r) => String((r && (r.session_date || r.played_at || r.day || r.date || r.created_at)) || "").slice(0, 10);
@@ -3593,6 +3602,30 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const left = (await env.DB.prepare("SELECT COUNT(*) AS n FROM bm_players WHERE json_extract(data, '$.avatar_url') LIKE 'https://%supabase.co/%' AND json_extract(data, '$._cf') IS NULL").first()).n;
         return jsonResponse({ coachSet: !!(await env.SITE_DATA.get("bm:coachpw")), kioskSet: !!(await env.SITE_DATA.get("bm:kioskkey")), photosToCopy: left, counts: { players: await t("players"), games: await t("games"), attendance: await t("attendance"), past_points: await t("past_points"), session_rsvps: await t("session_rsvps"), tournament_interest: await t("tournament_interest") } }, 200, corsHeaders);
       }
+      if (path === "/api/admin/badminton/leagues" && request.method === "PUT") {
+        let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+        const cl = (v, n) => String(v || "").replace(/[\x00-\x1f\x7f<>]/g, " ").trim().slice(0, n);
+        const out = [], seen = new Set();
+        for (const raw of (Array.isArray(b.leagues) ? b.leagues : []).slice(0, 12)) {
+          const id = raw.id === "main" ? "main" : (String(raw.id || "").toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 30) || slugify(cl(raw.name, 40)).slice(0, 30));
+          if (!id || seen.has(id)) continue; seen.add(id);
+          const name = cl(raw.name, 40); if (!name) return jsonResponse({ error: "Every leaderboard needs a name" }, 400, corsHeaders);
+          const t = (v) => /^\d{1,2}:\d{2}$/.test(String(v || "")) ? String(v) : "";
+          const dates = [...new Set((Array.isArray(raw.dates) ? raw.dates : []).map(String).filter(isValidDateString))].sort().slice(0, 80);
+          if (id !== "main" && !dates.length) return jsonResponse({ error: `Add at least one date for ${name}` }, 400, corsHeaders);
+          out.push({ id, name, day: cl(raw.day, 20), start: t(raw.start), end: t(raw.end), place: cl(raw.place, 120), dates });
+          const pw = bmKioskNorm(raw.kioskPassword);
+          if (raw.kioskPassword && id !== "main") { if (pw.length < 4) return jsonResponse({ error: `Kiosk password for ${name}: use at least 4 letters or numbers` }, 400, corsHeaders); if (pw === "4DS1234") return jsonResponse({ error: "That password belongs to the main group's kiosk — pick a different one" }, 400, corsHeaders); await env.SITE_DATA.put(`bm:lgkey:${id}`, await sha256Hex(`bmlg:${id}:${pw}`)); }
+        }
+        await env.SITE_DATA.put("bm:leagues", JSON.stringify(out));
+        const withKiosk = []; for (const l of out) withKiosk.push({ ...l, hasKiosk: l.id === "main" || !!(await env.SITE_DATA.get(`bm:lgkey:${l.id}`)) });
+        return jsonResponse({ leagues: withKiosk }, 200, corsHeaders);
+      }
+      if (path === "/api/admin/badminton/leagues" && request.method === "GET") {
+        const out = await bmReadLeagues(env); if (!out.some((l) => l.id === "main")) out.unshift({ id: "main", name: "Ladies Badminton", day: "", start: "", end: "", place: "", dates: [] });
+        const withKiosk = []; for (const l of out) withKiosk.push({ ...l, hasKiosk: l.id === "main" || !!(await env.SITE_DATA.get(`bm:lgkey:${l.id}`)) });
+        return jsonResponse({ leagues: withKiosk }, 200, corsHeaders);
+      }
       if ((path === "/api/admin/badminton/coach-password" || path === "/api/admin/badminton/kiosk-key") && request.method === "PUT") {
         let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
         const v = String(b.value || "").trim();
@@ -3686,6 +3719,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         else if (meUser) role = "member";
         else if (await bmKioskOk(env, kioskKey)) role = "kiosk";
         const staff = role === "owner" || role === "coach";
+        if (path === "/api/bm/leagues" && request.method === "GET") {
+          const list = await bmReadLeagues(env);
+          if (!list.some((l) => l.id === "main")) list.unshift({ id: "main", name: "Ladies Badminton" });
+          return jsonResponse({ leagues: list.map((l) => ({ id: l.id, name: l.name || "", day: l.day || "", start: l.start || "", end: l.end || "", place: l.place || "", dates: l.dates || [] })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+        }
         if (path === "/api/bm/session" && request.method === "POST") {
           if (role === "owner") return jsonResponse({ session: { user: { id: BM_OWNER_ID, email: "owner" }, access_token: "owner" } }, 200, corsHeaders);
           if (role === "coach") return jsonResponse({ session: { user: { id: "coach", email: BM_COACH_EMAIL }, access_token: coachTok || "lead" } }, 200, corsHeaders);
@@ -3777,7 +3815,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               if (!canWrite("insert", row)) return bmErr(role === "anon" ? "Please log in" : "Not allowed (public admin can only add today's games and attendance)", 403);
               if (key === "games") { if (!row.played_at) row.played_at = new Date().toISOString(); row.week_id = row.week_id || bmWeekIdOf(bmToronto(new Date(row.played_at))); }
               if (key === "players") { row.active = row.active !== false; row.date_joined = row.date_joined || today; }
-              row.id = row.id || (key === "attendance" ? `${row.player_id}:${row.session_date}` : crypto.randomUUID());
+              if (row.league !== undefined) { row.league = String(row.league).toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 30); if (!row.league || row.league === "main") delete row.league; }
+              row.id = row.id || (key === "attendance" ? `${row.player_id}:${row.session_date}${row.league ? ":" + row.league : ""}` : crypto.randomUUID());
               stmts.push(bmSaveStmt(env, key, String(row.id), row, null)); result.push(row);
             }
           } else if (op === "update") {
@@ -3845,14 +3884,18 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
             return jsonResponse({ data: null, error: null }, 200, corsHeaders);
           }
           if (fn.startsWith("kiosk_")) {
-            if (!(await bmKioskOk(env, String(a.p_key || "")))) return bmErr("This iPad is not set up as the kiosk", 403);
-            if (fn === "kiosk_ping") return jsonResponse({ data: true, error: null }, 200, corsHeaders);
+            const kLg = await bmKioskLeague(env, String(a.p_key || ""));
+            if (!kLg) return bmErr("This iPad is not set up as the kiosk", 403);
+            if (fn === "kiosk_ping") return jsonResponse({ data: kLg === String(a.p_league || "main"), error: null }, 200, corsHeaders);
+            if (a.p_league !== undefined && String(a.p_league) !== kLg) return bmErr("This iPad is set up for a different leaderboard", 403);
+            const lgSfx = kLg === "main" ? "" : ":" + kLg;
             const playerRow = async (id) => { const r = await env.DB.prepare("SELECT id, data FROM bm_players WHERE id = ?").bind(String(id)).first(); return r ? { id: r.id, data: JSON.parse(r.data) } : null; };
             if (fn === "kiosk_check_in") {
               const pl = await playerRow(a.p_player_id); if (!pl) return bmErr("Player not found");
               const day = String(a.p_date || ""); if (day !== today) return bmErr("The kiosk can only check people in for today");
-              await env.DB.prepare("INSERT OR REPLACE INTO bm_attendance (id, day, data) VALUES (?, ?, ?)").bind(`${pl.id}:${day}`, day, JSON.stringify({ id: `${pl.id}:${day}`, player_id: pl.id, session_date: day, present: !!a.p_present })).run();
-              await env.DB.prepare("DELETE FROM bm_attendance WHERE id != ? AND json_extract(data, '$.player_id') = ? AND json_extract(data, '$.session_date') = ?").bind(`${pl.id}:${day}`, pl.id, day).run();
+              const aid = `${pl.id}:${day}${lgSfx}`;
+              await env.DB.prepare("INSERT OR REPLACE INTO bm_attendance (id, day, data) VALUES (?, ?, ?)").bind(aid, day, JSON.stringify({ id: aid, player_id: pl.id, session_date: day, present: !!a.p_present, ...(lgSfx ? { league: kLg } : {}) })).run();
+              await env.DB.prepare("DELETE FROM bm_attendance WHERE id != ? AND json_extract(data, '$.player_id') = ? AND json_extract(data, '$.session_date') = ? AND coalesce(json_extract(data, '$.league'), 'main') = ?").bind(aid, pl.id, day, kLg).run();
               return jsonResponse({ data: null, error: null }, 200, corsHeaders);
             }
             if (fn === "kiosk_reactivate") {
@@ -3865,7 +3908,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               if (!Number.isFinite(ws) || !Number.isFinite(ls) || ws <= ls || ws < 11 || ws > 60 || ls < 0) return bmErr("The winning score must be at least 11 and higher than the losing score");
               for (const id of [...w, ...l]) if (!(await playerRow(id))) return bmErr("Player not found");
               if (String(a.p_date || "") !== today) return bmErr("The kiosk can only record today's games");
-              const game = { id: crypto.randomUUID(), winners: w, losers: l, played_at: new Date().toISOString(), week_id: bmWeekIdOf(today), winner_score: ws, loser_score: ls };
+              const game = { id: crypto.randomUUID(), winners: w, losers: l, played_at: new Date().toISOString(), week_id: bmWeekIdOf(today), winner_score: ws, loser_score: ls, ...(lgSfx ? { league: kLg } : {}) };
               await env.DB.prepare("INSERT INTO bm_games (id, day, data) VALUES (?, ?, ?)").bind(game.id, today, JSON.stringify(game)).run();
               return jsonResponse({ data: game.id, error: null }, 200, corsHeaders);
             }

@@ -1375,3 +1375,9 @@ _(most recent first — add new entries to the top, trim past ~15)_
 ## 2026-10-30 — sw v265
 - New 4DS event (admin editor, new only): "🔁 Repeat" — every week / every 2 weeks / same date monthly until a last date, or "On dates I pick" (chips). Each date is created as its own club-cal event (POST per date, sign-ups-close date shifted by the same offset, no attendees copied). Max 60 repeats.
 - "What everyone's voting on": ideas grouped into one big bubble per club (PRESS ME); tap → sparks burst (WAAPI) and the club's idea bubbles pop in one by one; "← All clubs" goes back. state.publicIdeasOpenClub / publicIdeasPop, clubBubbleBurst().
+
+## 2026-10-30 — sw v268 — separate badminton leaderboards ("leagues")
+- KV `bm:leagues` = [{id,name,day,start,end,place,dates[]}] ("main" = the original group; empty main dates keep the hard-coded season). Kiosk password per extra group hashed in `bm:lgkey:<id>` (sha256 "bmlg:<id>:<NORM>"); main stays 4ds1234.
+- Worker: GET /api/bm/leagues (public), GET/PUT /api/admin/badminton/leagues; bmKioskLeague(); kiosk RPCs require the password's group to match p_league and tag attendance/games with `league` (attendance id suffix :<league>); bm/q inserts accept `league` (attendance id suffixed).
+- badminton.html: `?league=<id>` → sync XHR of leagues at start; LG (times/place), SEASON_DATES from group dates; games/attendance/past filtered by league (untagged = main); writes tagged; RSVPs main only; group switcher chips + place/day/time line; kiosk password stored per group (KIOSK_STORE suffix). lb frame posts {league,name}.
+- index.html: Admin → Badminton → 🏆 Leaderboards editor (bmLeaguesMount); Leaderboards tab shows one podium per group (one hidden lb frame per group, cache lbBmCacheAll).

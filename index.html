@@ -8876,20 +8876,28 @@ function hapticTick(kind){
 // Badminton numbers come from the badminton page running in a tiny hidden frame (it does the points maths) — kept alive once loaded.
 function lbCacheGet(k){ try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } }
 function lbCacheSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+// One hidden frame per leaderboard group (main + any extra groups set in Admin → Badminton → Leaderboards).
 function ensureBmDataFrame(){
   if(document.getElementById('bmDataFrame')) return;
-  const f = document.createElement('iframe'); f.id = 'bmDataFrame'; f.title = 'Badminton data'; f.src = '/badminton?lb=1'; f.setAttribute('aria-hidden', 'true'); f.tabIndex = -1;
-  f.style.cssText = 'position:fixed;width:1px;height:1px;left:-9999px;top:0;border:0;opacity:0;pointer-events:none;';
-  document.body.appendChild(f);
+  const mk = (id, src) => { const f = document.createElement('iframe'); f.id = id; f.title = 'Badminton data'; f.src = src; f.setAttribute('aria-hidden', 'true'); f.tabIndex = -1; f.style.cssText = 'position:fixed;width:1px;height:1px;left:-9999px;top:0;border:0;opacity:0;pointer-events:none;'; document.body.appendChild(f); };
+  mk('bmDataFrame', '/badminton?lb=1');
+  fetch('/api/bm/leagues', { cache:'no-store' }).then(r => r.json()).then(j => { state.bmLeagues = j.leagues || []; lbCacheSet('lbBmLeagues', state.bmLeagues); state.bmLeagues.filter(l => l.id !== 'main').forEach(l => mk('bmDataFrame-' + l.id, '/badminton?lb=1&league=' + encodeURIComponent(l.id))); paintBmLb(); }).catch(() => {});
 }
+function bmLbFor(id){ const all = state.bmLbAll || lbCacheGet('lbBmCacheAll') || {}; return all[id] || (id === 'main' ? (state.bmLb || lbCacheGet('lbBmCache')) : null); }
 function paintBmLb(){
-  const el = document.getElementById('lbBmBox'); if(!el) return; const d = state.bmLb || lbCacheGet('lbBmCache');
+  const el = document.getElementById('lbBmBox'); if(!el) return;
+  const lgs = (state.bmLeagues || lbCacheGet('lbBmLeagues') || [{ id:'main' }]);
+  el.innerHTML = lgs.map(l => `<div class="bmLbOne" data-lg="${escapeCm(l.id)}"></div>`).join('<hr style="border:none;border-top:2px dashed rgba(118,34,11,.15);margin:14px 0;">');
+  lgs.forEach(l => paintBmLbOne(el.querySelector(`.bmLbOne[data-lg="${CSS.escape(l.id)}"]`), l, lgs.length > 1));
+}
+function paintBmLbOne(el, lg, many){
+  if(!el) return; const d = bmLbFor(lg.id), page = '/badminton' + (lg.id === 'main' ? '' : '?league=' + encodeURIComponent(lg.id));
   const cls = ['one', 'two', 'three'], med = ['🏆', '🥈', '🥉'], list = (d && !d.waiting && d.list) || [];
   const av = x => x.a ? `<img src="${escapeCm(x.a)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : escapeCm(x.h || '💗');
   const pod = i => { const x = list[i]; return !x ? `<div class="spod ${cls[i]}"><div class="spav">❓</div><div class="spname">${d && d.waiting ? 'Who will it be?' : '—'}</div><div class="spbase">${med[i]}</div></div>` : `<div class="spod ${cls[i]}"><div class="spav" style="overflow:hidden;">${av(x)}</div><div class="spname">${escapeCm(x.n)}</div><div class="spbase">${med[i]}<small>${escapeCm(String(x.pts))} pts</small></div></div>`; };
   const rest = list.slice(3), open = !!state.bmLbMore;
-  el.innerHTML = `<p style="margin:0 0 2px;font-weight:800;">🏸 Badminton <a href="/badminton" style="font-weight:700;font-size:13px;margin-left:6px;background:rgba(206,132,145,.18);border-radius:999px;padding:6px 12px;color:#76220b;text-decoration:none;">View club ›</a></p>` + (!d ? '<p class="av-msg" style="margin:0;">Loading…</p>' : `<p class="ideas-hint" style="margin:0;text-align:left;">${escapeCm(d.label || '')}</p><div class="spodium">${pod(1)}${pod(0)}${pod(2)}</div>` +
-    (rest.length ? rest.slice(0, open ? 12 : 2).map((x, i) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid rgba(118,34,11,.12);"><span style="width:22px;opacity:.6;">${i + 4}</span><span style="flex:1;font-weight:700;">${escapeCm(x.n)}</span><span style="font-weight:800;">${escapeCm(String(x.pts))} pts</span></div>`).join('') + '' : '') + `<a href="/badminton" class="club-guide-btn" style="display:flex;width:100%;box-sizing:border-box;margin-top:8px;min-height:42px;text-align:center;justify-content:center;align-items:center;text-decoration:none;">View club</a>`);
+  el.innerHTML = `<p style="margin:0 0 2px;font-weight:800;">🏸 ${escapeCm(many ? (lg.name || 'Badminton') : 'Badminton')} <a href="${page}" style="font-weight:700;font-size:13px;margin-left:6px;background:rgba(206,132,145,.18);border-radius:999px;padding:6px 12px;color:#76220b;text-decoration:none;">View club ›</a></p>` + (!d ? '<p class="av-msg" style="margin:0;">Loading…</p>' : `<p class="ideas-hint" style="margin:0;text-align:left;">${escapeCm(d.label || '')}</p><div class="spodium">${pod(1)}${pod(0)}${pod(2)}</div>` +
+    (rest.length ? rest.slice(0, open ? 12 : 2).map((x, i) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 2px;border-top:1px solid rgba(118,34,11,.12);"><span style="width:22px;opacity:.6;">${i + 4}</span><span style="flex:1;font-weight:700;">${escapeCm(x.n)}</span><span style="font-weight:800;">${escapeCm(String(x.pts))} pts</span></div>`).join('') + '' : '') + `<a href="${page}" class="club-guide-btn" style="display:flex;width:100%;box-sizing:border-box;margin-top:8px;min-height:42px;text-align:center;justify-content:center;align-items:center;text-decoration:none;">View club</a>`);
 }
 // Badminton standings pop-up: the current podium + everyone below it, with a link to register — no page change.
 function openBadmintonStandings(){
@@ -8950,7 +8958,7 @@ function mountLeaderboards(){
   cmApiRaw(getCmSession() ? '/api/me/steps' : '/api/steps/public', getCmSession() ? { headers: ideaHeaders(), cache:'no-store' } : {}).then(d => { state.lbSteps = d; lbCacheSet(ck, d); paint(d); }).catch(() => {});
   paintBmLb(); ensureBmDataFrame();
 }
-window.addEventListener('message', e => { try { if(e.origin === location.origin && e.data && e.data.bmLbData){ state.bmLb = e.data.bmLbData; lbCacheSet('lbBmCache', state.bmLb); paintBmLb(); } } catch {} });
+window.addEventListener('message', e => { try { if(e.origin === location.origin && e.data && e.data.bmLbData){ const d = e.data.bmLbData, id = d.league || 'main'; if(id === 'main'){ state.bmLb = d; lbCacheSet('lbBmCache', d); } state.bmLbAll = Object.assign({}, lbCacheGet('lbBmCacheAll') || {}, state.bmLbAll || {}, { [id]: d }); lbCacheSet('lbBmCacheAll', state.bmLbAll); paintBmLb(); } } catch {} });
 // warm the badminton numbers in the background shortly after the site opens, so the Leaderboards tab never waits
 setTimeout(() => { try { const c = lbCacheGet('lbBmCache'); if(!c || Date.now() - (c.at || 0) > 10 * 60000) ensureBmDataFrame();
   const sess = getCmSession(), ck = sess ? 'lbStepsCacheM' : 'lbStepsCache'; cmApiRaw(sess ? '/api/me/steps' : '/api/steps/public', sess ? { headers: ideaHeaders(), cache:'no-store' } : {}).then(d => { state.lbSteps = d; lbCacheSet(ck, d); }).catch(() => {}); } catch {} }, 4000);
@@ -12710,6 +12718,9 @@ function bmImportHtml(){
   if(!state.bmStatus){ if(!state.bmStatusLoading) bmStatusLoad(); return '<p class="av-msg">Loading…</p>'; }
   const st = state.bmStatus, c = st.counts || {}, inp = 'padding:8px;border-radius:8px;border:2px solid var(--brand-brown);font-size:14px;box-sizing:border-box;';
   return `<div class="cp-box"><p style="font-size:13px;margin:0 0 8px;line-height:1.5;">The badminton app now runs on 4DS at <a href="/badminton" target="_blank">4dasistas.ca/badminton</a>. Players log in with their phone number (or 4DS username) and 4DS PIN.</p>
+    <p style="margin:0 0 4px;font-weight:700;">🏆 Leaderboards</p><p style="font-size:12px;color:#776867;margin:0 0 6px;">Each leaderboard is its own group with its own day, time, place, dates, standings and kiosk. The same player can play in more than one. Rankings are never combined.</p>
+    <div id="bmLgBox"><p class="av-msg">Loading…</p></div>
+    <hr style="border:none;border-top:1px solid rgba(0,0,0,.1);margin:10px 0;">
     <p style="margin:0 0 4px;font-weight:700;">📦 Data now in 4DS</p><p style="font-size:13px;margin:0 0 8px;">${c.players ?? 0} players · ${c.games ?? 0} games · ${c.attendance ?? 0} attendance · ${c.past_points ?? 0} past points · ${c.session_rsvps ?? 0} RSVPs · ${c.tournament_interest ?? 0} tournament interest</p>
     <button type="button" class="club-guide-btn" id="bmDirect" style="padding:6px 14px;background:var(--brand-rose);color:#fff;">Import from the old site now</button> <small style="color:#776867;">(safe to repeat — it refreshes the copy)</small>
     <div id="bmMsg" style="font-size:13px;line-height:1.5;margin:8px 0;white-space:pre-wrap;"></div>
@@ -12805,8 +12816,52 @@ async function bmMatchLoad(){
     }
   });
 }
+// 🏆 Leaderboards (groups): name, day, time, place, dates and a kiosk password for each. Saved to /api/admin/badminton/leagues.
+async function bmLeaguesMount(){
+  const box = document.getElementById('bmLgBox'); if(!box || box.dataset.on) return; box.dataset.on = '1';
+  const inp = 'padding:8px;border-radius:8px;border:2px solid var(--brand-brown);font-size:14px;box-sizing:border-box;';
+  let lgs = [];
+  try { const r = await fetch('/api/admin/badminton/leagues', { credentials:'include', cache:'no-store' }); const j = await r.json(); if(!r.ok) throw new Error(j.error || 'Could not load'); lgs = j.leagues || []; }
+  catch(err){ box.innerHTML = `<p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`; return; }
+  const DAYS = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const paint = () => {
+    box.innerHTML = lgs.map((l, i) => `<div class="fb-card" data-lg="${i}" style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;"><strong>${escapeCm(l.name || 'New leaderboard')}${l.id === 'main' ? ' <small style="color:#776867;font-weight:400;">(main group)</small>' : ''}</strong>${l.id && l.dates && l.dates.length || l.id === 'main' ? `<a href="/badminton${l.id === 'main' ? '' : '?league=' + encodeURIComponent(l.id)}" target="_blank" style="font-size:13px;">Open page ›</a>` : ''}</div>
+      <input class="lgName" value="${escapeCm(l.name || '')}" placeholder="Name, e.g. Thursday Ladies" maxlength="40" style="${inp}width:100%;margin-bottom:6px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin-bottom:6px;">
+        <label style="font-size:12px;">Day<select class="lgDay" style="${inp}width:100%;">${DAYS.map(d => `<option value="${d}"${(l.day || '') === d ? ' selected' : ''}>${d || '—'}</option>`).join('')}</select></label>
+        <label style="font-size:12px;">Starts<input class="lgStart" type="time" value="${escapeCm(l.start || '18:00')}" style="${inp}width:100%;"></label>
+        <label style="font-size:12px;">Ends<input class="lgEnd" type="time" value="${escapeCm(l.end || '20:00')}" style="${inp}width:100%;"></label>
+      </div>
+      <input class="lgPlace" value="${escapeCm(l.place || '')}" placeholder="Place / address" maxlength="120" style="${inp}width:100%;margin-bottom:6px;">
+      <div style="font-size:12px;font-weight:700;margin:4px 0;">📅 Game dates (${(l.dates || []).length})${l.id === 'main' && !(l.dates || []).length ? ' <span style="font-weight:400;color:#776867;">— empty = keeps this season\'s schedule</span>' : ''}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-bottom:6px;"><label style="font-size:12px;flex:1;min-width:120px;">First date<input class="lgFrom" type="date" style="${inp}width:100%;"></label><label style="font-size:12px;flex:1;min-width:120px;">Every week until<input class="lgTo" type="date" style="${inp}width:100%;"></label><button type="button" class="fb-mini lgGen">Add weekly dates</button></div>
+      <div style="display:flex;gap:6px;align-items:end;margin-bottom:6px;"><label style="font-size:12px;flex:1;">Or one extra date<input class="lgOne" type="date" style="${inp}width:100%;"></label><button type="button" class="fb-mini lgAddOne">➕ Add</button>${(l.dates || []).length ? '<button type="button" class="fb-mini lgClear">Clear dates</button>' : ''}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${(l.dates || []).map(d => `<button type="button" class="filter-chip active lgX" data-d="${d}" style="font-size:12px;padding:4px 8px;">${escapeCm(calDateLabel(d))} ✕</button>`).join('')}</div>
+      ${l.id === 'main' ? '<p style="font-size:12px;color:#776867;margin:0;">Kiosk password: <b>4ds1234</b></p>' : `<input class="lgPw" type="text" autocomplete="off" placeholder="${l.hasKiosk ? 'Kiosk password is set — type to change it' : 'Kiosk password for this group (4+ letters/numbers)'}" style="${inp}width:100%;">`}
+      ${l.id !== 'main' ? '<button type="button" class="fb-mini lgDel" style="margin-top:6px;color:#b3261e;">Remove this leaderboard</button>' : ''}
+    </div>`).join('') + `<div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="club-guide-btn" id="lgNew" style="padding:6px 14px;">➕ New leaderboard</button><button type="button" class="club-guide-btn" id="lgSave" style="padding:6px 14px;background:var(--brand-rose);color:#fff;">Save leaderboards</button></div><div id="lgMsg" style="font-size:13px;min-height:16px;margin-top:6px;"></div>`;
+  };
+  const read = () => box.querySelectorAll('[data-lg]').forEach(c => { const l = lgs[+c.dataset.lg]; l.name = c.querySelector('.lgName').value.trim(); l.day = c.querySelector('.lgDay').value; l.start = c.querySelector('.lgStart').value; l.end = c.querySelector('.lgEnd').value; l.place = c.querySelector('.lgPlace').value.trim(); const pw = c.querySelector('.lgPw'); if(pw) l.kioskPassword = pw.value.trim(); });
+  box.addEventListener('click', async e => {
+    const card = e.target.closest('[data-lg]'), l = card ? lgs[+card.dataset.lg] : null;
+    if(e.target.closest('.lgGen') && l){ read(); const a = card.querySelector('.lgFrom').value, b = card.querySelector('.lgTo').value; if(!a || !b || b < a) return alert('Pick the first date and the last date.'); const d = new Date(a + 'T12:00:00'), out = new Set(l.dates || []); for(let n = 0; n < 80; n++){ const k = d.toLocaleDateString('en-CA'); if(k > b) break; out.add(k); d.setDate(d.getDate() + 7); } l.dates = [...out].sort(); if(!l.day) l.day = DAYS[(new Date(a + 'T12:00:00').getDay() + 6) % 7 + 1]; paint(); }
+    else if(e.target.closest('.lgAddOne') && l){ read(); const v = card.querySelector('.lgOne').value; if(v){ l.dates = [...new Set([...(l.dates || []), v])].sort(); paint(); } }
+    else if(e.target.closest('.lgClear') && l){ read(); l.dates = []; paint(); }
+    else if(e.target.closest('.lgX') && l){ read(); l.dates = (l.dates || []).filter(x => x !== e.target.closest('.lgX').dataset.d); paint(); }
+    else if(e.target.closest('.lgDel') && l){ if(!confirm(`Remove "${l.name || 'this leaderboard'}"? Its games stay saved but its page and kiosk stop working.`)) return; read(); lgs.splice(+card.dataset.lg, 1); paint(); }
+    else if(e.target.id === 'lgNew'){ read(); lgs.push({ id:'', name:'', day:'', start:'18:00', end:'20:00', place:'', dates:[] }); paint(); }
+    else if(e.target.id === 'lgSave'){
+      read(); const m = box.querySelector('#lgMsg'); m.style.color = '#776867'; m.textContent = 'Saving…';
+      try { const r = await fetch('/api/admin/badminton/leagues', { method:'PUT', credentials:'include', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ leagues: lgs }) }); const j = await r.json(); if(!r.ok) throw new Error(j.error || 'Could not save'); lgs = j.leagues; paint(); const m2 = box.querySelector('#lgMsg'); m2.style.color = '#2a7a4a'; m2.textContent = '✅ Saved. Each one has its own page (Open page ›) and kiosk.'; }
+      catch(err){ m.style.color = '#c00'; m.textContent = err.message; }
+    }
+  });
+  paint();
+}
 function wireBmImport(){
   const go = document.getElementById('bmDirect'); if(!go) return;
+  bmLeaguesMount();
   const mg = document.getElementById('bmMatchGo'); if(mg) mg.addEventListener('click', bmMatchLoad);
   const setMsg = document.getElementById('bmSetMsg');
   const setSecret = async (path, inputId) => { const v = document.getElementById(inputId).value; try { const r = await fetch(path, { method:'PUT', credentials:'include', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ value: v }) }); const d = await r.json().catch(() => ({})); if(!r.ok) throw new Error(d.error || 'Failed'); setMsg.style.color = '#2a7a4a'; setMsg.textContent = 'Saved ✓'; document.getElementById(inputId).value = ''; state.bmStatus = null; } catch(e){ setMsg.style.color = '#c00'; setMsg.textContent = e.message; } };
