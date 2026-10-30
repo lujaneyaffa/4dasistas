@@ -1826,6 +1826,8 @@ function dedupeEvents(items){
 }
 
 const SECTION_TO_TAG_CLASS = {clubevents:'cat-club', sports:'cat-sports', activities:'cat-dayactivity', functions:'cat-function', trips:'cat-trip', mosqueprograms:'cat-mosque'};
+// 4DS club events show in their own club's colours everywhere on the calendar.
+function clubTint(item){ if(!item || !item.clubCal || typeof clubCol !== 'function') return ''; const c = clubCol((item.clubIds || [])[0]); return ` style="background:${c.bg};color:${c.fg};border-color:${c.fg};"`; }
 function tagClass(item){
   if(!item) return 'cat-resource';
   if(resourcesData.includes(item)) return 'cat-resource';
@@ -1892,6 +1894,7 @@ function eventTypeLabel(item){
 }
 
 function eventColor(item){
+  if(item && item.clubCal && typeof clubCol === 'function') return clubCol((item.clubIds || [])[0]).bg;
   const colors = {
     'cat-sports':'#e1f1ea', 'cat-trip':'var(--purple)', 'cat-club':'var(--pink)',
     'cat-gathering':'var(--pink)', 'cat-function':'var(--pink)', 'cat-dayactivity':'var(--blue)', 'cat-mosque':'#fad8c1',
@@ -2270,7 +2273,7 @@ function renderList(){
       <div class="event-info">
         <h4>${emojiTitle(e)}</h4>
         ${e.organizedBy ? `<div class="event-organizer">${e.organizedBy}</div>` : ''}
-        <span class="tag ${tagClass(e)}">${eventTypeLabel(e)}</span>
+        <span class="tag ${tagClass(e)}"${clubTint(e)}>${e.clubCal ? escapeCm(String(e.location || '').replace(/ club$/, '') || eventTypeLabel(e)) : eventTypeLabel(e)}</span>
       </div>
       <button class="click-btn" data-id="${e.id}">Click me →</button>
     </div>`).join('')}</div>`;
@@ -2496,7 +2499,7 @@ function renderCalDayWeek(candidates){
   selectedDate.setDate(today.getDate() + state.calDayOffset);
   const isWeek = state.calViewMode === 'week';
   const eventRow = item => `
-    <div class="today-event ${tagClass(item)}" data-id="${item.id}">
+    <div class="today-event ${tagClass(item)}"${clubTint(item)} data-id="${item.id}">
       <div class="today-event-time">${eventTimeLabel(item)}</div>
       <div class="today-event-info"><strong>${emojiTitle(item)}</strong>${cityLabel(item) ? `<span>${cityLabel(item)}</span>` : ''}</div>
     </div>`;
@@ -2640,7 +2643,7 @@ function renderCalendar(){
     const rowClass = row % 2 === 0 ? ' row-even' : ' row-odd';
     html += `<div class="day-cell${isToday?' today':''}${rowClass}" data-calendar-date="${dateStr}"><div class="day-weekday">${dayLabelsFull[new Date(year, month, d).getDay()]}</div><div class="day-num">${d}</div>`;
     dayItems.forEach(e => {
-      html += `<span class="day-pip ${tagClass(e)}" data-id="${e.id}">${emojiTitle(e)}</span>`;
+      html += `<span class="day-pip ${tagClass(e)}"${clubTint(e)} data-id="${e.id}">${emojiTitle(e)}</span>`;
     });
     html += `</div>`;
     if ((isMobileGrid ? d : (startDay + d)) % (isMobileGrid ? 4 : 7) === 0 && d !== daysInMonth) row++;
@@ -2782,6 +2785,7 @@ function renderCategoryRow(){
   const el = document.getElementById('categoryRow');
   const subEl = document.getElementById('subscribeRow');
   if(state.tab !== 'events'){ el.style.display = 'none'; el.innerHTML = ''; subEl.style.display = 'none'; return; }
+  if(state.cal4dsOnly && state.categoryFilter === 'clubs'){ el.style.display = 'flex'; subEl.style.display = 'flex'; el.innerHTML = '<h2 style="margin:0 auto;font-family:Outfit,Inter,sans-serif;font-weight:800;color:#76220b;text-align:center;">🌸 4DS events</h2>'; return; }
   el.style.display = 'flex';
   subEl.style.display = 'flex';
   el.innerHTML = categoryList.map(c => `<button class="cat-filter-btn ${state.categoryFilter===c.key?'active':''}" style="background:${c.bg};color:${c.fg};" data-catfilter="${c.key}">${c.label}</button>`).join('');
@@ -3955,7 +3959,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
     selectedToday.setDate(today.getDate() + state.todayOffset);
     const isWeekView = state.todayViewMode === 'week';
     const todayEventRow = item => `
-        <div class="today-event ${tagClass(item)}" data-id="${item.id}">
+        <div class="today-event ${tagClass(item)}"${clubTint(item)} data-id="${item.id}">
           <div class="today-event-time">${eventTimeLabel(item)}</div>
           <div class="today-event-info"><strong>${emojiTitle(item)}</strong>${cityLabel(item) ? `<span>${cityLabel(item)}</span>` : ''}</div>
         </div>`;
@@ -4607,7 +4611,7 @@ function renderDetail(id){
 
   document.getElementById('detailCard').innerHTML = `
     ${(Array.isArray(e.audienceType) ? e.audienceType : (e.audienceType ? [e.audienceType] : [])).length ? `<div class="audience-pill-group">${(Array.isArray(e.audienceType) ? e.audienceType : [e.audienceType]).map(a => `<span class="audience-pill">${a}</span>`).join('')}</div>` : ''}
-    <span class="tag ${tagClass(e)}">${eventTypeLabel(e)}</span>
+    <span class="tag ${tagClass(e)}"${clubTint(e)}>${e.clubCal ? escapeCm(String(e.location || '').replace(/ club$/, '') || eventTypeLabel(e)) : eventTypeLabel(e)}</span>
     <h2>${emojiTitle(e)}</h2>
     ${e.organizedBy ? `<div class="event-organizer">${e.organizedBy}</div>` : ''}
     <div class="detail-date">${e.date}</div>
@@ -13304,6 +13308,7 @@ function currentSlugParts(){
     if(cat === 'trips' && state.tripType !== 'all') parts.push(state.tripType);
     if(state.view === 'list') parts.push('list');
     else if(CAL_VIEW_SLUGS.includes(state.calViewMode)) parts.push(state.calViewMode);
+    if(state.cal4dsOnly && cat === 'clubs'){ parts.splice(0, 2, '4ds-calendar'); }
   } else if(t === 'resources'){
     if(state.resourceFilter !== 'all') parts.push(state.resourceFilter);
     if(state.resourceView === 'list') parts.push('list');
@@ -13315,6 +13320,9 @@ function currentSlugParts(){
 }
 
 function applySlugParts(parts){
+  // #/4ds-calendar: the calendar with ONLY 4DS-hosted events (club colours), without the other calendar tabs.
+  if(parts[0] === '4ds-calendar'){ applySlugParts(['calendar', 'clubs'].concat(parts.slice(1))); state.cal4dsOnly = true; return; }
+  state.cal4dsOnly = false;
   const [slug, ...rest] = parts;
   // A shared FORM link (#/form/<event id>): land on Clubs and open that event's form straight away.
   if(slug === 'form' && rest[0]){ state.formFromApp = false; state.tab = 'eventform'; state.formEventId = safeDecode(rest[0]); return; }

@@ -1394,3 +1394,7 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - 🔒 ev.placePrivate: place/map/map-blocks blanked (placeHidden) for anyone not "going" (admin sees all); guest/new-account form POST returns place+mapUrl when going and the thank-you screen shows it; ICS omits LOCATION.
 - Repeat: now also on existing events ("Also put this event on more dates"); validation no longer silently saves a single date when Repeat is set without an end date / picked dates.
 - Badminton duplicates merged (11 old rows → 10 keepers; games refs → keeper ids, attendance/past/rsvps moved, 3 old photos copied). Backups: scratchpad backup_bm_*.json.
+
+## 2026-10-30 — sw v273
+- #/4ds-calendar: calendar locked to 4DS club events (category 'clubs'), category tabs replaced by a "🌸 4DS events" heading; state.cal4dsOnly; slug kept in currentSlugParts.
+- Club events now use their club's colours on every calendar view (clubTint() on day pips / today list / list tags with the club name; eventColor() returns the club colour).
