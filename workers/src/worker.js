@@ -540,7 +540,7 @@ const notifyAdminOfSuggestion = async (env, ctx, kind, sug) => {
   const isEvent = kind === "event";
   const rows = isEvent
     ? (sug.extra || []).map((x) => emailRow(escapeHtml(x.label), escapeHtml(x.value))).join("") + emailRow("Event", escapeHtml(sug.name)) + emailRow("Date", escapeHtml(sug.date)) + emailRow("Genre", escapeHtml(sug.genre === "other" ? `Other: ${sug.genreOther || ""}` : (sug.genre || "—"))) + emailRow("City", escapeHtml(sug.city)) + emailRow("Link", `<a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a>`)
-    : emailRow("Name", escapeHtml(sug.title)) + emailRow("Type", escapeHtml(sug.type === "other" ? `Other: ${sug.typeOther || ""}` : sug.type)) + emailRow("City", escapeHtml(sug.city)) + emailRow("Link", `<a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a>`);
+    : emailRow("Name", escapeHtml(sug.title)) + emailRow("Type", escapeHtml(sug.type === "other" ? `Other: ${sug.typeOther || ""}` : sug.type)) + emailRow("City", escapeHtml(sug.city)) + emailRow("Link", `<a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a>`) + (sug.contact ? emailRow("Submitter contact", escapeHtml(sug.contact)) : "");
   const comments = sug.comments ? emailNote(`<div style="font-size:12px;opacity:.8;margin-bottom:2px">💬 Comments from the submitter</div>${escapeHtml(sug.comments).replace(/\n/g, "<br>")}`) : "";
   const html = emailShell(env, {
     emoji: isEvent ? "🗓️" : "🛍️", title: `New ${isEvent ? "event" : "resource"} submitted`, preheader: isEvent ? `${sug.name} · ${sug.city} · ${sug.date}` : `${sug.title} · ${sug.city}`,
@@ -1865,7 +1865,7 @@ export default {
         ? `<label>Event name</label><input id="f_title" value="${e(sug.name)}"><label>Date</label><input id="f_date" type="date" value="${e(sug.date)}"><label>City</label><input id="f_city" value="${e(sug.virtual ? "" : sug.city)}"><label><input id="f_virtual" type="checkbox" ${sug.virtual ? "checked" : ""}>Virtual event</label><label>Link</label><input id="f_link" value="${e(sug.link)}"><label>Show it under which Calendar tab?</label><select id="f_section">${[["functions", "Functions (markets, festivals, gatherings)"], ["activities", "Activities"], ["sports", "Sports"], ["trips", "Trips"], ["mosqueprograms", "Knowledge (mosque programs)"], ["supportprograms", "Support programs"]].map(([k, l]) => `<option value="${k}" ${k === (GENRE_TO_SECTION[sug.genre] || "functions") ? "selected" : ""}>${e(l)}</option>`).join("")}</select>`
         : `<label>Name</label><input id="f_title" value="${e(sug.title)}"><label>Type</label>${sug.type === "other" ? `<div class="note" style="margin:4px 0">They chose “Other”: <strong>${e(sug.typeOther || "")}</strong> — pick the closest type below.</div>` : ""}<select id="f_type">${sug.type === "other" ? '<option value="">Pick a type…</option>' : ""}${RESOURCE_CATEGORIES.map((k) => `<option value="${k}" ${k === sug.type ? "selected" : ""}>${e(k)}</option>`).join("")}</select><label>Link (Instagram / WhatsApp)</label><input id="f_link" value="${e(sug.link)}"><label>City</label><input id="f_city" value="${e(sug.virtual ? "" : sug.city)}"><label><input id="f_virtual" type="checkbox" ${sug.virtual ? "checked" : ""}>Virtual / online only</label>`;
       const genreNote = kind === "event" && sug.genre ? `<div class="note" style="margin:4px 0"><strong>Genre:</strong> ${e(sug.genre === "other" ? `Other — ${sug.genreOther || ""}` : sug.genre)}</div>` : "";
-      const comments = genreNote + (sug.comments ? `<div class="note"><strong>Comments from the submitter</strong>\n${e(sug.comments)}</div>` : "");
+      const comments = genreNote + (sug.comments ? `<div class="note"><strong>Comments from the submitter</strong>\n${e(sug.comments)}</div>` : "") + (sug.contact ? `<div class="note"><strong>Submitter's contact</strong> (if the link has a problem): ${e(sug.contact)}</div>` : "");
       return page(`<h1>${kind === "event" ? "Event" : "Resource"} submitted</h1><p style="margin:0;color:#776867">Change anything below, then accept or deny.</p>${comments}${fields}<div class="row"><button class="ok" id="btnAccept">✅ Accept &amp; publish</button><button class="no" id="btnDeny">❌ Deny</button></div><div class="msg" id="msg"></div>
 <script>
 const KIND=${JSON.stringify(kind)},ID=${JSON.stringify(id)},SIG=${JSON.stringify(sig)},PRE=${JSON.stringify(a)};
@@ -2899,7 +2899,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await env.SITE_DATA.put(rateKey, String(used + 1), { expirationTtl: 3700 });
       await env.SITE_DATA.put(dayKey, String(dayCount + 1), { expirationTtl: 172800 });
       const comments = String(body.comments || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 600);
-      const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, title, type, typeOther, link, city, virtual, comments, at: Date.now() };
+      const contact = clean(body.contact, 120);
+      const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, title, type, typeOther, link, city, virtual, comments, contact, at: Date.now() };
       await env.SITE_DATA.put(`ressug:${sug.id}`, JSON.stringify(sug));
       notifyAdminOfResourceSuggestion(env, ctx, sug);
       return jsonResponse({ ok: true }, 201, corsHeaders);

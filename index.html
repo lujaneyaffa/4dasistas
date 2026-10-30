@@ -4251,7 +4251,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         <p class="rules-lead">Know a business or resource we should add?</p>
         ${calLinkRowHtml('', location.origin + '/#/add-resource', '🔗 Share this form:')}
         <p style="margin:0 0 12px;font-size:14px;">Have an event to share instead? <a href="#/submit-event" data-hometab="submitevent" style="font-weight:700;color:var(--brand-brown);">Submit an event →</a></p>
-        <p style="margin-bottom:12px;">Send it to us — everything below is required, and an admin reviews every submission.</p>
+        <p style="margin-bottom:12px;">Recommend it to us. An admin reviews every submission.</p>
         <form id="resSubForm" novalidate style="display:flex;flex-direction:column;gap:10px;">
           <input id="rsTitle" type="text" maxlength="120" placeholder="Name of the business / resource" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
           <select id="rsType" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;background:#fff;">
@@ -4260,13 +4260,21 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
             <option value="other">Other (type it in)</option>
           </select>
           <input id="rsTypeOther" type="text" maxlength="40" placeholder="What kind of resource is it?" style="display:none;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
-          <input id="rsLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="Instagram or WhatsApp link" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
+          <div style="border:2px dashed #f2d8d7;border-radius:12px;padding:10px;background:#fef7f4;">
+            <div style="font-size:14px;font-weight:700;margin-bottom:6px;">📸 Find their Instagram</div>
+            <div style="display:flex;gap:8px;"><input id="rsIg" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="@username" style="flex:1;min-width:0;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;"><button type="button" id="rsIgFind" class="club-guide-btn" style="padding:10px 16px;">🔍 Find</button></div>
+            <div id="rsIgPrev"></div>
+            <div style="font-size:13px;color:#776867;margin:8px 0 4px;">No Instagram? Paste a WhatsApp link instead:</div>
+            <input id="rsLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="Instagram or WhatsApp link" style="width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
+          </div>
           <input id="rsCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
           <label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:44px;"><input id="rsVirtual" type="checkbox" style="width:22px;height:22px;"> It's virtual / online only (no city)</label>
-          <textarea id="rsComments" rows="3" maxlength="600" placeholder="Comments (optional) — anything we should know?" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;"></textarea>
+          <textarea id="rsComments" rows="3" maxlength="600" placeholder="Why do you recommend it? (optional)" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;"></textarea>
+          <input id="rsContact" type="text" maxlength="120" autocomplete="email" placeholder="Your email or phone (optional)" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
+          <p style="margin:-4px 0 0;font-size:13px;color:#776867;">In case there's an issue with the link, we'll contact you.</p>
           <input id="rsWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;">
           <div id="rsStatus" style="min-height:18px;font-size:13px;color:#c00;" aria-live="polite"></div>
-          <button type="submit" class="club-guide-btn" id="rsSubmit" style="background:#ce8491;color:#fff;width:100%;text-align:center;min-height:46px;">Submit resource</button>
+          <button type="submit" class="club-guide-btn" id="rsSubmit" style="background:#ce8491;color:#fff;width:100%;text-align:center;min-height:46px;">Recommend it</button>
         </form>
       </div>`;
     setTimeout(() => { wireCalCopy(el); setupResourceSubmitForm(); }, 0);
@@ -4321,21 +4329,35 @@ function setupResourceSubmitForm(){
   wireVirtualToggle('rsCity', 'rsVirtual');
   const tSel = document.getElementById('rsType'), tOther = document.getElementById('rsTypeOther');
   tSel.addEventListener('change', () => { tOther.style.display = tSel.value === 'other' ? 'block' : 'none'; if(tSel.value !== 'other') tOther.value = ''; });
+  // Instagram: type a username, see their profile (Instagram's own embed), confirm it's the right one → fills the link.
+  const igIn = document.getElementById('rsIg'), igPrev = document.getElementById('rsIgPrev'), linkEl = document.getElementById('rsLink');
+  const igUser = () => { const m = igIn.value.trim().match(/(?:instagram\.com\/)?@?([A-Za-z0-9._]{1,30})\/?$/); return m ? m[1] : ''; };
+  const igFind = () => {
+    const u = igUser();
+    if(!u){ igPrev.innerHTML = '<p style="margin:8px 0 0;font-size:13px;color:#c00;">Type an Instagram username, like @4dasistas.</p>'; return; }
+    igPrev.innerHTML = `<div style="margin-top:8px;border:2px solid var(--brand-brown);border-radius:12px;overflow:hidden;background:#fff;"><iframe src="https://www.instagram.com/${encodeURIComponent(u)}/embed/" title="Instagram @${escapeCm(u)}" loading="lazy" style="display:block;width:100%;height:420px;border:0;"></iframe></div>
+      <p style="margin:8px 0 6px;font-size:14px;font-weight:700;">Is this the right account? <span style="font-weight:400;">@${escapeCm(u)}</span></p>
+      <div style="display:flex;gap:8px;"><button type="button" class="club-guide-btn" id="rsIgYes" style="flex:1;background:#2a7a4a;color:#fff;text-align:center;">✅ Yes, that's it</button><button type="button" class="club-guide-btn" id="rsIgNo" style="flex:1;text-align:center;">❌ Not it</button></div>`;
+    document.getElementById('rsIgYes').addEventListener('click', () => { linkEl.value = `https://www.instagram.com/${u}/`; igPrev.innerHTML = `<p style="margin:8px 0 0;font-size:14px;color:#2a7a4a;font-weight:700;">✅ @${escapeCm(u)} selected</p>`; });
+    document.getElementById('rsIgNo').addEventListener('click', () => { igPrev.innerHTML = ''; igIn.value = ''; igIn.focus(); });
+  };
+  document.getElementById('rsIgFind').addEventListener('click', igFind);
+  igIn.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); igFind(); } });
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const st = document.getElementById('rsStatus'), btn = document.getElementById('rsSubmit');
     const virtual = document.getElementById('rsVirtual').checked;
-    const body = { title: document.getElementById('rsTitle').value.trim(), type: tSel.value, typeOther: tOther.value.trim(), link: document.getElementById('rsLink').value.trim(), city: document.getElementById('rsCity').value.trim(), virtual, comments: document.getElementById('rsComments').value.trim(), website: document.getElementById('rsWebsite').value };
+    const body = { title: document.getElementById('rsTitle').value.trim(), type: tSel.value, typeOther: tOther.value.trim(), link: document.getElementById('rsLink').value.trim(), city: document.getElementById('rsCity').value.trim(), virtual, comments: document.getElementById('rsComments').value.trim(), contact: document.getElementById('rsContact').value.trim(), website: document.getElementById('rsWebsite').value };
     st.style.color = '#c00';
     if(body.title.length < 2){ st.textContent = 'Please add the name of the business or resource.'; return; }
     if(!body.type){ st.textContent = 'Please pick the type of resource.'; return; }
     if(body.type === 'other' && body.typeOther.length < 2){ st.textContent = 'Please type what kind of resource it is.'; return; }
-    if(!/(instagram\.com|wa\.me|whatsapp\.com)/i.test(body.link)){ st.textContent = 'Please add an Instagram or WhatsApp link.'; return; }
+    if(!/(instagram\.com|wa\.me|whatsapp\.com)/i.test(body.link)){ st.textContent = 'Please find their Instagram (tap 🔍 Find, then ✅ Yes) or paste a WhatsApp link.'; return; }
     if(!virtual && body.city.length < 2){ st.textContent = 'Please add the city, or tick "virtual / online only".'; return; }
     btn.disabled = true; st.textContent = '';
     try {
       await cmApiRaw('/api/resource-suggestions', { method:'POST', headers: getCmSession() ? cmAuthHeaders() : { 'Content-Type':'application/json' }, body: JSON.stringify(body) });
-      form.reset(); tOther.style.display = 'none'; document.getElementById('rsCity').disabled = false; document.getElementById('rsCity').style.opacity = '1';
+      form.reset(); igPrev.innerHTML = ''; tOther.style.display = 'none'; document.getElementById('rsCity').disabled = false; document.getElementById('rsCity').style.opacity = '1';
       st.style.color = '#2a7a4a'; st.textContent = 'Thank you! It was sent — an admin will review it.';
     } catch(err){ st.textContent = err.message; }
     btn.disabled = false;
@@ -7405,7 +7427,7 @@ function openFormBuilder(initial, onDone, opts){
       ${opts && opts.showRsvpBy ? `<div class="fb-card"><strong style="font-size:14px;">⏳ Last day to RSVP (optional)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">After this day the form closes — nobody new can sign up. It's the same date as the event's “last day to RSVP”.</p><input type="date" id="fbRsvpBy" value="${escapeCm(form.rsvpBy || '')}"></div>` : ''}
       ${cards || '<p class="av-msg" style="text-align:center;">No questions yet — add one below.</p>'}
       <div class="fb-card"><strong style="font-size:14px;">➕ Add a question</strong><div class="fb-row">${FB_TYPES.map(([k, l]) => `<button type="button" class="fb-mini fb-add" data-t="${k}">${l}</button>`).join('')}</div></div>
-      <div class="fb-card" ${opts && opts.noPayment ? 'hidden' : ''}><strong style="font-size:14px;">💳 Payment (optional)</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 8px;">The site doesn't take the money itself — the payment box sits inside the form, just above Submit, and shows people how to pay.</p>
+      <div class="fb-card" ${opts && opts.noPayment ? 'hidden' : ''}><strong style="font-size:14px;">💳 Payment</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 8px;">The site doesn't take the money itself — the payment box sits inside the form, just above Submit, and shows people how to pay.</p>
         <select id="fbPayMode" aria-label="Is payment required?" style="margin-bottom:8px;"><option value="optional" ${(form.payment || {}).required ? '' : 'selected'}>Optional — they can sign up first and pay later</option><option value="required" ${(form.payment || {}).required ? 'selected' : ''}>Required — they must tick “I’ve sent my payment” to submit</option></select>
         <input type="text" id="fbPayAmt" maxlength="30" placeholder="Amount (e.g. $15)" value="${escapeCm((form.payment || {}).amount || '')}">
         <input type="text" id="fbPayLink" maxlength="500" placeholder="Payment link (https://…) — Square, PayPal, Stripe…" value="${escapeCm((form.payment || {}).link || '')}" style="margin-top:8px;" inputmode="url" autocapitalize="none">
@@ -10714,6 +10736,94 @@ function wireAdmEvents(){
   const q = document.getElementById('ceQ'); if(q) q.addEventListener('input', () => { state.admCeQ = q.value; document.getElementById('ceList').innerHTML = admCeListHtml(); wireList(); });
   document.querySelectorAll('[data-cefilter]').forEach(b => b.addEventListener('click', () => { state.admCeFilter = b.dataset.cefilter; render(); }));
 }
+// 📝 Event forms tab: every event that has a form, and for each one a table of everyone who filled it in (tap a row for the full answers).
+function admFormsHtml(){
+  if(!state.clubCal || state.clubCalIsAdminData !== calIsAdmin()) clubCalLoad(true);
+  if(!state.clubCal) return '<p class="av-msg">Loading events…</p>';
+  const today = new Date().toISOString().slice(0, 10);
+  const all = state.clubCal.filter(e => e.form && !String(e.id).startsWith('idea:'));
+  const sel = state.admFormSel && all.find(e => e.id === state.admFormSel);
+  if(sel){
+    const f = state.admFormFilter || 'all';
+    const chip = (k, l) => `<button type="button" class="filter-chip${f === k ? ' active' : ''}" data-afmf="${k}">${l}</button>`;
+    return `<div style="margin-top:10px;">
+      <button type="button" class="fb-mini" id="afmBack">← All event forms</button>
+      <h3 style="margin:10px 0 2px;overflow-wrap:break-word;">${escapeCm(sel.title)}</h3>
+      <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">📅 ${escapeCm(calDateLabel(sel.date))}${sel.time ? ' · ⏰ ' + escapeCm(sel.time) : ''}${sel.place ? ' · 📍 ' + escapeCm(sel.place) : ''}</p>
+      <div class="fb-row" style="margin-bottom:8px;"><button type="button" class="fb-mini" id="afmEdit">✏️ Edit event &amp; form</button><button type="button" class="fb-mini" id="afmManage">👥 Manage attendees &amp; payments</button><button type="button" class="fb-mini" id="afmCsv">⬇️ Download CSV</button></div>
+      <div id="afmSum"></div>
+      <input id="afmQ" type="search" placeholder="Search names or answers…" value="${escapeCm(state.admFormQ || '')}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin:4px 0 8px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">${chip('all', 'Everyone')}${chip('going', 'Going')}${chip('waitlist', 'Waitlist')}${sel.form.payment ? chip('unpaid', 'Not paid') : ''}</div>
+      <div id="afmTable"><p class="av-msg">Loading answers…</p></div>
+    </div>`;
+  }
+  const q = (state.admFormsQ || '').trim().toLowerCase();
+  const up = all.filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date)), past = all.filter(e => e.date < today).sort((a, b) => b.date.localeCompare(a.date));
+  const row = e => {
+    const rs = e.rsvps || [], going = rs.filter(r => r.status === 'going').length, wait = rs.length - going, col = clubCol(e.clubId);
+    return `<button type="button" class="fb-card afm-open" data-afm="${escapeCm(e.id)}" style="display:flex;gap:10px;align-items:center;width:100%;text-align:left;cursor:pointer;border-color:${col.fg};box-shadow:3px 3px 0 ${col.fg};font:inherit;">
+      <span class="cal-date" style="background:${col.bg};color:${col.fg};flex:0 0 74px;">${escapeCm(calDateLabel(e.date))}</span>
+      <span style="flex:1;min-width:0;"><strong style="font-size:16px;overflow-wrap:break-word;">${escapeCm(e.title)}</strong><br><small style="color:#776867;">👥 <b>${going}</b> ${e.date < today ? 'attended' : 'going'}${wait ? ` · ${wait} waiting` : ''} · 📝 ${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'}${e.form.payment ? ' · 💳 paid event' : ''}</small></span>
+      <span style="font-size:20px;">›</span></button>`;
+  };
+  const match = e => !q || `${e.title} ${e.clubTitle || ''} ${e.place || ''}`.toLowerCase().includes(q);
+  const sec = (t, l) => l.filter(match).length ? `<h4 style="margin:14px 0 6px;">${t}</h4>${l.filter(match).map(row).join('')}` : '';
+  return `<p class="ideas-hint" style="margin:6px 0 8px;">Every event with a sign-up form. Tap one to see everyone who filled it in and what they answered.</p>
+    <input id="afmListQ" type="search" placeholder="Search events…" value="${escapeCm(state.admFormsQ || '')}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-bottom:4px;">
+    ${(sec('Upcoming', up) + sec('Past', past)) || `<p class="av-msg" style="text-align:center;">${q ? 'No event forms match.' : 'No events with a form yet. Add a form from ✏️ Edit on any 4DS activity.'}</p>`}`;
+}
+function admFormFmt(v){ return Array.isArray(v) ? v.join(', ') : (v && typeof v === 'object' ? (v.address || '') : (/^data:image\/png;base64,/.test(String(v || '')) ? '✍️ signed' : String(v == null ? '' : v))); }
+async function wireAdmForms(){
+  const lq = document.getElementById('afmListQ');
+  if(lq) lq.addEventListener('input', () => { state.admFormsQ = lq.value; const p = lq.selectionStart; render(); const n = document.getElementById('afmListQ'); if(n){ n.focus(); try { n.setSelectionRange(p, p); } catch {} } });
+  document.querySelectorAll('.afm-open').forEach(b => b.addEventListener('click', () => { state.admFormSel = b.dataset.afm; state.admFormQ = ''; state.admFormFilter = 'all'; state.admFormData = null; render(); window.scrollTo(0, 0); }));
+  const tbl = document.getElementById('afmTable'); if(!tbl) return;
+  const ev = (state.clubCal || []).find(e => e.id === state.admFormSel); if(!ev) return;
+  document.getElementById('afmBack').addEventListener('click', () => { state.admFormSel = null; state.admFormData = null; render(); });
+  document.getElementById('afmEdit').addEventListener('click', () => clubCalForm(ev));
+  document.getElementById('afmManage').addEventListener('click', () => clubCalManage(ev));
+  document.querySelectorAll('[data-afmf]').forEach(b => b.addEventListener('click', () => { state.admFormFilter = b.dataset.afmf; document.querySelectorAll('[data-afmf]').forEach(x => x.classList.toggle('active', x === b)); paint(); }));
+  const qEl = document.getElementById('afmQ'); qEl.addEventListener('input', () => { state.admFormQ = qEl.value; paint(); });
+  let d = state.admFormData && state.admFormData.id === ev.id ? state.admFormData.d : null;
+  if(!d){
+    try { d = await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/responses', 'GET'); state.admFormData = { id: ev.id, d }; }
+    catch(err){ tbl.innerHTML = `<p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`; return; }
+  }
+  const form = d.form || ev.form, fields = (form && form.fields) || [], pay = !!(form && form.payment), sym = pay ? calMoneyParts(form).sym : '';
+  const rs = d.responses || [];
+  const aoLabel = r => (r.addons || []).map(id => (((form.payment || {}).addons || []).find(a => a.id === id) || {}).label || '').filter(Boolean).join(', ');
+  const stLabel = r => r.status === 'waitlist' ? '⏳ Waitlist' : r.status === 'going' ? '✅ Going' : escapeCm(r.status || '');
+  { const going = rs.filter(r => r.status === 'going'), owed = going.reduce((t, r) => t + (Number(r.total) || 0), 0), got = going.filter(r => r.paid).reduce((t, r) => t + (Number(r.total) || 0), 0);
+    document.getElementById('afmSum').innerHTML = `<div style="margin:0 0 8px;padding:10px 12px;border-radius:12px;background:#fef7f4;border:2px solid #f2d8d7;font-weight:700;">👥 ${rs.length} filled it in · ${going.length} going · ${rs.length - going.length} waitlist${pay ? ` · 💳 ${going.filter(r => r.paid).length} paid${owed ? ` (${escapeCm(calMoney(got, sym))} of ${escapeCm(calMoney(owed, sym))})` : ''}` : ''}</div>`; }
+  const shown = () => {
+    const f = state.admFormFilter || 'all', q = (state.admFormQ || '').trim().toLowerCase();
+    return rs.filter(r => (f === 'all' || (f === 'unpaid' ? r.status === 'going' && !r.paid : r.status === f)) && (!q || [r.name, r.contact].concat(fields.map(x => admFormFmt((r.answers || {})[x.id]))).join(' ').toLowerCase().includes(q)));
+  };
+  const th = 'position:sticky;top:0;background:#f2d8d7;padding:8px 10px;text-align:left;font-size:13px;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;';
+  const td = 'padding:8px 10px;border-top:1px solid rgba(0,0,0,.08);font-size:14px;vertical-align:top;max-width:260px;overflow-wrap:break-word;';
+  function paint(){
+    const list = shown();
+    if(!rs.length){ tbl.innerHTML = '<p class="av-msg">No one has filled in this form yet.</p>'; return; }
+    if(!list.length){ tbl.innerHTML = '<p class="av-msg">No one matches.</p>'; return; }
+    tbl.innerHTML = `<div style="overflow:auto;max-height:70vh;border:2px solid var(--brand-brown);border-radius:12px;background:#fff;"><table style="border-collapse:collapse;min-width:100%;">
+      <thead><tr><th style="${th}left:0;z-index:2;">Name</th><th style="${th}">Status</th>${pay ? `<th style="${th}">Paid</th><th style="${th}">Total</th>` : ''}<th style="${th}">Contact</th>${fields.map(x => `<th style="${th}" title="${escapeCm(richPlain(x.label))}">${escapeCm(richPlain(x.label).slice(0, 40))}</th>`).join('')}</tr></thead>
+      <tbody>${list.map(r => `<tr class="afm-row" data-i="${rs.indexOf(r)}" style="cursor:pointer;"><td style="${td}position:sticky;left:0;background:#fff;font-weight:700;">${escapeCm(r.name)}${r.guest ? ' <small style="font-weight:400;color:#776867;">(guest)</small>' : ''}</td><td style="${td}white-space:nowrap;">${stLabel(r)}</td>${pay ? `<td style="${td}white-space:nowrap;">${r.paid ? '<b style="color:#2a7a4a;">✓ Paid</b>' : r.claimedPaid ? '<span style="color:#9a6a00;">💬 says paid</span>' : '<span style="color:#b3261e;">Not yet</span>'}</td><td style="${td}white-space:nowrap;">${r.total != null ? escapeCm(calMoney(r.total, sym)) : ''}</td>` : ''}<td style="${td}">${escapeCm(r.contact || '')}</td>${fields.map(x => `<td style="${td}">${escapeCm(admFormFmt((r.answers || {})[x.id]))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+      <p class="ideas-hint" style="text-align:left;margin:6px 0 0;">Showing ${list.length} of ${rs.length}. Tap a name to see all their answers. Swipe sideways to see every question.</p>`;
+    tbl.querySelectorAll('.afm-row').forEach(tr => tr.addEventListener('click', () => {
+      const r = rs[Number(tr.dataset.i)];
+      ideaPopup(`<h3 style="margin:0 0 4px;">${escapeCm(r.name)}</h3><p class="ideas-hint" style="text-align:left;margin:0 0 10px;">${stLabel(r)}${r.contact ? ' · ' + escapeCm(r.contact) : ''}${pay ? (r.paid ? ' · <b style="color:#2a7a4a;">💳 Paid</b>' : ' · <span style="color:#b3261e;">not paid</span>') : ''}${r.total != null ? ' · ' + escapeCm(calMoney(r.total, sym)) : ''}</p>
+        ${(r.addons || []).length ? `<p style="margin:0 0 8px;"><b>Add-ons:</b> ${escapeCm(aoLabel(r))}</p>` : ''}
+        ${fields.map(x => { const v = (r.answers || {})[x.id]; return `<div style="padding:8px 0;border-top:1px solid rgba(0,0,0,.08);"><div style="font-size:13px;color:#776867;">${escapeCm(richPlain(x.label))}</div>${x.type === 'signature' && /^data:image\/png;base64,/.test(String(v || '')) ? `<img src="${escapeCm(v)}" alt="signature" style="display:block;max-width:260px;width:100%;background:#fff;border:1px solid #ddd;border-radius:8px;margin-top:4px;">` : `<div style="font-size:15px;white-space:pre-wrap;">${escapeCm(admFormFmt(v)) || '<span style="color:#aaa;">—</span>'}</div>`}</div>`; }).join('')}`);
+    }));
+  }
+  paint();
+  document.getElementById('afmCsv').addEventListener('click', () => {
+    const esc = v => '"' + String(v).replace(/"/g, '""') + '"';
+    const rows = [['Name', 'Contact', 'Status'].concat(pay ? ['Paid', 'Add-ons', 'Total due'] : []).concat(fields.map(x => richPlain(x.label)))].concat(shown().map(r => [r.name, r.contact || '', r.status === 'waitlist' ? 'Waitlist' : r.status === 'going' ? 'Going' : (r.status || '')].concat(pay ? [r.paid ? 'Yes' : 'No', aoLabel(r), r.total != null ? r.total : ''] : []).concat(fields.map(x => admFormFmt((r.answers || {})[x.id])))));
+    const blob = new Blob([rows.map(r => r.map(esc).join(',')).join('\n')], { type:'text/csv' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (ev.title || 'form').replace(/[^\w-]+/g, '_') + '-responses.csv'; a.click();
+  });
+}
 function wireAdmCalendar(){
   wireAdmEvents();
   const add = document.getElementById('admEvAdd'); if(add) add.addEventListener('click', () => { const { wrap, close } = ideaPopup('<h3 style="margin:0 0 6px;">➕ Add an event</h3><p class="ideas-hint" style="text-align:left;margin:0 0 10px;">What kind of event is it?</p><div style="display:flex;flex-direction:column;gap:8px;"><button type="button" class="club-guide-btn" id="aePub" style="text-align:center;">📅 Public event<br><small>listed on the public calendar for everyone</small></button><button type="button" class="club-guide-btn" id="aeHost" style="text-align:center;background:var(--brand-rose);color:#fff;">🌸 Hosted by 4DS<br><small>sign-ups, spots, form &amp; payment</small></button></div>'); wrap.querySelector('#aePub').addEventListener('click', () => { close(); openEventCreate(); }); wrap.querySelector('#aeHost').addEventListener('click', () => { close(); clubCalForm(null); }); });
@@ -11071,7 +11181,7 @@ function resourceSuggestionsAdminHtml(){
   const label = k => (RESOURCE_CATEGORIES.find(c => c[0] === k) || [k, k])[1];
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Submitted resources${list.length ? ` (${list.length})` : ''}</h4>
     ${list.length ? list.map(x => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
-      <span style="min-width:0;"><strong>${escapeCm(x.title)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(x.type === 'other' ? 'Other: ' + (x.typeOther || '') : label(x.type))} · ${escapeCm(x.city)}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
+      <span style="min-width:0;"><strong>${escapeCm(x.title)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(x.type === 'other' ? 'Other: ' + (x.typeOther || '') : label(x.type))} · ${escapeCm(x.city)}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}${x.contact ? `<br><span style="font-size:12px;">📇 Contact: <b>${escapeCm(x.contact)}</b></span>` : ''}</span>
       <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--brand-blush);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn res-sug-dismiss" data-sugid="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted resources.</p>'}</div>`;
 }
 async function cmAdminLoadEventSuggestions(){
@@ -11706,7 +11816,7 @@ function renderClubAdminPanel(){
   // Old tab names still land somewhere sensible (the admin page used to have 8 tabs; it now has 6)
   const OLD_GROUPS = { team:'settings', directory:'settings', badminton:'programs', steps:'programs', profiles:'people' };
   const grp = OLD_GROUPS[state.admGroup] || state.admGroup;
-  const allowedGroups = lead ? ['clubs', 'events', 'people'] : ['todo', 'events', 'calendar', 'clubs', 'people', 'programs', 'settings'];
+  const allowedGroups = lead ? ['clubs', 'events', 'forms', 'people'] : ['todo', 'events', 'forms', 'calendar', 'clubs', 'people', 'programs', 'settings'];
   const gsel = allowedGroups.includes(grp) ? grp : (lead ? 'clubs' : 'todo');
   // Club events + quick member (per club) — lives in the Clubs grid
   const clubToolsHtml = `
@@ -11812,7 +11922,7 @@ function renderClubAdminPanel(){
     ${lead ? '' : admNeedsHtml()}
     ${admGroupTilesHtml(lead, gsel)}
     ${admFinderHtml(lead)}
-    ${gsel === 'todo' ? todoGrid : gsel === 'clubs' ? clubsGrid : gsel === 'events' ? eventsGrid : gsel === 'calendar' ? calendarTabGrid : gsel === 'settings' ? settingsGrid : gsel === 'programs' ? programsGrid : profilesGrid}
+    ${gsel === 'todo' ? todoGrid : gsel === 'clubs' ? clubsGrid : gsel === 'events' ? eventsGrid : gsel === 'calendar' ? calendarTabGrid : gsel === 'forms' ? admFormsHtml() : gsel === 'settings' ? settingsGrid : gsel === 'programs' ? programsGrid : profilesGrid}
   </div>`;
 }
 // ⭐ Featured on Home: pin specific events / businesses for as long as you like; anything left empty is picked automatically each day (no repeats until everything has had a turn).
@@ -11888,6 +11998,7 @@ function admGroupTilesHtml(lead, cur){
   return `<div class="adm-tiles" style="grid-template-columns:repeat(${lead ? 3 : 3}, minmax(0,1fr));">
     ${lead ? '' : tile('todo', '🔔', 'To do', 'Requests &amp; submissions to approve', admInboxCount() + (n.stayTodo || 0))}
     ${tile('events', '🎟️', '4DS activities', lead ? 'Sign-ups · forms · answers' : 'Hosted events · sign-ups · payments', (n.pendingRsvps || 0) + (n.unpaid || 0))}
+    ${tile('forms', '📝', 'Event forms', 'Who signed up · what they answered', '')}
     ${lead ? '' : tile('calendar', '📅', 'Calendar', 'Add &amp; edit events · public or 4DS', '')}
     ${tile('clubs', '🏛️', 'Clubs', lead ? 'Requests · availability' : 'Clubs · links · availability · club admins', lead ? admInboxCount() : '')}
     ${tile('people', '👥', 'People', lead ? 'Profiles' : 'Profiles · messages', '')}
@@ -12753,6 +12864,7 @@ function wireClubAdminPanel(){
   { const bc = document.getElementById('admBackCurrent'); if(bc) bc.addEventListener('click', () => { admAvail.viewPeriod = null; admAvail.month = String(AVAIL_PERIOD.start).slice(0, 7); render(); }); }
   wireWaTemplates();
   wireAdmCalendar();
+  wireAdmForms();
   wireClubLinks();
   wireCalCopy(document);
   wireD1Admin();
