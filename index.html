@@ -3006,6 +3006,7 @@ function renderResourceList(){
 
 function renderResourceMap(){
   if(typeof L === 'undefined'){ loadLib(LIB_LEAFLET).then(() => { if(state.tab === 'resources') renderResourceMap(); }).catch(() => {}); return; }
+  if(!state.bizRev && !state.bizRevLoading){ state.bizRevLoading = true; fetch('/api/biz-reviews', { cache:'no-store' }).then(r => r.json()).then(j => { state.bizRevLoading = false; state.bizRev = j.summary || {}; }).catch(() => { state.bizRevLoading = false; state.bizRev = {}; }); }
   const el = document.getElementById('directory-view');
   const legendItems = resourceFilterList.filter(f => f.key !== 'all');
   el.innerHTML = `${resAddBtnHtml()}<div class="resource-map-wrapper">
@@ -3044,7 +3045,8 @@ function renderResourceMap(){
     const color = categoryColors[r.category] || '#211E1C';
     const marker = L.marker([r.lat, r.lng], {icon: L.divIcon({className:'resource-number-icon', html:`<span style="background:${color}">${index + 1}</span>`, iconSize:[26,26], iconAnchor:[13,13]})}).addTo(map);
     const linkHtml = r.mapsUrl ? `<a href="${r.mapsUrl}" target="_blank" rel="noopener">View on Google Maps</a>` : '';
-    marker.bindPopup(`<strong>${r.title}</strong><br>${r.type||''}<br>${linkHtml}`);
+    const isBiz = ['cafes','restaurants','shops'].includes(r.category) || SMALL_BIZ_KEYS.includes(r.category), rv = (state.bizRev || {})[String(r.id)];
+    marker.bindPopup(`<strong>${r.title}</strong><br>${r.type||''}<br>${linkHtml}${isBiz ? `<br><button type="button" data-bizid="${escapeCm(String(r.id))}" data-biztitle="${escapeCm(r.title)}" onclick="openBizReviews(this.dataset.bizid,this.dataset.biztitle)" style="margin-top:6px;border:none;background:rgba(206,132,145,.18);border-radius:999px;padding:5px 10px;font-weight:700;color:#76220b;cursor:pointer;">${rv ? `💗 ${rv.avg} · ${rv.n} review${rv.n === 1 ? '' : 's'}` : '💗 Reviews'}</button>` : ''}`);
     markers.push(marker);
   });
 
@@ -3062,7 +3064,7 @@ function renderResourceMap(){
   sideListContent.innerHTML = mappedItems.map((r, index) => `
       <div class="side-item" data-id="${r.id}">
         <strong><span class="side-number" style="background:${categoryColors[r.category] || '#fff7e6'}">${index + 1}</span>${r.title}</strong>
-        <span>${r.type || ''}${r.location ? ' · ' + r.location : ''}</span>
+        <span>${r.type || ''}${r.location ? ' · ' + r.location : ''}${(state.bizRev || {})[String(r.id)] ? ` · 💗 ${state.bizRev[String(r.id)].avg} (${state.bizRev[String(r.id)].n})` : ''}</span>
       </div>
     `).join('');
   sideListTitle.textContent = `Mapped resources (${mappedItems.length})`;
