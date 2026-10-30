@@ -1098,6 +1098,16 @@
   }
 }
 @media (prefers-reduced-motion:reduce){ .ideas-cloud.floaty .idea-bubble{ animation:none !important; } }
+  /* "What everyone's voting on": one big bubble per club → tap → it bursts into that club's idea bubbles */
+  .ideas-cloud .idea-bubble.club-bubble{ flex:0 0 auto !important; aspect-ratio:1/1; max-width:calc(50% - 6px); height:auto !important; }
+  .club-bubble .idea-title{ font-size:17px; font-weight:800; }
+  .club-bubble .cb-press{ display:inline-block; margin-top:6px; padding:4px 10px; border-radius:999px; background:var(--line); color:#fff; font-size:12px; font-weight:800; letter-spacing:.02em; animation:cbPulse 1.6s ease-in-out infinite; }
+  @keyframes cbPulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.08); } }
+  .idea-bubble.bursting{ transition:scale .35s ease-out, opacity .35s ease-out !important; scale:1.7; opacity:0; pointer-events:none; }
+  .idea-bubble.pop-in{ scale:0; opacity:0; }
+  .idea-bubble.popping{ transition:scale .5s cubic-bezier(.3,1.7,.5,1), opacity .25s !important; }
+  .cb-spark{ position:fixed; z-index:9999; border-radius:50%; pointer-events:none; }
+  .cb-back{ display:block; margin:0 auto 8px; padding:8px 16px; border-radius:999px; border:2px solid var(--brand-brown); background:#fff; font:700 14px 'Outfit','Inter',sans-serif; color:var(--brand-brown); cursor:pointer; }
 
 /* ===== BRAND PASS: every button / pill / chip / card outside the calendar's event types uses the brand palette
    (#ce8491 rose, #76220b brown, #fef7f4 cream, #ffc1c1 pink, #f2d8d7 blush). Club things use the club colours (set inline).
@@ -7614,6 +7624,10 @@ function calPageEditor(ev, opts){
   const detailsHtml = `${lab('Event name')}<input id="cfTitle" type="text" maxlength="80" placeholder="e.g. Pottery night" value="${escapeCm(ev ? ev.title : '')}" style="${f}">
     <label style="display:flex;gap:8px;align-items:center;margin:0 0 6px;font-weight:700;font-size:14px;"><input type="checkbox" id="cfTbd" ${ev && ev.tbd ? 'checked' : ''} style="width:20px;height:20px;"> 🕒 Date to be decided</label>
     ${lab('Date')}<input id="cfDate" type="date" value="${escapeCm(ev && !ev.tbd ? ev.date : (opts.presetDate || ''))}" style="${f}">
+    ${isNew && !link ? `<div id="cfRepeatBox" style="margin:0 0 8px;padding:10px;border-radius:12px;border:2px dashed #f2d8d7;background:#fef7f4;">${lab('🔁 Repeat')}<select id="cfRepeat" style="${f}"><option value="">Just once</option><option value="w1">Every week</option><option value="w2">Every 2 weeks</option><option value="m1">Same date every month</option><option value="pick">On dates I pick</option></select>
+      <div id="cfRepEnd" hidden>${lab('Until (last date)')}<input id="cfRepUntil" type="date" style="${f}"></div>
+      <div id="cfRepPick" hidden>${lab('Add more dates')}<div style="display:flex;gap:6px;"><input id="cfRepDate" type="date" style="${f}flex:1;min-width:0;"><button type="button" class="fb-mini" id="cfRepAdd" style="flex:0 0 auto;margin-bottom:8px;">➕ Add</button></div><div id="cfRepChips" style="display:flex;flex-wrap:wrap;gap:6px;"></div></div>
+      <div id="cfRepNote" class="ideas-hint" style="text-align:left;margin:6px 0 0;"></div></div>` : ''}
     ${lab('Time (optional)')}<input id="cfTime" type="text" maxlength="30" placeholder="e.g. 6:30 PM" value="${escapeCm(ev ? ev.time : '')}" style="${f}">
     ${lab('Sign-ups close on (optional)')}<input id="cfRsvpBy" type="date" value="${escapeCm(ev ? (ev.rsvpBy || '') : '')}" style="${f}">
     ${link ? '' : `${lab('Max spots (optional — after that people join a waitlist)')}<input id="cfCap" type="number" inputmode="numeric" min="0" max="5000" placeholder="e.g. 40 — empty = no limit" value="${ev && ev.capacity ? ev.capacity : ''}" style="${f}">`}
@@ -7645,6 +7659,30 @@ function calPageEditor(ev, opts){
   if(!link){ host.querySelectorAll('.cf-club').forEach(c => c.addEventListener('change', () => hostsP.setClubs(ids()))); mountClubCalPlace(host); }
   // ---- TBD toggles the date fields ----
   { const tb = q('#cfTbd'), dt = q('#cfDate'), rb = q('#cfRsvpBy'); const sync = () => { dt.disabled = tb.checked; rb.disabled = tb.checked; dt.style.opacity = rb.style.opacity = tb.checked ? '.4' : '1'; }; tb.addEventListener('change', sync); sync(); }
+  // ---- 🔁 repeat (new events): weekly / every 2 weeks / monthly until a date, or any dates you pick. Each date becomes its own event (own sign-ups). ----
+  const repPicked = [];
+  const repDates = () => {
+    const sel = q('#cfRepeat'), first = (q('#cfDate') || {}).value; if(!sel || !sel.value || !first || q('#cfTbd').checked) return [];
+    if(sel.value === 'pick') return [...new Set(repPicked.filter(d => d !== first))].sort();
+    const until = q('#cfRepUntil').value; if(!until || until <= first) return [];
+    const out = [], d0 = new Date(first + 'T12:00:00');
+    for(let i = 1; i <= 60; i++){
+      const d = new Date(d0); if(sel.value === 'm1') d.setMonth(d0.getMonth() + i); else d.setDate(d0.getDate() + i * (sel.value === 'w2' ? 14 : 7));
+      if(sel.value === 'm1' && d.getDate() !== d0.getDate()) continue;
+      const k = d.toLocaleDateString('en-CA'); if(k > until) break; out.push(k);
+    }
+    return out;
+  };
+  if(q('#cfRepeat')){
+    const paintRep = () => {
+      const v = q('#cfRepeat').value; q('#cfRepEnd').hidden = !(v && v !== 'pick'); q('#cfRepPick').hidden = v !== 'pick';
+      q('#cfRepChips').innerHTML = repPicked.slice().sort().map(d => `<button type="button" class="filter-chip active cfRepX" data-d="${d}">${escapeCm(calDateLabel(d))} ✕</button>`).join('');
+      const n = repDates().length; q('#cfRepNote').textContent = v ? (n ? `This makes ${n + 1} events: the first date plus ${n} more. Each has its own sign-ups.` : (v === 'pick' ? 'Add the other dates above.' : 'Pick the last date.')) : '';
+    };
+    q('#cfRepeat').addEventListener('change', paintRep); q('#cfRepUntil').addEventListener('change', paintRep); q('#cfDate').addEventListener('change', paintRep);
+    q('#cfRepAdd').addEventListener('click', () => { const v = q('#cfRepDate').value; if(v && !repPicked.includes(v)) repPicked.push(v); q('#cfRepDate').value = ''; paintRep(); });
+    q('#cfRepChips').addEventListener('click', e => { const b = e.target.closest('.cfRepX'); if(!b) return; repPicked.splice(repPicked.indexOf(b.dataset.d), 1); paintRep(); });
+  }
   // ---- who's going (new events) ----
   const picked = [];
   if(isNew && !link){
@@ -7711,8 +7749,17 @@ function calPageEditor(ev, opts){
         const body = { title: g.title, date: g.date, time: g.time, place: g.place, mapUrl: g.mapUrl, rsvpBy: g.rsvpBy, desc: g.desc, capacity: g.capacity, clubIds: g.clubIds, tbd: g.tbd, blocks: g.blocks, theme: g.theme, hosts: g.hosts };
         body.form = g.form ? (() => { const c = { ...g.form }; delete c.rsvpBy; delete c.desc; return c; })() : null;
         if(isNew) body.attendees = picked.map(a => a.userId ? { userId:a.userId } : { name:a.name });
+        const more = isNew ? repDates() : [];
+        if(more.length && q('#cfRepeat').value !== 'pick' && !q('#cfRepUntil').value) throw new Error('Pick the last date for the repeat.');
         const r = await clubCalAdminCall(isNew ? '' : '/' + encodeURIComponent(ev.id), isNew ? 'POST' : 'PUT', body);
-        dirty = false; close(true); clubCalReload(); admToastLite(isNew ? '✓ Event added' : '✓ Saved'); if(opts.onSaved) opts.onSaved(r && r.event);
+        let made = 0;
+        for(const d of more){
+          say(`Adding the repeat dates… ${made + 1} of ${more.length}`, true);
+          const shift = k => { if(!k) return ''; const x = new Date(k + 'T12:00:00'); x.setDate(x.getDate() + Math.round((new Date(d + 'T12:00:00') - new Date(g.date + 'T12:00:00')) / 864e5)); return x.toLocaleDateString('en-CA'); };
+          const copy = { ...body, date: d, rsvpBy: shift(body.rsvpBy), attendees: [] };
+          try { await clubCalAdminCall('', 'POST', copy); made++; } catch(err){ say(`Saved the first ${made + 1} dates, then: ${err.message}`); }
+        }
+        dirty = false; close(true); clubCalReload(); admToastLite(isNew ? (made ? `✓ ${made + 1} events added` : '✓ Event added') : '✓ Saved'); if(opts.onSaved) opts.onSaved(r && r.event);
       }
     } catch(err){ say(err.message); }
     saving = false; btn.disabled = false;
@@ -7862,7 +7909,15 @@ function renderPublicIdeasFeedHtml(title, hint, emptyMsg){
   if(state.publicIdeasAllError) cloud = `<p class="av-msg" style="color:#c00;text-align:center;">${escapeCm(state.publicIdeasAllError)}</p>`;
   else if(!state.publicIdeasAll) cloud = `<p class="av-msg" style="text-align:center;">Loading ideas…</p>`;
   else if(!state.publicIdeasAll.length) cloud = `<p class="av-msg" style="text-align:center;">${escapeCm(emptyMsg || 'No ideas yet — sign up and be the first!')}</p>`;
-  else cloud = `<div class="ideas-cloud" id="publicIdeasCloud">${state.publicIdeasAll.map(publicIdeaBubbleHtml).join('')}</div>`;
+  else {
+    // Group by club: one big bubble each (biggest total votes first). Tapping one bursts it into that club's ideas.
+    const groups = []; state.publicIdeasAll.forEach(i => { let g = groups.find(x => x.id === i._clubId); if(!g) groups.push(g = { id:i._clubId, title:i._clubTitle, ideas:[], votes:0 }); g.ideas.push(i); g.votes += i.votes || 0; });
+    groups.sort((a, b) => b.votes - a.votes);
+    const open = groups.find(g => g.id === state.publicIdeasOpenClub);
+    cloud = open
+      ? `<button type="button" class="cb-back" id="cbBack">← All clubs</button><div class="ideas-cloud" id="publicIdeasCloud">${open.ideas.map(i => publicIdeaBubbleHtml(i).replace('class="idea-bubble', 'class="idea-bubble' + (state.publicIdeasPop ? ' pop-in' : '')).replace(/<span class="idea-cuisine">🏷 [^<]*<\/span>/, '')).join('')}</div>`
+      : `<div class="ideas-cloud" id="publicIdeasCloud">${groups.map(g => { const z = Math.max(150, Math.min(240, 140 + g.votes * 4)); const c = clubCol(g.id); return `<button type="button" class="idea-bubble club-bubble" data-ideaid="club:${escapeCm(g.id)}" data-club="${escapeCm(g.id)}" style="--fill:${c.bg};--line:${c.fg};color:${c.fg};width:${z}px;height:${z}px;--bs:${z}px;" aria-label="${escapeCm(g.title)}: ${g.ideas.length} ideas — tap to open"><span class="idea-title">${escapeCm(g.title)}</span><span class="idea-votes">${g.ideas.length} idea${g.ideas.length === 1 ? '' : 's'} · ${ideaVotesLabel(g.votes)}</span><span class="cb-press">PRESS ME</span></button>`; }).join('')}</div>`;
+  }
   return `<h3 class="clubs-popular-title">${escapeCm(title || "WHAT EVERYONE'S VOTING ON")}</h3>
     <p class="ideas-hint" style="text-align:center;margin:0 0 10px;">${escapeCm(hint || 'Tap a bubble to vote. Sign up or log in to add your own idea.')}</p>
     ${cloud}`;
@@ -8370,12 +8425,28 @@ async function publicIdeaVoteAttempt(id, bubble){
     render();
   }
 }
+function clubBubbleBurst(b){
+  if(b.classList.contains('bursting')) return;
+  const r = b.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, col = getComputedStyle(b).getPropertyValue('--line') || '#ce8491';
+  const still = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  if(!still) for(let i = 0; i < 16; i++){
+    const d = document.createElement('span'), z = 8 + Math.random() * 14, a = (i / 16) * Math.PI * 2 + Math.random() * .4, dist = r.width * (.55 + Math.random() * .5);
+    d.className = 'cb-spark'; d.style.cssText = `width:${z}px;height:${z}px;left:${cx - z / 2}px;top:${cy - z / 2}px;background:${i % 2 ? col : getComputedStyle(b).getPropertyValue('--fill')};border:2px solid ${col};`;
+    document.body.appendChild(d);
+    d.animate([{ transform:'translate(0,0) scale(1)', opacity:1 }, { transform:`translate(${Math.cos(a) * dist}px,${Math.sin(a) * dist}px) scale(.3)`, opacity:0 }], { duration:600, easing:'cubic-bezier(.2,.8,.3,1)' }).onfinish = () => d.remove();
+  }
+  b.classList.add('bursting'); hapticTick && hapticTick('done');
+  setTimeout(() => { state.publicIdeasOpenClub = b.dataset.club; state.publicIdeasPop = !still; render(); }, still ? 0 : 300);
+}
 function wirePublicIdeasFeed(){
   const box = document.getElementById('publicIdeasCloud');
   if(!box) return;
   floatIdeaClouds();
+  { const back = document.getElementById('cbBack'); if(back) back.addEventListener('click', () => { state.publicIdeasOpenClub = null; state.publicIdeasPop = false; render(); }); }
+  if(state.publicIdeasPop){ state.publicIdeasPop = false; [...box.querySelectorAll('.idea-bubble.pop-in')].forEach((b, i) => setTimeout(() => { b.classList.add('popping'); b.classList.remove('pop-in'); setTimeout(() => b.classList.remove('popping'), 600); }, 40 + i * 70)); }
   box.querySelectorAll('.idea-bubble').forEach(b => b.addEventListener('click', e => {
     if(e.target.closest('.idea-mini')) return;
+    if(b.classList.contains('club-bubble')){ clubBubbleBurst(b); return; }
     publicIdeaVoteAttempt(b.dataset.ideaid, b);
   }));
   box.querySelectorAll('[data-ideainfo]').forEach(x => x.addEventListener('click', e => { e.stopPropagation(); openPublicIdeaInfo(x.dataset.ideainfo); }));
