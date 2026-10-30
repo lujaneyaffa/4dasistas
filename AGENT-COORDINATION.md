@@ -1388,3 +1388,9 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - Directory business reviews: D1 `biz_reviews` (user_id, biz_id, rating, comment, at); GET /api/biz-reviews (summary), GET/POST /api/biz-reviews/:id, DELETE /api/admin/biz-reviews/:id/:uid. Cards (cafes/restaurants/shops + small-biz filters) show "💗 4.6 · 3 reviews"; pop-up lists reviews + member form; admin can remove.
 - Invite a sister: ?ref=<username> saved before sign-in; after /api/me loads, POST /api/me/referred-by credits referrer once (account must be <2 h old); referrer gets a push; /api/me returns `invited`. Profile: invite card (share/copy link) + 🏅 badges (events 1/5/10/25, 3-week streak, invites 1/5, 3 clubs, steps) and current weekly streak from /api/me/attended.
 - Faster first load: leaflet.js and globe.gl no longer render-blocking; loaded on demand via loadLib() in renderTripEarthView / renderResourceMap / clubCalLocationMap.
+
+## 2026-10-30 — sw v272
+- 4DS event editor: section 4 is now "How do people sign up?" — 🚫 No sign-up / ✋ One-tap RSVP / 📝 Sign-up form (builder shown only for form). Stored as ev.signup ("none"|"rsvp"|"form"); signup "none" hides action/form/spots/going/rsvpby sections on the page. Switching away from a form asks to confirm (form is removed, answers kept).
+- 🔒 ev.placePrivate: place/map/map-blocks blanked (placeHidden) for anyone not "going" (admin sees all); guest/new-account form POST returns place+mapUrl when going and the thank-you screen shows it; ICS omits LOCATION.
+- Repeat: now also on existing events ("Also put this event on more dates"); validation no longer silently saves a single date when Repeat is set without an end date / picked dates.
+- Badminton duplicates merged (11 old rows → 10 keepers; games refs → keeper ids, attendance/past/rsvps moved, 3 old photos copied). Backups: scratchpad backup_bm_*.json.
