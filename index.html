@@ -451,7 +451,7 @@ function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) =>
   .mc-week span{ font-size:11px; font-weight:700; color:var(--muted); padding:2px 0; }
   .mc-day{ min-height:46px; min-width:0; height:auto; display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:1px; border:0; border-radius:10px; background:transparent; font:inherit; font-size:13px; color:var(--charcoal); padding:0; }
   .mc-n{ font-size:12px; line-height:1.1; text-align:center; }
-  .mc-day em{ display:block; font-style:normal; font-size:8.5px; line-height:1.15; font-weight:700; border:1px solid; border-radius:4px; padding:1px 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; } /* one line + … : tap the day for the full name (wrapping a long title letter-by-letter in a 50px cell was unreadable) */
+  .mc-day em{ display:block; font-style:normal; font-size:8.5px; line-height:1.15; font-weight:700; border:1px solid; border-radius:4px; padding:1px 2px; white-space:normal; overflow-wrap:anywhere; text-align:left; } /* full title, wrapped (never cut off) */
   .mc-day b{ font-size:8px; line-height:1; }
   .mc-agenda{ margin-top:10px; display:flex; flex-direction:column; gap:6px; border-top:2px dashed #f2d8d7; padding-top:8px; }
   .mc-ev{ display:flex; align-items:center; gap:8px; text-align:left; border:0; background:transparent; padding:2px 0; font:inherit; color:inherit; cursor:pointer; }
@@ -6273,17 +6273,19 @@ function clubCalGridHtml(list){
   const [y, mo] = m.split('-').map(Number), first = new Date(y, mo - 1, 1), dim = new Date(y, mo, 0).getDate();
   const byDay = {}; list.forEach(e => { if(e.date.startsWith(m)) (byDay[e.date] = byDay[e.date] || []).push(e); });
   const todayK = new Date().toISOString().slice(0, 10);
-  let cells = '';
-  for(let i = 0; i < first.getDay(); i++) cells += '<div></div>';
+  // Same look as the main calendar (its month grid: 4 days across on a phone, full titles wrapped, club colours) so 4DS events read the same everywhere.
+  const mobile = window.matchMedia('(max-width:480px)').matches, dayFull = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  let cells = '', row = 0;
+  if(!mobile) for(let i = 0; i < first.getDay(); i++) cells += '<div class="day-cell empty"></div>';
   for(let d = 1; d <= dim; d++){
     const key = `${m}-${String(d).padStart(2, '0')}`, evs = byDay[key] || [];
-    const chips = evs.slice(0, 4).map(e => `<em style="background:${clubCol(e.clubId).bg};color:${clubCol(e.clubId).fg};border-color:${clubCol(e.clubId).fg};">${escapeCm(e.title)}</em>`).join('');
-    cells += `<button type="button" class="mc-day${evs.length ? ' has' : ''}${key === todayK ? ' today' : ''}" ${evs.length || calIsAdmin() ? `data-calday="${key}"` : 'tabindex="-1"'}><span class="mc-n">${d}</span>${chips}${evs.length > 4 ? `<b>+${evs.length - 4}</b>` : ''}</button>`;
+    const pips = evs.map(e => { const c = clubCol(e.clubId); return `<span class="day-pip" style="background:${c.bg};color:${c.fg};border:1px solid ${c.fg};">${escapeCm(e.title)}</span>`; }).join('');
+    cells += `<div class="day-cell${key === todayK ? ' today' : ''}${row % 2 === 0 ? ' row-even' : ' row-odd'}" ${evs.length || calIsAdmin() ? `data-calday="${key}"` : ''}><div class="day-weekday">${dayFull[new Date(y, mo - 1, d).getDay()]}</div><div class="day-num">${d}</div>${pips}</div>`;
+    if((mobile ? d : first.getDay() + d) % (mobile ? 4 : 7) === 0 && d !== dim) row++;
   }
   const label = first.toLocaleDateString('en-CA', { month:'long', year:'numeric' });
-  return `<div class="mini-cal"><div class="mc-head"><button type="button" class="mc-nav" data-calnav="-1" aria-label="Previous month">‹</button><strong>${escapeCm(label)}</strong><button type="button" class="mc-nav" data-calnav="1" aria-label="Next month">›</button></div>
-    <div class="mc-week">${['S','M','T','W','T','F','S'].map(x => `<span>${x}</span>`).join('')}</div><div class="mc-grid">${cells}</div>
-  </div>`;
+  return `<div class="cal-header"><button type="button" class="cal-nav-btn" data-calnav="-1" aria-label="Previous month">‹</button><div class="cal-title">${escapeCm(label)}</div><button type="button" class="cal-nav-btn" data-calnav="1" aria-label="Next month">›</button></div>
+    <div class="weekday-row">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x => `<div>${x}</div>`).join('')}</div><div class="month-grid">${cells}</div>`;
 }
 function clubCalSectionHtml(compact){
   const sessC = getCmSession(), canMine = !!sessC && !calIsAdmin();
