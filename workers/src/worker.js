@@ -1390,7 +1390,6 @@ const sanitizeCalForm = (f) => {
     if (x.type === "choice" || x.type === "multi") { fld.options = (Array.isArray(x.options) ? x.options : []).map((o) => cleanCalText(o, 160)).filter(Boolean).slice(0, 12); if (fld.options.length < 2) continue; }
     fields.push(fld);
   }
-  if (!fields.length) return null;
   const longText = (v, n) => String(v || "").replace(/[\x00-\x08\x0b-\x1f\x7f<>]/g, " ").trim().slice(0, n);
   const out = { title: cleanCalText(f.title, 140) || "Sign-up form", intro: longText(f.intro, 2000), fields };
   if (typeof f.rsvpBy === "string") out.rsvpBy = /^\d{4}-\d{2}-\d{2}$/.test(f.rsvpBy) ? f.rsvpBy : ""; // the form builder can set the event's last RSVP day (moved onto the event below)
@@ -1413,6 +1412,7 @@ const sanitizeCalForm = (f) => {
     if (f.payment.required) pay.required = true; // payment required: people must tick "I've sent my payment" to sign up
     if (pay.amount || pay.link || pay.note || pay.addons) out.payment = pay;
   }
+  if (!fields.length && !out.payment) return null; // a form needs a question OR a payment (a payment-only sign-up is fine)
   return out;
 };
 // ---- Event page design: text uses a tiny markup the browser renders safely (**bold**, *italic*, links…); the page is also a list of BLOCKS (text, photo, map, button, video, divider) plus a theme ----

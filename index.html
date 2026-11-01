@@ -7551,7 +7551,7 @@ function openFormBuilder(initial, onDone, opts){
     page.querySelectorAll('.fb-add').forEach(b => b.addEventListener('click', () => { form.fields.push({ id: nid(), type: b.dataset.t, label: '', required: false, ...(b.dataset.t === 'choice' || b.dataset.t === 'multi' ? { options: ['Option 1', 'Option 2'] } : {}) }); paint(); const last = page.querySelectorAll('.fb-label'); if(last.length) last[last.length - 1].focus(); }));
     { const pv = page.querySelector('#fbPreview'); if(pv) pv.addEventListener('click', () => { preview = true; paint(); }); }
     const clr = page.querySelector('#fbClear'); if(clr) clr.addEventListener('click', () => { if(confirm('Remove all questions? The event will have no form.')){ form.fields = []; form.title = ''; form.intro = ''; paint(); } });
-    { const cn = page.querySelector('#fbCancel'); if(cn) cn.addEventListener('click', finish); const dn = page.querySelector('#fbDone'); if(dn) dn.addEventListener('click', () => { if(validate()){ finish(); onDone(form.fields.length ? form : null); } }); }
+    { const cn = page.querySelector('#fbCancel'); if(cn) cn.addEventListener('click', finish); const dn = page.querySelector('#fbDone'); if(dn) dn.addEventListener('click', () => { if(validate()){ finish(); onDone(form.fields.length || form.payment ? form : null); } }); }
   };
   const validate = () => { // true when every question is complete (otherwise shows what's missing)
     const bad = form.fields.findIndex(f => !String(f.label || '').trim() || ((f.type === 'choice' || f.type === 'multi') && (f.options || []).length < 2));
@@ -7561,7 +7561,7 @@ function openFormBuilder(initial, onDone, opts){
     return true;
   };
   paint();
-  return { validate, get: () => (form.fields.length ? form : null) };
+  return { validate, get: () => (form.fields.length || form.payment ? form : null) };
 }
 // Message everyone going (and/or on the waitlist): a push notification, sent a few people at a time.
 function calMessageAll(ev){
@@ -7703,7 +7703,7 @@ function calPageEditor(ev, opts){
     ${sec(++n, 'pgS1', 'Who’s hosting', 'Round logos at the top of the page. The clubs ticked below show automatically; add outside organizations, upload logos and give each a link.', `${clubsHtml}<div id="pgHosts"></div>`)}
     ${sec(++n, 'pgS2', 'Details', 'The name, when and where.', detailsHtml)}
     ${sec(++n, 'pgS3', 'Cover, text &amp; photos', 'The cover photo, colours and font, the description and extra blocks (photos, maps, buttons, videos).', '<div id="pgDesign"></div>')}
-    ${sec(++n, 'pgS4', link ? 'Sign-up form' : 'How do people sign up?', link ? 'The questions people answer when they sign up. Leave it empty for no form.' : 'Everything above stays the same. Only this part changes.', (link ? '' : `<div id="cfSignup" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">${[['none', '🚫 No sign-up', 'Just the event page. No RSVP button, no form.'], ['rsvp', '✋ One-tap RSVP', 'An “I’m going” button. Spots and waitlist work.'], ['form', '📝 Sign-up form', 'Questions, payment, waivers — anything you add below.']].map(([k, t, h]) => `<label style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:12px;border:2px solid var(--brand-brown);cursor:pointer;background:#fff;"><input type="radio" name="cfSignupMode" value="${k}" ${(ev ? (ev.signup || (ev.form ? 'form' : 'rsvp')) : 'rsvp') === k ? 'checked' : ''} style="width:20px;height:20px;flex:none;margin-top:2px;"><span><b>${t}</b><br><small style="color:#776867;">${h}</small></span></label>`).join('')}</div>`) + '<div id="pgForm"></div>')}
+    ${sec(++n, 'pgS4', link ? 'Sign-up form' : 'How do people sign up?', link ? 'The questions people answer when they sign up. Leave it empty for no form.' : 'Everything above stays the same. Only this part changes.', (link ? '' : (() => { const cur = ev ? (ev.signup || (ev.form ? 'form' : 'rsvp')) : 'rsvp', opt = (nm, v, t, hh, on) => `<label style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:12px;border:2px solid var(--brand-brown);cursor:pointer;background:#fff;"><input type="radio" name="${nm}" value="${v}" ${on ? 'checked' : ''} style="width:20px;height:20px;flex:none;margin-top:2px;"><span><b>${t}</b><br><small style="color:#776867;">${hh}</small></span></label>`; return `<div id="cfSignup" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">${opt('cfSignupTop', 'none', '🚫 No sign-up', 'Just the event page. No RSVP button, no form.', cur === 'none')}${opt('cfSignupTop', 'yes', '✋ Sign-up', 'People can join this event. You choose how below.', cur !== 'none')}<div id="cfSignupHow" style="margin:2px 0 0 18px;padding-left:12px;border-left:3px solid #f2d8d7;display:flex;flex-direction:column;gap:6px;">${opt('cfSignupMode', 'rsvp', '👆 One tap', 'An “I’m going” button. Spots and waitlist work.', cur !== 'form')}${opt('cfSignupMode', 'form', '📝 Form — questions and/or payment', 'Add questions, a payment (Apple Pay / card / e-transfer), waivers… use one or all.', cur === 'form')}</div></div>`; })()) + '<div id="pgForm"></div>')}
     ${isNew && !link ? sec(++n, 'pgS5', 'Who’s going? (optional)', 'Add people who are already coming.', goingHtml) : ''}
     ${!isNew && !link ? sec(++n, 'pgS6', 'Share', 'The public link, and a private link so someone else can edit this page.', '<div id="pgShare"></div>') : ''}
     <div style="height:24px;"></div></div>`;
@@ -7716,8 +7716,8 @@ function calPageEditor(ev, opts){
   const formP = openFormBuilder(ev ? (ev.form || null) : null, () => {}, { into: q('#pgForm'), scroller, noPayment: link });
   if(!link){ host.querySelectorAll('.cf-club').forEach(c => c.addEventListener('change', () => hostsP.setClubs(ids()))); mountClubCalPlace(host); }
   // ---- how people sign up: the form builder only shows for "Sign-up form" ----
-  const signupMode = () => { const r = host.querySelector('input[name=cfSignupMode]:checked'); return r ? r.value : (link ? '' : 'rsvp'); };
-  if(!link){ const sync = () => { const m = signupMode(); q('#pgForm').style.display = m === 'form' ? '' : 'none'; host.querySelectorAll('input[name=cfSignupMode]').forEach(r => { r.closest('label').style.background = r.checked ? '#fef7f4' : '#fff'; r.closest('label').style.borderColor = r.checked ? '#ce8491' : ''; }); }; host.querySelectorAll('input[name=cfSignupMode]').forEach(r => r.addEventListener('change', sync)); sync(); }
+  const signupMode = () => { if(link) return ''; const t = host.querySelector('input[name=cfSignupTop]:checked'); if(t && t.value === 'none') return 'none'; const r = host.querySelector('input[name=cfSignupMode]:checked'); return r ? r.value : 'rsvp'; };
+  if(!link){ const sync = () => { const m = signupMode(); q('#pgForm').style.display = m === 'form' ? '' : 'none'; q('#cfSignupHow').style.display = m === 'none' ? 'none' : 'flex'; host.querySelectorAll('input[name=cfSignupTop],input[name=cfSignupMode]').forEach(r => { r.closest('label').style.background = r.checked ? '#fef7f4' : '#fff'; r.closest('label').style.borderColor = r.checked ? '#ce8491' : ''; }); }; host.querySelectorAll('input[name=cfSignupTop],input[name=cfSignupMode]').forEach(r => r.addEventListener('change', sync)); sync(); }
   // ---- TBD toggles the date fields ----
   { const tb = q('#cfTbd'), dt = q('#cfDate'), rb = q('#cfRsvpBy'); const sync = () => { dt.disabled = tb.checked; rb.disabled = tb.checked; dt.style.opacity = rb.style.opacity = tb.checked ? '.4' : '1'; }; tb.addEventListener('change', sync); sync(); }
   // ---- 🔁 repeat (new events): weekly / every 2 weeks / monthly until a date, or any dates you pick. Each date becomes its own event (own sign-ups). ----
@@ -7786,7 +7786,7 @@ function calPageEditor(ev, opts){
     if(!designP.validate()) return fail('One of the page blocks isn’t finished.', 'pgS3');
     if((link || g.signup === 'form') && !formP.validate()) return fail('One of the form questions isn’t finished.', 'pgS4');
     if(!link && ev && ev.form && g.signup !== 'form' && !confirm('This event has a sign-up form. Switching away from “Sign-up form” removes its questions (answers people already gave stay saved). Continue?')) return false;
-    if(!link && g.signup === 'form' && !g.form) return fail('Add at least one question to the form, or pick “One-tap RSVP”.', 'pgS4');
+    if(!link && g.signup === 'form' && !g.form) return fail('Add a question or a payment to the form, or pick “One-tap RSVP”.', 'pgS4');
     if(q('#cfRepeat') && q('#cfRepeat').value && !g.tbd && !repDates().length) return fail(q('#cfRepeat').value === 'pick' ? 'Add the other dates for the repeat (or set Repeat back to “' + (isNew ? 'Just once' : 'No extra dates') + '”).' : 'Pick the last date for the repeat — it must be after the first date.', 'pgS2');
     return true;
   };
