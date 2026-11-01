@@ -1411,3 +1411,7 @@ _(most recent first — add new entries to the top, trim past ~15)_
 
 ## sw v279 (Claude)
 - Clubs tab: on phones the club cards are a 2-column grid (all 8 visible) instead of a sideways-swipe row that hid most.
+
+## sw v280 (Claude)
+- Admin: "To do" tile → "Submissions" (📥, red count = submitted events + resources only). Club join requests + squads-moving moved to the Clubs tab (red count on the Clubs tile). "Club links (WhatsApp)" moved to Site settings. Needs-you chips + ADM_FIND updated.
+- New `openAvatarMaker(welcome)`: skin tone / icon / background, drawn on a canvas to a PNG and saved as the member's profile photo via PUT /api/users/:id (no server change). Opens 700ms after a new account is created (welcome message) and from Settings → "🎨 Make an avatar".

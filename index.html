@@ -3290,6 +3290,7 @@ function setupFallSignupForm(){
     state.clubsLoginPickerOpen = true;
     state.clubsMyClubsPickerOpen = false;
     goToTab('clubs');
+    setTimeout(() => openAvatarMaker(true), 700); // a warm welcome + let them make their avatar
   });
 }
 
@@ -8251,7 +8252,7 @@ function openSettingsPopup(){
   const { wrap, close } = ideaPopup(`
     <h3 style="margin:0 0 8px;text-align:center;">⚙️ Settings</h3>
     <div id="epPhoto" style="text-align:center;margin-bottom:8px;">${photoHtml()}</div>
-    <div style="text-align:center;margin-bottom:6px;"><button type="button" id="epPhotoBtn" style="${pill}">📷 ${session.photo ? 'Change' : 'Add'} profile picture</button><input id="epPhotoInput" type="file" accept="image/*" style="display:none;"></div>
+    <div style="text-align:center;margin-bottom:6px;"><button type="button" id="epPhotoBtn" style="${pill}">📷 ${session.photo ? 'Change' : 'Add'} profile picture</button><button type="button" id="epAvatarBtn" style="${pill}margin-left:6px;">🎨 Make an avatar</button><input id="epPhotoInput" type="file" accept="image/*" style="display:none;"></div>
     <label style="${lab}">First name</label><input type="text" value="${escapeCm(first)}" disabled style="${inp}opacity:.6;">
     <label style="${lab}" for="stLast">Last name</label><input id="stLast" type="text" maxlength="30" value="${escapeCm(last)}" style="${inp}">
     <label style="${lab}" for="stUser">Username (what you log in with)</label><input id="stUser" type="text" maxlength="40" autocapitalize="none" autocorrect="off" spellcheck="false" value="${escapeCm(session.username || '')}" style="${inp}">
@@ -8340,6 +8341,7 @@ function openSettingsPopup(){
   paintNotif();
   const input = wrap.querySelector('#epPhotoInput');
   wrap.querySelector('#epPhotoBtn').addEventListener('click', () => input.click());
+  wrap.querySelector('#epAvatarBtn').addEventListener('click', () => openAvatarMaker(false));
   input.addEventListener('change', () => {
     const file = input.files && input.files[0];
     if(!file) return;
@@ -9866,6 +9868,48 @@ async function ideaRemove(id, afterClose){
   } catch(err){ ideasSetStatus(err.message); }
 }
 
+// 🎨 Avatar maker: pick a skin tone, an icon and a background colour; it is drawn to a small round picture and saved as the member's profile picture (so it shows everywhere a photo does).
+function openAvatarMaker(welcome){
+  const sess = getCmSession(); if(!sess || !sess.id || !sess.token) return;
+  const first = String(sess.name || '').trim().split(/\s+/)[0] || 'friend';
+  const SKINS = [['', '#f6d9b8', 'Light'], ['\u{1F3FC}', '#e8c39a', 'Light-medium'], ['\u{1F3FD}', '#c99a6b', 'Medium'], ['\u{1F3FE}', '#9a6a43', 'Medium-dark'], ['\u{1F3FF}', '#5e3b24', 'Dark']];
+  const ICONS = [['\u{1F9D5}', 1], ['\u{1F469}', 1], ['\u{1F64B}‍♀️', 1], ['\u{1F4AA}', 1], ['\u{1F338}', 0], ['\u{1F98B}', 0], ['\u{1F319}', 0], ['⭐', 0], ['\u{1F3F8}', 0], ['\u{1F4D6}', 0], ['\u{1F33F}', 0], ['\u{1F370}', 0], ['☕', 0], ['\u{1F431}', 0], ['\u{1F3A8}', 0], ['\u{1F49A}', 0]];
+  const BGS = ['#f8d7da', '#fdebc8', '#fff3b0', '#d9ead3', '#d5f0ee', '#d9e8f5', '#e8dcf5', '#fbe0ec'];
+  const st = { skin: 1, icon: 0, bg: 0 };
+  const glyph = () => { const ic = ICONS[st.icon], m = SKINS[st.skin][0]; if(!ic[1] || !m) return ic[0]; const c = Array.from(ic[0]); c.splice(1, 0, m); return c.join(''); }; // skin tone goes right after the base person
+  const draw = () => { const c = document.createElement('canvas'); c.width = c.height = 240; const x = c.getContext('2d'); x.fillStyle = BGS[st.bg]; x.fillRect(0, 0, 240, 240); x.font = '140px "Apple Color Emoji","Noto Color Emoji","Segoe UI Emoji",sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(glyph(), 120, 130); return c.toDataURL('image/png'); };
+  const circ = (on, bg, extra) => `border:3px solid ${on ? '#76220b' : 'transparent'};background:${bg};border-radius:50%;cursor:pointer;padding:0;${extra || ''}`;
+  const { wrap, close } = ideaPopup(`<div style="text-align:center;">
+      <div style="font-size:38px;line-height:1;">${welcome ? '🌸' : '🎨'}</div>
+      <h3 style="margin:6px 0 4px;">${welcome ? `Welcome to 4DS, ${escapeCm(first)}! 💚` : 'Make your avatar'}</h3>
+      <p style="margin:0 0 10px;font-size:14px;">${welcome ? 'So glad you\'re here. Let\'s make your little profile picture — pick what feels like you. You can change it any time.' : 'Pick what feels like you.'}</p>
+      <div id="avPrev" style="width:112px;height:112px;border-radius:50%;margin:0 auto 12px;border:3px solid #76220b;overflow:hidden;"></div>
+      <p style="margin:0 0 4px;font-size:12px;font-weight:800;color:#776867;">SKIN TONE</p>
+      <div id="avSkin" style="display:flex;gap:8px;justify-content:center;margin-bottom:10px;"></div>
+      <p style="margin:0 0 4px;font-size:12px;font-weight:800;color:#776867;">ICON</p>
+      <div id="avIcon" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:10px;"></div>
+      <p style="margin:0 0 4px;font-size:12px;font-weight:800;color:#776867;">BACKGROUND</p>
+      <div id="avBg" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px;"></div>
+      <div id="avMsg" style="font-size:13px;min-height:16px;color:#c00;"></div>
+      <div style="display:flex;gap:8px;"><button type="button" class="club-guide-btn" id="avSave" style="flex:2;text-align:center;background:var(--brand-rose);color:#fff;">Save my avatar</button><button type="button" class="club-guide-btn" id="avSkip" style="flex:1;text-align:center;background:#fff;">${welcome ? 'Later' : 'Cancel'}</button></div></div>`);
+  const paint = () => {
+    wrap.querySelector('#avPrev').innerHTML = `<img src="${draw()}" alt="" style="width:100%;height:100%;display:block;">`;
+    wrap.querySelector('#avSkin').innerHTML = SKINS.map((k, i) => `<button type="button" data-i="${i}" aria-label="${k[2]}" style="${circ(st.skin === i, k[1], 'width:38px;height:38px;')}"></button>`).join('');
+    wrap.querySelector('#avIcon').innerHTML = ICONS.map((k, i) => `<button type="button" data-i="${i}" style="${circ(st.icon === i, '#fff', 'width:44px;height:44px;font-size:24px;line-height:1;border-radius:12px;')}">${k[0]}</button>`).join('');
+    wrap.querySelector('#avBg').innerHTML = BGS.map((k, i) => `<button type="button" data-i="${i}" style="${circ(st.bg === i, k, 'width:32px;height:32px;')}"></button>`).join('');
+    [['#avSkin', 'skin'], ['#avIcon', 'icon'], ['#avBg', 'bg']].forEach(([q, k]) => wrap.querySelectorAll(q + ' button').forEach(b => b.addEventListener('click', () => { st[k] = Number(b.dataset.i); paint(); })));
+  };
+  paint();
+  wrap.querySelector('#avSkip').addEventListener('click', close);
+  wrap.querySelector('#avSave').addEventListener('click', async () => {
+    const b = wrap.querySelector('#avSave'), msg = wrap.querySelector('#avMsg'); b.disabled = true; b.textContent = 'Saving…'; msg.textContent = '';
+    try {
+      const updated = await cmApiRaw('/api/users/' + encodeURIComponent(sess.id), { method:'PUT', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + sess.token }, body: JSON.stringify({ photo: draw() }) });
+      if(getCmSession()) setCmSession(Object.assign({}, getCmSession(), { photo: updated.photo }));
+      close(); render(); admToastLite('✓ Avatar saved');
+    } catch(err){ msg.textContent = 'Could not save: ' + err.message; b.disabled = false; b.textContent = 'Save my avatar'; }
+  });
+}
 function ideaPopup(html){
   const wrap = document.createElement('div');
   wrap.className = 'mem-pop';
@@ -11030,14 +11074,16 @@ document.addEventListener('toggle', e => {
   if(d && d.classList && d.classList.contains('adm-sec')) (state.admOpen = state.admOpen || {})[d.dataset.sec] = d.open;
 }, true);
 // ONE notifications section: join requests + submitted events + submitted resources together.
+function admSubCount(){ return (state.cmAdminEventSugs || []).length + (state.cmAdminResSugs || []).length; } // submitted events / resources waiting for approval
+function admJoinCount(){ return (state.cmAdminJoinRequests || []).length; } // people asking to join a club
 function admInboxCount(){
   return (state.cmAdminJoinRequests || []).length + (state.cmAdminEventSugs || []).length + (state.cmAdminResSugs || []).length;
 }
-function inboxAdminHtml(lead){
-  const n = admInboxCount();
-  const body = [(state.cmAdminJoinRequests || []).length ? joinRequestsAdminHtml() : '', (!lead && (state.cmAdminEventSugs || []).length) ? eventSuggestionsAdminHtml() : '', (!lead && (state.cmAdminResSugs || []).length) ? resourceSuggestionsAdminHtml() : ''].join('');
+function inboxAdminHtml(lead, mode){ // mode 'subs' = submitted events/resources only, 'joins' = club requests only, else both
+  const n = mode === 'subs' ? admSubCount() : mode === 'joins' ? admJoinCount() : admInboxCount();
+  const body = [mode !== 'subs' && (state.cmAdminJoinRequests || []).length ? joinRequestsAdminHtml() : '', (!lead && mode !== 'joins' && (state.cmAdminEventSugs || []).length) ? eventSuggestionsAdminHtml() : '', (!lead && mode !== 'joins' && (state.cmAdminResSugs || []).length) ? resourceSuggestionsAdminHtml() : ''].join('');
   const refresh = `<button type="button" class="club-guide-btn" id="inboxRefresh" style="padding:6px 14px;font-size:12px;margin:0 0 8px;">↻ Check for new</button><span style="display:block;font-size:11px;color:#776867;line-height:1.4;margin:0 0 8px;">Refreshes when you open this page — you also get an email for each new request.</span>`;
-  return admSec('inbox', `🔔 Notifications${n ? `<span class="adm-badge">${n}</span>` : ''}`, refresh + (n ? body : '<p class="av-msg" style="margin:0;">Nothing waiting — you\'re all caught up. 🎉</p>'), n > 0, 'flat');
+  return admSec('inbox', `${mode === 'subs' ? '📥 Submissions' : mode === 'joins' ? '🙋 Club requests' : '🔔 Notifications'}${n ? `<span class="adm-badge">${n}</span>` : ''}`, refresh + (n ? body : '<p class="av-msg" style="margin:0;">Nothing waiting — you\'re all caught up. 🎉</p>'), n > 0, 'flat');
 }
 function clubLeadsAdminHtml(){
   const leads = state.cmLeads || [];
@@ -12038,14 +12084,13 @@ function renderClubAdminPanel(){
       </div>
     ` : ''}`;
   const todoGrid = `
-    ${inboxAdminHtml(lead)}
-    ${admSec('stay', '🪁→🏛️ Squads moving to clubs — confirm link', stayAdminHtml(), true)}
+    ${inboxAdminHtml(lead, 'subs')}
   `;
   const clubsGrid = `
-    ${lead ? inboxAdminHtml(lead) : ''}
+    ${inboxAdminHtml(lead, 'joins')}
+    ${lead ? '' : admSec('stay', '🪁→🏛️ Squads moving to clubs — confirm link', stayAdminHtml(), true)}
     ${lead ? admSec('periodsview', '🗂️ Availability periods — tap one to view it', `<div class="cp-box">${periodHistoryHtml(k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' })) || '<p class="av-msg">Loading…</p>'}</div>`, true) : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
     ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
-    ${lead ? '' : admSec('clublinks', '🔗 Club links (WhatsApp groups)', clubLinksHtml(), true)}
     ${lead ? '' : admSec('clubdir', '🏛️ Club directory (add / edit clubs)', clubDirListHtml(), false)}
     ${lead ? '' : admSec('leads', '🧑‍💼 Club admins — who runs which club' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
   `;
@@ -12062,6 +12107,7 @@ function renderClubAdminPanel(){
   const eventsGrid = lead ? admCeHtml() : `<p class="ideas-hint" style="margin:10px 0 8px;">4DS activities: events hosted by 4DS or a club — sign-ups, spots, payments, answers.</p>${admCeHtml()}`;
   const calendarTabGrid = `<p class="ideas-hint" style="margin:6px 0 8px;">The calendar. Add an event that is <b>public</b> (listed for everyone) or <b>hosted by 4DS</b> (sign-ups, form, payment) — both use the same full event page as the 4DS activities tab.</p>${calendarGrid}`;
   const settingsGrid = lead ? '' : `
+    ${admSec('clublinks', '🔗 Club links (WhatsApp groups)', clubLinksHtml(), true)}
     ${admSec('database', '🗄️ Database &amp; backups (move to D1)', d1AdminHtml(), false)}
     ${directoryGrid}
   `;
@@ -12171,19 +12217,19 @@ async function admNeedsLoad(){
 function admNeedsHtml(){
   if(!state.admNeeds){ admNeedsLoad(); return ''; }
   const n = state.admNeeds, inbox = admInboxCount();
-  const chips = [[inbox, '🙋', 'requests & submissions', 'todo'], [n.pendingRsvps, '⏳', 'RSVPs to approve', 'events'], [n.unpaid, '💳', 'unpaid sign-ups', 'events'], [n.tbdKeen, '🕒', 'undated events with interest', 'events'], [n.stayTodo, '🪁', 'squad members to confirm', 'todo'], [n.stepsStuck, '👟', 'people whose steps aren\'t syncing', 'programs']].filter(c => c[0] > 0);
+  const chips = [[admSubCount(), '📥', 'submissions to approve', 'todo'], [admJoinCount(), '🙋', 'club join requests', 'clubs'], [n.pendingRsvps, '⏳', 'RSVPs to approve', 'events'], [n.unpaid, '💳', 'unpaid sign-ups', 'events'], [n.tbdKeen, '🕒', 'undated events with interest', 'events'], [n.stayTodo, '🪁', 'squad members to confirm', 'clubs'], [n.stepsStuck, '👟', 'people whose steps aren\'t syncing', 'programs']].filter(c => c[0] > 0);
   return `<div class="cp-box" style="margin:10px 0;padding:10px 12px;"><p style="margin:0 0 6px;font-weight:800;">${chips.length ? '🔔 Needs you' : '✅ Nothing needs you right now'}</p>${chips.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">${chips.map(([c, ic, l, g]) => `<button type="button" class="filter-chip adm-need" data-needgroup="${g}" style="min-height:40px;">${ic} <b>${c}</b> ${l}</button>`).join('')}</div>` : ''}<button type="button" class="adm-need-refresh" style="margin-top:6px;border:none;background:none;color:#776867;font-size:12px;text-decoration:underline;cursor:pointer;">↻ refresh</button></div>`;
 }
 function admGroupTilesHtml(lead, cur){
   const tile = (id, icon, title, hint, badge) => `<button type="button" class="adm-tile${cur === id ? ' on' : ''}" data-group="${id}" aria-pressed="${cur === id}"><span class="adm-tile-ic">${icon}</span><span class="adm-tile-t">${title}</span><span class="adm-tile-h">${hint}</span>${badge ? `<span class="adm-badge adm-tile-b">${badge}</span>` : ''}</button>`;
   const n = state.admNeeds || {};
   return `<div class="adm-tiles" style="grid-template-columns:repeat(${lead ? 3 : 3}, minmax(0,1fr));">
-    ${lead ? '' : tile('todo', '🔔', 'To do', 'Requests &amp; submissions to approve', admInboxCount() + (n.stayTodo || 0))}
+    ${lead ? '' : tile('todo', '📥', 'Submissions', 'Events &amp; resources sent in to approve', admSubCount())}
     ${tile('events', '🎟️', '4DS activities', lead ? 'Sign-ups · forms · answers' : 'Hosted events · sign-ups · payments', (n.pendingRsvps || 0) + (n.unpaid || 0))}
     ${tile('forms', '📝', 'Event attendees', 'Who signed up · what they answered', '')}
     ${lead ? '' : tile('calendar', '📅', 'Calendar', 'Add &amp; edit events · public or 4DS', '')}
     ${lead ? '' : tile('featured', '⭐', 'Featured', 'What shows on the Home page', '')}
-    ${tile('clubs', '🏛️', 'Clubs', lead ? 'Requests · availability' : 'Clubs · links · availability · club admins', lead ? admInboxCount() : '')}
+    ${tile('clubs', '🏛️', 'Clubs', lead ? 'Requests · availability' : 'Join requests · clubs · availability · club admins', admJoinCount() + (lead ? 0 : (n.stayTodo || 0)))}
     ${tile('people', '👥', 'People', lead ? 'Profiles' : 'Profiles · messages', '')}
     ${lead ? '' : tile('programs', '🏸', 'Badminton &amp; Steps', 'Photos · kiosk · rounds', n.stepsStuck || '')}
     ${lead ? '' : tile('settings', '⚙️', 'Site settings', 'Backups · public links · labels', '')}
@@ -12191,9 +12237,9 @@ function admGroupTilesHtml(lead, cur){
 }
 // "Where is…?": type what you want to do, tap the answer, and it opens the right tab and section.
 const ADM_FIND = [
-  ['Approve club join requests', 'join request approve accept decline member', 'todo', '', 'inbox'],
+  ['Approve club join requests', 'join request approve accept decline member', 'clubs', '', 'inbox'],
   ['Submitted events / resources to accept', 'submitted suggestion event resource accept reject', 'todo', '', 'inbox', true],
-  ['Squads moving to clubs', 'squad stay confirm legacy', 'todo', '', 'stay', true],
+  ['Squads moving to clubs', 'squad stay confirm legacy', 'clubs', '', 'stay', true],
   ['Add a 4DS activity (hosted event)', 'add new club event create hosted activity activities', 'events', '', 'clubcal'],
   ['RSVPs, spots, waitlist, who paid, answers, CSV', 'rsvp spots capacity waitlist paid payment answers csv attendees message', 'events', '', 'clubcal'],
   ['Sign-up form builder', 'form questions builder sign-up', 'events', '', 'clubcal'],
@@ -12201,7 +12247,7 @@ const ADM_FIND = [
   ['Events people submitted', 'submitted events accept reject', 'calendar', '', 'evsubs', true],
   ['Event genre names', 'genre label names categories events', 'calendar', '', 'labels-ev', true],
   ['Availability calendar', 'availability periods schedule', 'clubs', '', 'avail'],
-  ['Club WhatsApp links', 'whatsapp group link club', 'clubs', '', 'clublinks', true],
+  ['Club WhatsApp links', 'whatsapp group link club', 'settings', '', 'clublinks', true],
   ['Add or edit clubs (name, logo, colour)', 'club directory add edit logo colour', 'clubs', '', 'clubdir', true],
   ['Club admins (who runs which club)', 'club admin lead leader', 'clubs', '', 'leads', true],
   ['Find or edit a member', 'profile member search edit archive delete', 'people', '', ''],
