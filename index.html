@@ -400,6 +400,8 @@ function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) =>
 /* With 5+ clubs the row no longer hides cards off-screen on tablets/desktops: it wraps and centres (phones still swipe sideways). */
 @media (min-width:700px){ .clubs-grid-row{ flex-wrap:wrap; justify-content:center; overflow-x:visible; } .clubs-grid-row > :first-child{ margin-left:0; } .clubs-grid-row > :last-child{ margin-right:0; } }
 @media (min-width:900px){ .clubs-grid-row{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:14px; justify-items:stretch; } .clubs-grid-row .club-card{ width:100%; flex:none; } }
+/* Phones: show every club at once in two columns instead of a sideways-swipe row that hides the rest. */
+@media (max-width:699px){ .clubs-grid-row{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; overflow:visible; } .clubs-grid-row .club-card{ width:100%; flex:none; } .clubs-grid-row > :first-child, .clubs-grid-row > :last-child{ margin-left:0; margin-right:0; } }
 .club-card .panel-top{ flex-direction:column; align-items:center; text-align:center; gap:8px; }
 .club-card .panel-top h4{ text-align:center; font-size:16px; }
 .club-card .monogram{ width:84px; height:84px; }

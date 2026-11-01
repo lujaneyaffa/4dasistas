@@ -1408,3 +1408,6 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - Admin tab "Event forms" renamed "Event attendees".
 - Editor: no more "No sign-up" — every event has sign-up; pick "Count me in" (one tap) or "Add questions, payment…". Server `calFields` no longer stores signup "none"; calSec no longer hides sign-up for old "none" events.
 - `clubCol`: clubs/ids with no colour get a stable pastel instead of black.
+
+## sw v279 (Claude)
+- Clubs tab: on phones the club cards are a 2-column grid (all 8 visible) instead of a sideways-swipe row that hid most.
