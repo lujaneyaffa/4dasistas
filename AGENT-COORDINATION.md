@@ -1402,3 +1402,9 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - 2026-10-30: Club calendar grid on the Clubs tab now uses the main calendar's month grid look (4 across on phone, full wrapped titles, club colours); admin mini-calendar titles wrap instead of ellipsis. sw v275.
 - 2026-11-01: Event editor: sign-up is now two steps (No sign-up / Sign-up -> One tap or Form). A form may have payment only (no questions): client get()/validate + server sanitizeCalForm no longer require a question. sw v276.
 - 2026-11-01: Admin: 'Featured on the Home page' moved out of 4DS activities into its own admin tab ⭐ Featured (main admin only). sw v277.
+
+## sw v278 (Claude)
+- Steps admin: "Remove round" now saves the list without it (it re-saved the DOM before, so nothing happened).
+- Admin tab "Event forms" renamed "Event attendees".
+- Editor: no more "No sign-up" — every event has sign-up; pick "Count me in" (one tap) or "Add questions, payment…". Server `calFields` no longer stores signup "none"; calSec no longer hides sign-up for old "none" events.
+- `clubCol`: clubs/ids with no colour get a stable pastel instead of black.

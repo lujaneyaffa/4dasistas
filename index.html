@@ -3089,7 +3089,11 @@ const SQUAD_PLACEHOLDER_COLOURS = ['#e1eaf1', '#eedcb1', '#f6e3e9', '#f8efdb']; 
 function clubCol(id){
   const c = clubsData.find(x => x.id === id);
   if(c && SQUAD_PLACEHOLDER_COLOURS.includes(String(c.colour || '').toLowerCase())) return { bg:'#fbf0ee', fg:c.textColour || '#373d3b' };
-  return (c && c.colour) ? { bg:c.colour, fg:c.textColour || '#373d3b' } : { bg:'#373d3b', fg:'#fef7f4' };
+  if(c && c.colour) return { bg:c.colour, fg:c.textColour || '#373d3b' };
+  // No colour set yet: give each club its own soft colour (stable per id) instead of the old black.
+  const P = [['#f8d7da','#76220b'],['#d9ead3','#274e13'],['#d9e8f5','#1c4587'],['#fdebc8','#7a4a0b'],['#e8dcf5','#4b2a7a'],['#d5f0ee','#0f5a55'],['#fbe0ec','#8a1c4f'],['#eef0c8','#53580f']];
+  let h = 0; String(id || '').split('').forEach(ch => { h = (h * 31 + ch.charCodeAt(0)) >>> 0; });
+  const q = P[h % P.length]; return { bg:q[0], fg:q[1] };
 }
 function clubBubbleHtml(c, i){
   const col = clubCol(c.id);
@@ -7376,7 +7380,7 @@ function calSecOrder(d){
 function calSecStyle(d, k){ return 'order:' + (calSecOrder(d).indexOf(k) * 10 + 10); }
 // 🔒 a private location: people who haven't signed up see a note instead of the address.
 function calPlaceHtml(d){ return d.placeHidden ? '<p style="margin:4px 0;">📍 <i>The location is shared with people who sign up.</i></p>' : d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}${d.placePrivate ? ' <small style="color:#776867;">(only people who signed up see this)</small>' : ''}</p>` : ''; }
-function calSec(d, k, html){ if(!html || !String(html).trim()) return ''; if(d.signup === 'none' && ['action', 'form', 'spots', 'going', 'rsvpby'].includes(k)) return ''; if(!CAL_SEC_LOCKED.includes(k) && calHiddenSecs(d).includes(k)) return ''; return `<div class="efs" data-s="${k}" style="${calSecStyle(d, k)}">${html}</div>`; }
+function calSec(d, k, html){ if(!html || !String(html).trim()) return ''; if(!CAL_SEC_LOCKED.includes(k) && calHiddenSecs(d).includes(k)) return ''; return `<div class="efs" data-s="${k}" style="${calSecStyle(d, k)}">${html}</div>`; }
 function calCompose(d, parts){ const ord = calSecOrder(d); return parts.map(([k, h]) => [k, calSec(d, k, h)]).filter(x => x[1]).sort((a, b) => ord.indexOf(a[0]) - ord.indexOf(b[0])).map(x => x[1]).join(''); }
 function calMapHtml(d){
   const t = d.theme || {}, map = safeMapUrl(d.mapUrl), q = String(d.place || '').trim();
@@ -7703,7 +7707,7 @@ function calPageEditor(ev, opts){
     ${sec(++n, 'pgS1', 'Who’s hosting', 'Round logos at the top of the page. The clubs ticked below show automatically; add outside organizations, upload logos and give each a link.', `${clubsHtml}<div id="pgHosts"></div>`)}
     ${sec(++n, 'pgS2', 'Details', 'The name, when and where.', detailsHtml)}
     ${sec(++n, 'pgS3', 'Cover, text &amp; photos', 'The cover photo, colours and font, the description and extra blocks (photos, maps, buttons, videos).', '<div id="pgDesign"></div>')}
-    ${sec(++n, 'pgS4', link ? 'Sign-up form' : 'How do people sign up?', link ? 'The questions people answer when they sign up. Leave it empty for no form.' : 'Everything above stays the same. Only this part changes.', (link ? '' : (() => { const cur = ev ? (ev.signup || (ev.form ? 'form' : 'rsvp')) : 'rsvp', opt = (nm, v, t, hh, on) => `<label style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:12px;border:2px solid var(--brand-brown);cursor:pointer;background:#fff;"><input type="radio" name="${nm}" value="${v}" ${on ? 'checked' : ''} style="width:20px;height:20px;flex:none;margin-top:2px;"><span><b>${t}</b><br><small style="color:#776867;">${hh}</small></span></label>`; return `<div id="cfSignup" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">${opt('cfSignupTop', 'none', '🚫 No sign-up', 'Just the event page. No RSVP button, no form.', cur === 'none')}${opt('cfSignupTop', 'yes', '✋ Sign-up', 'People can join this event. You choose how below.', cur !== 'none')}<div id="cfSignupHow" style="margin:2px 0 0 18px;padding-left:12px;border-left:3px solid #f2d8d7;display:flex;flex-direction:column;gap:6px;">${opt('cfSignupMode', 'rsvp', '👆 One tap', 'An “I’m going” button. Spots and waitlist work.', cur !== 'form')}${opt('cfSignupMode', 'form', '📝 Form — questions and/or payment', 'Add questions, a payment (Apple Pay / card / e-transfer), waivers… use one or all.', cur === 'form')}</div></div>`; })()) + '<div id="pgForm"></div>')}
+    ${sec(++n, 'pgS4', link ? 'Sign-up form' : 'How do people sign up?', link ? 'The questions people answer when they sign up. Leave it empty for no form.' : 'Every event has a sign-up. Pick what people see.', (link ? '' : (() => { const cur = ev ? (ev.signup === 'form' || (!ev.signup && ev.form) ? 'form' : 'rsvp') : 'rsvp', opt = (nm, v, t, hh, on) => `<label style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:12px;border:2px solid var(--brand-brown);cursor:pointer;background:#fff;"><input type="radio" name="${nm}" value="${v}" ${on ? 'checked' : ''} style="width:20px;height:20px;flex:none;margin-top:2px;"><span><b>${t}</b><br><small style="color:#776867;">${hh}</small></span></label>`; return `<div id="cfSignup" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">${opt('cfSignupMode', 'rsvp', '👆 Count me in', 'One button — people tap it to join. Spots and waitlist work.', cur !== 'form')}${opt('cfSignupMode', 'form', '📝 Add questions, payment…', 'Questions, payment (card / Apple Pay / e-transfer), waivers… use one or all.', cur === 'form')}</div>`; })()) + '<div id="pgForm"></div>')}
     ${isNew && !link ? sec(++n, 'pgS5', 'Who’s going? (optional)', 'Add people who are already coming.', goingHtml) : ''}
     ${!isNew && !link ? sec(++n, 'pgS6', 'Share', 'The public link, and a private link so someone else can edit this page.', '<div id="pgShare"></div>') : ''}
     <div style="height:24px;"></div></div>`;
@@ -7716,8 +7720,8 @@ function calPageEditor(ev, opts){
   const formP = openFormBuilder(ev ? (ev.form || null) : null, () => {}, { into: q('#pgForm'), scroller, noPayment: link });
   if(!link){ host.querySelectorAll('.cf-club').forEach(c => c.addEventListener('change', () => hostsP.setClubs(ids()))); mountClubCalPlace(host); }
   // ---- how people sign up: the form builder only shows for "Sign-up form" ----
-  const signupMode = () => { if(link) return ''; const t = host.querySelector('input[name=cfSignupTop]:checked'); if(t && t.value === 'none') return 'none'; const r = host.querySelector('input[name=cfSignupMode]:checked'); return r ? r.value : 'rsvp'; };
-  if(!link){ const sync = () => { const m = signupMode(); q('#pgForm').style.display = m === 'form' ? '' : 'none'; q('#cfSignupHow').style.display = m === 'none' ? 'none' : 'flex'; host.querySelectorAll('input[name=cfSignupTop],input[name=cfSignupMode]').forEach(r => { r.closest('label').style.background = r.checked ? '#fef7f4' : '#fff'; r.closest('label').style.borderColor = r.checked ? '#ce8491' : ''; }); }; host.querySelectorAll('input[name=cfSignupTop],input[name=cfSignupMode]').forEach(r => r.addEventListener('change', sync)); sync(); }
+  const signupMode = () => { if(link) return ''; const r = host.querySelector('input[name=cfSignupMode]:checked'); return r ? r.value : 'rsvp'; };
+  if(!link){ const sync = () => { const m = signupMode(); q('#pgForm').style.display = m === 'form' ? '' : 'none'; host.querySelectorAll('input[name=cfSignupMode]').forEach(r => { r.closest('label').style.background = r.checked ? '#fef7f4' : '#fff'; r.closest('label').style.borderColor = r.checked ? '#ce8491' : ''; }); }; host.querySelectorAll('input[name=cfSignupMode]').forEach(r => r.addEventListener('change', sync)); sync(); }
   // ---- TBD toggles the date fields ----
   { const tb = q('#cfTbd'), dt = q('#cfDate'), rb = q('#cfRsvpBy'); const sync = () => { dt.disabled = tb.checked; rb.disabled = tb.checked; dt.style.opacity = rb.style.opacity = tb.checked ? '.4' : '1'; }; tb.addEventListener('change', sync); sync(); }
   // ---- 🔁 repeat (new events): weekly / every 2 weeks / monthly until a date, or any dates you pick. Each date becomes its own event (own sign-ups). ----
@@ -10911,7 +10915,7 @@ function wireAdmEvents(){
   const q = document.getElementById('ceQ'); if(q) q.addEventListener('input', () => { state.admCeQ = q.value; document.getElementById('ceList').innerHTML = admCeListHtml(); wireList(); });
   document.querySelectorAll('[data-cefilter]').forEach(b => b.addEventListener('click', () => { state.admCeFilter = b.dataset.cefilter; render(); }));
 }
-// 📝 Event forms tab: every event that has a form, and for each one a table of everyone who filled it in (tap a row for the full answers).
+// 📝 Event attendees tab: every event that has a form, and for each one a table of everyone who filled it in (tap a row for the full answers).
 function admFormsHtml(){
   if(!state.clubCal || state.clubCalIsAdminData !== calIsAdmin()) clubCalLoad(true);
   if(!state.clubCal) return '<p class="av-msg">Loading events…</p>';
@@ -10922,7 +10926,7 @@ function admFormsHtml(){
     const f = state.admFormFilter || 'all';
     const chip = (k, l) => `<button type="button" class="filter-chip${f === k ? ' active' : ''}" data-afmf="${k}">${l}</button>`;
     return `<div style="margin-top:10px;">
-      <button type="button" class="fb-mini" id="afmBack">← All event forms</button>
+      <button type="button" class="fb-mini" id="afmBack">← All events</button>
       <h3 style="margin:10px 0 2px;overflow-wrap:break-word;">${escapeCm(sel.title)}</h3>
       <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">📅 ${escapeCm(calDateLabel(sel.date))}${sel.time ? ' · ⏰ ' + escapeCm(sel.time) : ''}${sel.place ? ' · 📍 ' + escapeCm(sel.place) : ''}</p>
       <div class="fb-row" style="margin-bottom:8px;"><button type="button" class="fb-mini" id="afmEdit">✏️ Edit event &amp; form</button><button type="button" class="fb-mini" id="afmManage">👥 Manage attendees &amp; payments</button><button type="button" class="fb-mini" id="afmCsv">⬇️ Download CSV</button></div>
@@ -10945,7 +10949,7 @@ function admFormsHtml(){
   const sec = (t, l) => l.filter(match).length ? `<h4 style="margin:14px 0 6px;">${t}</h4>${l.filter(match).map(row).join('')}` : '';
   return `<p class="ideas-hint" style="margin:6px 0 8px;">Every event with a sign-up form. Tap one to see everyone who filled it in and what they answered.</p>
     <input id="afmListQ" type="search" placeholder="Search events…" value="${escapeCm(state.admFormsQ || '')}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-bottom:4px;">
-    ${(sec('Upcoming', up) + sec('Past', past)) || `<p class="av-msg" style="text-align:center;">${q ? 'No event forms match.' : 'No events with a form yet. Add a form from ✏️ Edit on any 4DS activity.'}</p>`}`;
+    ${(sec('Upcoming', up) + sec('Past', past)) || `<p class="av-msg" style="text-align:center;">${q ? 'No events match.' : 'No events yet.'}</p>`}`;
 }
 function admFormFmt(v){ return Array.isArray(v) ? v.join(', ') : (v && typeof v === 'object' ? (v.address || '') : (/^data:image\/png;base64,/.test(String(v || '')) ? '✍️ signed' : String(v == null ? '' : v))); }
 async function wireAdmForms(){
@@ -12174,7 +12178,7 @@ function admGroupTilesHtml(lead, cur){
   return `<div class="adm-tiles" style="grid-template-columns:repeat(${lead ? 3 : 3}, minmax(0,1fr));">
     ${lead ? '' : tile('todo', '🔔', 'To do', 'Requests &amp; submissions to approve', admInboxCount() + (n.stayTodo || 0))}
     ${tile('events', '🎟️', '4DS activities', lead ? 'Sign-ups · forms · answers' : 'Hosted events · sign-ups · payments', (n.pendingRsvps || 0) + (n.unpaid || 0))}
-    ${tile('forms', '📝', 'Event forms', 'Who signed up · what they answered', '')}
+    ${tile('forms', '📝', 'Event attendees', 'Who signed up · what they answered', '')}
     ${lead ? '' : tile('calendar', '📅', 'Calendar', 'Add &amp; edit events · public or 4DS', '')}
     ${lead ? '' : tile('featured', '⭐', 'Featured', 'What shows on the Home page', '')}
     ${tile('clubs', '🏛️', 'Clubs', lead ? 'Requests · availability' : 'Clubs · links · availability · club admins', lead ? admInboxCount() : '')}
@@ -13017,7 +13021,7 @@ function wireStepsAdmin(){
     const cur = collect(), last = cur.map(r => r.end).filter(Boolean).sort().pop(), st = last ? new Date(new Date(last + 'T12:00:00').getTime() + 86400000) : new Date(), en = new Date(st.getTime() + 13 * 86400000), k = d => d.toISOString().slice(0, 10);
     state.stepsAdmin = cur.map(r => ({ ...r, ...((state.stepsAdmin || []).find(x => x.id === r.id) || {}), ...r })).concat([{ id:'', title:'Round ' + (cur.length + 1), start:k(st), end:k(en), charity:'', charityUrl:'', goal:0 }]); render();
   });
-  document.querySelectorAll('.sr-remove').forEach(b => b.addEventListener('click', () => { if(!confirm('Remove this round? Its steps stay stored but it stops showing.')) return; const i = Number(b.closest('[data-stepround]').dataset.stepround); const cur = collect(); cur.splice(i, 1); state.stepsAdmin = cur; document.getElementById('srSave').click(); }));
+  document.querySelectorAll('.sr-remove').forEach(b => b.addEventListener('click', async () => { if(!confirm('Remove this round? Its steps stay stored but it stops showing.')) return; const i = Number(b.closest('[data-stepround]').dataset.stepround); const cur = collect(); cur.splice(i, 1); const msg = document.getElementById('srMsg'); msg.style.color = '#776867'; msg.textContent = 'Removing…'; try { await leadApi('PUT', '/api/admin/step-rounds', { rounds: cur }); state.stepsAdmin = null; render(); admToastLite('✓ Round removed'); } catch(e){ msg.style.color = '#c00'; msg.textContent = e.message; } }));
   save.addEventListener('click', async () => {
     const msg = document.getElementById('srMsg'); msg.style.color = '#776867'; msg.textContent = 'Saving…';
     try { await leadApi('PUT', '/api/admin/step-rounds', { rounds: collect() }); state.stepsAdmin = null; msg.style.color = '#2a7a4a'; msg.textContent = 'Saved ✓'; render(); }
