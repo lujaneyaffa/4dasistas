@@ -11991,7 +11991,7 @@ function renderClubAdminPanel(){
   // Old tab names still land somewhere sensible (the admin page used to have 8 tabs; it now has 6)
   const OLD_GROUPS = { team:'settings', directory:'settings', badminton:'programs', steps:'programs', profiles:'people' };
   const grp = OLD_GROUPS[state.admGroup] || state.admGroup;
-  const allowedGroups = lead ? ['clubs', 'events', 'forms', 'people'] : ['todo', 'events', 'forms', 'calendar', 'clubs', 'people', 'programs', 'settings'];
+  const allowedGroups = lead ? ['clubs', 'events', 'forms', 'people'] : ['todo', 'events', 'forms', 'calendar', 'featured', 'clubs', 'people', 'programs', 'settings'];
   const gsel = allowedGroups.includes(grp) ? grp : (lead ? 'clubs' : 'todo');
   // Club events + quick member (per club) — lives in the Clubs grid
   const clubToolsHtml = `
@@ -12052,7 +12052,8 @@ function renderClubAdminPanel(){
     ${admSec('evform', '📝 Event submission form (what people fill to suggest an event)', admEvFormHtml(), false)}
     ${admSec('labels-ev', '🏷️ Names of event genres', labelsAdminHtml('event'), false)}
   `;
-  const eventsGrid = lead ? admCeHtml() : admSec('featured', '⭐ Featured on the Home page', '<div id="admFeat"><p class="ideas-hint">Loading…</p></div>', true) + `<p class="ideas-hint" style="margin:10px 0 8px;">4DS activities: events hosted by 4DS or a club — sign-ups, spots, payments, answers.</p>${admCeHtml()}`;
+  const featuredGrid = lead ? '' : admSec('featured', '⭐ Featured on the Home page', '<div id="admFeat"><p class="ideas-hint">Loading…</p></div>', true);
+  const eventsGrid = lead ? admCeHtml() : `<p class="ideas-hint" style="margin:10px 0 8px;">4DS activities: events hosted by 4DS or a club — sign-ups, spots, payments, answers.</p>${admCeHtml()}`;
   const calendarTabGrid = `<p class="ideas-hint" style="margin:6px 0 8px;">The calendar. Add an event that is <b>public</b> (listed for everyone) or <b>hosted by 4DS</b> (sign-ups, form, payment) — both use the same full event page as the 4DS activities tab.</p>${calendarGrid}`;
   const settingsGrid = lead ? '' : `
     ${admSec('database', '🗄️ Database &amp; backups (move to D1)', d1AdminHtml(), false)}
@@ -12097,7 +12098,7 @@ function renderClubAdminPanel(){
     ${lead ? '' : admNeedsHtml()}
     ${admGroupTilesHtml(lead, gsel)}
     ${admFinderHtml(lead)}
-    ${gsel === 'todo' ? todoGrid : gsel === 'clubs' ? clubsGrid : gsel === 'events' ? eventsGrid : gsel === 'calendar' ? calendarTabGrid : gsel === 'forms' ? admFormsHtml() : gsel === 'settings' ? settingsGrid : gsel === 'programs' ? programsGrid : profilesGrid}
+    ${gsel === 'todo' ? todoGrid : gsel === 'clubs' ? clubsGrid : gsel === 'events' ? eventsGrid : gsel === 'calendar' ? calendarTabGrid : gsel === 'featured' ? featuredGrid : gsel === 'forms' ? admFormsHtml() : gsel === 'settings' ? settingsGrid : gsel === 'programs' ? programsGrid : profilesGrid}
   </div>`;
 }
 // ⭐ Featured on Home: pin specific events / businesses for as long as you like; anything left empty is picked automatically each day (no repeats until everything has had a turn).
@@ -12175,6 +12176,7 @@ function admGroupTilesHtml(lead, cur){
     ${tile('events', '🎟️', '4DS activities', lead ? 'Sign-ups · forms · answers' : 'Hosted events · sign-ups · payments', (n.pendingRsvps || 0) + (n.unpaid || 0))}
     ${tile('forms', '📝', 'Event forms', 'Who signed up · what they answered', '')}
     ${lead ? '' : tile('calendar', '📅', 'Calendar', 'Add &amp; edit events · public or 4DS', '')}
+    ${lead ? '' : tile('featured', '⭐', 'Featured', 'What shows on the Home page', '')}
     ${tile('clubs', '🏛️', 'Clubs', lead ? 'Requests · availability' : 'Clubs · links · availability · club admins', lead ? admInboxCount() : '')}
     ${tile('people', '👥', 'People', lead ? 'Profiles' : 'Profiles · messages', '')}
     ${lead ? '' : tile('programs', '🏸', 'Badminton &amp; Steps', 'Photos · kiosk · rounds', n.stepsStuck || '')}
