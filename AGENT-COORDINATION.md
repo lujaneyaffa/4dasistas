@@ -1424,3 +1424,6 @@ _(most recent first — add new entries to the top, trim past ~15)_
 
 ## sw v283 (Claude)
 - Event editor restructured in her order: Hosts · Details (Repeat tucked into a collapsed block) · Page · Sign-up, questions & payment (spots + close date live here; no more No sign-up / Count me in / Form radios — nothing added = one-tap Count me in, questions and/or payment = form, derived on save). Member form: payment is part of sign-up (button says Submit & pay by card and the card popup opens right after submit).
+
+## sw v285 (Claude)
+- Profile menu: visible "🚩 Report a concern" row (mailto admin) next to Privacy & help — Apple UGC reviewers could not find the tiny link at the bottom of Settings.

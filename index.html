@@ -8883,7 +8883,7 @@ function profilePageHtml(){
   return `<div class="pf-wrap" style="max-width:560px;margin:0 auto;padding:6px 4px 24px;"><div class="pf-head">${head}</div><div class="pf-body">${warn}
     ${sess ? profileStatsHtml(sess) + profileBadgesHtml(sess) + profileInviteHtml(sess) : ''}
     ${sess ? `<div class="pf-card">${row('settings', '⚙️', 'Settings &amp; profile')}${row('attended', '🏅', 'Activities I attended')}${row('steps', '👟', 'Steps challenge')}${row('badminton', '🏸', 'Badminton')}${row('clubs', '🏛️', '4DS Clubs')}</div>` : `<div class="pf-card">${row('clubs', '🏛️', '4DS Clubs')}</div>`}
-    <div class="pf-card">${row('contribute', '➕', 'Contribute (event or resource)')}${row('whatsnew', '✨', "What's new")}${row('about', 'ℹ️', 'About 4DS')}${row('privacy', '📄', 'Privacy &amp; help')}</div>
+    <div class="pf-card">${row('contribute', '➕', 'Contribute (event or resource)')}${row('whatsnew', '✨', "What's new")}${row('about', 'ℹ️', 'About 4DS')}${row('privacy', '📄', 'Privacy &amp; help')}${row('report', '🚩', 'Report a concern')}</div>
     ${staff ? `<div class="pf-card">${row('adminpage', '🛠', 'Admin page')}${row('preview', '👁', 'Preview as a member')}${row(state.cmAdminLoggedIn === true ? 'adminout' : 'leadout', '🚪', 'Log out of ' + (state.cmAdminLoggedIn === true ? 'admin' : 'club admin'))}</div>` : ''}
     ${sess ? `<div class="pf-card">${row('out', '↩️', 'Log out')}</div>` : ''}</div></div>`;
 }
@@ -13978,6 +13978,7 @@ async function pwrAction(k){
     else if(k === 'attended') openAttendedPopup();
     else if(k === 'about') goToTab('rules');
     else if(k === 'privacy') window.open('/privacy', '_blank', 'noopener');
+    else if(k === 'report') location.href = 'mailto:admin@4dasistas.ca?subject=' + encodeURIComponent('Safety concern about 4DS'); // Apple: a visible way to report content or a member
   }
 }
 
