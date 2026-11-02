@@ -12982,6 +12982,8 @@ async function bmLeaguesMount(){
   let lgs = [];
   try { const r = await fetch('/api/admin/badminton/leagues', { credentials:'include', cache:'no-store' }); const j = await r.json(); if(!r.ok) throw new Error(j.error || 'Could not load'); lgs = j.leagues || []; }
   catch(err){ box.innerHTML = `<p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`; return; }
+  let allPl = []; fetch('/api/admin/badminton/players', { credentials:'include', cache:'no-store' }).then(r => r.json()).then(j => { allPl = j.players || []; paint(); }).catch(() => {});
+  const plName = id => { const p = allPl.find(x => x.id === id); return p ? p.label : 'Player'; };
   const DAYS = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const paint = () => {
     box.innerHTML = lgs.map((l, i) => `<div class="fb-card" data-lg="${i}" style="margin-bottom:10px;">
@@ -12997,19 +12999,39 @@ async function bmLeaguesMount(){
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end;margin-bottom:6px;"><label style="font-size:12px;flex:1;min-width:120px;">First date<input class="lgFrom" type="date" style="${inp}width:100%;"></label><label style="font-size:12px;flex:1;min-width:120px;">Every week until<input class="lgTo" type="date" style="${inp}width:100%;"></label><button type="button" class="fb-mini lgGen">Add weekly dates</button></div>
       <div style="display:flex;gap:6px;align-items:end;margin-bottom:6px;"><label style="font-size:12px;flex:1;">Or one extra date<input class="lgOne" type="date" style="${inp}width:100%;"></label><button type="button" class="fb-mini lgAddOne">➕ Add</button>${(l.dates || []).length ? '<button type="button" class="fb-mini lgClear">Clear dates</button>' : ''}</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${(l.dates || []).map(d => `<button type="button" class="filter-chip active lgX" data-d="${d}" style="font-size:12px;padding:4px 8px;">${escapeCm(calDateLabel(d))} ✕</button>`).join('')}</div>
+      ${l.id === 'main' ? '<p style="font-size:12px;color:#776867;margin:0 0 6px;">👥 The main group shows every player.</p>' : `<div style="font-size:12px;font-weight:700;margin:8px 0 4px;">👥 Players in this leaderboard (${(l.players || []).length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">${(l.players || []).map(id => `<button type="button" class="filter-chip active lgPx" data-p="${escapeCm(id)}" style="font-size:12px;padding:4px 8px;">${escapeCm(plName(id))} ✕</button>`).join('') || '<span style="font-size:12px;color:#776867;">No one yet — add existing players or create new ones below.</span>'}</div>
+      <input class="lgPlSearch" type="search" placeholder="🔍 Add an existing player…" autocomplete="off" style="${inp}width:100%;margin-bottom:4px;"><div class="lgPlRes" style="max-height:170px;overflow:auto;margin-bottom:6px;"></div>
+      <div style="display:grid;grid-template-columns:2fr 2fr 1fr;gap:6px;margin-bottom:6px;"><input class="lgNewName" placeholder="New player's name" maxlength="60" style="${inp}min-width:0;"><input class="lgNewPhone" type="tel" placeholder="Phone (optional)" style="${inp}min-width:0;"><select class="lgNewLvl" style="${inp}min-width:0;"><option value="">Lvl</option>${[1,2,3,4,5].map(n => `<option>${n}</option>`).join('')}</select></div>
+      <button type="button" class="fb-mini lgNewAdd" style="margin-bottom:6px;">➕ Create player & add</button> <button type="button" class="fb-mini lgAllAdd" style="margin-bottom:6px;">Add all active players</button>`}
       ${l.id === 'main' ? '<p style="font-size:12px;color:#776867;margin:0;">Kiosk password: <b>4ds1234</b></p>' : `<input class="lgPw" type="text" autocomplete="off" placeholder="${l.hasKiosk ? 'Kiosk password is set — type to change it' : 'Kiosk password for this group (4+ letters/numbers)'}" style="${inp}width:100%;">`}
       ${l.id !== 'main' ? '<button type="button" class="fb-mini lgDel" style="margin-top:6px;color:#b3261e;">Remove this leaderboard</button>' : ''}
     </div>`).join('') + `<div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="club-guide-btn" id="lgNew" style="padding:6px 14px;">➕ New leaderboard</button><button type="button" class="club-guide-btn" id="lgSave" style="padding:6px 14px;background:var(--brand-rose);color:#fff;">Save leaderboards</button></div><div id="lgMsg" style="font-size:13px;min-height:16px;margin-top:6px;"></div>`;
   };
   const read = () => box.querySelectorAll('[data-lg]').forEach(c => { const l = lgs[+c.dataset.lg]; l.name = c.querySelector('.lgName').value.trim(); l.day = c.querySelector('.lgDay').value; l.start = c.querySelector('.lgStart').value; l.end = c.querySelector('.lgEnd').value; l.place = c.querySelector('.lgPlace').value.trim(); const pw = c.querySelector('.lgPw'); if(pw) l.kioskPassword = pw.value.trim(); });
+  box.addEventListener('input', e => {
+    if(!e.target.classList.contains('lgPlSearch')) return;
+    const card = e.target.closest('[data-lg]'), l = lgs[+card.dataset.lg], q = e.target.value.trim().toLowerCase(), res = card.querySelector('.lgPlRes'), have = new Set(l.players || []);
+    const hits = q ? allPl.filter(p => !have.has(p.id) && p.label.toLowerCase().includes(q)).slice(0, 30) : [];
+    res.innerHTML = hits.map(p => `<button type="button" class="fb-mini lgPlPick" data-p="${escapeCm(p.id)}" style="display:block;width:100%;text-align:left;margin-bottom:3px;">➕ ${escapeCm(p.label)}${p.level ? ' · lvl ' + escapeCm(String(p.level)) : ''}</button>`).join('') || (q ? '<span style="font-size:12px;color:#776867;">No match — create them below.</span>' : '');
+  });
   box.addEventListener('click', async e => {
     const card = e.target.closest('[data-lg]'), l = card ? lgs[+card.dataset.lg] : null;
     if(e.target.closest('.lgGen') && l){ read(); const a = card.querySelector('.lgFrom').value, b = card.querySelector('.lgTo').value; if(!a || !b || b < a) return alert('Pick the first date and the last date.'); const d = new Date(a + 'T12:00:00'), out = new Set(l.dates || []); for(let n = 0; n < 80; n++){ const k = d.toLocaleDateString('en-CA'); if(k > b) break; out.add(k); d.setDate(d.getDate() + 7); } l.dates = [...out].sort(); if(!l.day) l.day = DAYS[(new Date(a + 'T12:00:00').getDay() + 6) % 7 + 1]; paint(); }
     else if(e.target.closest('.lgAddOne') && l){ read(); const v = card.querySelector('.lgOne').value; if(v){ l.dates = [...new Set([...(l.dates || []), v])].sort(); paint(); } }
     else if(e.target.closest('.lgClear') && l){ read(); l.dates = []; paint(); }
     else if(e.target.closest('.lgX') && l){ read(); l.dates = (l.dates || []).filter(x => x !== e.target.closest('.lgX').dataset.d); paint(); }
+    else if(e.target.closest('.lgPx') && l){ read(); const id = e.target.closest('.lgPx').dataset.p; l.players = (l.players || []).filter(x => x !== id); paint(); }
+    else if(e.target.closest('.lgPlPick') && l){ read(); const id = e.target.closest('.lgPlPick').dataset.p; l.players = [...new Set([...(l.players || []), id])]; paint(); }
+    else if(e.target.closest('.lgAllAdd') && l){ read(); l.players = [...new Set([...(l.players || []), ...allPl.map(p => p.id)])]; paint(); }
+    else if(e.target.closest('.lgNewAdd') && l){
+      read(); const nm = card.querySelector('.lgNewName').value.trim(), btn = e.target.closest('.lgNewAdd'); if(!nm) return alert('Type the new player\'s name first.');
+      btn.disabled = true; btn.textContent = 'Creating…';
+      try { const r = await fetch('/api/admin/badminton/players', { method:'POST', credentials:'include', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ name: nm, phone: card.querySelector('.lgNewPhone').value, level: card.querySelector('.lgNewLvl').value }) }); const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || 'Could not create'); if(!allPl.some(p => p.id === j.player.id)) allPl.push(j.player); state.bmPlayers = null; l.players = [...new Set([...(l.players || []), j.player.id])]; if(j.existed) alert(j.player.label + ' already exists with that phone number — added them instead of making a copy.'); paint(); }
+      catch(err){ alert(err.message); btn.disabled = false; btn.textContent = '➕ Create player & add'; }
+    }
     else if(e.target.closest('.lgDel') && l){ if(!confirm(`Remove "${l.name || 'this leaderboard'}"? Its games stay saved but its page and kiosk stop working.`)) return; read(); lgs.splice(+card.dataset.lg, 1); paint(); }
-    else if(e.target.id === 'lgNew'){ read(); lgs.push({ id:'', name:'', day:'', start:'18:00', end:'20:00', place:'', dates:[] }); paint(); }
+    else if(e.target.id === 'lgNew'){ read(); lgs.push({ id:'', name:'', day:'', start:'18:00', end:'20:00', place:'', dates:[], players:[] }); paint(); }
     else if(e.target.id === 'lgSave'){
       read(); const m = box.querySelector('#lgMsg'); m.style.color = '#776867'; m.textContent = 'Saving…';
       try { const r = await fetch('/api/admin/badminton/leagues', { method:'PUT', credentials:'include', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ leagues: lgs }) }); const j = await r.json(); if(!r.ok) throw new Error(j.error || 'Could not save'); lgs = j.leagues; paint(); const m2 = box.querySelector('#lgMsg'); m2.style.color = '#2a7a4a'; m2.textContent = '✅ Saved. Each one has its own page (Open page ›) and kiosk.'; }

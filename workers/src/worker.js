@@ -3722,7 +3722,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           const t = (v) => /^\d{1,2}:\d{2}$/.test(String(v || "")) ? String(v) : "";
           const dates = [...new Set((Array.isArray(raw.dates) ? raw.dates : []).map(String).filter(isValidDateString))].sort().slice(0, 80);
           if (id !== "main" && !dates.length) return jsonResponse({ error: `Add at least one date for ${name}` }, 400, corsHeaders);
-          out.push({ id, name, day: cl(raw.day, 20), start: t(raw.start), end: t(raw.end), place: cl(raw.place, 120), dates });
+          const players = id === "main" ? [] : [...new Set((Array.isArray(raw.players) ? raw.players : []).map(String).filter((x) => /^[\w:.-]{1,64}$/.test(x)))].slice(0, 300);
+          out.push({ id, name, day: cl(raw.day, 20), start: t(raw.start), end: t(raw.end), place: cl(raw.place, 120), dates, players });
           const pw = bmKioskNorm(raw.kioskPassword);
           if (raw.kioskPassword && id !== "main") { if (pw.length < 4) return jsonResponse({ error: `Kiosk password for ${name}: use at least 4 letters or numbers` }, 400, corsHeaders); if (pw === "4DS1234") return jsonResponse({ error: "That password belongs to the main group's kiosk — pick a different one" }, 400, corsHeaders); await env.SITE_DATA.put(`bm:lgkey:${id}`, await sha256Hex(`bmlg:${id}:${pw}`)); }
         }
@@ -3747,6 +3748,19 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const label = (r) => r.row.full_name || r.row.name || r.id;
         const gameCount = new Map(); for (const g of games) { const seen = new Set(); for (const f of ["winners", "losers"]) { let arr = Array.isArray(g.row[f]) ? g.row[f] : (() => { try { return JSON.parse(g.row[f]); } catch { return []; } })(); for (const v of arr || []) { const pl = players.find((q) => [q.row.id, q.row.name, q.row.nickname, q.row.full_name].filter(Boolean).map(String).includes(String(v))); if (pl && !seen.has(pl.id)) { seen.add(pl.id); gameCount.set(pl.id, (gameCount.get(pl.id) || 0) + 1); } } } }
         return jsonResponse({ players: players.map((r) => ({ id: r.id, label: label(r), level: r.row.level || null, uid: r.uid || null, games: gameCount.get(r.id) || 0 })).sort((a, b) => a.label.localeCompare(b.label)) }, 200, corsHeaders);
+      }
+      if (path === "/api/admin/badminton/players" && request.method === "POST") {
+        let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+        const full = cleanCalText(b.name, 60); if (!full) return jsonResponse({ error: "Type the player's name" }, 400, corsHeaders);
+        const digits = bmDigits(b.phone), level = Math.round(Number(b.level)), lvl = level >= 1 && level <= 5 ? level : null;
+        if (digits && digits.length < 7) return jsonResponse({ error: "That phone number looks too short (leave it empty if you don't have it)" }, 400, corsHeaders);
+        const players = await bmLoadRows(env, "players");
+        if (digits) { const same = players.find((r) => bmDigits(r.row.phone || r.row.username) === digits); if (same) return jsonResponse({ player: { id: same.id, label: same.row.full_name || same.row.name || same.id, level: same.row.level || null, uid: same.uid || null, games: 0 }, existed: true }, 200, corsHeaders); }
+        let uid = null; if (digits) { const u = (await listAllUsers(env)).find((x) => bmDigits(x.phone) === digits); if (u && !players.some((r) => r.uid === u.id)) uid = u.id; }
+        const id = uid ? `u:${uid}` : crypto.randomUUID();
+        const data = { id, name: firstNameOnly(full), full_name: full, username: digits || "", phone: digits || "", level: lvl, active: true, date_joined: bmToronto() };
+        await env.DB.batch([bmSaveStmt(env, "players", id, data, uid)]);
+        return jsonResponse({ player: { id, label: full, level: lvl, uid, games: 0 } }, 200, corsHeaders);
       }
       if (path === "/api/admin/badminton/match-report" && request.method === "GET") {
         const players = await bmLoadRows(env, "players"), users = await listAllUsers(env), games = await bmLoadRows(env, "games");
@@ -3831,7 +3845,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (path === "/api/bm/leagues" && request.method === "GET") {
           const list = await bmReadLeagues(env);
           if (!list.some((l) => l.id === "main")) list.unshift({ id: "main", name: "Ladies Badminton" });
-          return jsonResponse({ leagues: list.map((l) => ({ id: l.id, name: l.name || "", day: l.day || "", start: l.start || "", end: l.end || "", place: l.place || "", dates: l.dates || [] })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+          return jsonResponse({ leagues: list.map((l) => ({ id: l.id, name: l.name || "", day: l.day || "", start: l.start || "", end: l.end || "", place: l.place || "", dates: l.dates || [], players: l.players || [] })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
         }
         if (path === "/api/bm/session" && request.method === "POST") {
           if (role === "owner") return jsonResponse({ session: { user: { id: BM_OWNER_ID, email: "owner" }, access_token: "owner" } }, 200, corsHeaders);

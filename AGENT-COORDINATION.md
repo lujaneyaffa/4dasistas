@@ -1430,3 +1430,5 @@ _(most recent first — add new entries to the top, trim past ~15)_
 
 ## sw v286 (Claude)
 - Event page designer simplified: cover photo + accent/font/text-background/title-align/map-size removed (calCoverHtml/calTitleStyle now return empty). Added blocks (text/photo/map/button/video) are now real sections: key "b:<id>" in theme.order, shown on the member page by calCompose and reordered with the same arrows as every other section in ONE list in the editor. New blocks land at the bottom.
+
+- sw v288 — Badminton leaderboards now have a roster: Admin → Badminton → Leaderboards → each card has "Players" (search/add existing, create new with name/phone/level, add all). Saved as `players: [ids]` on the league (`PUT /api/admin/badminton/leagues`, public `GET /api/bm/leagues`); new `POST /api/admin/badminton/players` creates a player (links to a 4DS account by phone, reuses an existing player with the same phone). badminton.html: a non-main league with a roster shows only roster players + anyone with attendance/games in it (main group unchanged).
