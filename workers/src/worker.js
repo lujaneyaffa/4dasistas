@@ -3722,8 +3722,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           const t = (v) => /^\d{1,2}:\d{2}$/.test(String(v || "")) ? String(v) : "";
           const dates = [...new Set((Array.isArray(raw.dates) ? raw.dates : []).map(String).filter(isValidDateString))].sort().slice(0, 80);
           if (id !== "main" && !dates.length) return jsonResponse({ error: `Add at least one date for ${name}` }, 400, corsHeaders);
+          const rotation = id !== "main" && !!raw.rotation;
           const players = id === "main" ? [] : [...new Set((Array.isArray(raw.players) ? raw.players : []).map(String).filter((x) => /^[\w:.-]{1,64}$/.test(x)))].slice(0, 300);
-          out.push({ id, name, day: cl(raw.day, 20), start: t(raw.start), end: t(raw.end), place: cl(raw.place, 120), dates, players });
+          if (rotation && players.length !== 6) return jsonResponse({ error: `${name}: a fixed-rotation leaderboard needs exactly 6 players (it has ${players.length})` }, 400, corsHeaders);
+          out.push({ id, name, day: cl(raw.day, 20), start: t(raw.start), end: t(raw.end), place: cl(raw.place, 120), dates, players, rotation });
           const pw = bmKioskNorm(raw.kioskPassword);
           if (raw.kioskPassword && id !== "main") { if (pw.length < 4) return jsonResponse({ error: `Kiosk password for ${name}: use at least 4 letters or numbers` }, 400, corsHeaders); if (pw === "4DS1234") return jsonResponse({ error: "That password belongs to the main group's kiosk — pick a different one" }, 400, corsHeaders); await env.SITE_DATA.put(`bm:lgkey:${id}`, await sha256Hex(`bmlg:${id}:${pw}`)); }
         }
@@ -3845,7 +3847,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (path === "/api/bm/leagues" && request.method === "GET") {
           const list = await bmReadLeagues(env);
           if (!list.some((l) => l.id === "main")) list.unshift({ id: "main", name: "Ladies Badminton" });
-          return jsonResponse({ leagues: list.map((l) => ({ id: l.id, name: l.name || "", day: l.day || "", start: l.start || "", end: l.end || "", place: l.place || "", dates: l.dates || [], players: l.players || [] })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+          return jsonResponse({ leagues: list.map((l) => ({ id: l.id, name: l.name || "", day: l.day || "", start: l.start || "", end: l.end || "", place: l.place || "", dates: l.dates || [], players: l.players || [], rotation: !!l.rotation })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
         }
         if (path === "/api/bm/session" && request.method === "POST") {
           if (role === "owner") return jsonResponse({ session: { user: { id: BM_OWNER_ID, email: "owner" }, access_token: "owner" } }, 200, corsHeaders);
@@ -4031,7 +4033,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               if (!Number.isFinite(ws) || !Number.isFinite(ls) || ws <= ls || ws < 11 || ws > 60 || ls < 0) return bmErr("The winning score must be at least 11 and higher than the losing score");
               for (const id of [...w, ...l]) if (!(await playerRow(id))) return bmErr("Player not found");
               if (String(a.p_date || "") !== today) return bmErr("The kiosk can only record today's games");
-              const game = { id: crypto.randomUUID(), winners: w, losers: l, played_at: new Date().toISOString(), week_id: bmWeekIdOf(today), winner_score: ws, loser_score: ls, ...(lgSfx ? { league: kLg } : {}) };
+              const game = { id: crypto.randomUUID(), winners: w, losers: l, played_at: new Date().toISOString(), week_id: bmWeekIdOf(today), winner_score: ws, loser_score: ls, ...(Number.isInteger(a.p_slot) && a.p_slot >= 0 && a.p_slot < 15 ? { slot: a.p_slot } : {}), ...(lgSfx ? { league: kLg } : {}) };
               await env.DB.prepare("INSERT INTO bm_games (id, day, data) VALUES (?, ?, ?)").bind(game.id, today, JSON.stringify(game)).run();
               return jsonResponse({ data: game.id, error: null }, 200, corsHeaders);
             }
