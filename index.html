@@ -6675,7 +6675,7 @@ async function clubCalMemberCard(box, id){
       wireCalAddons(formBox, d.form); calMountLocations(formBox);
       formBox.addEventListener('click', async ev2 => { // "I've sent my payment"
         const sb = ev2.target.closest('.calStripeBtn');
-        if(sb){ sb.disabled = true; sb.textContent = 'Opening secure payment…'; try { const j = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/checkout', { method:'POST', headers: ideaHeaders() }); if(j && j.url){ location.href = j.url; return; } throw new Error('No payment page'); } catch(err){ sb.disabled = false; sb.textContent = '💳 Pay by card · Apple Pay · Google Pay'; admToastLite(err.message); } return; }
+        if(sb){ sb.disabled = true; sb.textContent = 'Opening secure payment…'; try { const j = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/checkout', { method:'POST', headers: ideaHeaders() }); if(j && j.clientSecret){ await calOpenStripe(j, id, d, formBox); sb.disabled = false; sb.textContent = '💳 Pay by card · Apple Pay · Google Pay'; return; } throw new Error('No payment form'); } catch(err){ sb.disabled = false; sb.textContent = '💳 Pay by card · Apple Pay · Google Pay'; admToastLite(err.message); } return; }
         const pb2 = ev2.target.closest('.calPaidBtn'); if(!pb2) return; // the link itself opens WhatsApp; we also record the claim
         try { await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/paid', { method:'POST', headers: ideaHeaders() }); d.claimedPaid = true; formBox.querySelector('.calPayBox').innerHTML = calPayBoxHtml(d); admToastLite('✓ Thanks — the organiser will confirm'); }
         catch(err){ admToastLite(err.message); }
@@ -6689,6 +6689,27 @@ async function clubCalMemberCard(box, id){
       });
     }
   } catch(err){ box.innerHTML = `<p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`; }
+}
+// Pay inside the app: Stripe's embedded checkout (card, Apple Pay, Google Pay) in a popup, no redirect to a Stripe web page.
+function calLoadStripeJs(){
+  if(window.Stripe) return Promise.resolve();
+  return new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://js.stripe.com/v3/'; s.onload = () => ok(); s.onerror = () => no(new Error("Couldn't load the secure payment form — check your connection")); document.head.appendChild(s); });
+}
+async function calOpenStripe(j, id, d, formBox){
+  await calLoadStripeJs();
+  const { wrap, close } = ideaPopup('<h3 style="margin:0 0 8px;text-align:center;">💳 Pay securely</h3><div id="calStripeMount" style="min-height:120px;max-height:70vh;overflow-y:auto;"></div>');
+  const card = wrap.querySelector('.mem-pop-card'); if(card){ card.style.width = 'min(480px,100%)'; card.style.padding = '18px 10px 12px'; }
+  let embedded = null; const shut = () => { try { if(embedded) embedded.destroy(); } catch {} close(); };
+  wrap.querySelector('.mem-pop-close').addEventListener('click', shut);
+  try {
+    const stripe = window.Stripe(j.pk);
+    embedded = await stripe.initEmbeddedCheckout({ clientSecret: j.clientSecret, onComplete: () => {
+      shut(); d.paid = true; admToastLite('✓ Paid — thank you! 💚');
+      const pb = formBox && formBox.querySelector('.calPayBox'); if(pb) pb.innerHTML = calPayBoxHtml(d);
+      setTimeout(() => { try { if(typeof calRefreshOpen === 'function') calRefreshOpen(id); } catch {} }, 2500);
+    } });
+    embedded.mount('#calStripeMount');
+  } catch(err){ shut(); throw err; }
 }
 async function clubCalAdminCall(path, method, body){
   const r = await fetch('/api/admin/club-cal' + path, { method, credentials:'include', headers:{ 'Content-Type':'application/json' }, body: body ? JSON.stringify(body) : undefined });

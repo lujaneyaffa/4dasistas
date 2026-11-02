@@ -1509,7 +1509,7 @@ const calAddonSelection = (form, ids) => {
   return { ids: picked.map((a) => a.id), total: Number.isFinite(base) ? Math.round((base + sum) * 100) / 100 : (picked.length ? Math.round(sum * 100) / 100 : null) };
 };
 // ---- Card payments through Stripe Checkout (Stripe's own page offers Apple Pay / Google Pay). Needs the secrets STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET; without them the site works as before.
-const stripeOn = (env) => /^sk_/.test(String(env.STRIPE_SECRET_KEY || "")) && !!env.STRIPE_WEBHOOK_SECRET;
+const stripeOn = (env) => /^sk_/.test(String(env.STRIPE_SECRET_KEY || "")) && !!env.STRIPE_WEBHOOK_SECRET && /^pk_/.test(String(env.STRIPE_PUBLISHABLE_KEY || ""));
 const stripeVerify = async (env, raw, header) => {
   const hp = String(header || "").split(",").map((s) => s.trim().split("=")), t = (hp.find((p) => p[0] === "t") || [])[1], sigs = hp.filter((p) => p[0] === "v1").map((p) => p[1]);
   if (!t || !sigs.length || !env.STRIPE_WEBHOOK_SECRET || Math.abs(Date.now() / 1000 - Number(t)) > 300) return false;
@@ -2621,14 +2621,20 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           if (!ev.form || !ev.form.payment) return jsonResponse({ error: "This event has no payment" }, 400, corsHeaders);
           const total = Number(((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid]) || {}).total);
           if (!Number.isFinite(total) || total < 0.5 || total > 5000) return jsonResponse({ error: "There's no card amount for this event — use the payment details above" }, 400, corsHeaders);
-          const origin = env.SITE_ORIGIN || "https://4dasistas.ca", back = `${origin}/#/form/${ev.slug || ev.id}`;
-          const p = new URLSearchParams({ mode: "payment", success_url: `${origin}/?paid=1#/form/${ev.slug || ev.id}`, cancel_url: back, client_reference_id: uid, "metadata[ev]": ev.id, "metadata[uid]": uid,
+          const origin = env.SITE_ORIGIN || "https://4dasistas.ca", back = `${origin}/?paid=1#/form/${ev.slug || ev.id}`;
+          // Embedded checkout: the card form (with Apple Pay / Google Pay) opens right inside the app instead of sending people to a Stripe web page.
+          const mk = (uiMode) => new URLSearchParams({ mode: "payment", ui_mode: uiMode, ...(uiMode === "embedded" ? { redirect_on_completion: "never" } : { return_url: back }), client_reference_id: uid, "metadata[ev]": ev.id, "metadata[uid]": uid,
             "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "cad", "line_items[0][price_data][unit_amount]": String(Math.round(total * 100)), "line_items[0][price_data][product_data][name]": String(ev.title).slice(0, 120),
             "payment_intent_data[description]": `${ev.title} — ${who.name}`.slice(0, 250) });
-          const sr = await fetch("https://api.stripe.com/v1/checkout/sessions", { method: "POST", headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, "Content-Type": "application/x-www-form-urlencoded" }, body: p });
-          const sj = await sr.json().catch(() => ({}));
-          if (!sr.ok || !sj.url) { console.error("Stripe checkout failed", sr.status, JSON.stringify(sj).slice(0, 300)); return jsonResponse({ error: "Couldn't open the card page — please try again or use the payment details above" }, 502, corsHeaders); }
-          return jsonResponse({ ok: true, url: sj.url }, 200, corsHeaders);
+          let sj = {}, sr = null;
+          for (const m of ["embedded", "embedded_page"]) {
+            sr = await fetch("https://api.stripe.com/v1/checkout/sessions", { method: "POST", headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, "Content-Type": "application/x-www-form-urlencoded" }, body: mk(m) });
+            sj = await sr.json().catch(() => ({}));
+            if (sr.ok && sj.client_secret) break;
+            console.error("Stripe checkout failed", m, sr.status, JSON.stringify(sj).slice(0, 300));
+          }
+          if (!sr.ok || !sj.client_secret) return jsonResponse({ error: "Couldn't open the card form — please try again or use the payment details above" }, 502, corsHeaders);
+          return jsonResponse({ ok: true, clientSecret: sj.client_secret, pk: env.STRIPE_PUBLISHABLE_KEY || "" }, 200, corsHeaders);
         }
         if (calMatch[2] === "/paid" && M === "POST") { // "I've sent my payment": a flag the organiser sees next to the person's name until they confirm it
           if (!uid || !mine) return jsonResponse({ error: "Sign up for the event first" }, 403, corsHeaders);

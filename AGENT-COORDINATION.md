@@ -1418,3 +1418,6 @@ _(most recent first — add new entries to the top, trim past ~15)_
 
 ## sw v281 (Claude)
 - render() now try/catch (renderInner) with cleanup+retry so one bad piece of data cannot leave the page dead; admin/club-admin logout forgets admin data and leaves the admin tab (a member logging in next no longer inherits it).
+
+## sw v282 (Claude)
+- Card payments now use Stripe EMBEDDED checkout in an in-app popup (calOpenStripe) instead of redirecting to Stripe. STRIPE_PUBLISHABLE_KEY is a plain var in wrangler.toml (public key). /.well-known/apple-developer-merchantid-domain-association added for Apple Pay (domain still has to be registered in Stripe → Settings → Payment method domains).

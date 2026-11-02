@@ -31,6 +31,7 @@ id = "f70e43c88d1043439e400e127faaf90e"
 [vars]
 SITE_ORIGIN = "https://4dasistas.ca"
 FROM_EMAIL = "4DASISTAS <updates@4dasistas.ca>"
+STRIPE_PUBLISHABLE_KEY = "pk_live_51UWMfqFI2N6nh1V13oKtIy3UtjMc4kFhOmoVwG8snzmZjmEIueOUQFWWPwim6kLOZU3ahj03iZc7KREFoOozXYKq00Pw9V9Jnf"
 
 [assets]
 directory = ".."
