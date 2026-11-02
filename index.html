@@ -10562,9 +10562,16 @@ function adminClubs(){
   return clubsData.filter(c => own.has(c.id));
 }
 function adminUiOn(){ return state.cmAdminLoggedIn === true || !!state.cmLead; }
+// Everything loaded for the admin screens: forget it on logout so a member who logs in next on this phone never inherits admin data or a half-loaded admin view.
+function admForgetData(){
+  ['admNeeds','cmAdminJoinRequests','cmAdminEventSugs','cmAdminResSugs','cmLeads','stepsAdmin','evFormCfg','admFeat','clubCal','clubCalTbd'].forEach(k => { state[k] = null; });
+  state.clubCalIsAdminData = false; state.admNeedsLoading = false; state.stepsAdminLoading = false;
+  try { location.hash = location.hash.replace(/^#\/admin.*$/, '#/'); } catch {}
+}
 async function cmLeadLogout(){
   await fetch('/api/clubadmin/logout', { method:'POST', credentials:'include' }).catch(() => {});
   state.cmLead = null; state._leadOnboard = null; state.cmAdminOpen = false; state.cmAdminAllMembers = null; state.cmAdminAllUsers = null;
+  admForgetData(); if(state.tab === 'admin') state.tab = 'home';
   render();
 }
 async function openClubAdmin(){
@@ -10609,6 +10616,7 @@ async function cmAdminLogout(){
   await fetch('/api/admin/logout', { method:'POST', credentials:'include' }).catch(() => {});
   state.cmAdminLoggedIn = false; state.cmAdminOpen = false;
   state.cmAdminAllMembers = null; state.cmAdminAllUsers = null;
+  admForgetData(); if(state.tab === 'admin') state.tab = 'home'; // don't leave the page on the admin screen after logging out
   render();
 }
 
@@ -13249,7 +13257,20 @@ async function checkAdminSession(){
   render();
 }
 
+// render() never lets one bad piece of data kill the whole page: if drawing throws, clean up whatever may be blocking taps, fall back to a safe tab and try once more (a half-drawn page is what made every button look dead).
+let _renderFails = 0;
 function render(){
+  try { renderInner(); _renderFails = 0; }
+  catch(err){
+    console.error('render failed', err);
+    try {
+      document.body.style.overflow = '';
+      if(!document.getElementById('pushGate') && !document.getElementById('phoneGate') && !document.getElementById('leadPwGate')) document.querySelectorAll('.mem-pop').forEach(e => e.remove());
+      if(++_renderFails <= 2){ if(state.tab === 'admin' && !adminUiOn()) state.tab = 'home'; else if(_renderFails === 2) state.tab = 'home'; renderInner(); }
+    } catch(err2){ console.error('render retry failed', err2); }
+  }
+}
+function renderInner(){
   { const sh = document.getElementById('globalSearchShell'), nv = document.getElementById('tabs'); if(sh && nv && sh.parentElement !== nv){ nv.appendChild(sh); sh.classList.remove('in-home'); } } // put the search bar back in the tab bar BEFORE the page content is rebuilt (placeSearchBar moves it into Home again at the end)
   document.body.classList.toggle('on-home', state.tab === 'home');
   document.body.classList.toggle('form-standalone', state.tab === 'eventform' || state.tab === 'eventedit'); // an event's page is a clean standalone page (no app header / tabs / back button) so it can be shared publicly
