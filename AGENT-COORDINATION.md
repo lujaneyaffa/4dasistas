@@ -1421,3 +1421,6 @@ _(most recent first — add new entries to the top, trim past ~15)_
 
 ## sw v282 (Claude)
 - Card payments now use Stripe EMBEDDED checkout in an in-app popup (calOpenStripe) instead of redirecting to Stripe. STRIPE_PUBLISHABLE_KEY is a plain var in wrangler.toml (public key). /.well-known/apple-developer-merchantid-domain-association added for Apple Pay (domain still has to be registered in Stripe → Settings → Payment method domains).
+
+## sw v283 (Claude)
+- Event editor restructured in her order: Hosts · Details (Repeat tucked into a collapsed block) · Page · Sign-up, questions & payment (spots + close date live here; no more No sign-up / Count me in / Form radios — nothing added = one-tap Count me in, questions and/or payment = form, derived on save). Member form: payment is part of sign-up (button says Submit & pay by card and the card popup opens right after submit).
