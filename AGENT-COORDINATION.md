@@ -1427,3 +1427,6 @@ _(most recent first — add new entries to the top, trim past ~15)_
 
 ## sw v285 (Claude)
 - Profile menu: visible "🚩 Report a concern" row (mailto admin) next to Privacy & help — Apple UGC reviewers could not find the tiny link at the bottom of Settings.
+
+## sw v286 (Claude)
+- Event page designer simplified: cover photo + accent/font/text-background/title-align/map-size removed (calCoverHtml/calTitleStyle now return empty). Added blocks (text/photo/map/button/video) are now real sections: key "b:<id>" in theme.order, shown on the member page by calCompose and reordered with the same arrows as every other section in ONE list in the editor. New blocks land at the bottom.

@@ -6475,7 +6475,7 @@ async function clubCalPublicCard(box, id){
       const clubP = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>`;
       box.innerHTML = calCompose(d, [['cover', calCoverHtml(d)], ['hosts', calHostsHtml(d)], ['club', clubP], ['title', `<h3 style="margin:0 0 6px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>`],
         ['date', `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>`], ['price', calPriceHtml(d)],
-        ['place', calPlaceHtml(d)], ['map', calMapHtml(d)], ['desc', calDescHtml(d)],
+        ['place', calPlaceHtml(d)], ['map', calMapHtml(d)], ['desc', calDescHtml(d, true)],
         ['rsvpby', d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''], ['spots', past ? '' : calSpotsHtml(d)],
         ['action', past ? '<p class="av-msg" style="margin:8px 0 0;">This event has already happened.</p>' : `<p class="av-msg" style="margin:10px 0;">Log in or sign up to RSVP.</p><div style="display:flex;gap:10px;"><button type="button" class="club-guide-btn pfL" style="flex:1;text-align:center;">Log In</button><button type="button" class="fall-cta-btn join-club-btn pfS" style="flex:1;">Sign Up</button></div>`],
         ['link', calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')]]);
@@ -6511,7 +6511,7 @@ async function clubCalPublicCard(box, id){
     box.innerHTML = calCompose(d, [['cover', calCoverHtml(d)], ['hosts', calHostsHtml(d)], ['club', `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>`], ['title', `<h3 style="margin:0 0 4px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>`],
       ['date', `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>`], ['price', calPriceHtml(d)],
       ['rsvpby', d.rsvpBy ? `<p style="margin:4px 0;font-weight:700;color:${d.closed ? '#b3261e' : '#76220b'};">⏳ ${d.closed ? 'Sign-ups are closed' : 'Sign up by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''],
-      ['place', calPlaceHtml(d)], ['map', calMapHtml(d)], ['desc', calDescHtml(d)],
+      ['place', calPlaceHtml(d)], ['map', calMapHtml(d)], ['desc', calDescHtml(d, true)],
       ['action', d.closed ? '<p style="font-weight:700;">🔒 Sign-ups are closed.</p>' : ''], ['spots', calSpotsHtml(d)], ['form', formHtml],
       ['link', calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')]]);
     wireCalCopy(box); wireCalAddons(box, d.form); calMountLocations(box); calAttendeesInto(box, d.id, d.date);
@@ -6644,7 +6644,7 @@ async function clubCalMemberCard(box, id){
         ${(!past && d.mine === 'going') ? '<button type="button" class="club-guide-btn calAddCal" style="width:100%;min-height:46px;margin-top:4px;">📆 Add to my calendar</button>' : ''}`;
       top.innerHTML = calCompose(d, [['cover', calCoverHtml(d)], ['hosts', calHostsHtml(d)], ['club', `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>`], ['title', `<h3 style="margin:0 0 6px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>`],
         ['date', `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>`], ['price', calPriceHtml(d)],
-        ['place', calPlaceHtml(d)], ['map', calMapHtml(d)], ['desc', calDescHtml(d)],
+        ['place', calPlaceHtml(d)], ['map', calMapHtml(d)], ['desc', calDescHtml(d, true)],
         ['rsvpby', d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''],
         ['going', `<p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} ${past ? 'attended' : 'going'}</p>`], ['spots', past ? '' : calSpotsHtml(d)], ['action', actionHtml]]);
       wireCalCopy(top);
@@ -7088,11 +7088,11 @@ function richToolbarInit(root){
 }
 const CAL_FONTS = { serif:"Georgia,'Times New Roman',serif", rounded:"'Nunito','Trebuchet MS',ui-rounded,sans-serif", mono:"ui-monospace,Menlo,monospace" };
 const calHex = v => /^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v) : '';
-function calTitleStyle(d){ const t = d.theme || {}; return (calHex(t.accent) ? 'color:' + t.accent + ';' : '') + (t.titleAlign === 'center' ? 'text-align:center;' : '') + (CAL_FONTS[t.font] ? 'font-family:' + CAL_FONTS[t.font] + ';' : ''); }
-function calCoverHtml(d){ const c = d.theme && d.theme.cover; return /^[a-z0-9]{8,24}$/.test(c || '') ? `<img src="/api/cal-img/${c}" alt="" style="width:100%;max-height:280px;object-fit:cover;border-radius:14px;display:block;margin:0 0 10px;">` : ''; }
+function calTitleStyle(d){ return ''; } // (no more custom title colour / alignment)
+function calCoverHtml(d){ return ''; } // (cover photos were removed)
 function calBlocksHtml(d){
   const bl = Array.isArray(d.blocks) ? d.blocks : []; if(!bl.length) return '';
-  const acc = calHex((d.theme || {}).accent) || '#ce8491', W = { small:'38%', medium:'60%', large:'82%', full:'100%' }, H = { small:190, medium:270, large:390 };
+  const acc = '#ce8491', W = { small:'38%', medium:'60%', large:'82%', full:'100%' }, H = { small:190, medium:270, large:390 };
   const al = a => a === 'left' ? '0 auto 0 0' : a === 'right' ? '0 0 0 auto' : '0 auto';
   const okLink = u => /^(https:\/\/|mailto:|tel:)/i.test(u || '') ? u : '';
   return bl.map(b => {
@@ -7118,10 +7118,9 @@ function calBlocksHtml(d){
   }).join('');
 }
 // The event's description + its blocks, in the event's font / tint.
-function calDescHtml(d){
-  const t = d.theme || {}, has = (d.desc && String(d.desc).trim()) || (d.blocks && d.blocks.length); if(!has) return '';
-  const st = (CAL_FONTS[t.font] ? 'font-family:' + CAL_FONTS[t.font] + ';' : '') + (calHex(t.bg) ? 'background:' + t.bg + ';padding:12px 14px;border-radius:14px;' : '');
-  return `<div class="calDesc" style="margin:8px 0;${st}">${richHtml(d.desc)}${calBlocksHtml(d)}</div>`;
+function calDescHtml(d, noBlocks){ // the description text (+ the added sections, unless they are laid out one by one by calCompose)
+  const has = (d.desc && String(d.desc).trim()) || (!noBlocks && d.blocks && d.blocks.length); if(!has) return '';
+  return `<div class="calDesc" style="margin:8px 0;">${richHtml(d.desc)}${noBlocks ? '' : calBlocksHtml(d)}</div>`;
 }
 // Photos: shrink on the phone first (max ~1600px, JPEG), then upload.
 function calShrinkImage(file){
@@ -7181,7 +7180,18 @@ function calDesigner(initial, opts, onDone){
     else if(b.type === 'video') body = `${f('url', 'YouTube link (https://youtu.be/…)', 'url')}${f('caption', 'Caption (optional)')}`;
     else body = '<p class="ideas-hint" style="margin:0;">A thin line to separate sections.</p>';
     const label = (CAL_BLOCK_TYPES.find(x => x[0] === b.type) || [0, b.type])[1];
-    return `<div class="fb-card" data-b="${i}"><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><strong style="flex:1;">${label}</strong><button type="button" class="fb-mini dsUp" data-i="${i}" ${i === 0 ? 'disabled' : ''}>▲</button><button type="button" class="fb-mini dsDown" data-i="${i}" ${i === st.blocks.length - 1 ? 'disabled' : ''}>▼</button><button type="button" class="fb-mini dsDel" data-i="${i}" style="background:#fdecea;">🗑</button></div>${body}</div>`;
+    return `<div class="fb-card" data-b="${i}"><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><strong style="flex:1;">${label}</strong>${arrows('b:' + b.id)}<button type="button" class="fb-mini dsDel" data-i="${i}" style="background:#fdecea;">🗑</button></div>${body}</div>`;
+  };
+  let curOrd = [];
+  const arrows = k => { const i = curOrd.indexOf(k); return `<button type="button" class="fb-mini dsLayUp" data-k="${escapeCm(k)}" ${i <= 0 ? 'disabled' : ''} aria-label="Move up">▲</button><button type="button" class="fb-mini dsLayDn" data-k="${escapeCm(k)}" ${i === curOrd.length - 1 ? 'disabled' : ''} aria-label="Move down">▼</button>`; };
+  const unifiedHtml = () => {
+    const ord = curOrd = calSecOrder(st), hid = calHiddenSecs(st);
+    return ord.map(k => {
+      if(k === 'desc') return `<div class="fb-card"><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><strong style="flex:1;">📄 Description</strong>${arrows(k)}</div><textarea id="dsDesc" data-rich rows="6" maxlength="3000" placeholder="What the event is, what to bring, where to meet…">${escapeCm(st.desc)}</textarea></div>`;
+      if(k.startsWith('b:')){ const bi = st.blocks.findIndex(b => 'b:' + b.id === k); return bi < 0 ? '' : blockCard(st.blocks[bi], bi); }
+      const lab = (CAL_SECS.find(x => x[0] === k) || [k, k])[1], lock = CAL_SEC_LOCKED.includes(k);
+      return `<div class="fb-card dsLayRow" style="display:flex;align-items:center;gap:6px;padding:10px 12px;"><span style="flex:1;font-size:14px;${hid.includes(k) ? 'opacity:.45;text-decoration:line-through;' : ''}">${lab}</span>${arrows(k)}${lock ? '<span style="width:64px;"></span>' : `<label style="font-size:12px;width:64px;display:flex;gap:4px;align-items:center;"><input type="checkbox" class="dsLayShow" data-k="${escapeCm(k)}" ${hid.includes(k) ? '' : 'checked'}> show</label>`}</div>`;
+    }).join('');
   };
   const paint = () => {
     if(preview){
@@ -7194,45 +7204,18 @@ function calDesigner(initial, opts, onDone){
       ${emb ? '' : `      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;"><button type="button" class="fb-mini" id="dsCancel">✕ Close</button><button type="button" class="club-guide-btn" id="dsDone" style="padding:8px 20px;text-align:center;background:var(--brand-rose);color:#fff;">✓ Done</button></div>
       <h2 style="margin:0 0 8px;">🎨 Design the page</h2>
       <p class="ideas-hint" style="text-align:left;margin:0 0 10px;">Make the event page look the way you want: text styles, photos, maps, buttons and videos. Tap 👁 Preview any time. Nothing is public until you save the event.</p>`}
-      <div class="fb-card"><strong>🖼 Cover photo &amp; look</strong>
-        ${t.cover ? `<img src="/api/cal-img/${escapeCm(t.cover)}" alt="" style="width:100%;max-height:150px;object-fit:cover;border-radius:10px;margin:8px 0 0;display:block;">` : ''}
-        <div class="fb-row"><button type="button" class="fb-mini" id="dsCover">${t.cover ? '🔄 Change cover photo' : '➕ Add a cover photo'}</button>${t.cover ? '<button type="button" class="fb-mini" id="dsCoverRm" style="background:#fdecea;">Remove</button>' : ''}<input type="file" id="dsCoverIn" accept="image/*" hidden></div>
-        <p style="margin:10px 0 4px;font-size:13px;font-weight:700;">Accent colour <small style="font-weight:400;color:#776867;">(title, buttons, lines)</small></p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">${swatches.map(c => `<button type="button" class="dsSw" data-c="${c}" aria-label="${c}" style="width:34px;height:34px;border-radius:50%;border:3px solid ${t.accent === c ? '#000' : '#fff'};box-shadow:0 0 0 1px #999;background:${c};cursor:pointer;"></button>`).join('')}<label style="font-size:13px;">Custom <input type="color" id="dsCustom" value="${calHex(t.accent) || '#ce8491'}" style="vertical-align:middle;"></label>${t.accent ? '<button type="button" class="fb-mini" id="dsAccRm">Reset</button>' : ''}</div>
-        <div class="fb-row" style="margin-top:10px;"><label style="font-size:13px;font-weight:700;">Font <select id="dsFont"><option value="">Standard</option><option value="serif" ${t.font === 'serif' ? 'selected' : ''}>Classic (serif)</option><option value="rounded" ${t.font === 'rounded' ? 'selected' : ''}>Soft &amp; round</option><option value="mono" ${t.font === 'mono' ? 'selected' : ''}>Typewriter</option></select></label>
-          <label style="font-size:13px;font-weight:700;">Text background <select id="dsBg">${tints.map(([v, l]) => `<option value="${v}" ${(t.bg || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-          <label style="font-size:13px;font-weight:700;">Title <select id="dsTA"><option value="">Left</option><option value="center" ${t.titleAlign === 'center' ? 'selected' : ''}>Centred</option></select></label></div>
-        <div class="fb-row" style="margin-top:10px;"><label style="font-size:13px;font-weight:700;">🗺️ Map size <select id="dsMS"><option value="">Medium</option><option value="s" ${t.mapSize === 's' ? 'selected' : ''}>Small</option><option value="l" ${t.mapSize === 'l' ? 'selected' : ''}>Large</option><option value="off" ${t.mapSize === 'off' ? 'selected' : ''}>No map — just a link</option></select></label>
-          <label style="font-size:13px;font-weight:700;">Map position <select id="dsMP"><option value="">Under the place (top)</option><option value="bottom" ${t.mapPos === 'bottom' ? 'selected' : ''}>Very bottom of the page</option></select></label></div></div>
-      <div class="fb-card"><strong>📐 Page layout — order &amp; what shows</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">Move every part of the page up or down, or switch it off. This is the order people see, top to bottom.</p>
-        ${(() => { const ord = calSecOrder(st), hid = calHiddenSecs(st); return ord.map((k, i) => { const lab = (CAL_SECS.find(x => x[0] === k) || [k, k])[1], lock = CAL_SEC_LOCKED.includes(k); return `<div class="dsLayRow" style="display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid rgba(0,0,0,.08);"><span style="flex:1;font-size:14px;${hid.includes(k) ? 'opacity:.45;text-decoration:line-through;' : ''}">${lab}</span><button type="button" class="fb-mini dsLayUp" data-k="${k}" ${i === 0 ? 'disabled' : ''} aria-label="Move up">▲</button><button type="button" class="fb-mini dsLayDn" data-k="${k}" ${i === ord.length - 1 ? 'disabled' : ''} aria-label="Move down">▼</button>${lock ? '<span style="width:64px;"></span>' : `<label style="font-size:12px;width:64px;display:flex;gap:4px;align-items:center;"><input type="checkbox" class="dsLayShow" data-k="${k}" ${hid.includes(k) ? '' : 'checked'}> show</label>`}</div>`; }).join(''); })()}
-        ${(t.order || t.hide) ? '<button type="button" class="fb-mini" id="dsLayReset" style="margin-top:8px;">↺ Back to the standard layout</button>' : ''}</div>
-      <div class="fb-card"><strong>📄 Description</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">The words at the top of the page. Select text, then tap B, I, a colour…</p><textarea id="dsDesc" data-rich rows="6" maxlength="3000" placeholder="What the event is, what to bring, where to meet…">${escapeCm(st.desc)}</textarea></div>
-      ${st.blocks.map(blockCard).join('')}
+      <div class="fb-card"><strong>📐 Your page, top to bottom</strong><p class="ideas-hint" style="text-align:left;margin:2px 0 0;">Use ▲ ▼ to move any part. Add a text, photo, map, button or video at the bottom — it shows up in this list and you can move it anywhere.</p></div>
+      ${unifiedHtml()}
       <div class="fb-card"><strong>➕ Add to the page</strong><div class="fb-row">${CAL_BLOCK_TYPES.map(([k, l]) => `<button type="button" class="fb-mini dsAdd" data-t="${k}">${l}</button>`).join('')}<input type="file" id="dsPhotoIn" accept="image/*" multiple hidden></div></div>
       <div id="dsMsg" style="color:#c00;font-size:13px;min-height:18px;margin-bottom:8px;">${escapeCm(msg)}</div>
       ${emb ? '' : '<div class="fb-row"><button type="button" class="fb-mini" id="dsPreview">👁 Preview</button></div>'}</div>`;
     richToolbarInit(page);
     const q = (s, fn) => page.querySelectorAll(s).forEach(fn);
     page.querySelector('#dsDesc').addEventListener('input', e => { st.desc = e.target.value; });
-    const cin = page.querySelector('#dsCoverIn');
-    page.querySelector('#dsCover').addEventListener('click', () => cin.click());
-    cin.addEventListener('change', () => { if(cin.files[0]) upload([cin.files[0]], id => { st.theme.cover = id; }); });
-    { const rm = page.querySelector('#dsCoverRm'); if(rm) rm.addEventListener('click', () => { delete st.theme.cover; paint(); }); }
-    q('.dsSw', b => b.addEventListener('click', () => { st.theme.accent = b.dataset.c; paint(); }));
-    page.querySelector('#dsCustom').addEventListener('change', e => { st.theme.accent = e.target.value; paint(); });
-    { const r = page.querySelector('#dsAccRm'); if(r) r.addEventListener('click', () => { delete st.theme.accent; paint(); }); }
-    page.querySelector('#dsFont').addEventListener('change', e => { if(e.target.value) st.theme.font = e.target.value; else delete st.theme.font; });
-    page.querySelector('#dsBg').addEventListener('change', e => { if(e.target.value) st.theme.bg = e.target.value; else delete st.theme.bg; });
-    page.querySelector('#dsMS').addEventListener('change', e => { if(e.target.value) st.theme.mapSize = e.target.value; else delete st.theme.mapSize; });
-    page.querySelector('#dsMP').addEventListener('change', e => { if(e.target.value) st.theme.mapPos = e.target.value; else delete st.theme.mapPos; });
     q('.dsLayUp,.dsLayDn', b => b.addEventListener('click', () => { const ord = calSecOrder(st), i = ord.indexOf(b.dataset.k), j = b.classList.contains('dsLayUp') ? i - 1 : i + 1; if(j < 0 || j >= ord.length) return; [ord[i], ord[j]] = [ord[j], ord[i]]; st.theme.hide = calHiddenSecs(st).slice(); st.theme.order = ord; paint(); }));
     q('.dsLayShow', c => c.addEventListener('change', () => { const hid = calHiddenSecs(st).filter(k => k !== c.dataset.k); if(!c.checked) hid.push(c.dataset.k); st.theme.order = calSecOrder(st); st.theme.hide = hid; paint(); }));
     { const r = page.querySelector('#dsLayReset'); if(r) r.addEventListener('click', () => { delete st.theme.order; delete st.theme.hide; delete st.theme.mapPos; paint(); }); }
-    page.querySelector('#dsTA').addEventListener('change', e => { if(e.target.value) st.theme.titleAlign = e.target.value; else delete st.theme.titleAlign; });
     q('.dsF', el => el.addEventListener('input', () => { st.blocks[Number(el.dataset.i)][el.dataset.f] = el.value; }));
-    q('.dsUp', b => b.addEventListener('click', () => { const i = Number(b.dataset.i); [st.blocks[i - 1], st.blocks[i]] = [st.blocks[i], st.blocks[i - 1]]; paint(); }));
-    q('.dsDown', b => b.addEventListener('click', () => { const i = Number(b.dataset.i); [st.blocks[i + 1], st.blocks[i]] = [st.blocks[i], st.blocks[i + 1]]; paint(); }));
     q('.dsDel', b => b.addEventListener('click', () => { st.blocks.splice(Number(b.dataset.i), 1); paint(); }));
     const pin = page.querySelector('#dsPhotoIn');
     pin.addEventListener('change', () => { const fl = [...pin.files]; if(fl.length) upload(fl, id => { st.blocks.push({ id: nid(), type: 'image', img: id, size: 'full', align: 'center' }); }); });
@@ -7392,20 +7375,20 @@ function calPriceHtml(d, compact){
 // A pinned map on the event page: the pasted Google Maps link (exact spot), else the place text — embedded, plus an 'Open in Google Maps' link.
 // bottom = true asks for the copy that sits at the very end of the page (only when the admin chose "very bottom"); otherwise the one under the place.
 // ---- Event page layout: every part of the page is a section that can be reordered or hidden (theme.order / theme.hide, set in the page designer) ----
-const CAL_SECS = [['cover','🖼 Cover photo'],['hosts','🤝 Partner / host logos'],['club','🏷 Club tag'],['title','Title'],['date','📅 Date & time'],['price','🎟 Price'],['rsvpby','⏳ Sign-up deadline'],['map','🗺 Map'],['desc','📝 Description & blocks'],['spots','Spots left'],['going','👥 How many are going'],['action','RSVP / sign-up buttons'],['form','📋 The sign-up form'],['place','📍 Location text'],['link','🔗 Share link']];
+const CAL_SECS = [['hosts','🤝 Partner / host logos'],['club','🏷 Club tag'],['title','Title'],['date','📅 Date & time'],['price','🎟 Price'],['rsvpby','⏳ Sign-up deadline'],['map','🗺 Map'],['desc','📝 Description & blocks'],['spots','Spots left'],['going','👥 How many are going'],['action','RSVP / sign-up buttons'],['form','📋 The sign-up form'],['place','📍 Location text'],['link','🔗 Share link']];
 const CAL_SEC_LOCKED = ['action', 'form']; // can be moved, but never hidden (people need them)
 function calHiddenSecs(d){ const t = d.theme || {}; if(Array.isArray(t.hide)) return t.hide; return calHostRows(d).some(r => !r.hide) ? ['club'] : []; } // a collaboration shows the partners' logos instead of the club tag, unless you choose otherwise
 function calSecOrder(d){
-  const t = d.theme || {}, keys = CAL_SECS.map(x => x[0]); let ord;
+  const t = d.theme || {}, keys = CAL_SECS.map(x => x[0]).concat((Array.isArray(d.blocks) ? d.blocks : []).filter(b => b && b.id).map(b => 'b:' + b.id)); let ord;
   if(Array.isArray(t.order) && t.order.length){ ord = t.order.filter(k => keys.includes(k)); keys.forEach(k => { if(!ord.includes(k)) { const li = ord.indexOf('link'); ord.splice(li >= 0 ? li : ord.length, 0, k); } }); }
-  else { const bot = t.mapPos === 'bottom'; ord = ['cover', 'hosts', 'club', 'title', 'date', 'price', 'rsvpby']; if(!bot) ord.push('map'); ord.push('desc', 'spots', 'going', 'action', 'form', 'place'); if(bot) ord.push('map'); ord.push('link'); }
+  else { const bot = t.mapPos === 'bottom'; ord = ['hosts', 'club', 'title', 'date', 'price', 'rsvpby']; if(!bot) ord.push('map'); ord.push('desc', 'spots', 'going', 'action', 'form', 'place'); if(bot) ord.push('map'); ord.push('link'); keys.forEach(k => { if(!ord.includes(k)){ const li = ord.indexOf('link'); ord.splice(li >= 0 ? li : ord.length, 0, k); } }); }
   return ord;
 }
 function calSecStyle(d, k){ return 'order:' + (calSecOrder(d).indexOf(k) * 10 + 10); }
 // 🔒 a private location: people who haven't signed up see a note instead of the address.
 function calPlaceHtml(d){ return d.placeHidden ? '<p style="margin:4px 0;">📍 <i>The location is shared with people who sign up.</i></p>' : d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}${d.placePrivate ? ' <small style="color:#776867;">(only people who signed up see this)</small>' : ''}</p>` : ''; }
 function calSec(d, k, html){ if(!html || !String(html).trim()) return ''; if(!CAL_SEC_LOCKED.includes(k) && calHiddenSecs(d).includes(k)) return ''; return `<div class="efs" data-s="${k}" style="${calSecStyle(d, k)}">${html}</div>`; }
-function calCompose(d, parts){ const ord = calSecOrder(d); return parts.map(([k, h]) => [k, calSec(d, k, h)]).filter(x => x[1]).sort((a, b) => ord.indexOf(a[0]) - ord.indexOf(b[0])).map(x => x[1]).join(''); }
+function calCompose(d, parts){ const ord = calSecOrder(d); parts = parts.concat((Array.isArray(d.blocks) ? d.blocks : []).filter(b => b && b.id).map(b => ['b:' + b.id, calBlocksHtml({ blocks: [b], theme: d.theme })])); return parts.map(([k, h]) => [k, calSec(d, k, h)]).filter(x => x[1]).sort((a, b) => ord.indexOf(a[0]) - ord.indexOf(b[0])).map(x => x[1]).join(''); }
 function calMapHtml(d){
   const t = d.theme || {}, map = safeMapUrl(d.mapUrl), q = String(d.place || '').trim();
   if(!map && !q) return '';
