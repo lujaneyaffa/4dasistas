@@ -1440,3 +1440,5 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - sw v291 — Leaderboards tab: 'View club' → 'View leaderboard' (they are not separate clubs). badminton.html: the 🏆 Tournaments and 📅 THIS SEASON nav buttons are hidden (CSS) since leaderboards are already separate groups.
 
 - sw v292 — Rotation score entry: tap which team won → winners fixed at 21, type the losing score (0–19); '⬆️ It went above 21' switches to winner 22–30 with the loser auto (won by 2; 30–29). Games list (last 10) has ✏️ Edit (change the 4 players + scores) and 🗑 Delete for admins (db update/delete; owner only on the server). Clearer 'How this works & how ranking works' text.
+
+- sw v293 — Kiosk: tap any game in 'Games recorded so far' (standard kiosk) or 'Games played' (rotation page) → ✏️ Edit sheet (change players + scores) with 🗑 Delete. New key-protected rpcs `kiosk_edit_game` / `kiosk_delete_game` (league-scoped, tonight's games only; admins use db update/delete). For a rotation league the #kiosk view now shows the rotation page instead of the standard kiosk screens (kioskRoot hidden).

@@ -4042,6 +4042,19 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               const d = JSON.parse(g.data); if (!d.played_at || Date.now() - new Date(d.played_at).getTime() > 30 * 60000) return jsonResponse({ data: false, error: null }, 200, corsHeaders); // only a game just recorded
               await env.DB.prepare("DELETE FROM bm_games WHERE id = ?").bind(g.id).run(); return jsonResponse({ data: true, error: null }, 200, corsHeaders);
             }
+            if (fn === "kiosk_delete_game" || fn === "kiosk_edit_game") {
+              const g = await env.DB.prepare("SELECT id, day, data FROM bm_games WHERE id = ?").bind(String(a.p_game_id || "")).first(); if (!g) return bmErr("Game not found");
+              const d = JSON.parse(g.data);
+              if ((d.league || "main") !== kLg) return bmErr("That game belongs to a different leaderboard", 403);
+              if ((g.day || (d.played_at ? bmToronto(new Date(d.played_at)) : "")) !== today) return bmErr("The kiosk can only change tonight's games. Ask the admin for older ones.", 403);
+              if (fn === "kiosk_delete_game") { await env.DB.prepare("DELETE FROM bm_games WHERE id = ?").bind(g.id).run(); return jsonResponse({ data: true, error: null }, 200, corsHeaders); }
+              const w = (Array.isArray(a.p_winner_ids) ? a.p_winner_ids : []).map(String), l = (Array.isArray(a.p_loser_ids) ? a.p_loser_ids : []).map(String), ws = Math.round(Number(a.p_winner_score)), ls = Math.round(Number(a.p_loser_score));
+              if (!((w.length === 1 && l.length === 1) || (w.length === 2 && l.length === 2)) || new Set([...w, ...l]).size !== w.length + l.length) return bmErr("Pick a winner and a loser (1v1 or 2v2)");
+              if (!Number.isFinite(ws) || !Number.isFinite(ls) || ws <= ls || ws < 11 || ws > 60 || ls < 0) return bmErr("The winning score must be at least 11 and higher than the losing score");
+              for (const id of [...w, ...l]) if (!(await playerRow(id))) return bmErr("Player not found");
+              await env.DB.prepare("UPDATE bm_games SET data = ? WHERE id = ?").bind(JSON.stringify({ ...d, winners: w, losers: l, winner_score: ws, loser_score: ls }), g.id).run();
+              return jsonResponse({ data: true, error: null }, 200, corsHeaders);
+            }
             if (fn === "kiosk_set_avatar") {
               const pl = await playerRow(a.p_player_id); if (!pl) return bmErr("Player not found");
               const av = String(a.p_avatar || "").replace(/^https?:\/\/[^/]+(?=\/storage\/)/, ""), ok = BM_HEARTS.map((h) => "emoji:" + h).includes(av) || av.startsWith(`/storage/v1/object/public/profile-avatars/self/kiosk-${pl.id}-`);
