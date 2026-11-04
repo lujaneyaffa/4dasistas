@@ -1466,3 +1466,6 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - clubCalManage popup = tabs "Edit event" (the same editor inline) / "People & payments".
 - Submissions tab: submitted events, past submissions (KV sughist:*, 90 days; GET /api/admin/event-suggestions-history), submission form; genre names section removed. Public submit form asks for contact; signed-in submitter recorded as `by`.
 - Event attendees tab: every 4DS event, sort chips, Load more.
+
+## 2026-11-04 — v300 (Claude)
+- Admin → 4DS activities: removed the club calendar grid (calendar lives only in the Calendar tab); added a ➕ New 4DS event button; TBD list kept.
