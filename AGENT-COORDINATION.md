@@ -1469,3 +1469,9 @@ _(most recent first — add new entries to the top, trim past ~15)_
 
 ## 2026-11-04 — v300 (Claude)
 - Admin → 4DS activities: removed the club calendar grid (calendar lives only in the Calendar tab); added a ➕ New 4DS event button; TBD list kept.
+
+## 2026-11-04 — v301 (Claude)
+- Fix: popups (photo cropper, terms editor, preview) were hidden behind the full-page event editor → ideaPopup z-index 10100 when an .fb-page is open.
+- Payments: ticket price lives in Details (typing a price switches to Pay); Stripe card/Apple/Google Pay is the main path — button "Continue to payment" opens embedded checkout right after submit, for members AND guests (guest /checkout with HMAC payTok, new-account via session). calPayMissing skips the "I paid" tick when Stripe is on. Public GET returns cardPay.
+- Signature: Undo removed; "Type my name instead" draws the name in Great Vibes cursive.
+- Text shortcuts ⌘B/⌘I/⌘U/⌘+/⌘− + buttons on description, terms, questions (textarea.rk).

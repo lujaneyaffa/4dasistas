@@ -1521,6 +1521,17 @@ const calAddonSelection = (form, ids) => {
   return { ids: picked.map((a) => a.id), total: Number.isFinite(base) ? Math.round((base + sum) * 100) / 100 : (picked.length ? Math.round(sum * 100) / 100 : null) };
 };
 // ---- Card payments through Stripe Checkout (Stripe's own page offers Apple Pay / Google Pay). Needs the secrets STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET; without them the site works as before.
+const calStripeSession = async (env, ev, uid, payerName, total) => { // embedded Stripe Checkout (card · Apple Pay · Google Pay) for one sign-up
+  const mk = (uiMode) => new URLSearchParams({ mode: "payment", ui_mode: uiMode, ...(uiMode === "embedded" ? { redirect_on_completion: "never" } : { return_url: `${env.SITE_ORIGIN || "https://4dasistas.ca"}/?paid=1#/form/${ev.slug || ev.id}` }), client_reference_id: uid, "metadata[ev]": ev.id, "metadata[uid]": uid,
+    "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "cad", "line_items[0][price_data][unit_amount]": String(Math.round(total * 100)), "line_items[0][price_data][product_data][name]": String(ev.title).slice(0, 120), "payment_intent_data[description]": `${ev.title} — ${payerName}`.slice(0, 250) });
+  for (const m of ["embedded", "embedded_page"]) {
+    const sr = await fetch("https://api.stripe.com/v1/checkout/sessions", { method: "POST", headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, "Content-Type": "application/x-www-form-urlencoded" }, body: mk(m) });
+    const sj = await sr.json().catch(() => ({})); if (sr.ok && sj.client_secret) return sj.client_secret;
+    console.error("Stripe checkout failed", m, sr.status, JSON.stringify(sj).slice(0, 300));
+  }
+  return "";
+};
+const calGuestPayTok = (env, evId, gid) => hmacHex(`guestpay:${env.ADMIN_PASSWORD || ""}`, `${evId}:${gid}`);
 const stripeOn = (env) => /^sk_/.test(String(env.STRIPE_SECRET_KEY || "")) && !!env.STRIPE_WEBHOOK_SECRET && /^pk_/.test(String(env.STRIPE_PUBLISHABLE_KEY || ""));
 const stripeVerify = async (env, raw, header) => {
   const hp = String(header || "").split(",").map((s) => s.trim().split("=")), t = (hp.find((p) => p[0] === "t") || [])[1], sigs = hp.filter((p) => p[0] === "v1").map((p) => p[1]);
@@ -1636,7 +1647,7 @@ const calMutateRaw = async (env, evId, fn, verify) => {
   return null;
 };
 // Required payment: a NEW sign-up must say they've paid (the site can't see the money; the organiser still confirms it).
-const calPayMissing = (form, body) => !!(form && form.payment && form.payment.required && !(body && body.paidClaim === true));
+const calPayMissing = (form, body, env) => !!(form && form.payment && form.payment.required && !(body && body.paidClaim === true) && !(env && stripeOn(env) && calAddonSelection(form, []).total != null)); // with card payments on, people pay right after signing up
 const PAY_REQ_MSG = "Payment is required — please pay using the details on the form, then tick “I've sent my payment”.";
 const calAddRsvp = (env, evId, entry) => calMutate(env, evId, (ev) => { ev.rsvps = (ev.rsvps || []).filter((r) => r.id !== entry.id).concat([entry]); }, (chk) => (chk.rsvps || []).some((r) => r.id === entry.id));
 const calDropRsvp = (env, evId, pid) => calMutate(env, evId, (ev) => { ev.rsvps = (ev.rsvps || []).filter((r) => r.id !== pid); }, (chk) => !(chk.rsvps || []).some((r) => r.id === pid));
@@ -2561,14 +2572,14 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!ev) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
         if (!who || !(who.id.startsWith("m:") || who.id === "admin")) {
           // A PUBLICIZED event (publicForm): anyone can open its form straight away and submit it with just a name — no account needed.
-          if (!calMatch[2] && M === "GET") return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, signup: ev.signup || "", contactUrl: ev.contactUrl || "", clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], clubIds: calClubs(ev), publicForm: !!ev.form, form: ev.form || null, signup: ev.signup || "", guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) }, false), 200, corsHeaders);
+          if (!calMatch[2] && M === "GET") return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, cardPay: stripeOn(env), signup: ev.signup || "", contactUrl: ev.contactUrl || "", clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], clubIds: calClubs(ev), publicForm: !!ev.form, form: ev.form || null, signup: ev.signup || "", guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) }, false), 200, corsHeaders);
           if (ev.form) { // ANY event with a form can be filled in without an account
             if (calMatch[2] === "/form" && M === "POST") {
               if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
               let fb; try { fb = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
               if (ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) return jsonResponse({ error: "Sign-ups for this event are closed" }, 400, corsHeaders);
               if (ev.date < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "This event has already happened" }, 400, corsHeaders);
-              if (calPayMissing(ev.form, fb)) return jsonResponse({ error: PAY_REQ_MSG }, 400, corsHeaders);
+              if (calPayMissing(ev.form, fb, env)) return jsonResponse({ error: PAY_REQ_MSG }, 400, corsHeaders);
               if (fb && fb.pin !== undefined) {
                 // Base member details came with the form: create the account (and sign them in), then record the sign-up as theirs.
                 const chk0 = checkCalAnswers(ev.form, fb.answers);
@@ -2593,7 +2604,19 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               const stG = await calSpotStatus(env, ev, gid);
               await calAddRsvp(env, ev.id, { id: gid, name: nm, status: stG, at: Date.now(), guest: true, viaForm: true, ...(fb.paidClaim === true && ev.form.payment ? { claimedPaid: Date.now() } : {}) }); // shows in the attendee list too
               notifyAdminOfFormSignup(env, ctx, ev, { name: nm, contact }, chk.answers, calAddonSelection(ev.form, fb && fb.addons));
-              return jsonResponse({ ok: true, eventStatus: stG, ...(ev.placePrivate && stG === "going" ? { place: ev.place || "", mapUrl: ev.mapUrl || "" } : {}) }, 200, corsHeaders);
+              return jsonResponse({ ok: true, eventStatus: stG, ...(ev.form.payment && stG === "going" ? { payId: gid, payTok: await calGuestPayTok(env, ev.id, gid) } : {}), ...(ev.placePrivate && stG === "going" ? { place: ev.place || "", mapUrl: ev.mapUrl || "" } : {}) }, 200, corsHeaders);
+            }
+            if (calMatch[2] === "/checkout" && M === "POST") { // a guest (no account) paying right after signing up
+              if (!stripeOn(env)) return jsonResponse({ error: "Card payments aren't switched on yet" }, 503, corsHeaders);
+              let pb; try { pb = await request.json(); } catch { pb = {}; }
+              const gid = String((pb && pb.payId) || ""); if (!/^g:[\w-]{4,20}$/.test(gid) || !sameSig(String(pb.payTok || ""), await calGuestPayTok(env, ev.id, gid))) return jsonResponse({ error: "Sign up for the event first" }, 403, corsHeaders);
+              const r = (ev.rsvps || []).find((x) => x.id === gid); if (!r) return jsonResponse({ error: "Sign up for the event first" }, 403, corsHeaders);
+              if (r.paid) return jsonResponse({ error: "You're already marked as paid" }, 400, corsHeaders);
+              const total = Number(((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[gid]) || {}).total);
+              if (!Number.isFinite(total) || total < 0.5 || total > 5000) return jsonResponse({ error: "There's no card amount for this event — use the payment details above" }, 400, corsHeaders);
+              const cs = await calStripeSession(env, ev, gid, r.name || "Guest", total);
+              if (!cs) return jsonResponse({ error: "Couldn't open the card form — please try again" }, 502, corsHeaders);
+              return jsonResponse({ ok: true, clientSecret: cs, pk: env.STRIPE_PUBLISHABLE_KEY || "" }, 200, corsHeaders);
             }
           }
           return jsonResponse({ error: "Log in or sign up to see event details and RSVP" }, 401, corsHeaders);
@@ -2618,7 +2641,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           const wasIn = (ev.rsvps || []).find((r) => r.id === uid);
           if (!wasIn && ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) return jsonResponse({ error: "Sign-ups for this event are closed" }, 400, corsHeaders);
           if (!wasIn && ev.date < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "This event has already happened" }, 400, corsHeaders);
-          if (!wasIn && calPayMissing(ev.form, fb)) return jsonResponse({ error: PAY_REQ_MSG }, 400, corsHeaders);
+          if (!wasIn && calPayMissing(ev.form, fb, env)) return jsonResponse({ error: PAY_REQ_MSG }, 400, corsHeaders);
           { const sel = calAddonSelection(ev.form, fb && fb.addons); map = await calFormPut(env, ev.id, uid, { name: who.name, answers: chk.answers, at: Date.now(), ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }); }
           // Submitting the form IS the RSVP: club members are going at once, people from other clubs wait for approval.
           let status = wasIn ? wasIn.status : null;

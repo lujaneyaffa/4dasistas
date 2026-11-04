@@ -47,7 +47,7 @@ const _libs = {};
 function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = url; sc.async = true; sc.onload = ok; sc.onerror = () => { delete _libs[url]; no(new Error('Could not load the map')); }; document.head.appendChild(sc); }); }
 </script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Amiri:wght@700&family=Aref+Ruqaa:wght@700&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Amiri:wght@700&family=Aref+Ruqaa:wght@700&family=Great+Vibes&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap');
 
   :root{
     --cream: #fef7f4;
@@ -716,6 +716,8 @@ function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) =>
   .mem-pop-card.adm-wide input:not([type=checkbox]):not([type=radio]), .mem-pop-card.adm-wide select, .mem-pop-card.adm-wide textarea{ font-size:16px; }
   @media (max-width:600px){ .mem-pop-card.adm-wide{ padding:22px 14px 16px; } }
   .ee{ max-width:860px; margin:0 auto; }
+  .rk-bar{ display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin:0 0 4px; } .rk-bar button{ min-width:36px; height:32px; border-radius:8px; border:1.5px solid #d9c7c3; background:#fff; font:inherit; font-size:15px; cursor:pointer; color:#373d3b; }
+  .rk-bar button:hover{ background:#fef7f4; } .rk-bar span{ font-size:11px; color:#9a8b89; margin-left:4px; }
   .cal-mtabs{ display:flex; gap:8px; margin:0 36px 12px 0; } .cal-mt{ flex:1; padding:12px 10px; border-radius:999px; border:2px solid var(--brand-brown); background:#fff; font:inherit; font-weight:800; font-size:15px; cursor:pointer; color:var(--brand-brown); }
   .cal-mt.on{ background:var(--brand-brown); color:#fff; }
   .calEdBox .pgBar{ top:-26px; }
@@ -6560,8 +6562,8 @@ async function clubCalPublicCard(box, id){
       <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 4px;">2 · 📝 Sign up</h3>${d.form.intro ? `<div style="margin:0 0 10px;">${richHtml(d.form.intro)}</div>` : ''}
         ${calFormFieldsHtml(d.form, {}, false)}
         ${calAddonsHtml(d.form, [])}
-        ${calPayInFormHtml(d.form)}
-        <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Submit</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}</div>`;
+        ${calPayInFormHtml(d.form, calCardOk(d))}
+        <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;min-height:50px;text-align:center;background:var(--brand-rose);color:#fff;">${calCardOk(d) ? '💳 Continue to payment' : 'Submit'}</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}</div>`;
     box.innerHTML = calCompose(d, [['cover', calCoverHtml(d)], ['hosts', calHostsHtml(d)], ['club', `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>`], ['title', `<h3 style="margin:0 0 4px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>`],
       ['date', `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>`], ['price', calPriceHtml(d)],
       ['rsvpby', d.rsvpBy ? `<p style="margin:4px 0;font-weight:700;color:${d.closed ? '#b3261e' : '#76220b'};">⏳ ${d.closed ? 'Sign-ups are closed' : 'Sign up by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''],
@@ -6622,6 +6624,10 @@ async function clubCalPublicCard(box, id){
         const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', body: JSON.stringify(quick ? { name: base('name'), contact: base('phone'), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim } : { name: base('name'), phone: base('phone'), pin: base('pin'), why: base('why'), interests: [...box.querySelectorAll('.pfClub:checked')].map(c => c.value), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim }) });
         if(r && r.token){ setCmSession(r); renderNavAuth(); }
         box.innerHTML = calSignedUpHtml(d, r, chosenAddons, quick) + `<div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`; wireCalCopy(box);
+        if(calCardOk(d) && (r.eventStatus || 'going') === 'going' && (r.payId || r.token)){
+          try { const j = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/checkout', r.payId ? { method:'POST', body: JSON.stringify({ payId: r.payId, payTok: r.payTok }) } : { method:'POST', headers: ideaHeaders() }); if(j && j.clientSecret) await calOpenStripe(j, id, d, box); }
+          catch(err){ admToastLite('Payment: ' + err.message); }
+        }
       } catch(err){ e.target.disabled = false; m.style.color = '#c00'; m.textContent = err.message; }
     });
   } catch(err){
@@ -6718,12 +6724,12 @@ async function clubCalMemberCard(box, id){
       formBox.innerHTML = `<div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 6px;">1 · 👤 About you</h3><p style="margin:0;">✅ Signed in as <strong>${escapeCm(meName)}</strong> — your details are already on file.</p></div>
       <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 4px;">2 · 📝 Sign up</h3>${d.form.intro ? `<div style="margin:0 0 10px;">${richHtml(d.form.intro)}</div>` : ''}${calFormFieldsHtml(d.form, d.myAnswers, false)}
         ${calAddonsHtml(d.form, d.myAddons)}
-        ${calPayInFormHtml(d.form)}
+        ${calPayInFormHtml(d.form, calCardOk(d))}
         <button type="button" class="club-guide-btn calFormSend" ${d.closed && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">${d.closed && !d.mine ? '🔒 Sign-ups closed' : d.myAnswers ? 'Update my answers' : 'Submit & RSVP'}</button><div class="calFormMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>
         <button type="button" class="club-guide-btn calCancelReg" hidden style="width:100%;min-height:46px;text-align:center;background:#fdecea;border-color:#b3261e;color:#b3261e;margin-top:4px;">❌ Cancel my registration</button>
         ${calFormFooterHtml(d.form)}<div class="calPayBox">${d.form.payment && d.myAnswers ? calPayBoxHtml(d) : ''}</div></div>`;
       const cxBtn = formBox.querySelector('.calCancelReg'), sendBtn = formBox.querySelector('.calFormSend');
-      syncCancel = () => { const past = calIsPast(d.date); const pf = formBox.querySelector('.calPayInForm'); if(pf) pf.hidden = !!(d.mine || d.paid || d.claimedPaid); cxBtn.hidden = !(d.mine && !past); sendBtn.textContent = d.closed && !d.mine ? '🔒 Sign-ups closed' : d.mine ? 'Update my answers' : d.myAnswers ? 'Register again' : (d.form.payment && d.cardPay && !d.paid ? 'Submit & pay by card' : 'Submit & RSVP'); };
+      syncCancel = () => { const past = calIsPast(d.date); const pf = formBox.querySelector('.calPayInForm'); if(pf) pf.hidden = !!(d.mine || d.paid || d.claimedPaid); cxBtn.hidden = !(d.mine && !past); sendBtn.textContent = d.closed && !d.mine ? '🔒 Sign-ups closed' : d.mine ? 'Update my answers' : d.myAnswers ? 'Register again' : (calCardOk(d) && !d.paid ? '💳 Continue to payment' : 'Submit & RSVP'); };
       cxBtn.addEventListener('click', () => calCancelFlow(d, id, () => { paint(); syncCancel(); admToastLite('Registration cancelled'); }));
       syncCancel();
       wireCalAddons(formBox, d.form); calMountLocations(formBox);
@@ -6882,7 +6888,7 @@ function calFormFieldsHtml(form, answers, locked){
     else if(f.type === 'location') inp = locked ? `<div class="calLocChosen" style="padding:8px 10px;border-radius:8px;background:#f3efe9;font-size:13px;color:#776867;">📍 People search a place in Canada and pick it from the list.</div>` : `<div class="calLoc" data-locfid="${f.id}"><div class="calLocSlot"></div><div class="calLocChosen ev-loc-chosen${v && v.address ? '' : ' empty'}" style="margin-top:6px;">${v && v.address ? '📍 ' + escapeCm(v.address) : 'Search for a place in Canada, then pick it from the list'}</div><input type="hidden" class="calLocVal" data-fid="${f.id}" value="${escapeCm(v && v.address ? JSON.stringify(v) : '')}"></div>`;
     else if(f.type === 'signature'){
       const sv = typeof v === 'string' && /^data:image\/png;base64,[A-Za-z0-9+\/=]+$/.test(v) ? v : '';
-      inp = locked ? `<div style="padding:8px 10px;border-radius:8px;background:#f3efe9;font-size:13px;color:#776867;">✍️ People draw their signature here with a finger or mouse.</div>` : `<div class="sigBox"><div class="sigPadWrap"><canvas class="sigPad" aria-label="Signature pad: draw your signature here"></canvas><span class="sigX">✕</span><div class="sigLine"></div><span class="sigHint">Sign here</span></div><div class="sigBar"><button type="button" class="fb-mini sigUndo">↩ Undo</button><button type="button" class="fb-mini sigClear">🧹 Clear &amp; start again</button></div><input type="hidden" class="sigVal" data-fid="${f.id}" value="${escapeCm(sv)}"></div>`;
+      inp = locked ? `<div style="padding:8px 10px;border-radius:8px;background:#f3efe9;font-size:13px;color:#776867;">✍️ People draw their signature here with a finger or mouse.</div>` : `<div class="sigBox"><div class="sigPadWrap"><canvas class="sigPad" aria-label="Signature pad: draw your signature here"></canvas><span class="sigX">✕</span><div class="sigLine"></div><span class="sigHint">Sign here</span></div><div class="sigBar"><button type="button" class="fb-mini sigClear">🧹 Clear &amp; start again</button><button type="button" class="fb-mini sigTypeBtn">⌨️ Type my name instead</button></div><input type="text" class="fb-in sigType" maxlength="40" placeholder="Type your full name — it becomes your signature" autocomplete="name" hidden style="margin-top:6px;"><input type="hidden" class="sigVal" data-fid="${f.id}" value="${escapeCm(sv)}"></div>`;
     }
     else if(f.type === 'agree') return `<div class="fb-q fb-agree"><div class="fbTerm" style="white-space:pre-wrap;font-size:14px;line-height:1.45;padding:10px 12px;border-radius:12px;background:#fef7f4;border:1.5px solid #f2d8d7;">${richLine(f.label)}</div><label class="fb-opt" style="font-weight:700;"><input type="checkbox" data-fid="${f.id}" ${v ? 'checked' : ''} ${dis} style="width:22px;height:22px;"> I agree${f.required ? ' <span class="req">*</span>' : ''}</label></div>`;
     else if(f.type === 'yesno' || f.type === 'choice') inp = (f.type === 'yesno' ? ['Yes', 'No'] : f.options).map(o => `<label class="fb-opt"><input type="radio" name="fq-${f.id}" data-fid="${f.id}" value="${escapeCm(o)}" ${v === o ? 'checked' : ''} ${dis} style="width:20px;height:20px;"> ${escapeCm(o)}</label>`).join('');
@@ -6917,8 +6923,11 @@ function calWireSignatures(root){
     cv.addEventListener('pointermove', e => { if(!cur) return; e.preventDefault(); const p = pos(e), l = cur[cur.length - 1]; if(Math.hypot(p[0] - l[0], p[1] - l[1]) < .8) return; cur.push(p); draw(); });
     const end = () => { if(!cur) return; cur = null; draw(); save(); };
     cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end); cv.addEventListener('lostpointercapture', end);
-    box.querySelector('.sigClear').addEventListener('click', () => { strokes = []; base = null; draw(); save(); });
-    box.querySelector('.sigUndo').addEventListener('click', () => { if(strokes.length) strokes.pop(); else base = null; draw(); save(); });
+    box.querySelector('.sigClear').addEventListener('click', () => { strokes = []; base = null; if(box.querySelector('.sigType')) box.querySelector('.sigType').value = ''; draw(); save(); });
+    const typeIn = box.querySelector('.sigType');
+    const drawTyped = async () => { const t = typeIn.value.trim(); strokes = []; base = null; ctx.clearRect(0, 0, W, H); if(!t){ save(); return; } try { await document.fonts.load('60px "Great Vibes"'); } catch {} let fs = 62; ctx.font = `${fs}px "Great Vibes", "Brush Script MT", cursive`; while(ctx.measureText(t).width > W - 40 && fs > 22){ fs -= 2; ctx.font = `${fs}px "Great Vibes", "Brush Script MT", cursive`; } ctx.textBaseline = 'alphabetic'; ctx.fillText(t, 20, H * 0.68); const o = document.createElement('canvas'); o.width = W; o.height = H; o.getContext('2d').drawImage(cv, 0, 0, W, H); base = o; save(); };
+    box.querySelector('.sigTypeBtn').addEventListener('click', e => { typeIn.hidden = !typeIn.hidden; e.target.textContent = typeIn.hidden ? '⌨️ Type my name instead' : '✍️ Draw it instead'; if(!typeIn.hidden) typeIn.focus(); else { typeIn.value = ''; strokes = []; base = null; draw(); save(); } });
+    typeIn.addEventListener('input', drawTyped);
     if(hid.value){ const im = new Image(); im.onload = () => { base = im; draw(); hint.style.display = 'none'; }; im.src = hid.value; } // a signature saved earlier: shown, and can be cleared / signed over
   });
 }
@@ -7498,8 +7507,10 @@ function wireCalAddons(root, form){
 }
 function calAddonIds(root){ return [...root.querySelectorAll('.calAddon:checked')].map(c => c.value); }
 // The payment box INSIDE the form (just above Submit): how to pay + a tick box. Required = the tick is needed to submit.
-function calPayInFormHtml(form){
+function calCardOk(d){ return !!(d && d.cardPay && d.form && d.form.payment && calTotalFor(d.form, []).total != null); }
+function calPayInFormHtml(form, card){
   const pay = form && form.payment; if(!pay) return '';
+  if(card) return `<div class="calPayInForm" style="margin-top:12px;"><div class="calPayLive"></div><p class="ideas-hint" style="text-align:left;margin:8px 0 0;">💳 You'll pay on the next step — card, Apple Pay or Google Pay, securely with Stripe.</p></div>`;
   return `<div class="calPayInForm" style="margin-top:12px;"><div class="calPayLive"></div><label class="fb-opt" style="margin-top:8px;"><input type="checkbox" class="calPayClaim" style="width:22px;height:22px;"> <span><b>✅ I've sent my payment</b> <small style="color:${pay.required ? '#b3261e' : '#776867'};font-weight:${pay.required ? '700' : '400'};">${pay.required ? '(required)' : '(optional — you can also pay later)'}</small></span></label></div>`;
 }
 function calPayLiveRefresh(root, form){
@@ -7922,6 +7933,23 @@ function calPageEditorOld(ev, opts){
   return { close };
 }
 // Old name, kept so every "Add / Edit event" button opens the new one-page editor.
+// ✍️ Text styling in descriptions / terms: ⌘B bold · ⌘I italic · ⌘U underline · ⌘+ bigger · ⌘− smaller (Ctrl on Windows), or the little buttons.
+const RK = { b:['**', '**'], i:['*', '*'], u:['__', '__'], big:['{big}', '{/}'], small:['{small}', '{/}'] };
+function rkApply(ta, k){
+  const [a, z] = RK[k], st = ta.selectionStart, en = ta.selectionEnd, v = ta.value, sel = v.slice(st, en);
+  if(v.slice(st - a.length, st) === a && v.slice(en, en + z.length) === z){ ta.value = v.slice(0, st - a.length) + sel + v.slice(en + z.length); ta.setSelectionRange(st - a.length, en - a.length); }
+  else if(sel.startsWith(a) && sel.endsWith(z) && sel.length >= a.length + z.length){ const inner = sel.slice(a.length, sel.length - z.length); ta.value = v.slice(0, st) + inner + v.slice(en); ta.setSelectionRange(st, st + inner.length); }
+  else { const body = sel || 'text'; ta.value = v.slice(0, st) + a + body + z + v.slice(en); ta.setSelectionRange(st + a.length, st + a.length + body.length); }
+  ta.focus(); ta.dispatchEvent(new Event('input', { bubbles:true }));
+}
+function rkBar(){ return '<div class="rk-bar"><button type="button" data-rk="b" title="Bold (⌘B)"><b>B</b></button><button type="button" data-rk="i" title="Italic (⌘I)"><i>I</i></button><button type="button" data-rk="u" title="Underline (⌘U)"><u>U</u></button><button type="button" data-rk="big" title="Bigger (⌘+)">A+</button><button type="button" data-rk="small" title="Smaller (⌘−)">A−</button><span>select text, then tap · or ⌘B ⌘I ⌘U ⌘+ ⌘−</span></div>'; }
+document.addEventListener('keydown', e => {
+  const ta = e.target; if(!(e.metaKey || e.ctrlKey) || !ta || !ta.classList || !ta.classList.contains('rk')) return;
+  const k = e.key.toLowerCase(), m = k === 'b' ? 'b' : k === 'i' ? 'i' : k === 'u' ? 'u' : (k === '=' || k === '+') ? 'big' : (k === '-' || k === '_') ? 'small' : '';
+  if(!m) return; e.preventDefault(); e.stopPropagation(); rkApply(ta, m);
+}, true);
+document.addEventListener('mousedown', e => { if(e.target.closest('.rk-bar button')) e.preventDefault(); }, true); // keep the selection in the text box
+document.addEventListener('click', e => { const b = e.target.closest('.rk-bar button'); if(!b) return; const wrap = b.closest('.rk-wrap'), ta = wrap && wrap.querySelector('textarea.rk'); if(ta) rkApply(ta, b.dataset.rk); });
 // ✂️ Photo cropper: pick the shape, zoom, drag, and choose how much to compress. Resolves to a JPEG blob (≤ ~880 KB) or null.
 function calCropper(src, opts){
   opts = opts || {};
@@ -7995,7 +8023,7 @@ function calTermsEditor(onSaved){
     <div class="tmMsg" style="font-size:14px;min-height:18px;margin-top:8px;"></div>
     <button type="button" class="club-guide-btn tmSave" style="width:100%;margin-top:6px;text-align:center;background:var(--brand-rose);color:#fff;min-height:48px;">💾 Save terms</button>`);
   const list = wrap.querySelector('.tmList');
-  const paint = () => { list.innerHTML = cur.map((t, i) => `<div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:8px;"><b style="padding-top:10px;">${i + 1}.</b><textarea class="tmT" data-i="${i}" rows="3" maxlength="1000" placeholder="e.g. I understand 4DS is not responsible for injuries during the activity." style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;">${escapeCm(t)}</textarea><button type="button" class="fb-mini tmX" data-i="${i}" aria-label="Remove">✕</button></div>`).join('');
+  const paint = () => { list.innerHTML = cur.map((t, i) => `<div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:8px;"><b style="padding-top:38px;">${i + 1}.</b><div class="rk-wrap" style="flex:1;">${rkBar()}<textarea class="tmT rk" data-i="${i}" rows="3" maxlength="1000" placeholder="e.g. I understand 4DS is not responsible for injuries during the activity." style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;">${escapeCm(t)}</textarea></div><button type="button" class="fb-mini tmX" data-i="${i}" aria-label="Remove">✕</button></div>`).join('');
     list.querySelectorAll('.tmT').forEach(el => el.addEventListener('input', () => { cur[Number(el.dataset.i)] = el.value; }));
     list.querySelectorAll('.tmX').forEach(el => el.addEventListener('click', () => { cur.splice(Number(el.dataset.i), 1); paint(); })); };
   paint();
@@ -8061,6 +8089,7 @@ function calEventEditor(ev, opts){
   const details = `${lab('Event name')}<input id="cfTitle" type="text" maxlength="80" placeholder="e.g. Pottery night" value="${escapeCm(ev ? ev.title : '')}" style="${F}">
     <div class="ee-2"><div>${lab('Date')}<input id="cfDate" type="date" value="${escapeCm(ev && !ev.tbd ? ev.date : (opts.presetDate || ''))}" style="${F}"></div><div>${lab('Time (optional)')}<input id="cfTime" type="text" maxlength="30" placeholder="e.g. 6:30 – 9 PM" value="${escapeCm(ev ? ev.time : '')}" style="${F}"></div></div>
     <label class="ee-chk"><input type="checkbox" id="cfTbd" ${ev && ev.tbd ? 'checked' : ''}> 🕒 Date to be decided</label>
+    ${lab('🎟️ Ticket price (leave empty if it’s free)')}<input id="eePrice" maxlength="30" inputmode="decimal" placeholder="e.g. $15" value="${escapeCm(form0 && form0.payment ? (form0.payment.amount || '') : '')}" style="${F}">
     ${lab('Location')}<input id="cfPlace" type="hidden" value="${escapeCm(ev ? ev.place : '')}"><div id="cfPlaceSlot"></div><div id="cfPlaceChosen" class="ev-loc-chosen${ev && ev.place ? '' : ' empty'}" style="margin:0 0 8px;">${ev && ev.place ? '📍 ' + escapeCm(ev.place) : 'No place chosen yet'}</div>
     ${lab('Google Maps link (optional — pins the exact spot)')}<input id="cfMap" type="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Google Maps → Share → Copy link" value="${escapeCm(ev ? (ev.mapUrl || '') : '')}" style="${F}">
     <label class="ee-chk"><input type="checkbox" id="cfPlacePriv" ${ev && ev.placePrivate ? 'checked' : ''}> 🔒 Only people who signed up can see the location</label>
@@ -8070,7 +8099,7 @@ function calEventEditor(ev, opts){
       <div id="cfRepNote" class="ideas-hint" style="text-align:left;margin:6px 0 0;"></div></div></details>`;
   const pageSec = `${lab('Page address')}<div style="display:flex;align-items:center;gap:0;border:2px solid var(--brand-brown);border-radius:10px;background:#fff;overflow:hidden;margin-bottom:8px;"><span style="padding:11px 0 11px 12px;color:#776867;font-size:15px;white-space:nowrap;">4dasistas.ca/#/form/</span><input id="eeSlug" type="text" maxlength="50" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="${isNew ? 'made from the name' : ''}" value="${escapeCm(ev ? (ev.slug || '') : '')}" style="flex:1;min-width:0;border:none;padding:11px 12px 11px 2px;font-size:16px;font-family:inherit;outline:none;"></div>
     ${ev ? `<div class="fb-row" style="margin-bottom:10px;"><button type="button" class="fb-mini" id="eeCopy">📋 Copy link</button><a class="fb-mini" href="/#/form/${escapeCm(encodeURIComponent(ev.slug || ev.id))}" target="_blank" rel="noopener" style="text-decoration:none;">🌐 Open the page</a></div>` : ''}
-    ${lab('Description')}<textarea id="eeDesc" rows="7" maxlength="3000" placeholder="What it is, what to bring, where to meet…" style="${F}resize:vertical;">${escapeCm(ev ? (ev.desc || '') : '')}</textarea>`;
+    ${lab('Description')}<div class="rk-wrap">${rkBar()}<textarea id="eeDesc" class="rk" rows="7" maxlength="3000" placeholder="What it is, what to bring, where to meet…" style="${F}resize:vertical;">${escapeCm(ev ? (ev.desc || '') : '')}</textarea></div>`;
   let n = 0;
   host.innerHTML = `<div class="${inline ? '' : 'fb-wrap'} pgEd ee">
     <div class="pgBar"><div style="display:flex;gap:8px;align-items:center;">${inline ? '' : '<button type="button" class="fb-mini" id="pgClose">✕ Close</button>'}<strong style="flex:1;min-width:0;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${isNew ? '➕ New event' : '✏️ ' + escapeCm(ev.title)}</strong><button type="button" class="fb-mini" id="pgPreview">👁 Preview</button><button type="button" class="club-guide-btn" id="pgSave" style="padding:8px 18px;text-align:center;background:var(--brand-rose);color:#fff;">💾 Save</button></div>
@@ -8133,15 +8162,16 @@ function calEventEditor(ev, opts){
     if(t.id === 'eeOldX'){ if(confirm('Remove the older text / map / button sections from this page?')){ oldBlocks = []; touch(); paintPhotos(); } }
   });
   // ---- ✋ sign-up ----
-  const MODES = [['one', '⚡', 'One click', 'They tap “Count me in” (plus the terms and signature).'], ['pay', '💳', 'Pay', 'They pay to sign up — card / Apple Pay, or your link / e-Transfer.'], ['msg', '💬', 'Message an organizer', 'No sign-up on the site — a button opens WhatsApp / phone / email.']];
+  const MODES = [['one', '⚡', 'One click', 'Free — they fill in the form and they’re in.'], ['pay', '💳', 'Pay', 'They pay the ticket price by card, Apple Pay or Google Pay right after signing up.'], ['msg', '💬', 'Message an organizer', 'No sign-up on the site — a button opens WhatsApp / phone / email.']];
   const paintSignup = () => {
     q('#eeSu').innerHTML = `<div class="ee-modes">${MODES.map(([k, ic, t, h]) => `<button type="button" class="ee-mode${mode === k ? ' on' : ''}" data-mode="${k}"><span style="font-size:26px;">${ic}</span><b>${t}</b><small>${h}</small></button>`).join('')}</div>
       ${mode === 'msg' ? `${lab('How do people reach the organizer?')}<input id="eeContact" maxlength="300" placeholder="WhatsApp number (e.g. 647 555 1234), a link, or an email" value="${escapeCm(ev && ev.contactUrl ? String(ev.contactUrl).replace(/^mailto:/, '') : '')}" style="${F}">` : `
         <div class="ee-2"><div>${lab('Max spots (optional — then a waitlist)')}<input id="cfCap" type="number" inputmode="numeric" min="0" max="5000" placeholder="No limit" value="${ev && ev.capacity ? ev.capacity : ''}" style="${F}"></div><div>${lab('Sign-ups close on (optional)')}<input id="cfRsvpBy" type="date" value="${escapeCm(ev ? (ev.rsvpBy || '') : '')}" style="${F}"></div></div>
-        ${mode === 'pay' ? `<div class="fb-card" style="box-shadow:none;"><div class="ee-2"><div>${lab('Price')}<input id="eePAmt" maxlength="30" placeholder="e.g. $15" value="${escapeCm(pay.amount || '')}" style="${F}"></div><div>${lab('Payment')}<select id="eePReq" style="${F}"><option value="">Can sign up first, pay later</option><option value="1" ${pay.required ? 'selected' : ''}>Must pay to sign up</option></select></div></div>
+        ${mode === 'pay' ? `<div class="fb-card" style="box-shadow:none;"><p style="margin:0 0 8px;font-size:15px;">🎟️ Ticket: <b>${escapeCm(val('#eePrice') || pay.amount || '—')}</b> <small style="color:#776867;">(change it in Details)</small><br>💳 After filling in the form people tap <b>Continue to payment</b> and pay by card, Apple Pay or Google Pay. They're marked paid automatically.</p>
+          <details><summary style="cursor:pointer;font-weight:700;font-size:14px;padding:6px 0;">Other ways to pay &amp; add-ons (optional)</summary>
           ${lab('Payment link (optional — PayPal, Square…)')}<input id="eePLink" type="url" inputmode="url" autocapitalize="none" maxlength="500" placeholder="https://…" value="${escapeCm(pay.link || '')}" style="${F}">
           ${lab('Other ways to pay (optional)')}<textarea id="eePNote" rows="2" maxlength="1000" placeholder="e.g. e-Transfer to pay@example.com with your name" style="${F}">${escapeCm(pay.note || '')}</textarea>
-          ${lab('Add-ons people can tick (optional)')}${pay.addons.map((a, i) => `<div style="display:flex;gap:6px;"><input class="eeAoL" data-i="${i}" maxlength="60" placeholder="e.g. T-shirt" value="${escapeCm(a.label || '')}" style="${F}flex:2;"><input class="eeAoP" data-i="${i}" type="number" min="0" step="0.01" placeholder="Price" value="${escapeCm(a.price === undefined ? '' : String(a.price))}" style="${F}flex:1;min-width:0;"><button type="button" class="fb-mini eeAoX" data-i="${i}" style="margin-bottom:8px;">✕</button></div>`).join('')}<button type="button" class="fb-mini" id="eeAoAdd">➕ Add an add-on</button></div>` : ''}`}`;
+          ${lab('Add-ons people can tick (optional)')}${pay.addons.map((a, i) => `<div style="display:flex;gap:6px;"><input class="eeAoL" data-i="${i}" maxlength="60" placeholder="e.g. T-shirt" value="${escapeCm(a.label || '')}" style="${F}flex:2;"><input class="eeAoP" data-i="${i}" type="number" min="0" step="0.01" placeholder="Price" value="${escapeCm(a.price === undefined ? '' : String(a.price))}" style="${F}flex:1;min-width:0;"><button type="button" class="fb-mini eeAoX" data-i="${i}" style="margin-bottom:8px;">✕</button></div>`).join('')}<button type="button" class="fb-mini" id="eeAoAdd">➕ Add an add-on</button></details></div>` : ''}`}`;
     q('#eeQs').hidden = q('#eeTerms').hidden = mode === 'msg';
   };
   q('#eeSu').addEventListener('click', e => {
@@ -8149,16 +8179,17 @@ function calEventEditor(ev, opts){
     if(e.target.id === 'eeAoAdd'){ syncPay(); pay.addons.push({ id: nid(), label:'', price:'' }); paintSignup2(); return; }
     const x = e.target.closest('.eeAoX'); if(x){ syncPay(); pay.addons.splice(Number(x.dataset.i), 1); paintSignup2(); }
   });
-  const syncPay = () => { if(!q('#eePAmt')) return; pay.amount = val('#eePAmt').trim(); pay.required = val('#eePReq') === '1'; pay.link = val('#eePLink').trim(); pay.note = val('#eePNote').trim(); host.querySelectorAll('.eeAoL').forEach(el => { pay.addons[Number(el.dataset.i)].label = el.value; }); host.querySelectorAll('.eeAoP').forEach(el => { pay.addons[Number(el.dataset.i)].price = el.value; }); };
+  const syncPay = () => { pay.amount = (val('#eePrice') || '').trim(); if(!q('#eePLink')) return; pay.required = true; pay.link = val('#eePLink').trim(); pay.note = val('#eePNote').trim(); host.querySelectorAll('.eeAoL').forEach(el => { pay.addons[Number(el.dataset.i)].label = el.value; }); host.querySelectorAll('.eeAoP').forEach(el => { pay.addons[Number(el.dataset.i)].price = el.value; }); };
   // keep spots / close date / contact when the mode is switched
   let keepCap = ev && ev.capacity ? String(ev.capacity) : '', keepRsvp = ev ? (ev.rsvpBy || '') : '', keepContact = ev && ev.contactUrl ? String(ev.contactUrl).replace(/^mailto:/, '') : '';
+  q('#eePrice').addEventListener('input', () => { const v = val('#eePrice').trim(); syncPay(); if(mode !== 'msg'){ const want = v ? 'pay' : 'one'; if(want !== mode){ mode = want; paintSignup2(); } else if(mode === 'pay'){ paintSignup2(); } } });
   q('#eeSu').addEventListener('input', e => { if(e.target.id === 'cfCap') keepCap = e.target.value; if(e.target.id === 'cfRsvpBy') keepRsvp = e.target.value; if(e.target.id === 'eeContact') keepContact = e.target.value; });
   const paintSignup2 = () => { paintSignup(); const c = q('#cfCap'); if(c) c.value = keepCap; const r = q('#cfRsvpBy'); if(r) r.value = keepRsvp; const k = q('#eeContact'); if(k) k.value = keepContact; };
   // ---- 📝 questions ----
   const QT = FB_TYPES.filter(t => t[0] !== 'signature');
   const paintQs = () => {
     q('#eeQ').innerHTML = (qs.length ? qs.map((f, i) => `<div class="fb-card ee-q"><div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;"><b style="flex:1;font-size:13px;color:#776867;">${i + 1} · ${escapeCm((QT.find(t => t[0] === f.type) || [0, f.type])[1])}</b><button type="button" class="fb-mini eeQUp" data-i="${i}" ${i === 0 ? 'disabled' : ''}>▲</button><button type="button" class="fb-mini eeQDn" data-i="${i}" ${i === qs.length - 1 ? 'disabled' : ''}>▼</button><button type="button" class="fb-mini eeQX" data-i="${i}" style="background:#fdecea;">🗑</button></div>
-      <textarea class="eeQL" data-i="${i}" rows="${Math.min(6, Math.max(1, Math.ceil(String(f.label || '').length / 50)))}" maxlength="1000" placeholder="Type the question" style="${F}resize:vertical;">${escapeCm(f.label || '')}</textarea>
+      <div class="rk-wrap">${rkBar()}<textarea class="eeQL rk" data-i="${i}" rows="${Math.min(6, Math.max(1, Math.ceil(String(f.label || '').length / 50)))}" maxlength="1000" placeholder="Type the question" style="${F}resize:vertical;">${escapeCm(f.label || '')}</textarea></div>
       ${f.type === 'choice' || f.type === 'multi' ? `<textarea class="eeQO" data-i="${i}" rows="3" placeholder="The choices — one per line (at least 2)" style="${F}">${escapeCm((f.options || []).join('\n'))}</textarea>` : ''}
       <label class="ee-chk" style="margin:0;"><input type="checkbox" class="eeQR" data-i="${i}" ${f.required ? 'checked' : ''}> Required</label></div>`).join('') : '<p class="av-msg" style="margin:0 0 8px;">No questions — people just give their name and phone.</p>')
       + `<select id="eeQAdd" style="${F}font-weight:700;"><option value="">➕ Add a question…</option>${QT.map(([k, t]) => `<option value="${k}">${t}</option>`).join('')}</select>`;
@@ -8173,9 +8204,9 @@ function calEventEditor(ev, opts){
   // ---- 📜 terms & signature ----
   const paintTerms = () => {
     q('#eeTe').innerHTML = `<div class="fb-card" style="box-shadow:none;background:#fef7f4;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><b style="flex:1;">For every event</b>${state.cmAdminLoggedIn === true ? '<button type="button" class="fb-mini" id="eeTEdit">✏️ Edit</button>' : ''}</div>
-        ${gTerms.length ? `<ol style="margin:0;padding-left:20px;font-size:14px;">${gTerms.map(t => `<li style="margin-bottom:4px;white-space:pre-wrap;">${escapeCm(t)}</li>`).join('')}</ol>` : '<p class="ideas-hint" style="text-align:left;margin:0;">None yet — tap Edit to write the terms every event uses.</p>'}</div>
+        ${gTerms.length ? `<ol style="margin:0;padding-left:20px;font-size:14px;">${gTerms.map(t => `<li style="margin-bottom:4px;">${richLine(t)}</li>`).join('')}</ol>` : '<p class="ideas-hint" style="text-align:left;margin:0;">None yet — tap Edit to write the terms every event uses.</p>'}</div>
       <b style="display:block;margin:10px 0 6px;">Extra terms for this event</b>
-      ${evTerms.map((t, i) => `<div style="display:flex;gap:6px;align-items:flex-start;"><textarea class="eeT" data-i="${i}" rows="2" maxlength="1000" placeholder="e.g. Bring your own racket." style="${F}flex:1;">${escapeCm(t)}</textarea><button type="button" class="fb-mini eeTX" data-i="${i}">✕</button></div>`).join('')}
+      ${evTerms.map((t, i) => `<div style="display:flex;gap:6px;align-items:flex-start;"><div class="rk-wrap" style="flex:1;">${rkBar()}<textarea class="eeT rk" data-i="${i}" rows="2" maxlength="1000" placeholder="e.g. Bring your own racket." style="${F}">${escapeCm(t)}</textarea></div><button type="button" class="fb-mini eeTX" data-i="${i}" style="margin-top:34px;">✕</button></div>`).join('')}
       <button type="button" class="fb-mini" id="eeTAdd">➕ Add a term for this event</button>
       <div class="fb-card" style="box-shadow:none;margin-top:12px;display:flex;gap:10px;align-items:center;"><span style="font-size:28px;">✍️</span><span><b>Signature</b><br><small style="color:#776867;">At the end everyone ticks “I agree” to each term and draws their signature.</small></span></div>`;
   };
@@ -8213,7 +8244,7 @@ function calEventEditor(ev, opts){
     const photoBlocks = groups.filter(g => g.imgs.some(Boolean)).map(g => ({ id: g.id, type: 'photos', layout: g.layout, imgs: g.imgs.filter(Boolean) }));
     const blocks = [...photoBlocks, ...oldBlocks];
     const theme = { hide: ['club'], order: ['hosts', 'title', 'date', 'price', 'rsvpby', 'place', 'map', ...photoBlocks.map(b => 'b:' + b.id), 'desc', ...oldBlocks.filter(b => b.id).map(b => 'b:' + b.id), 'spots', 'going', 'action', 'form', 'link'] };
-    const payment = mode === 'pay' ? (() => { const p = { amount: pay.amount, link: pay.link, note: pay.note }; if(pay.required) p.required = true; const ao = pay.addons.filter(a => String(a.label || '').trim() && a.price !== '' && Number.isFinite(Number(a.price))).map(a => ({ id: a.id || nid(), label: String(a.label).trim(), price: Number(a.price) })); if(ao.length) p.addons = ao; return p; })() : undefined;
+    const payment = mode === 'pay' ? (() => { const p = { amount: pay.amount, link: pay.link || '', note: pay.note || '' }; p.required = true; const ao = pay.addons.filter(a => String(a.label || '').trim() && a.price !== '' && Number.isFinite(Number(a.price))).map(a => ({ id: a.id || nid(), label: String(a.label).trim(), price: Number(a.price) })); if(ao.length) p.addons = ao; return p; })() : undefined;
     const form = mode === 'msg' ? null : calFormWithTerms({ title: form0 && form0.title, fields: qs.map(f => ({ ...f, label: String(f.label || '').trim() })) }, gTerms, evTerms, payment || null);
     return { title: val('#cfTitle').trim(), tbd, date: tbd ? '' : val('#cfDate'), time: val('#cfTime').trim(), place: val('#cfPlace'), mapUrl: cleanMapLink(val('#cfMap') || ''), placePrivate: q('#cfPlacePriv').checked,
       capacity: mode === 'msg' ? 0 : (parseInt(keepCap, 10) || 0), rsvpBy: tbd || mode === 'msg' ? '' : keepRsvp, clubIds: ids, hosts: hostsOut, blocks, theme, desc: val('#eeDesc'),
@@ -8226,7 +8257,8 @@ function calEventEditor(ev, opts){
     if(!g.clubIds.length) return fail('Pick a hosting club (or ✕ for no host).', 'eeHosts');
     if(orgs.some(o => !o.name.trim() && (o.link || o.logo))) return fail('Give the outside organization a name.', 'eeHosts');
     if(orgs.some(o => o.link && !/^(https:\/\/|mailto:|tel:)/i.test(o.link))) return fail('An organization link must start with https://', 'eeHosts');
-    if(mode === 'pay' && !pay.amount && !pay.link && !pay.note) return fail('Add the price (or a payment link) for a paid event.', 'eeSignup');
+    if(mode === 'pay' && !pay.amount) return fail('Add the ticket price (in Details) for a paid event.', 'eeDetails');
+    if(mode === 'pay' && !/\d/.test(pay.amount)) return fail('Type the ticket price as a number, e.g. $15.', 'eeDetails');
     if(mode === 'pay' && pay.link && !/^https:\/\//i.test(pay.link)) return fail('The payment link must start with https://', 'eeSignup');
     if(mode === 'msg' && !g.contactUrl) return fail('Add how people reach the organizer (WhatsApp number, link or email).', 'eeSignup');
     if(mode !== 'msg'){ const b = qs.findIndex(f => !String(f.label || '').trim() || ((f.type === 'choice' || f.type === 'multi') && (f.options || []).length < 2)); if(b >= 0) return fail(`Question ${b + 1} needs its text${['choice', 'multi'].includes(qs[b].type) ? ' and at least 2 choices' : ''}.`, 'eeQs'); }
@@ -8235,7 +8267,7 @@ function calEventEditor(ev, opts){
   };
   const close = force => { if(!force && dirty && !confirm('Close without saving your changes?')) return; if(!inline){ host.remove(); document.body.style.overflow = prevOv; } };
   const preview = () => {
-    const g = gather(), w = document.createElement('div'); w.className = 'fb-page'; w.style.zIndex = '10001';
+    const g = gather(), w = document.createElement('div'); w.className = 'fb-page'; w.style.zIndex = '10090';
     const d = { ...g, clubTitle: '', clubId: g.clubIds[0] };
     w.innerHTML = `<div class="fb-wrap"><div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;"><button type="button" class="fb-mini" id="pvClose">← Back to editing</button><strong>Preview</strong></div><div class="fb-card" style="display:flex;flex-direction:column;">${calCompose(d, [['hosts', calHostsHtml(d)], ['title', `<h3 style="margin:0 0 4px;">${escapeCm(g.title || 'Your event')}</h3>`], ['date', `<p class="idea-pop-date">📅 ${escapeCm(g.date ? ideaLongDate(g.date) : 'Date to be decided')}${g.time ? ' · ⏰ ' + escapeCm(g.time) : ''}</p>`], ['price', calPriceHtml(d)], ['place', g.place ? `<p style="margin:4px 0;">📍 ${escapeCm(g.place)}</p>` : ''], ['map', g.mapUrl ? calMapHtml({ mapUrl: g.mapUrl, place: g.place, title: g.title }) : ''], ['desc', calDescHtml(d, true)],
       ['action', g.signup === 'msg' ? calMsgBtnHtml({ ...d, contactUrl: /^\+?[\d\s().-]{7,}$/.test(g.contactUrl) ? 'https://wa.me/' + g.contactUrl.replace(/\D/g, '') : g.contactUrl }, false) : ''],
@@ -10342,6 +10374,7 @@ function openAvatarMaker(welcome){
 function ideaPopup(html){
   const wrap = document.createElement('div');
   wrap.className = 'mem-pop';
+  if(document.querySelector('.fb-page')) wrap.style.zIndex = '10100'; // above a full-page editor (cropper, terms…)
   wrap.innerHTML = `<div class="mem-pop-card idea-pop-card"><button type="button" class="mem-pop-close" aria-label="Close">✕</button>${html}</div>`;
   if(state.tab === 'admin') wrap.querySelector('.mem-pop-card').classList.add('adm-wide');
   document.body.appendChild(wrap);
