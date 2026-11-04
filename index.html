@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" media="print" onload="this.media='all'" href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Amiri:wght@700&family=Aref+Ruqaa:wght@700&family=Great+Vibes&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap">
 
 
 
@@ -47,7 +47,7 @@ const _libs = {};
 function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) => { const sc = document.createElement('script'); sc.src = url; sc.async = true; sc.onload = ok; sc.onerror = () => { delete _libs[url]; no(new Error('Could not load the map')); }; document.head.appendChild(sc); }); }
 </script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Amiri:wght@700&family=Aref+Ruqaa:wght@700&family=Great+Vibes&family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap');
+
 
   :root{
     --cream: #fef7f4;
@@ -716,6 +716,18 @@ function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) =>
   .mem-pop-card.adm-wide input:not([type=checkbox]):not([type=radio]), .mem-pop-card.adm-wide select, .mem-pop-card.adm-wide textarea{ font-size:16px; }
   @media (max-width:600px){ .mem-pop-card.adm-wide{ padding:22px 14px 16px; } }
   .ee{ max-width:860px; margin:0 auto; }
+  .alb-adm{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; } .alb-adm-c{ display:flex; flex-direction:column; gap:4px; padding:6px; border-radius:12px; border:1.5px solid #e6d6d3; background:#fff; } .alb-adm-c img{ width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px; }
+  .alb-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:6px; margin-top:6px; } .alb-ph{ padding:0; border:none; background:#eee; border-radius:10px; overflow:hidden; aspect-ratio:1/1; cursor:pointer; } .alb-ph img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .fy{ margin:0 0 14px; padding:12px; border-radius:18px; background:#fff; border:2px solid #f2d8d7; }
+  .fy-h{ margin:0 0 6px; font-weight:800; font-size:14px; }
+  .fy-ev{ display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:10px; margin:0 0 6px; border-radius:12px; border:1.5px solid #e6d6d3; background:#fef7f4; font:inherit; color:inherit; cursor:pointer; }
+  .fy-ev small{ color:#776867; } .fy-date{ flex:0 0 auto; font-weight:800; font-size:12px; color:#76220b; background:#fff; border-radius:8px; padding:6px 8px; }
+  .fy-rate{ display:block; width:100%; text-align:left; padding:10px 12px; margin:0 0 6px; border-radius:12px; border:2px dashed #ce8491; background:#fdf0f2; font:inherit; cursor:pointer; color:inherit; }
+  .fy-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; } .fy-badges, .fy-invite{ flex:1 1 160px; padding:10px; border-radius:12px; border:1.5px solid #e6d6d3; background:#fff; font:inherit; font-weight:700; cursor:pointer; color:inherit; font-size:15px; }
+  .fy-badges small{ font-weight:600; color:#776867; }
+  .bdg-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:8px; }
+  .bdg{ display:flex; flex-direction:column; align-items:center; text-align:center; gap:2px; padding:10px 6px; border-radius:14px; border:1.5px solid #e6d6d3; background:#faf7f6; opacity:.55; filter:grayscale(.9); }
+  .bdg.got{ opacity:1; filter:none; background:#fdf0f2; border-color:#ce8491; } .bdg-i{ font-size:32px; } .bdg small{ font-size:11px; color:#776867; line-height:1.25; }
   .rk-bar{ display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin:0 0 4px; } .rk-bar button{ min-width:36px; height:32px; border-radius:8px; border:1.5px solid #d9c7c3; background:#fff; font:inherit; font-size:15px; cursor:pointer; color:#373d3b; }
   .rk-bar button:hover{ background:#fef7f4; } .rk-bar span{ font-size:11px; color:#9a8b89; margin-left:4px; }
   .cal-mtabs{ display:flex; gap:8px; margin:0 36px 12px 0; } .cal-mt{ flex:1; padding:12px 10px; border-radius:999px; border:2px solid var(--brand-brown); background:#fff; font:inherit; font-weight:800; font-size:15px; cursor:pointer; color:var(--brand-brown); }
@@ -1617,14 +1629,16 @@ let EVENT_ITEMS = [];
 let siteText = {};
 
 const failedLoads = [];
+// ⚡ Slow connections: use the copy saved on this phone if the network takes more than ~2.5 s (or fails); the fresh copy is saved for next time.
 async function fetchDataWithFallback(key, localPath){
+  const ck = 'dc1:' + key; let cached = null; try { const c = localStorage.getItem(ck); if(c) cached = JSON.parse(c); } catch {}
+  const net = fetch(localPath, { cache: 'no-store' }).then(async res => { if(!res.ok) throw new Error(`${localPath} returned ${res.status}`); const data = await res.json(); const items = data.items || []; try { localStorage.setItem(ck, JSON.stringify(items)); } catch {} return items; });
   try {
-    const res = await fetch(localPath, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`${localPath} returned ${res.status}`);
-    const data = await res.json();
-    return data.items || [];
+    if(!cached) return await net;
+    return await Promise.race([net, new Promise(ok => setTimeout(() => ok(cached), 2500))]);
   } catch (e) {
     console.warn(`Failed to load ${key} from ${localPath}:`, e);
+    if(cached) return cached;
     failedLoads.push(key);
     return [];
   }
@@ -2989,7 +3003,9 @@ async function openBizReviews(id, title){
   let list = [];
   try { list = (await (await fetch('/api/biz-reviews/' + encodeURIComponent(id), { headers: sess ? ideaHeaders() : {}, credentials:'include', cache:'no-store' })).json()).reviews || []; } catch {}
   const hearts = n => '💗'.repeat(n) + '🤍'.repeat(5 - n);
-  wrap.querySelector('#brList').innerHTML = list.length ? list.map(x => `<div style="padding:8px 0;border-top:1px solid rgba(0,0,0,.08);"><div style="display:flex;justify-content:space-between;gap:8px;"><b>${escapeCm(x.who)}${x.mine ? ' (you)' : ''}</b><span>${hearts(x.rating)}</span></div>${x.comment ? `<div style="font-size:14px;white-space:pre-wrap;margin-top:2px;">${escapeCm(x.comment)}</div>` : ''}${admin && x.uid ? `<button type="button" class="fb-mini br-del" data-uid="${escapeCm(x.uid)}" style="margin-top:4px;color:#b3261e;">Remove</button>` : ''}</div>`).join('') : '<p class="av-msg" style="text-align:center;">No reviews yet.</p>';
+  wrap.querySelector('#brList').innerHTML = list.length ? list.map(x => `<div style="padding:8px 0;border-top:1px solid rgba(0,0,0,.08);"><div style="display:flex;justify-content:space-between;gap:8px;"><b>${escapeCm(x.who)}${x.mine ? ' (you)' : ''}</b><span>${hearts(x.rating)}</span></div>${x.comment ? `<div style="font-size:14px;white-space:pre-wrap;margin-top:2px;">${escapeCm(x.comment)}</div>` : ''}${admin && x.uid ? `<button type="button" class="fb-mini br-del" data-uid="${escapeCm(x.uid)}" style="margin-top:4px;color:#b3261e;">Remove</button>` : ''}${!x.mine && x.rk ? `<div style="margin-top:2px;"><button type="button" class="av-link br-rep" data-rk="${escapeCm(x.rk)}" data-who="${escapeCm(x.who)}" style="font-size:11px;color:#9a8b89;">🚩 Report</button>${sess ? ` · <button type="button" class="av-link br-blk" data-rk="${escapeCm(x.rk)}" data-who="${escapeCm(x.who)}" style="font-size:11px;color:#9a8b89;">🚫 Block</button>` : ''}</div>` : ''}</div>`).join('') : '<p class="av-msg" style="text-align:center;">No reviews yet.</p>';
+  wrap.querySelectorAll('.br-rep').forEach(b => b.addEventListener('click', () => openReport('review', id + ':' + b.dataset.rk, `Review by ${b.dataset.who} on ${title}`)));
+  wrap.querySelectorAll('.br-blk').forEach(b => b.addEventListener('click', () => blockMember({ pub: b.dataset.rk, biz: id }, b.dataset.who, () => { close(); openBizReviews(id, title); })));
   wrap.querySelectorAll('.br-del').forEach(b => b.addEventListener('click', async () => { if(!confirm('Remove this review?')) return; await fetch('/api/admin/biz-reviews/' + encodeURIComponent(id) + '/' + encodeURIComponent(b.dataset.uid), { method:'DELETE', credentials:'include' }); close(); state.bizRev = null; bizRevLoad(); openBizReviews(id, title); }));
   const form = wrap.querySelector('#brForm');
   if(!sess){ form.innerHTML = '<p class="ideas-hint" style="text-align:center;margin:0;">Log in to leave a review.</p>'; return; }
@@ -3216,7 +3232,7 @@ function setupFallQuickLoginForm(){
     submitBtn.disabled = true;
     submitBtn.textContent = 'Creating your login…';
     try {
-      const account = await cmApiRaw('/api/signup', { method:'POST', body: JSON.stringify({ name, pin }) });
+      const account = await cmApiRaw('/api/signup', { method:'POST', body: JSON.stringify({ name, pin, ref: refCode() }) });
       if(state.cmAdminLoggedIn === true){
         // The admin is creating a login FOR someone else (from the 'already filled a form' link): don't sign the admin in as
         // her — that made it look like nothing had been created, and led to creating the same person again.
@@ -3314,7 +3330,7 @@ function setupFallSignupForm(){
     let account;
     try {
       account = await cmApiRaw('/api/signup', { method:'POST', body: JSON.stringify({
-        name: enteredName, pin: enteredPin, phone: form.whatsapp.value.trim(),
+        name: enteredName, pin: enteredPin, phone: form.whatsapp.value.trim(), ref: refCode(),
         clubId: firstClub.id, waitlist: rankedClubs.slice(1).map(c => c.id),
         form: { ranked: rankedClubs.map(c => c.title), other: ((form.elements['otherClubName'] || {}).value || '').trim(), why: ((form.elements['whyJoin'] || {}).value || '').trim(), lead: ((form.querySelector('input[name=leadInterest]:checked') || {}).value || '') }
       }) });
@@ -6022,7 +6038,9 @@ async function openMemberProfile(id){
       : `<span class="mem-avatar mem-avatar-big">${escapeCm((p.name || '?').trim().charAt(0).toUpperCase())}</span>`;
     wrap.querySelector('.mem-pop-card').innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
       ${photo}<h3 style="margin:10px 0 6px;">${escapeCm(p.name)}</h3>
-      <div class="mem-pop-clubs">${(p.clubs || []).map(cid => `<span class="av-club-chip active">${escapeCm(avClubTitle(cid))}</span>`).join('') || '<span class="av-msg">Not in a club yet</span>'}</div>`;
+      <div class="mem-pop-clubs">${(p.clubs || []).map(cid => `<span class="av-club-chip active">${escapeCm(avClubTitle(cid))}</span>`).join('') || '<span class="av-msg">Not in a club yet</span>'}</div>
+      ${(getCmSession() || {}).id !== p.id ? `<div style="display:flex;gap:12px;justify-content:center;margin-top:12px;"><button type="button" class="av-link mpRep" style="font-size:13px;">🚩 Report</button><button type="button" class="av-link mpBlk" style="font-size:13px;">🚫 Block</button></div>` : ''}`;
+    { const r = wrap.querySelector('.mpRep'); if(r) r.addEventListener('click', () => openReport('member', p.id, 'Member: ' + p.name)); const b = wrap.querySelector('.mpBlk'); if(b) b.addEventListener('click', () => blockMember({ uid: p.id }, p.name, () => { close(); render(); })); }
   } catch(err){
     wrap.querySelector('.mem-pop-card').innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`;
   }
@@ -6281,7 +6299,32 @@ async function refreshClubCalItems(){
   } catch {}
 }
 // 👥 Who attended a PAST event (public): first names only; tap a name for the date they joined + their clubs.
+// 📸 Photos from the day: approved photos people added + an "Add your photos" button for those who went. Also a small 🚩 Report link.
+async function calAlbumInto(container, id, date){
+  const box = document.createElement('div'); box.className = 'cal-album'; box.style.cssText = 'margin:14px 0 0;order:99990;';
+  container.appendChild(box);
+  const rep = `<p style="margin:14px 0 0;text-align:center;"><button type="button" class="av-link calRep" style="font-size:12px;color:#9a8b89;">🚩 Report this event</button></p>`;
+  const today = new Date().toLocaleDateString('en-CA');
+  let d = { photos:[], canAdd:false, mineWaiting:0 };
+  if(date && date <= today){ try { d = await cmApiRaw('/api/album/' + encodeURIComponent(id), { headers: ideaHeaders(), cache:'no-store' }); } catch {} }
+  const paint = () => {
+    box.innerHTML = (d.photos.length || d.canAdd ? `<strong style="font-size:15px;">📸 Photos from the day${d.photos.length ? ` (${d.photos.length})` : ''}</strong>
+      ${d.photos.length ? `<div class="alb-grid">${d.photos.map((p, i) => `<button type="button" class="alb-ph" data-i="${i}"><img src="/api/cal-img/${encodeURIComponent(p.img)}" alt="" loading="lazy" decoding="async"></button>`).join('')}</div>` : '<p class="ideas-hint" style="text-align:left;margin:4px 0;">No photos yet — be the first!</p>'}
+      ${d.canAdd ? `<button type="button" class="club-guide-btn albAdd" style="width:100%;margin-top:8px;text-align:center;">📷 Add your photos</button><input type="file" class="albFile" accept="image/*" multiple hidden>${d.mineWaiting ? `<p class="ideas-hint" style="margin:6px 0 0;">⏳ ${d.mineWaiting} of your photos are waiting for the admin to approve them.</p>` : ''}` : ''}<div class="albMsg" style="font-size:13px;min-height:16px;margin-top:4px;"></div>` : '') + rep;
+    const add = box.querySelector('.albAdd'), fi = box.querySelector('.albFile');
+    if(add) add.addEventListener('click', () => fi.click());
+    if(fi) fi.addEventListener('change', async () => {
+      const files = [...fi.files].slice(0, 12), m = box.querySelector('.albMsg'); let ok = 0;
+      for(const f of files){ m.style.color = '#776867'; m.textContent = `Uploading ${ok + 1} of ${files.length}…`; try { const blob = await calShrinkImage(f); const r = await fetch('/api/album/' + encodeURIComponent(id), { method:'POST', headers:{ ...(getCmSession() ? { Authorization: 'Bearer ' + getCmSession().token } : {}), 'Content-Type': blob.type || 'image/jpeg' }, body: blob }); const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || 'Upload failed'); ok++; } catch(err){ m.style.color = '#c00'; m.textContent = err.message; break; } }
+      if(ok){ d.mineWaiting += ok; paint(); const m2 = box.querySelector('.albMsg'); m2.style.color = '#2a7a4a'; m2.textContent = `✅ Thank you! ${ok} photo${ok === 1 ? '' : 's'} sent — they'll show once the admin approves them.`; }
+    });
+    box.querySelectorAll('.alb-ph').forEach(b => b.addEventListener('click', () => { const p = d.photos[Number(b.dataset.i)]; const { wrap } = ideaPopup(`<img src="/api/cal-img/${encodeURIComponent(p.img)}" alt="" style="width:100%;border-radius:12px;display:block;"><p class="ideas-hint" style="margin:6px 0 0;">📸 by ${escapeCm(p.by)} · <button type="button" class="av-link phRep" style="font-size:12px;">🚩 Report photo</button></p>`); wrap.querySelector('.mem-pop-card').style.width = 'min(720px,100%)'; wrap.querySelector('.phRep').addEventListener('click', () => openReport('photo', p.img, 'Photo on event ' + id)); }));
+    box.querySelector('.calRep').addEventListener('click', () => openReport('event', id, 'Event ' + id));
+  };
+  paint();
+}
 async function calAttendeesInto(container, id, date){
+  calAlbumInto(container, id, date);
   if(!calIsPast(date)) return;
   try {
     const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/attendees');
@@ -6621,7 +6664,7 @@ async function clubCalPublicCard(box, id){
       const paidClaim = calPayClaimed(box);
       e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Sending…';
       try {
-        const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', body: JSON.stringify(quick ? { name: base('name'), contact: base('phone'), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim } : { name: base('name'), phone: base('phone'), pin: base('pin'), why: base('why'), interests: [...box.querySelectorAll('.pfClub:checked')].map(c => c.value), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim }) });
+        const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', body: JSON.stringify(quick ? { name: base('name'), contact: base('phone'), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim } : { name: base('name'), phone: base('phone'), pin: base('pin'), ref: refCode(), why: base('why'), interests: [...box.querySelectorAll('.pfClub:checked')].map(c => c.value), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim }) });
         if(r && r.token){ setCmSession(r); renderNavAuth(); }
         box.innerHTML = calSignedUpHtml(d, r, chosenAddons, quick) + `<div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`; wireCalCopy(box);
         if(calCardOk(d) && (r.eventStatus || 'going') === 'going' && (r.payId || r.token)){
@@ -6946,6 +6989,22 @@ function calFormCollect(box, form){
 // Every form has its own link people can copy and share; opening it goes straight to the form.
 // The page's address becomes the readable link (an old random-id link is swapped for it once the event has loaded).
 function calUpgradeUrl(d){ if(d && d.slug && state.tab === 'eventform' && state.formEventId !== d.slug){ state.formEventId = d.slug; try{ history.replaceState(null, '', location.pathname + location.search + '#/form/' + encodeURIComponent(d.slug)); }catch(e){} } }
+// 🚩 Report anything (event, photo, review, member) — goes to the admin. 🚫 Block hides a member from you.
+function openReport(kind, target, label){
+  const R = ['Inappropriate or offensive', 'Harassment or bullying', 'Spam or a scam', 'Fake or misleading', 'Privacy concern', 'Something else'];
+  const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 6px;">🚩 Report</h3><p class="ideas-hint" style="text-align:left;margin:0 0 8px;">Tell us what's wrong. Only the 4DS admin sees this, and we look at every report.</p>
+    ${R.map((r, i) => `<label class="fb-opt"><input type="radio" name="rpR" value="${escapeCm(r)}" ${i === 0 ? 'checked' : ''} style="width:20px;height:20px;"> ${escapeCm(r)}</label>`).join('')}
+    <textarea class="rpN" rows="3" maxlength="600" placeholder="Anything else we should know? (optional)" style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-top:6px;"></textarea>
+    <div class="rpM" style="font-size:14px;min-height:16px;margin-top:6px;"></div><button type="button" class="club-guide-btn rpGo" style="width:100%;text-align:center;background:#b3261e;color:#fff;border-color:#7d1a14;">Send report</button>`);
+  wrap.querySelector('.rpGo').addEventListener('click', async e => { e.target.disabled = true; const m = wrap.querySelector('.rpM');
+    try { await cmApiRaw('/api/report', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ kind, target, label, reason: (wrap.querySelector('input[name=rpR]:checked') || {}).value, note: wrap.querySelector('.rpN').value, url: location.href }) }); m.style.color = '#2a7a4a'; m.textContent = '✅ Thank you — the admin will look at it.'; setTimeout(close, 1200); }
+    catch(err){ e.target.disabled = false; m.style.color = '#c00'; m.textContent = err.message; } });
+}
+async function blockMember(body, name, after){
+  if(!getCmSession()) return alert('Log in first.');
+  if(!confirm(`Block ${name}? You won't see them in the members list or their reviews. They aren't told.`)) return;
+  try { await cmApiRaw('/api/me/block', { method:'POST', headers: ideaHeaders(), body: JSON.stringify(body) }); state.membersList = null; admToastLite('🚫 Blocked'); if(after) after(); } catch(err){ alert(err.message); }
+}
 function calMsgBtnHtml(d, past){ // "Message an organizer" events: no sign-up in the app, just a button that opens WhatsApp / phone / email
   if(past) return '<p class="av-msg" style="margin:8px 0 0;">This event has already happened.</p>';
   const u = String(d.contactUrl || ''), wa = /wa\.me|whatsapp/i.test(u), lbl = wa ? '💬 Message the organizer on WhatsApp' : /^mailto:/i.test(u) ? '✉️ Email the organizer' : /^tel:/i.test(u) ? '📞 Call the organizer' : '💬 Message the organizer';
@@ -7180,7 +7239,7 @@ function calBlocksHtml(d){
     if(b.type === 'text') return `<div style="margin:10px 0;text-align:${['center', 'right'].includes(b.align) ? b.align : 'left'};">${richHtml(b.text)}</div>`;
     if(b.type === 'image'){
       const src = b.img ? '/api/cal-img/' + encodeURIComponent(b.img) : safeMapUrl(b.url); if(!src) return '';
-      const im = `<img src="${escapeCm(src)}" alt="${escapeCm(b.caption || '')}" loading="lazy" style="width:100%;border-radius:14px;display:block;">`;
+      const im = `<img src="${escapeCm(src)}" alt="${escapeCm(b.caption || '')}" loading="lazy" decoding="async" style="width:100%;border-radius:14px;display:block;">`;
       return `<figure style="width:${W[b.size] || '100%'};margin:12px ${al(b.align)};">${okLink(b.link) ? `<a href="${escapeCm(b.link)}" target="_blank" rel="noopener noreferrer">${im}</a>` : im}${b.caption ? `<figcaption style="font-size:13px;color:#776867;text-align:center;margin-top:4px;">${escapeCm(b.caption)}</figcaption>` : ''}</figure>`;
     }
     if(b.type === 'map'){
@@ -7375,7 +7434,7 @@ function calHostsHtml(d){
   const rows = calHostRows(d).filter(r => !r.hide); if(!rows.length) return '';
   const items = rows.map(r => {
     const lg = calHostLogo(r), nm = calHostName(r), ok = /^(https:\/\/|mailto:|tel:)/i.test(r.link || '');
-    const circle = `<span style="display:flex;align-items:center;justify-content:center;width:68px;height:68px;border-radius:50%;background:#fff;border:2px solid #f2d8d7;overflow:hidden;font-size:30px;box-shadow:0 2px 6px rgba(0,0,0,.12);">${lg.src ? `<img src="${escapeCm(lg.src)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : escapeCm(lg.emoji || (nm || '?').charAt(0).toUpperCase())}</span>`;
+    const circle = `<span style="display:flex;align-items:center;justify-content:center;width:68px;height:68px;border-radius:50%;background:#fff;border:2px solid #f2d8d7;overflow:hidden;font-size:30px;box-shadow:0 2px 6px rgba(0,0,0,.12);">${lg.src ? `<img src="${escapeCm(lg.src)}" alt="" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:contain;">` : escapeCm(lg.emoji || (nm || '?').charAt(0).toUpperCase())}</span>`;
     const inner = `${circle}<span style="display:block;max-width:92px;margin-top:4px;font-size:12px;font-weight:700;line-height:1.2;color:#373d3b;text-align:center;overflow-wrap:anywhere;">${escapeCm(nm)}</span>`;
     return ok ? `<a href="${escapeCm(r.link)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeCm(nm)}" style="display:flex;flex-direction:column;align-items:center;text-decoration:none;">${inner}</a>` : `<div style="display:flex;flex-direction:column;align-items:center;">${inner}</div>`;
   }).join('');
@@ -7395,7 +7454,7 @@ function calHostsEditor(d, ctx, onDone){
     const card = (r, i) => {
       const lg = calHostLogo(r), nm = calHostName(r), c = clubs.find(x => x.id === r.club);
       return `<div class="fb-card" data-h="${i}" style="${r.hide ? 'opacity:.6;' : ''}">
-        <div style="display:flex;gap:10px;align-items:center;"><span style="flex:none;display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background:#fff;border:2px solid #f2d8d7;overflow:hidden;font-size:28px;">${lg.src ? `<img src="${escapeCm(lg.src)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : escapeCm(lg.emoji || (nm || '?').charAt(0).toUpperCase())}</span>
+        <div style="display:flex;gap:10px;align-items:center;"><span style="flex:none;display:flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:50%;background:#fff;border:2px solid #f2d8d7;overflow:hidden;font-size:28px;">${lg.src ? `<img src="${escapeCm(lg.src)}" alt="" loading="lazy" decoding="async" style="width:100%;height:100%;object-fit:contain;">` : escapeCm(lg.emoji || (nm || '?').charAt(0).toUpperCase())}</span>
           <div style="flex:1;min-width:0;"><strong>${c ? '🏛 ' + escapeCm(c.title) : '🌐 Organization'}</strong>${r.hide ? ' <small>(hidden)</small>' : ''}<div style="font-size:12px;color:#776867;">${c ? 'A club on this event' : 'Not a club on the site'}</div></div>
           <button type="button" class="fb-mini hUp" data-i="${i}" ${i === 0 ? 'disabled' : ''}>▲</button><button type="button" class="fb-mini hDown" data-i="${i}" ${i === rows.length - 1 ? 'disabled' : ''}>▼</button></div>
         <input class="hF" data-i="${i}" data-f="name" type="text" maxlength="60" placeholder="${c ? 'Name (leave empty to use “' + escapeCm(c.title) + '”)' : 'Organization name'}" value="${escapeCm(r.name || '')}" style="margin-top:8px;">
@@ -9327,7 +9386,7 @@ function profilePageHtml(){
   const warn = staff ? `<div class="av-waitlist" style="margin:0 0 12px;text-align:center;">⚠️ You're currently logged in as ${staff}</div>` : '';
   return `<div class="pf-wrap" style="max-width:560px;margin:0 auto;padding:6px 4px 24px;"><div class="pf-head">${head}</div><div class="pf-body">${warn}
     ${sess ? profileStatsHtml(sess) + profileBadgesHtml(sess) + profileInviteHtml(sess) : ''}
-    ${sess ? `<div class="pf-card">${row('settings', '⚙️', 'Settings &amp; profile')}${row('attended', '🏅', 'Activities I attended')}${row('steps', '👟', 'Steps challenge')}${row('badminton', '🏸', 'Badminton')}${row('clubs', '🏛️', '4DS Clubs')}</div>` : `<div class="pf-card">${row('clubs', '🏛️', '4DS Clubs')}</div>`}
+    ${sess ? `<div class="pf-card">${row('settings', '⚙️', 'Settings &amp; profile')}${row('attended', '🗓️', 'Activities I attended')}${row('badges', '🏅', 'My badges')}${row('invite', '💌', 'Invite a friend')}${row('steps', '👟', 'Steps challenge')}${row('badminton', '🏸', 'Badminton')}${row('clubs', '🏛️', '4DS Clubs')}</div>` : `<div class="pf-card">${row('clubs', '🏛️', '4DS Clubs')}</div>`}
     <div class="pf-card">${row('contribute', '➕', 'Contribute (event or resource)')}${row('whatsnew', '✨', "What's new")}${row('about', 'ℹ️', 'About 4DS')}${row('privacy', '📄', 'Privacy &amp; help')}${row('report', '🚩', 'Report a concern')}</div>
     ${staff ? `<div class="pf-card">${row('adminpage', '🛠', 'Admin page')}${row('preview', '👁', 'Preview as a member')}${row(state.cmAdminLoggedIn === true ? 'adminout' : 'leadout', '🚪', 'Log out of ' + (state.cmAdminLoggedIn === true ? 'admin' : 'club admin'))}</div>` : ''}
     ${sess ? `<div class="pf-card">${row('out', '↩️', 'Log out')}</div>` : ''}</div></div>`;
@@ -9659,6 +9718,7 @@ function myHomeHtml(){
   extras.unshift(notificationsCardHtml());
   return `<div class="my-home" style="max-width:640px;margin:0 auto 16px;">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;"><button type="button" id="homeGreeting" aria-label="Open my profile and settings" style="border:none;background:none;padding:2px 0;margin:0;font-family:'Outfit',system-ui,sans-serif;font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.2;text-align:left;cursor:pointer;background-image:linear-gradient(90deg,#e3a3ad,#ce8491 38%,#a8505f 75%,#76220b);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;">Asalamu Aleykum, ${escapeCm(first)}</button></div>
+    ${forYouHtml()}
     <p style="margin:0 0 6px;font-weight:800;font-size:14px;">🏛️ Your clubs</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:0 0 14px;">${cards}</div>${homeStepsCardHtml()}${homeBadmintonRsvpHtml()}${extras.join('')}</div>`;
 }
@@ -9674,6 +9734,53 @@ document.addEventListener('click', e => {
   const v = e.target.closest('.home-ev'); if(v){ clubCalOpen(v.dataset.calid); return; }
   if(e.target.closest('#homeGreeting')) openSettingsPopup();
 });
+// 🏠 "For you" on Home: your next events, events to rate, your badges and your invite link.
+async function meHomeLoad(force){
+  if(!getCmSession() || state.meHomeLoading) return; if(state.meHome && !force && Date.now() - state.meHome.at < 120000) return;
+  state.meHomeLoading = true;
+  try { state.meHome = { ...(await cmApiRaw('/api/me/home', { headers: ideaHeaders(), cache:'no-store' })), at: Date.now() }; } catch { state.meHome = { next:[], rate:[], badges:[], refs:{ count:0 }, at: Date.now() }; }
+  state.meHomeLoading = false; if(state.tab === 'home') render();
+}
+function forYouHtml(){
+  if(!getCmSession()) return '';
+  if(!state.meHome){ meHomeLoad(); return ''; }
+  const h = state.meHome, fmt = d => new Date(d + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' });
+  const got = (h.badges || []).filter(b => b.got);
+  const next = (h.next || []).map(e => `<button type="button" class="fy-ev" data-calid="${escapeCm(e.id)}"><span class="fy-date">${escapeCm(fmt(e.date))}</span><span style="flex:1;min-width:0;"><b>${escapeCm(e.title)}</b><br><small>${e.status === 'waitlist' ? '⏳ On the waitlist' : '✅ You’re going'}${e.time ? ' · ⏰ ' + escapeCm(e.time) : ''}${e.owes ? ' · <span style="color:#b3261e;font-weight:700;">💳 payment due</span>' : ''}</small></span><span>›</span></button>`).join('');
+  const rate = (h.rate || []).map(e => `<button type="button" class="fy-rate" data-rid="${escapeCm(e.id)}">💗 How was <b>${escapeCm(e.title)}</b>? <u>Rate it</u></button>`).join('');
+  return `<div class="fy">
+    ${next ? `<p class="fy-h">📅 Coming up for you</p>${next}` : `<p class="fy-h">📅 Nothing booked yet</p><button type="button" class="fy-ev" data-gocal><span style="flex:1;">Find something fun this week</span><span>›</span></button>`}
+    ${rate}
+    <div class="fy-row"><button type="button" class="fy-badges" id="fyBadges">${got.length ? got.map(b => `<span title="${escapeCm(b.name)}">${b.icon}</span>`).join('') : '🏅'} <small>${got.length} of ${(h.badges || []).length} badges</small></button><button type="button" class="fy-invite" id="fyInvite">💌 Invite a friend${h.refs && h.refs.count ? ` · ${h.refs.count} joined` : ''}</button></div>
+  </div>`;
+}
+function openBadgesPopup(){
+  const h = state.meHome || { badges:[] };
+  ideaPopup(`<h3 style="margin:0 0 4px;text-align:center;">🏅 Your badges</h3><p class="ideas-hint" style="text-align:center;margin:0 0 10px;">${h.attended || 0} event${h.attended === 1 ? '' : 's'} so far — keep going!</p>
+    <div class="bdg-grid">${(h.badges || []).map(b => `<div class="bdg${b.got ? ' got' : ''}"><span class="bdg-i">${b.icon}</span><b>${escapeCm(b.name)}</b><small>${escapeCm(b.how)}</small>${b.got ? '<small style="color:#2a7a4a;font-weight:800;">✓ Earned</small>' : b.prog ? `<small style="font-weight:700;">${escapeCm(b.prog)}</small>` : ''}</div>`).join('')}</div>`);
+}
+function refLink(){ const s = getCmSession() || {}; return location.origin + '/?ref=' + encodeURIComponent(s.username || ''); }
+function openInvitePopup(){
+  const h = state.meHome || {}, link = refLink(), text = `Salam! Join me on 4DASISTAS — events, clubs and sisterhood for Muslim women in the GTA 🌸 ${link}`;
+  const { wrap } = ideaPopup(`<h3 style="margin:0 0 4px;text-align:center;">💌 Invite a friend</h3><p class="ideas-hint" style="text-align:center;margin:0 0 10px;">Share your link. When a friend joins with it, you'll see it here and earn the 🤝 Connector badge.</p>
+    <input readonly value="${escapeCm(link)}" style="width:100%;box-sizing:border-box;padding:12px;border-radius:10px;border:2px solid var(--brand-brown);font-size:15px;margin-bottom:8px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;"><a class="club-guide-btn" href="https://wa.me/?text=${encodeURIComponent(text)}" target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none;background:#25a244;color:#fff;border-color:#1c7a33;">💬 WhatsApp</a><button type="button" class="club-guide-btn" id="invShare" style="flex:1;text-align:center;">📤 Share / copy</button></div>
+    ${h.refs && h.refs.count ? `<p style="margin:12px 0 0;font-weight:700;">🎉 ${h.refs.count} friend${h.refs.count === 1 ? '' : 's'} joined: ${escapeCm((h.refs.names || []).join(', '))}</p>` : ''}`);
+  wrap.querySelector('#invShare').addEventListener('click', async e => { try { if(navigator.share){ await navigator.share({ title:'4DASISTAS', text, url: link }); return; } } catch { return; } try { await navigator.clipboard.writeText(text); e.target.textContent = '✅ Copied'; } catch { prompt('Copy this:', text); } });
+}
+document.addEventListener('click', e => {
+  const fy = e.target.closest('.fy'); if(!fy) return;
+  const ev = e.target.closest('.fy-ev'); if(ev){ if(ev.hasAttribute('data-gocal')) goToTab('events'); else clubCalOpen(ev.dataset.calid); return; }
+  const r = e.target.closest('.fy-rate'); if(r){ const x = (state.meHome.rate || []).find(y => y.id === r.dataset.rid); if(x) openReviewPopup(x, null, () => { state.meHome = null; meHomeLoad(true); }); return; }
+  if(e.target.closest('#fyBadges')) return openBadgesPopup();
+  if(e.target.closest('#fyInvite')) return openInvitePopup();
+});
+// 💌 an invite link (?ref=username) is remembered until they make an account
+try { const rf = new URLSearchParams(location.search).get('ref'); if(rf && /^[\w.-]{2,40}$/.test(rf)) localStorage.setItem('ref4ds', rf); } catch {}
+function refCode(){ try { return localStorage.getItem('ref4ds') || ''; } catch { return ''; } }
+// 💗 "#/rate" (from the next-day notification) opens the list of activities to rate
+function rateRouteCheck(){ if(location.hash === '#/rate'){ try { history.replaceState(null, '', location.pathname + location.search); } catch {} if(getCmSession()) setTimeout(() => openAttendedPopup(), 600); } }
+window.addEventListener('hashchange', rateRouteCheck); setTimeout(rateRouteCheck, 1500);
 // "For you": what needs the signed-in member's attention, in priority order (top of the Clubs home).
 async function myTodoLoad(){
   if(state.myTodoLoading || !getCmSession()) return; state.myTodoLoading = true;
@@ -11366,6 +11473,17 @@ function admEvDayPopup(key){
   wrap.querySelectorAll('.adm-day-ev').forEach(b => b.addEventListener('click', () => { close(); admEvOpenAny(b.dataset.evid); }));
   wrap.querySelector('#admDayAdd').addEventListener('click', () => { close(); openEventCreate(key); });
 }
+function admAlbumsHtml(){
+  if(!state.admAlbums){ if(!state.admAlbumsLoading){ state.admAlbumsLoading = true; fetch('/api/admin/albums', { credentials:'include', cache:'no-store' }).then(r => r.ok ? r.json() : { pending:[] }).catch(() => ({ pending:[] })).then(j => { state.admAlbums = j.pending || []; state.admAlbumsLoading = false; if(state.tab === 'admin') render(); }); } return '<p class="av-msg">Loading…</p>'; }
+  if(!state.admAlbums.length) return '<p class="av-msg" style="margin:0;">No photos waiting. When people add photos to an event after it happens, they show up here first.</p>';
+  return `<div class="alb-adm">${state.admAlbums.map(x => `<div class="alb-adm-c"><img src="/api/cal-img/${encodeURIComponent(x.img)}" alt="" loading="lazy"><small><b>${escapeCm(x.evTitle)}</b><br>by ${escapeCm(x.name)}</small><div style="display:flex;gap:6px;"><button type="button" class="fb-mini albOk" data-ev="${escapeCm(x.ev)}" data-img="${escapeCm(x.img)}" style="flex:1;background:#e6f4ea;">✓ Show</button><button type="button" class="fb-mini albNo" data-ev="${escapeCm(x.ev)}" data-img="${escapeCm(x.img)}" style="flex:1;background:#fdecea;">✕ Delete</button></div></div>`).join('')}</div>`;
+}
+function admReportsHtml(){
+  if(!state.admReports){ if(!state.admReportsLoading){ state.admReportsLoading = true; fetch('/api/admin/reports', { credentials:'include', cache:'no-store' }).then(r => r.ok ? r.json() : { reports:[] }).catch(() => ({ reports:[] })).then(j => { state.admReports = j.reports || []; state.admReportsLoading = false; if(state.tab === 'admin') render(); }); } return '<p class="av-msg">Loading…</p>'; }
+  if(!state.admReports.length) return '<p class="av-msg" style="margin:0;">No reports. 🎉 People can report events, photos, reviews and members with the 🚩 links.</p>';
+  return state.admReports.map(r => `<div style="padding:10px 0;border-top:1px solid rgba(0,0,0,.1);font-size:14px;"><b>🚩 ${escapeCm(r.reason || 'Report')}</b> · <small>${escapeCm(r.kind)} · ${escapeCm(new Date(r.at).toLocaleString('en-CA', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }))}</small><br>${escapeCm(r.label)}${r.note ? `<div style="color:#776867;margin-top:2px;">“${escapeCm(r.note)}”</div>` : ''}<div style="font-size:13px;margin-top:2px;">From: ${r.by ? escapeCm(r.by.name) + ' @' + escapeCm(r.by.username || '') : 'someone not signed in'}</div>
+    <div class="fb-row" style="margin-top:6px;">${r.kind === 'member' ? `<button type="button" class="fb-mini repProf" data-uid="${escapeCm(r.target)}">👤 Open profile</button>` : ''}${r.kind === 'photo' ? `<a class="fb-mini" href="/api/cal-img/${encodeURIComponent(r.target)}" target="_blank" rel="noopener" style="text-decoration:none;">🖼 View photo</a>` : ''}${r.url ? `<a class="fb-mini" href="${escapeCm(r.url)}" target="_blank" rel="noopener" style="text-decoration:none;">🔗 Where</a>` : ''}<button type="button" class="fb-mini repDone" data-id="${escapeCm(r.id)}" style="background:#e6f4ea;">✓ Dealt with</button></div></div>`).join('');
+}
 function admSubHistHtml(){
   if(!state.admSubHist){ if(!state.admSubHistLoading){ state.admSubHistLoading = true; fetch('/api/admin/event-suggestions-history', { credentials:'include', cache:'no-store' }).then(r => r.ok ? r.json() : { history:[] }).catch(() => ({ history:[] })).then(j => { state.admSubHist = j.history || []; state.admSubHistLoading = false; if(state.tab === 'admin') render(); }); } return '<p class="av-msg">Loading…</p>'; }
   const f = state.admSubHistF || 'all', list = state.admSubHist.filter(x => f === 'all' || x.outcome === f);
@@ -12618,6 +12736,8 @@ function renderClubAdminPanel(){
   const todoGrid = `
     ${inboxAdminHtml(lead, 'subs')}
     ${lead ? '' : admSec('evsubs', '🔔 Submitted events — accept or reject' + ((state.cmAdminEventSugs || []).length ? ` <span class="adm-badge">${state.cmAdminEventSugs.length}</span>` : ''), admEvSubsHtml(), true)}
+    ${lead ? '' : admSec('albums', '📸 Event photos to approve' + ((state.admAlbums || []).length ? ` <span class="adm-badge">${state.admAlbums.length}</span>` : ''), admAlbumsHtml(), true)}
+    ${lead ? '' : admSec('reports', '🚩 Reports' + ((state.admReports || []).length ? ` <span class="adm-badge">${state.admReports.length}</span>` : ''), admReportsHtml(), true)}
     ${lead ? '' : admSec('subhist', '🗂 Past submissions — accepted or rejected, and who sent them', admSubHistHtml(), false)}
     ${lead ? '' : admSec('evform', '📝 Event submission form (what people fill to suggest an event)', admEvFormHtml(), false)}
   `;
@@ -13757,6 +13877,9 @@ function wireClubAdminPanel(){
   document.querySelectorAll('.adm-profile-link').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.userId)));
   document.querySelectorAll('.res-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/resource-suggestions/' + encodeURIComponent(b.dataset.sugid), { method:'DELETE', credentials:'include' }); await cmAdminLoadResourceSuggestions(); render(); }));
   document.querySelectorAll('.event-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/event-suggestions/' + encodeURIComponent(b.dataset.sugid) + '?outcome=rejected', { method:'DELETE', credentials:'include' }); state.admSubHist = null; await cmAdminLoadEventSuggestions(); render(); }));
+  document.querySelectorAll('.albOk,.albNo').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/albums/' + encodeURIComponent(b.dataset.ev) + '/' + encodeURIComponent(b.dataset.img), { method:'POST', credentials:'include', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ ok: b.classList.contains('albOk') }) }); state.admAlbums = state.admAlbums.filter(x => x.img !== b.dataset.img); render(); }));
+  document.querySelectorAll('.repDone').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/reports/' + encodeURIComponent(b.dataset.id), { method:'DELETE', credentials:'include' }); state.admReports = state.admReports.filter(x => x.id !== b.dataset.id); render(); }));
+  document.querySelectorAll('.repProf').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.uid)));
   document.querySelectorAll('[data-shf]').forEach(b => b.addEventListener('click', () => { state.admSubHistF = b.dataset.shf; render(); }));
   { const r = document.getElementById('shRefresh'); if(r) r.addEventListener('click', () => { state.admSubHist = null; render(); }); }
   const loginBtn = document.getElementById('cmAdminLoginBtn');
@@ -14537,6 +14660,8 @@ async function pwrAction(k){
     else if(k === 'clubs') goToTab('clubs');
     else if(k === 'badminton') openBadmintonStandings();
     else if(k === 'attended') openAttendedPopup();
+    else if(k === 'badges'){ (state.meHome ? Promise.resolve() : meHomeLoad(true)).then(openBadgesPopup); }
+    else if(k === 'invite'){ (state.meHome ? Promise.resolve() : meHomeLoad(true)).then(openInvitePopup); }
     else if(k === 'about') goToTab('rules');
     else if(k === 'privacy') window.open('/privacy', '_blank', 'noopener');
     else if(k === 'report') location.href = 'mailto:admin@4dasistas.ca?subject=' + encodeURIComponent('Safety concern about 4DS'); // Apple: a visible way to report content or a member

@@ -1475,3 +1475,11 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - Payments: ticket price lives in Details (typing a price switches to Pay); Stripe card/Apple/Google Pay is the main path — button "Continue to payment" opens embedded checkout right after submit, for members AND guests (guest /checkout with HMAC payTok, new-account via session). calPayMissing skips the "I paid" tick when Stripe is on. Public GET returns cardPay.
 - Signature: Undo removed; "Type my name instead" draws the name in Great Vibes cursive.
 - Text shortcuts ⌘B/⌘I/⌘U/⌘+/⌘− + buttons on description, terms, questions (textarea.rk).
+
+## 2026-11-04 — v302 (Claude)
+- iOS: build 5 submission cancelled, build 6 added and submitted for review (11:47 AM).
+- Home "For you" card (/api/me/home): next events, rate prompts, badges (computed server-side), invite link (?ref=username → user.referredBy, KV refs:<uid>).
+- Day-after push "How was X?" (cron, evrem:<id>:review) → /#/rate opens the attended list.
+- Event photo albums: /api/album/<ev> GET/POST (attendees, after start), admin approve in Submissions (/api/admin/albums); images in cal_images ev=album:<id> (limit 400).
+- Reports: /api/report → KV report:* + admin email; Admin Submissions → Reports. Block: /api/me/block (user.blocked) filters members list + biz reviews. Report/Block on member popup, biz reviews, event pages, album photos.
+- Speed: data JSON uses the saved copy if the network takes >2.5s; Google Fonts via non-blocking link; lazy images.

@@ -598,6 +598,11 @@ const pubName = (name, fallback) => { const parts = String(name || "").trim().sp
 const maskPublic = (n) => { const t = String(n || "").trim(); return t.length > 3 ? t.slice(0, -3) + "***" : "***"; };
 const firstNameOnly = (n) => String(n || "").trim().split(/\s+/)[0].slice(0, 30) || "Member";
 // A brand-new member created from an event FORM (the base fields every form asks logged-out people for: name, phone, a 4-digit PIN).
+// 💌 Invites: a new account made from someone's invite link remembers who invited them (for the inviter's count + badge).
+const refAttach = async (env, user, ref) => {
+  try { const r = String(ref || "").trim().toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 40); if (!r) return; const rid = await findUserIdByUsername(env, r); if (!rid || rid === user.id) return; user.referredBy = rid;
+    let list = []; try { list = JSON.parse((await env.SITE_DATA.get(`refs:${rid}`)) || "[]"); } catch {} list.push({ id: user.id, name: user.name, at: Date.now() }); await env.SITE_DATA.put(`refs:${rid}`, JSON.stringify(list.slice(-500))); } catch {}
+};
 const createMemberFromForm = async (env, ctx, ip, input) => {
   const clean = (v, n) => String(v || "").replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim().slice(0, n);
   const name = clean(input.name, 60), pin = String(input.pin || "").trim(), phone = sanitizePhone(input.phone);
@@ -616,6 +621,7 @@ const createMemberFromForm = async (env, ctx, ip, input) => {
   if (Number(dayCount || 0) >= SIGNUP_MAX_PER_DAY) return { status: 429, error: "Sign-ups are very busy right now — please message us on Instagram" };
   if (await findUserIdByUsername(env, username)) return { status: 409, error: "That login was just taken — please try again" };
   const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, waitlist: [], createdAt: Date.now(), phone };
+  await refAttach(env, user, input && input.ref);
   user.lastLoginAt = user.createdAt; user.lastSeenAt = user.createdAt;
   { // the shortened sign-up questions (clubs they're interested in, anything they'd like us to know) are kept on their profile like the full sign-up form's
     const roster = await readClubRoster(env);
@@ -1504,7 +1510,7 @@ const calImgSave = async (request, env, evId) => {
   if (!buf.length) return { error: "Empty photo" };
   if (buf.length > 900000) return { error: "That photo is too big — try a smaller one" };
   await calImgEnsure(env);
-  if (evId) { const n = (await env.DB.prepare("SELECT COUNT(*) AS n FROM cal_images WHERE ev = ?").bind(evId).first()).n; if (n >= 40) return { error: "This event already has 40 photos" }; }
+  if (evId) { const lim = String(evId).startsWith("album:") ? 400 : 40; const n = (await env.DB.prepare("SELECT COUNT(*) AS n FROM cal_images WHERE ev = ?").bind(evId).first()).n; if (n >= lim) return { error: `This event already has ${lim} photos` }; }
   let bin = ""; for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
   const id = Array.from(crypto.getRandomValues(new Uint8Array(9)), (x) => (x % 36).toString(36)).join("");
   await env.DB.prepare("INSERT INTO cal_images (id, ev, ctype, b64, at) VALUES (?, ?, ?, ?, ?)").bind(id, evId || "", ctype, btoa(bin), Date.now()).run();
@@ -1688,6 +1694,15 @@ const calSendReminders = async (env, ctx) => {
   const todayT = new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
   const soonT = new Date(Date.parse(todayT + "T12:00:00Z") + 2 * 86400000).toISOString().slice(0, 10);
   let budget = 10;
+  const ydayT = new Date(Date.parse(todayT + "T12:00:00Z") - 86400000).toISOString().slice(0, 10);
+  if (hr >= 10 && hr < 20) for (const ev of await readClubCal(env)) { // 💗 the day after: "How was it?" to everyone who went
+    if (budget <= 0) break; if (ev.tbd || ev.date !== ydayT) continue;
+    const key = `evrem:${ev.id}:review`; let st = {}; try { st = JSON.parse((await env.SITE_DATA.get(key)) || "{}") || {}; } catch {} if (st.done) continue;
+    const sent = new Set(st.sent || []), todo = (ev.rsvps || []).filter((r) => r.status === "going" && !String(r.id).startsWith("g:") && !sent.has(r.id)).slice(0, budget);
+    for (const r of todo) { try { await sendPushToUser(env, r.id, { cat: "eventreminders", title: `How was ${ev.title}? 💗`, body: "Tap to rate it with hearts — and add your photos from the day 📸", url: "/#/rate", cat: "events" }); } catch {} sent.add(r.id); budget--; }
+    const left = (ev.rsvps || []).filter((r) => r.status === "going" && !String(r.id).startsWith("g:") && !sent.has(r.id)).length;
+    await env.SITE_DATA.put(key, JSON.stringify({ sent: [...sent], done: left === 0 }), { expirationTtl: 259200 });
+  }
   for (const ev of await readClubCal(env)) {
     if (budget <= 0) break;
     if (ev.tbd || !ev.date || (ev.date !== todayT && ev.date !== soonT)) continue;
@@ -2213,6 +2228,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, waitlist, createdAt: Date.now() };
       user.lastLoginAt = user.createdAt; user.lastSeenAt = user.createdAt;
       { const sf = sanitizeSignupForm(body.form, "site"); if (sf) user.form = sf; }
+      await refAttach(env, user, body.ref);
       const phone = sanitizePhone(body.phone);
       if (phone) user.phone = phone;
       await writeUser(env, user);
@@ -2940,6 +2956,64 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await env.SITE_DATA.put("evsubform", JSON.stringify(cfg));
       return jsonResponse({ ok: true, ...cfg }, 200, corsHeaders);
     }
+    // ---- 📸 Event photo albums: people who went add their photos after the event; the admin approves them; approved ones show on the event page ----
+    const albumMatch = path.match(/^\/api\/album\/([^/]+)\/?$/);
+    if (albumMatch && (request.method === "GET" || request.method === "POST")) {
+      const ev = calFind(await readClubCal(env), decodeURIComponent(albumMatch[1])); if (!ev) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
+      let list = []; try { list = JSON.parse((await env.SITE_DATA.get(`album:${ev.id}`)) || "[]"); } catch {}
+      const me = await memberIdFromRequest(), todayT = new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
+      const went = !!me && !ev.tbd && ev.date <= todayT && (ev.rsvps || []).some((r) => r.id === me && r.status === "going");
+      if (request.method === "GET") return jsonResponse({ photos: list.filter((x) => x.ok).map((x) => ({ img: x.img, by: pubName(x.name) })), canAdd: went, mineWaiting: me ? list.filter((x) => x.uid === me && !x.ok).length : 0 }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      if (!went) return jsonResponse({ error: "Only people who went can add photos (after the event starts)" }, 403, corsHeaders);
+      if (list.filter((x) => x.uid === me).length >= 12) return jsonResponse({ error: "You've added 12 photos already — thank you! 💗" }, 400, corsHeaders);
+      const r = await calImgSave(request, env, "album:" + ev.id); if (r.error) return jsonResponse({ error: r.error }, 400, corsHeaders);
+      const u = await readUser(env, me);
+      list.push({ img: r.id, uid: me, name: (u && u.name) || "Member", at: Date.now(), ok: false }); await env.SITE_DATA.put(`album:${ev.id}`, JSON.stringify(list.slice(-400)));
+      return jsonResponse({ ok: true, waiting: true }, 200, corsHeaders);
+    }
+    // ---- 🚩 Reports (anyone) + 🚫 block (members) ----
+    if (path === "/api/report" && request.method === "POST") {
+      if (!ideaRateOk(request.headers.get("CF-Connecting-IP") || "x")) return jsonResponse({ error: "Too many reports — try again in a minute" }, 429, corsHeaders);
+      let b = {}; try { b = await request.json(); } catch {}
+      const t = (v, n) => String(v || "").replace(/[\x00-\x1f\x7f<>]/g, " ").trim().slice(0, n);
+      const kind = ["member", "review", "event", "photo", "other"].includes(b.kind) ? b.kind : "other", me = await memberIdFromRequest(), u = me ? await readUser(env, me) : null;
+      const rep = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 6)}`, kind, target: t(b.target, 120), label: t(b.label, 200), reason: t(b.reason, 60), note: t(b.note, 600), url: t(b.url, 300), by: u ? { id: u.id, name: u.name, username: u.username } : null, at: Date.now() };
+      await env.SITE_DATA.put(`report:${rep.id}`, JSON.stringify(rep), { expirationTtl: 180 * 86400 });
+      try { sendAdminEmail(env, ctx, `🚩 Report: ${rep.kind} — ${rep.reason || "no reason"}`, emailShell(env, { emoji: "🚩", title: "Something was reported", preheader: rep.label, body: `<p><b>${escapeHtml(rep.kind)}</b>: ${escapeHtml(rep.label)}</p><p>Reason: ${escapeHtml(rep.reason)}</p>${rep.note ? `<p>${escapeHtml(rep.note)}</p>` : ""}<p>By: ${escapeHtml(rep.by ? rep.by.name : "someone not signed in")}</p>`, footer: "See Admin → Submissions → Reports." })); } catch {}
+      return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+    if (path === "/api/me/block" && request.method === "POST") {
+      const me = await memberIdFromRequest(); const u = me ? await readUser(env, me) : null; if (!u) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
+      let b = {}; try { b = await request.json(); } catch {}
+      let target = String(b.uid || "");
+      if (!target && b.pub && b.biz && env.DB) { const rows = (await env.DB.prepare("SELECT user_id FROM biz_reviews WHERE biz_id = ?").bind(String(b.biz).slice(0, 120)).all()).results || []; for (const r of rows) if ((await pubId(env, r.user_id)) === String(b.pub)) { target = r.user_id; break; } }
+      if (!target || target === u.id || !(await readUser(env, target))) return jsonResponse({ error: "Couldn't find that person" }, 404, corsHeaders);
+      const set = new Set(u.blocked || []); if (b.on === false) set.delete(target); else set.add(target); u.blocked = [...set].slice(-300); await writeUser(env, u); _memberSearchCache = null;
+      return jsonResponse({ ok: true, blocked: u.blocked.length }, 200, corsHeaders);
+    }
+    // ---- 🏠 The member's own home card: next events, things to rate, badges, invites ----
+    if (path === "/api/me/home" && request.method === "GET") {
+      const me = await memberIdFromRequest(); const u = me ? await readUser(env, me) : null; if (!u) return jsonResponse({ error: "Not signed in" }, 401, corsHeaders);
+      const todayT = new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" }), roster = await readClubRoster(env), all = await readClubCal(env);
+      const cTitle = (e) => calClubs(e).map((id) => (roster.find((c) => c.id === id) || {}).title).filter(Boolean).join(" × ");
+      const went = all.filter((e) => !e.tbd && e.date && e.date < todayT && (e.rsvps || []).some((r) => r.id === me && r.status === "going"));
+      const next = all.filter((e) => !e.tbd && e.date && e.date >= todayT && (e.rsvps || []).some((r) => r.id === me && (r.status === "going" || r.status === "waitlist")))
+        .sort((a, b) => a.date.localeCompare(b.date)).slice(0, 3).map((e) => { const r = e.rsvps.find((x) => x.id === me); return { id: e.id, slug: e.slug || "", title: e.title, date: e.date, time: e.time || "", place: e.placePrivate ? e.place || "" : e.place || "", status: r.status, owes: !!(e.form && e.form.payment && !r.paid && r.status === "going"), clubTitle: cTitle(e) }; });
+      let reviewed = new Set(), nReviews = 0;
+      if (env.DB) { try { const rows = (await env.DB.prepare("SELECT event_id FROM event_reviews WHERE user_id = ?").bind(me).all()).results || []; rows.forEach((r) => reviewed.add(r.event_id)); nReviews = rows.length; } catch {} }
+      const cut = new Date(Date.parse(todayT + "T12:00:00Z") - 6 * 86400000).toISOString().slice(0, 10);
+      const rate = went.filter((e) => e.date >= cut && !reviewed.has(e.id)).slice(0, 2).map((e) => ({ id: e.id, title: e.title, date: e.date, clubs: [cTitle(e)] }));
+      const clubsAt = new Set(went.flatMap((e) => calClubs(e)));
+      let refs = []; try { refs = JSON.parse((await env.SITE_DATA.get(`refs:${me}`)) || "[]"); } catch {}
+      let stepper = false; if (env.DB) { try { stepper = !!(await env.DB.prepare("SELECT 1 FROM step_participants WHERE user_id = ? LIMIT 1").bind(me).first()); } catch {} }
+      const days = Math.floor((Date.now() - (u.createdAt || Date.now())) / 86400000), n = went.length;
+      const B = (id, icon, name, how, got, prog) => ({ id, icon, name, how, got: !!got, prog: got ? "" : prog || "" });
+      const badges = [B("first", "🌱", "First step", "Go to your first 4DS event", n >= 1, "0 / 1"), B("regular", "⭐", "Regular", "Go to 5 events", n >= 5, `${n} / 5`), B("star", "🌟", "Superstar", "Go to 15 events", n >= 15, `${n} / 15`),
+        B("explorer", "🧭", "Explorer", "Go to events from 3 different clubs", clubsAt.size >= 3, `${clubsAt.size} / 3`), B("reviewer", "💗", "Reviewer", "Rate 3 events you went to", nReviews >= 3, `${nReviews} / 3`),
+        B("connector", "🤝", "Connector", "Invite a friend who joins", refs.length >= 1, `${refs.length} / 1`), B("superconnector", "💐", "Super connector", "Invite 5 friends who join", refs.length >= 5, `${refs.length} / 5`),
+        B("stepper", "👟", "Stepper", "Join a steps challenge", stepper, ""), B("year", "🎂", "One year", "Be a 4DS member for a year", days >= 365, `${days} / 365 days`)];
+      return jsonResponse({ name: u.name, username: u.username, next, rate, badges, attended: n, refs: { count: refs.length, names: refs.slice(-10).map((r) => pubName(r.name)) } }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
     if (path === "/api/cal-terms" && request.method === "GET") { let terms = []; try { terms = JSON.parse((await env.SITE_DATA.get("cal:terms")) || "[]"); } catch {} return jsonResponse({ terms: Array.isArray(terms) ? terms : [] }, 200, { ...corsHeaders, "Cache-Control": "no-store" }); }
     if (path === "/api/event-suggestions" && request.method === "POST") {
       let body;
@@ -2989,7 +3063,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (one && request.method === "GET") {
         const id = decodeURIComponent(one[1]).slice(0, 120), me = await memberIdFromRequest();
         const rows = (await env.DB.prepare("SELECT user_id, rating, comment, at FROM biz_reviews WHERE biz_id = ? ORDER BY at DESC LIMIT 60").bind(id).all()).results || [];
-        const out = []; for (const r of rows) { const u = await readUser(env, r.user_id); const parts = String((u && u.name) || "Member").trim().split(/\s+/); out.push({ who: parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : parts[0], rating: r.rating, comment: r.comment || "", at: r.at, mine: !!me && r.user_id === me, uid: (await isAdminRequest(env, request)) ? r.user_id : undefined }); }
+        const meU = me ? await readUser(env, me) : null, bl = new Set((meU && meU.blocked) || []);
+        const out = []; for (const r of rows) { if (bl.has(r.user_id)) continue; const u = await readUser(env, r.user_id); const parts = String((u && u.name) || "Member").trim().split(/\s+/); out.push({ rk: await pubId(env, r.user_id), who: parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : parts[0], rating: r.rating, comment: r.comment || "", at: r.at, mine: !!me && r.user_id === me, uid: (await isAdminRequest(env, request)) ? r.user_id : undefined }); }
         return jsonResponse({ reviews: out }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
       }
       if (one && request.method === "POST") {
@@ -3594,9 +3669,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       for (const clubId of await clubIdList(env)) {
         for (const id of await readClubMemberIds(env, clubId)) (clubsByUser[id] = clubsByUser[id] || []).push(clubId);
       }
-      const members = [];
+      const members = [], meB = await readUser(env, await memberIdFromRequest()), blockedSet = new Set((meB && meB.blocked) || []);
       for (const u of await listAllUsers(env)) {
         if (!clubsByUser[u.id] || !u.name) continue; // profiles with no club aren't listed
+        if (blockedSet.has(u.id)) continue; // people you blocked aren't shown to you
         members.push({ id: u.id, name: u.name, hasPhoto: !!u.photo, clubs: clubsByUser[u.id] });
       }
       members.sort((a, b) => a.name.localeCompare(b.name));
@@ -4259,7 +4335,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/club-cal") || path.startsWith("/api/admin/event-form") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/reviews") || path.startsWith("/api/admin/app-config") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup") || path.startsWith("/api/admin/wa-templates") || path.startsWith("/api/admin/email-preview");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/club-cal") || path.startsWith("/api/admin/event-form") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/reviews") || path.startsWith("/api/admin/app-config") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup") || path.startsWith("/api/admin/wa-templates") || path.startsWith("/api/admin/email-preview") || path.startsWith("/api/admin/albums") || path.startsWith("/api/admin/reports");
 
     if (requiresAuth && !leadCtx) {
       const token = getSessionToken(request);
@@ -5100,6 +5176,28 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const terms = (Array.isArray(b.terms) ? b.terms : []).map((t) => String(t || "").replace(/[\x00-\x08\x0b-\x1f\x7f<>]/g, " ").trim().slice(0, 1000)).filter(Boolean).slice(0, 10);
       await env.SITE_DATA.put("cal:terms", JSON.stringify(terms)); return jsonResponse({ terms }, 200, corsHeaders);
     }
+    if (path === "/api/admin/albums" && request.method === "GET") {
+      if (leadCtx) return jsonResponse({ error: "Main admin only" }, 403, corsHeaders);
+      const evs = await readClubCal(env), out = [];
+      for (const k of (await env.SITE_DATA.list({ prefix: "album:" })).keys) { let l = []; try { l = JSON.parse((await env.SITE_DATA.get(k.name)) || "[]"); } catch {} const id = k.name.slice(6), ev = evs.find((e) => e.id === id); for (const x of l) if (!x.ok) out.push({ ev: id, evTitle: ev ? ev.title : "(removed event)", evDate: ev ? ev.date : "", img: x.img, name: x.name, at: x.at }); }
+      out.sort((a, b) => b.at - a.at); return jsonResponse({ pending: out.slice(0, 200) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    const admAlbumMatch = path.match(/^\/api\/admin\/albums\/([^/]+)\/([a-z0-9]{8,24})\/?$/);
+    if (admAlbumMatch && request.method === "POST") {
+      if (leadCtx) return jsonResponse({ error: "Main admin only" }, 403, corsHeaders);
+      let b = {}; try { b = await request.json(); } catch {}
+      const key = `album:${decodeURIComponent(admAlbumMatch[1])}`; let l = []; try { l = JSON.parse((await env.SITE_DATA.get(key)) || "[]"); } catch {}
+      const i = l.findIndex((x) => x.img === admAlbumMatch[2]); if (i < 0) return jsonResponse({ error: "Photo not found" }, 404, corsHeaders);
+      if (b.ok) l[i].ok = true; else { l.splice(i, 1); try { await env.DB.prepare("DELETE FROM cal_images WHERE id = ?").bind(admAlbumMatch[2]).run(); } catch {} }
+      await env.SITE_DATA.put(key, JSON.stringify(l)); return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+    if (path === "/api/admin/reports" && request.method === "GET") {
+      if (leadCtx) return jsonResponse({ error: "Main admin only" }, 403, corsHeaders);
+      const out = []; for (const k of (await env.SITE_DATA.list({ prefix: "report:" })).keys) { try { out.push(JSON.parse(await env.SITE_DATA.get(k.name))); } catch {} }
+      out.sort((a, b) => b.at - a.at); return jsonResponse({ reports: out.filter(Boolean).slice(0, 200) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    const admRepMatch = path.match(/^\/api\/admin\/reports\/([\w-]+)\/?$/);
+    if (admRepMatch && request.method === "DELETE") { if (leadCtx) return jsonResponse({ error: "Main admin only" }, 403, corsHeaders); await env.SITE_DATA.delete(`report:${admRepMatch[1]}`); return jsonResponse({ ok: true }, 200, corsHeaders); }
     const adminCalRespMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/responses\/?$/);
     if (adminCalRespMatch && request.method === "GET") {
       const ev = (await readClubCal(env)).find((e) => e.id === adminCalRespMatch[1]);
