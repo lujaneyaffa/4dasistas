@@ -1487,3 +1487,9 @@ _(most recent first — add new entries to the top, trim past ~15)_
 ## 2026-11-04 — v303 (Claude)
 - Public event form (not signed in): no "Continue as guest / Sign in" choice — just name + phone. Log in / Sign up buttons fixed in the top-right corner of event pages (calCornerLogin).
 - v304: corner button collapses to one "Log in / Sign up" button on phones (it overlapped the wordmark).
+
+## 2026-11-04 — v305 (Claude)
+- RSVP-by dates removed: not shown on event pages (calCompose drops rsvpby), editor field removed (saves rsvpBy ""), server no longer closes sign-ups by rsvpBy (closed:false).
+- Ticket price is a small pill. Desktop (>=900px) event form page: 960px wide, borderless card, bigger type and inputs, 2-column name/phone.
+- v306: Google map embed always placed right under "Share this page" (calSecOrder wraps calSecOrder0), above the photos/Report link.
+- v307: corner Log in / Sign up is a single heart icon button.

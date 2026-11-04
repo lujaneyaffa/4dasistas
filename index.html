@@ -716,9 +716,26 @@ function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) =>
   .mem-pop-card.adm-wide input:not([type=checkbox]):not([type=radio]), .mem-pop-card.adm-wide select, .mem-pop-card.adm-wide textarea{ font-size:16px; }
   @media (max-width:600px){ .mem-pop-card.adm-wide{ padding:22px 14px 16px; } }
   .ee{ max-width:860px; margin:0 auto; }
+  @media (min-width:900px){
+    .efPage{ max-width:960px !important; padding:44px 64px 52px !important; border:none !important; border-radius:28px !important; box-shadow:0 18px 60px rgba(118,34,11,.10) !important; background:#fff !important; }
+    .efPage #efBox h3:first-of-type{ font-size:36px; line-height:1.15; letter-spacing:-.01em; }
+    .efPage .idea-pop-date{ font-size:18px; }
+    .efPage .calDesc, .efPage .calDesc .rich{ font-size:17px; line-height:1.65; }
+    .efPage .fb-card{ padding:28px 32px !important; border-radius:22px !important; border:1px solid #f0e2df !important; box-shadow:none !important; background:#fffcfb !important; margin-top:20px !important; }
+    .efPage .fb-card h3{ font-size:22px !important; margin-bottom:14px !important; }
+    .efPage .fb-q{ margin-bottom:18px; } .efPage .fb-q > label{ font-size:15px; font-weight:700; margin-bottom:6px; }
+    .efPage .fb-in, .efPage .fb-card input[type=text], .efPage .fb-card input[type=tel], .efPage .fb-card input[type=number], .efPage .fb-card input[type=date], .efPage .fb-card textarea, .efPage .fb-card select{ font-size:17px !important; padding:14px 16px !important; border-radius:14px !important; border:1.5px solid #e2cfcb !important; background:#fff !important; transition:border-color .15s, box-shadow .15s; }
+    .efPage .fb-card input:focus, .efPage .fb-card textarea:focus, .efPage .fb-card select:focus{ outline:none; border-color:#ce8491 !important; box-shadow:0 0 0 4px rgba(206,132,145,.18); }
+    .efPage .pfGuestBox{ display:grid !important; grid-template-columns:1fr 1fr; gap:0 18px; } .efPage .pfGuestBox[style*="display: none"]{ display:none !important; }
+    .efPage .fb-opt{ font-size:16px; padding:6px 0; }
+    .efPage .pfSend, .efPage .calFormSend{ min-height:58px !important; font-size:18px !important; border-radius:999px !important; letter-spacing:.01em; }
+    .efPage .sigPadWrap{ max-width:620px; }
+  }
   .cal-corner{ position:fixed; top:calc(10px + env(safe-area-inset-top, 0px)); right:calc(10px + env(safe-area-inset-right, 0px)); z-index:6000; display:flex; gap:6px; }
   .cal-corner button{ min-height:40px; padding:8px 14px; border-radius:999px; border:2px solid var(--brand-brown); background:#fff; color:var(--brand-brown); font:inherit; font-weight:800; font-size:14px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.12); }
   .cal-corner .ccS{ background:var(--brand-rose); color:#fff; }
+  .cal-corner .ccHeart{ width:48px; height:48px; min-height:0 !important; padding:0 !important; border-radius:50%; font-size:26px !important; line-height:1 !important; display:flex; align-items:center; justify-content:center; background:#fff; color:#ce8491; border-color:#ce8491; }
+  .cal-corner .ccHeart:hover{ background:#ce8491; color:#fff; }
   .cal-corner .ccNarrow{ display:none; } @media (max-width:520px){ .cal-corner{ top:calc(6px + env(safe-area-inset-top, 0px)); right:calc(6px + env(safe-area-inset-right, 0px)); } .cal-corner .ccS, .cal-corner .ccWide{ display:none; } .cal-corner .ccNarrow{ display:inline; } .cal-corner button{ font-size:12px; line-height:1.15; padding:6px 10px; min-height:0; } }
   .alb-adm{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; } .alb-adm-c{ display:flex; flex-direction:column; gap:4px; padding:6px; border-radius:12px; border:1.5px solid #e6d6d3; background:#fff; } .alb-adm-c img{ width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px; }
   .alb-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:6px; margin-top:6px; } .alb-ph{ padding:0; border:none; background:#eee; border-radius:10px; overflow:hidden; aspect-ratio:1/1; cursor:pointer; } .alb-ph img{ width:100%; height:100%; object-fit:cover; display:block; }
@@ -6572,10 +6589,10 @@ function clubCalPublicPopup(id){
 function calCornerLogin(id){ // not signed in on an event page: Log in / Sign up sits in the top-right corner
   document.querySelectorAll('.cal-corner').forEach(x => x.remove()); if(getCmSession()) return;
   const b = document.createElement('div'); b.className = 'cal-corner';
-  b.innerHTML = '<button type="button" class="ccL"><span class="ccWide">Log in</span><span class="ccNarrow">Log in /<br>Sign up</span></button><button type="button" class="ccS">Sign up</button>';
+  b.innerHTML = '<button type="button" class="ccL ccHeart" aria-label="Log in or sign up" title="Log in or sign up">♡</button>';
   document.body.appendChild(b);
   const go = signup => { calRememberOpen(id); b.remove(); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); if(signup) goToTab('fallsignup'); else { state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); } };
-  b.querySelector('.ccL').addEventListener('click', () => go(false)); b.querySelector('.ccS').addEventListener('click', () => go(true));
+  b.querySelector('.ccL').addEventListener('click', () => go(false));
   const watch = setInterval(() => { if(state.tab !== 'eventform' || getCmSession()){ b.remove(); clearInterval(watch); } }, 700);
 }
 async function clubCalPublicCard(box, id){
@@ -6867,7 +6884,6 @@ function clubCalManage(ev){
       <h3 style="margin:0 0 6px;">${escapeCm(ev.title)}</h3>
       <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(ev.date))}${ev.time ? ' · ⏰ ' + escapeCm(ev.time) : ''}${past ? ' · <strong>(past)</strong>' : ''}</p>
       ${ev.place ? `<p style="margin:4px 0;">📍 ${escapeCm(ev.place)}</p>` : ''}${calMapHtml(ev)}
-      ${ev.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;text-align:left;">⏳ RSVP by ${escapeCm(ideaLongDate(ev.rsvpBy))}</p>` : ''}
       ${ev.capacity ? `<p style="margin:4px 0;font-weight:700;color:${going.length >= ev.capacity ? '#b3261e' : '#2a7a4a'};">🎟️ ${going.length} of ${ev.capacity} spots taken${wait.length ? ` · ${wait.length} on the waitlist` : ''}</p>` : ''}
       ${calDescHtml(ev)}
       <div style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap;"><button type="button" class="club-guide-btn" id="calDelBtn" style="flex:1 1 120px;text-align:center;background:#fdecea;">🗑 Remove this event</button></div><span id="calEditBtn" hidden></span>
@@ -7531,7 +7547,7 @@ function calPriceHtml(d, compact){
   const p = d && d.form && d.form.payment; if(!p) return '';
   const amt = String(p.amount || '').trim(), ao = (p.addons || []).filter(a => String(a.label || '').trim()), { sym } = calMoneyParts(d.form);
   if(!amt && !ao.length) return '';
-  return `<div class="calPrice" style="display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin:${compact ? '0 0 10px' : '6px 0'};padding:9px 12px;border-radius:12px;background:#fdf0f2;border:2px solid #ce8491;"><span style="font-weight:800;color:#76220b;font-size:${compact ? '16' : '17'}px;">🎟️ ${amt ? 'Ticket price: ' + escapeCm(amt) : 'Optional extras'}</span>${ao.length ? `<span style="font-size:13px;color:#555;">${amt ? 'Optional extras: ' : ''}${ao.map(a => escapeCm(a.label) + ' +' + escapeCm(calMoney(Number(a.price) || 0, sym))).join(' · ')}</span>` : ''}</div>`;
+  return `<div class="calPrice" style="display:inline-flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;margin:${compact ? '0 0 8px' : '4px 0'};padding:4px 12px;border-radius:999px;background:#fdf0f2;border:1px solid #f2c9d0;"><span style="font-weight:700;color:#76220b;font-size:14px;">🎟️ ${amt ? escapeCm(amt) : 'Optional extras'}</span>${ao.length ? `<span style="font-size:12px;color:#555;">${amt ? 'Optional extras: ' : ''}${ao.map(a => escapeCm(a.label) + ' +' + escapeCm(calMoney(Number(a.price) || 0, sym))).join(' · ')}</span>` : ''}</div>`;
 }
 // A pinned map on the event page: the pasted Google Maps link (exact spot), else the place text — embedded, plus an 'Open in Google Maps' link.
 // bottom = true asks for the copy that sits at the very end of the page (only when the admin chose "very bottom"); otherwise the one under the place.
@@ -7539,7 +7555,8 @@ function calPriceHtml(d, compact){
 const CAL_SECS = [['hosts','🤝 Partner / host logos'],['club','🏷 Club tag'],['title','Title'],['date','📅 Date & time'],['price','🎟 Price'],['rsvpby','⏳ Sign-up deadline'],['map','🗺 Map'],['desc','📝 Description & blocks'],['spots','Spots left'],['going','👥 How many are going'],['action','RSVP / sign-up buttons'],['form','📋 The sign-up form'],['place','📍 Location text'],['link','🔗 Share link']];
 const CAL_SEC_LOCKED = ['action', 'form']; // can be moved, but never hidden (people need them)
 function calHiddenSecs(d){ const t = d.theme || {}; if(Array.isArray(t.hide)) return t.hide; return calHostRows(d).some(r => !r.hide) ? ['club'] : []; } // a collaboration shows the partners' logos instead of the club tag, unless you choose otherwise
-function calSecOrder(d){
+function calSecOrder(d){ const o = calSecOrder0(d), i = o.indexOf('map'); if(i >= 0){ o.splice(i, 1); const li = o.indexOf('link'); o.splice(li >= 0 ? li + 1 : o.length, 0, 'map'); } return o; } // the map always sits under “Share this page”
+function calSecOrder0(d){
   const t = d.theme || {}, keys = CAL_SECS.map(x => x[0]).concat((Array.isArray(d.blocks) ? d.blocks : []).filter(b => b && b.id).map(b => 'b:' + b.id)); let ord;
   if(Array.isArray(t.order) && t.order.length){ ord = t.order.filter(k => keys.includes(k)); keys.forEach(k => { if(!ord.includes(k)) { const li = ord.indexOf('link'); ord.splice(li >= 0 ? li : ord.length, 0, k); } }); }
   else { const bot = t.mapPos === 'bottom'; ord = ['hosts', 'club', 'title', 'date', 'price', 'rsvpby']; if(!bot) ord.push('map'); ord.push('desc', 'spots', 'going', 'action', 'form', 'place'); if(bot) ord.push('map'); ord.push('link'); keys.forEach(k => { if(!ord.includes(k)){ const li = ord.indexOf('link'); ord.splice(li >= 0 ? li : ord.length, 0, k); } }); }
@@ -7549,7 +7566,7 @@ function calSecStyle(d, k){ return 'order:' + (calSecOrder(d).indexOf(k) * 10 + 
 // 🔒 a private location: people who haven't signed up see a note instead of the address.
 function calPlaceHtml(d){ return d.placeHidden ? '<p style="margin:4px 0;">📍 <i>The location is shared with people who sign up.</i></p>' : d.place ? `<p style="margin:4px 0;">📍 ${escapeCm(d.place)}${d.placePrivate ? ' <small style="color:#776867;">(only people who signed up see this)</small>' : ''}</p>` : ''; }
 function calSec(d, k, html){ if(!html || !String(html).trim()) return ''; if(!CAL_SEC_LOCKED.includes(k) && calHiddenSecs(d).includes(k)) return ''; return `<div class="efs" data-s="${k}" style="${calSecStyle(d, k)}">${html}</div>`; }
-function calCompose(d, parts){ const ord = calSecOrder(d); parts = parts.concat((Array.isArray(d.blocks) ? d.blocks : []).filter(b => b && b.id).map(b => ['b:' + b.id, calBlocksHtml({ blocks: [b], theme: d.theme })])); return parts.map(([k, h]) => [k, calSec(d, k, h)]).filter(x => x[1]).sort((a, b) => ord.indexOf(a[0]) - ord.indexOf(b[0])).map(x => x[1]).join(''); }
+function calCompose(d, parts){ parts = parts.filter(x => x[0] !== 'rsvpby'); const ord = calSecOrder(d); parts = parts.concat((Array.isArray(d.blocks) ? d.blocks : []).filter(b => b && b.id).map(b => ['b:' + b.id, calBlocksHtml({ blocks: [b], theme: d.theme })])); return parts.map(([k, h]) => [k, calSec(d, k, h)]).filter(x => x[1]).sort((a, b) => ord.indexOf(a[0]) - ord.indexOf(b[0])).map(x => x[1]).join(''); }
 function calMapHtml(d){
   const t = d.theme || {}, map = safeMapUrl(d.mapUrl), q = String(d.place || '').trim();
   if(!map && !q) return '';
@@ -8240,7 +8257,7 @@ function calEventEditor(ev, opts){
   const paintSignup = () => {
     q('#eeSu').innerHTML = `<div class="ee-modes">${MODES.map(([k, ic, t, h]) => `<button type="button" class="ee-mode${mode === k ? ' on' : ''}" data-mode="${k}"><span style="font-size:26px;">${ic}</span><b>${t}</b><small>${h}</small></button>`).join('')}</div>
       ${mode === 'msg' ? `${lab('How do people reach the organizer?')}<input id="eeContact" maxlength="300" placeholder="WhatsApp number (e.g. 647 555 1234), a link, or an email" value="${escapeCm(ev && ev.contactUrl ? String(ev.contactUrl).replace(/^mailto:/, '') : '')}" style="${F}">` : `
-        <div class="ee-2"><div>${lab('Max spots (optional — then a waitlist)')}<input id="cfCap" type="number" inputmode="numeric" min="0" max="5000" placeholder="No limit" value="${ev && ev.capacity ? ev.capacity : ''}" style="${F}"></div><div>${lab('Sign-ups close on (optional)')}<input id="cfRsvpBy" type="date" value="${escapeCm(ev ? (ev.rsvpBy || '') : '')}" style="${F}"></div></div>
+        ${lab('Max spots (optional — then a waitlist)')}<input id="cfCap" type="number" inputmode="numeric" min="0" max="5000" placeholder="No limit" value="${ev && ev.capacity ? ev.capacity : ''}" style="${F}max-width:280px;">
         ${mode === 'pay' ? `<div class="fb-card" style="box-shadow:none;"><p style="margin:0 0 8px;font-size:15px;">🎟️ Ticket: <b>${escapeCm(val('#eePrice') || pay.amount || '—')}</b> <small style="color:#776867;">(change it in Details)</small><br>💳 After filling in the form people tap <b>Continue to payment</b> and pay by card, Apple Pay or Google Pay. They're marked paid automatically.</p>
           <details><summary style="cursor:pointer;font-weight:700;font-size:14px;padding:6px 0;">Other ways to pay &amp; add-ons (optional)</summary>
           ${lab('Payment link (optional — PayPal, Square…)')}<input id="eePLink" type="url" inputmode="url" autocapitalize="none" maxlength="500" placeholder="https://…" value="${escapeCm(pay.link || '')}" style="${F}">
@@ -8321,7 +8338,7 @@ function calEventEditor(ev, opts){
     const payment = mode === 'pay' ? (() => { const p = { amount: pay.amount, link: pay.link || '', note: pay.note || '' }; p.required = true; const ao = pay.addons.filter(a => String(a.label || '').trim() && a.price !== '' && Number.isFinite(Number(a.price))).map(a => ({ id: a.id || nid(), label: String(a.label).trim(), price: Number(a.price) })); if(ao.length) p.addons = ao; return p; })() : undefined;
     const form = mode === 'msg' ? null : calFormWithTerms({ title: form0 && form0.title, fields: qs.map(f => ({ ...f, label: String(f.label || '').trim() })) }, gTerms, evTerms, payment || null);
     return { title: val('#cfTitle').trim(), tbd, date: tbd ? '' : val('#cfDate'), time: val('#cfTime').trim(), place: val('#cfPlace'), mapUrl: cleanMapLink(val('#cfMap') || ''), placePrivate: q('#cfPlacePriv').checked,
-      capacity: mode === 'msg' ? 0 : (parseInt(keepCap, 10) || 0), rsvpBy: tbd || mode === 'msg' ? '' : keepRsvp, clubIds: ids, hosts: hostsOut, blocks, theme, desc: val('#eeDesc'),
+      capacity: mode === 'msg' ? 0 : (parseInt(keepCap, 10) || 0), rsvpBy: '', clubIds: ids, hosts: hostsOut, blocks, theme, desc: val('#eeDesc'),
       signup: mode === 'msg' ? 'msg' : form ? 'form' : 'rsvp', contactUrl: mode === 'msg' ? keepContact.trim() : '', form, slug: val('#eeSlug').trim() };
   };
   const fail = (t, id) => { say(t); const s = q('#' + id); if(s) s.scrollIntoView({ block:'start', behavior:'smooth' }); return false; };
