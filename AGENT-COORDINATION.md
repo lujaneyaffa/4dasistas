@@ -1448,3 +1448,5 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - sw v295 — Rotation order changed (ROT_S): same 15 games (every pair partners twice, opposes 4x, 10 games each) but reordered so nobody rests twice in a row AND nobody gets the same partner again within 4 games (cyclic). Previously games 1 and 2 had the same partners (E+F). Only valid while a rotation league has no recorded games (slot numbers refer to this order).
 
 - sw v296 — Rotation page simplified for recording: ONE card = Now playing + 'who won?' + losing score (keyboard opens straight away, Enter saves) + live sentence ('X + Y beat Z + W 21 – 15') + big ✅ Save game; green 'Saved' banner afterwards; who-is-here is a compact 3-column strip below; standings/games/coming-up under that.
+
+- sw v297 — Rotation: 'Game to: 21 | 11' switch (remembered per device); 11-games: winner 11 + typed loser 0–9, or 'went above 11' → winner 12–15, loser auto (15–14 cap). Fixed: button taps inside the rotation card always redraw even while a text box has focus (rotRender(true)); unlock now updates the page. rotValid accepts both 21- and 11-game scores (edit sheet).
