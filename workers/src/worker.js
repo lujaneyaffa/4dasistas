@@ -228,6 +228,8 @@ const readClubRoster = async (env) => {
   return clubs;
 };
 const writeClubRoster = async (env, roster) => env.SITE_DATA.put(CLUB_ROSTER_KV_KEY, JSON.stringify(roster));
+// A club can have a member limit (club.memberLimit, 0/empty = none). Returns "" if there's room, else a message.
+const clubFullMsg = async (env, clubId, extra = 1) => { const c = (await readClubRoster(env)).find((x) => x.id === clubId); const lim = c ? Number(c.memberLimit) || 0 : 0; if (!lim) return ""; const n = (await readClubMemberIds(env, clubId)).length; return n + extra > lim ? `${c.title} is full (${n} of ${lim} members). Raise the limit or remove someone first.` : ""; };
 const isKnownClubId = async (env, clubId) => (await readClubRoster(env)).some((c) => c.id === clubId);
 const SIGNUP_MAX_PER_IP_PER_HOUR = 10;
 const SIGNUP_MAX_PER_DAY = 100;
@@ -622,6 +624,7 @@ const createMemberFromForm = async (env, ctx, ip, input) => {
   if (await findUserIdByUsername(env, username)) return { status: 409, error: "That login was just taken — please try again" };
   const user = { id: crypto.randomUUID(), name, username, pinHash: await sha256Hex(pin), photo: null, waitlist: [], createdAt: Date.now(), phone };
   await refAttach(env, user, input && input.ref);
+  { const em = okEmail(input && input.email); if (em) user.email = em; }
   user.lastLoginAt = user.createdAt; user.lastSeenAt = user.createdAt;
   { // the shortened sign-up questions (clubs they're interested in, anything they'd like us to know) are kept on their profile like the full sign-up form's
     const roster = await readClubRoster(env);
@@ -1551,15 +1554,38 @@ const stripeVerify = async (env, raw, header) => {
   return sigs.some((s) => sameSig(s, exp));
 };
 // "Payment received" message: a push for members, an email for guests who left an email address. Sent when the organiser ticks Paid or when Stripe confirms a card payment.
+const CAL_ADMIN_MAIL = "admin@4dasistas.ca";
+const okEmail = (v) => { const t = String(v || "").trim().toLowerCase(); return /^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$/.test(t) ? t.slice(0, 120) : ""; };
+// 📧 Registration confirmation: one email to the person who signed up, with a copy (bcc) to admin@4dasistas.ca.
+const calConfirmEmail = (env, ctx, ev, p) => ctx.waitUntil((async () => {
+  try {
+    if (!env.RESEND_API_KEY || !p.email) return;
+    const origin = env.SITE_ORIGIN || "https://4dasistas.ca", url = `${origin}/#/form/${ev.slug || ev.id}`, pay = (ev.form && ev.form.payment) || null, wl = p.status === "waitlist";
+    const money = (n) => `$${Number(n).toFixed(2).replace(/\.00$/, "")}`;
+    const rows = emailRow("Event", escapeHtml(ev.title)) + (ev.date ? emailRow("Date", escapeHtml(new Date(ev.date + "T12:00:00Z").toLocaleDateString("en-CA", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC" }))) : "") + (ev.time ? emailRow("Time", escapeHtml(ev.time)) : "")
+      + (ev.place && !wl ? emailRow("Place", escapeHtml(ev.place) + (ev.mapUrl ? ` · <a href="${escapeHtml(ev.mapUrl)}">map</a>` : "")) : "") + emailRow("Name", escapeHtml(p.name)) + emailRow("Status", wl ? "⏳ On the waitlist — we'll let you know if a spot opens" : "✅ You're going")
+      + (p.addons && p.addons.length ? emailRow("Add-ons", escapeHtml(p.addons.join(", "))) : "") + (p.total != null && pay ? emailRow("Total", `<strong>${escapeHtml(money(p.total))}</strong> CAD`) : "")
+      + ((ev.form && (ev.form.fields || []).some((f) => f.type === "agree" || f.type === "signature")) ? emailRow("Terms", "✓ Agreed &amp; signed") : "");
+    const payBit = !wl && pay && p.total != null && !p.paid ? `<p style="margin:14px 0 6px"><strong>Payment:</strong> ${stripeOn(env) ? "if you haven't paid yet, you can pay by card, Apple Pay or Google Pay from your event page." : "please pay using the details on your event page."}</p>${pay.link ? `<p style="margin:0 0 6px">Payment link: <a href="${escapeHtml(pay.link)}">${escapeHtml(pay.link)}</a></p>` : ""}${pay.note ? `<p style="margin:0 0 6px;white-space:pre-wrap">${escapeHtml(pay.note)}</p>` : ""}` : "";
+    const html = emailShell(env, { emoji: wl ? "⏳" : "🎉", title: wl ? "You're on the waitlist" : "You're registered!", preheader: ev.title, body: `<p style="margin:0 0 12px">Hi ${escapeHtml(String(p.name || "there").split(/\s+/)[0])}, thank you for signing up. Here's your confirmation:</p>${emailTable(rows)}${payBit}<p style="margin:16px 0 4px">${emailBtn(url, "Open the event page →")}</p>`, footer: "Keep this email as your confirmation. Questions? Just reply or write to admin@4dasistas.ca." });
+    await postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [p.email], bcc: [CAL_ADMIN_MAIL], subject: `${wl ? "Waitlist" : "Registration confirmed"}: ${ev.title}`, html, reply_to: CAL_ADMIN_MAIL });
+  } catch (e) { console.error("registration email failed", String(e && e.message || e)); }
+})());
+// 💚 Payment confirmation: to the person who paid + a copy to admin@4dasistas.ca (the admin always gets it, even if we have no email for them).
 const calPaidNotify = (env, ctx, ev, r) => ctx.waitUntil((async () => {
   const origin = env.SITE_ORIGIN || "https://4dasistas.ca", title = "Payment received 💚", text = `Thank you! Your payment for "${ev.title}" is confirmed — you're all set.`;
-  if (!String(r.id).startsWith("g:")) { try { await sendPushToUser(env, r.id, { title, body: text, url: `/#/form/${ev.slug || ev.id}`, cat: "events" }); } catch {} return; }
+  if (!String(r.id).startsWith("g:")) { try { await sendPushToUser(env, r.id, { title, body: text, url: `/#/form/${ev.slug || ev.id}`, cat: "events" }); } catch {} }
   try {
-    const c = String(((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[r.id]) || {}).contact || "").trim();
-    if (!env.RESEND_API_KEY || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(c)) return;
-    const html = emailShell(env, { emoji: "💚", title: "Payment received", preheader: ev.title, body: `<p style="margin:0 0 10px">Hi ${escapeHtml(r.name || "there")}, thank you! We've received your payment for</p><p style="margin:0 0 14px"><strong>${escapeHtml(ev.title)}</strong> · ${escapeHtml(ev.date)}</p><p style="margin:16px 0 4px">${emailBtn(`${origin}/#/form/${ev.slug || ev.id}`, "See the event →")}</p>`, footer: "You're all set 🌸" });
-    await postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [c], subject: `Payment received: ${ev.title}`, html });
-  } catch {}
+    if (!env.RESEND_API_KEY) return;
+    const entry = (JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[r.id]) || {};
+    let email = okEmail(r.email) || okEmail(entry.email);
+    if (!email && !String(r.id).startsWith("g:")) { const u = await readUser(env, r.id); email = okEmail(u && u.email); }
+    if (!email) email = okEmail(entry.contact);
+    const total = Number(entry.total), amt = Number.isFinite(total) ? `$${total.toFixed(2).replace(/\.00$/, "")} CAD` : "";
+    const rows = emailRow("Event", escapeHtml(ev.title)) + (ev.date ? emailRow("Date", escapeHtml(ev.date)) : "") + emailRow("Name", escapeHtml(r.name || "")) + (amt ? emailRow("Paid", `<strong>${escapeHtml(amt)}</strong>`) : "") + emailRow("How", r.paidVia === "stripe" ? "Card / Apple Pay / Google Pay (Stripe)" : "Confirmed by the organiser") + emailRow("When", escapeHtml(new Date().toLocaleString("en-CA", { timeZone: "America/Toronto", dateStyle: "medium", timeStyle: "short" })));
+    const html = emailShell(env, { emoji: "💚", title: "Payment received", preheader: ev.title, body: `<p style="margin:0 0 12px">Hi ${escapeHtml(String(r.name || "there").split(/\s+/)[0])}, thank you! We've received your payment — you're all set.</p>${emailTable(rows)}<p style="margin:16px 0 4px">${emailBtn(`${origin}/#/form/${ev.slug || ev.id}`, "Open the event page →")}</p>`, footer: "Keep this email as your receipt. Questions? Write to admin@4dasistas.ca." });
+    await postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [email || CAL_ADMIN_MAIL], ...(email ? { bcc: [CAL_ADMIN_MAIL] } : {}), subject: `Payment received: ${ev.title}${email ? "" : " — " + (r.name || "")}`, html, reply_to: CAL_ADMIN_MAIL });
+  } catch (e) { console.error("payment email failed", String(e && e.message || e)); }
 })());
 const checkCalAnswers = (form, raw) => {
   const answers = {};
@@ -1729,8 +1755,10 @@ const calSendReminders = async (env, ctx) => {
     await env.SITE_DATA.put(key, JSON.stringify({ sent: [...sent], done: left === 0 }), { expirationTtl: 259200 });
   }
 };
+// 🔴 "X spots left" alert shown top-right on the event page: the real number, or a number the admin picks (null = off).
+const calSpotsAlert = (v) => { if (!v || typeof v !== "object") return null; if (v.mode === "real") return { mode: "real" }; if (v.mode === "custom") { const n = Math.round(Number(v.n)); return Number.isFinite(n) && n >= 1 && n <= 999 ? { mode: "custom", n } : null; } return null; };
 const calContactUrl = (v) => { const t = String(v || "").trim(); if (!t) return ""; const dg = t.replace(/[\s().-]/g, ""); if (/^\+?\d{7,15}$/.test(dg)) return "https://wa.me/" + dg.replace(/^\+/, "").replace(/^(\d{10})$/, "1$1"); if (/^[\w.+-]+@[\w-]+\.[\w.]+$/.test(t)) return "mailto:" + t; return calLinkOk(t); };
-const calFields = (b) => ({ mapUrl: b.mapUrl ? (isGoogleMapsUrl(b.mapUrl) || "") : "", title: cleanCalText(b.title, 80), date: String(b.date || ""), time: cleanCalText(b.time, 30), place: cleanCalText(b.place, 200), rsvpBy: /^\d{4}-\d{2}-\d{2}$/.test(String(b.rsvpBy || "")) ? String(b.rsvpBy) : "", desc: String(b.desc || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 3000), capacity: Math.max(0, Math.min(5000, parseInt(b.capacity, 10) || 0)), placePrivate: b.placePrivate === true, signup: ["rsvp", "form", "msg"].includes(b.signup) ? b.signup : "", contactUrl: calContactUrl(b.contactUrl) })
+const calFields = (b) => ({ mapUrl: b.mapUrl ? (isGoogleMapsUrl(b.mapUrl) || "") : "", title: cleanCalText(b.title, 80), date: String(b.date || ""), time: cleanCalText(b.time, 30), place: cleanCalText(b.place, 200), rsvpBy: /^\d{4}-\d{2}-\d{2}$/.test(String(b.rsvpBy || "")) ? String(b.rsvpBy) : "", desc: String(b.desc || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 3000), capacity: Math.max(0, Math.min(5000, parseInt(b.capacity, 10) || 0)), placePrivate: b.placePrivate === true, signup: ["rsvp", "form", "msg"].includes(b.signup) ? b.signup : "", contactUrl: calContactUrl(b.contactUrl), spotsAlert: calSpotsAlert(b.spotsAlert) })
 // 🔒 "Only people who signed up see the location": blank the place / map (and map blocks) for everyone else.
 const calHidePlace = (ev, out, canSee) => { if (!ev.placePrivate || canSee) return { ...out, placePrivate: !!ev.placePrivate }; return { ...out, place: "", mapUrl: "", placeHidden: true, placePrivate: true, blocks: (out.blocks || []).filter((b) => b && b.type !== "map") }; };;
 const isValidDateString = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + "T00:00:00Z"));
@@ -2498,7 +2526,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (editMatch) {
       const tok = editMatch[1], all0 = await readClubCal(env), ev0 = all0.find((e) => e.editToken === tok);
       if (!ev0) return jsonResponse({ error: "This edit link isn't active any more — ask the organiser for a new one" }, 404, corsHeaders);
-      const view = (e) => ({ placePrivate: !!e.placePrivate, signup: e.signup || "", contactUrl: e.contactUrl || "", id: e.id, slug: e.slug || "", title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", tbd: !!e.tbd, blocks: e.blocks || [], theme: e.theme || null, hosts: e.hosts || [], clubIds: calClubs(e), form: e.form ? { title: e.form.title, intro: e.form.intro || "", footer: e.form.footer || "", fields: e.form.fields } : null, hasPayment: !!(e.form && e.form.payment), clubTitle: calClubs(e).map((c) => (roster0.find((r) => r.id === c) || {}).title || "").filter(Boolean).join(" × ") });
+      const view = (e) => ({ placePrivate: !!e.placePrivate, signup: e.signup || "", contactUrl: e.contactUrl || "", spotsAlert: e.spotsAlert || null, id: e.id, slug: e.slug || "", title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", tbd: !!e.tbd, blocks: e.blocks || [], theme: e.theme || null, hosts: e.hosts || [], clubIds: calClubs(e), form: e.form ? { title: e.form.title, intro: e.form.intro || "", footer: e.form.footer || "", fields: e.form.fields } : null, hasPayment: !!(e.form && e.form.payment), clubTitle: calClubs(e).map((c) => (roster0.find((r) => r.id === c) || {}).title || "").filter(Boolean).join(" × ") });
       const roster0 = await readClubRoster(env);
       if (editMatch[2] === "/image" && request.method === "POST") { const r = await calImgSave(request, env, ev0.id); return r.error ? jsonResponse({ error: r.error }, 400, corsHeaders) : jsonResponse(r, 201, corsHeaders); }
       if (!editMatch[2] && request.method === "GET") return jsonResponse({ event: view(ev0) }, 200, corsHeaders);
@@ -2593,7 +2621,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!ev) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
         if (!who || !(who.id.startsWith("m:") || (who.id === "admin" && M === "GET" && !calMatch[2]))) { // (the main admin without a member login fills forms like anyone else)
           // A PUBLICIZED event (publicForm): anyone can open its form straight away and submit it with just a name — no account needed.
-          if (!calMatch[2] && M === "GET") return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, cardPay: stripeOn(env), signup: ev.signup || "", contactUrl: ev.contactUrl || "", clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], clubIds: calClubs(ev), publicForm: !!ev.form, form: ev.form || null, signup: ev.signup || "", guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(false /* RSVP-by dates were removed (Nov 2026) */) }, false), 200, corsHeaders);
+          if (!calMatch[2] && M === "GET") return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, cardPay: stripeOn(env), signup: ev.signup || "", contactUrl: ev.contactUrl || "", spotsAlert: ev.spotsAlert || null, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], clubIds: calClubs(ev), publicForm: !!ev.form, form: ev.form || null, signup: ev.signup || "", guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(false /* RSVP-by dates were removed (Nov 2026) */) }, false), 200, corsHeaders);
           if (ev.form) { // ANY event with a form can be filled in without an account
             if (calMatch[2] === "/form" && M === "POST") {
               if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
@@ -2605,26 +2633,30 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
                 // Base member details came with the form: create the account (and sign them in), then record the sign-up as theirs.
                 const chk0 = checkCalAnswers(ev.form, fb.answers);
                 if (chk0.error) return jsonResponse({ error: chk0.error }, 400, corsHeaders);
+                if (!okEmail(fb.email)) return jsonResponse({ error: "Please add your email so we can send your confirmation" }, 400, corsHeaders);
                 const made = await createMemberFromForm(env, ctx, ideaIp, fb);
                 if (made.error) return jsonResponse({ error: made.error }, made.status, corsHeaders);
-                { const sel = calAddonSelection(ev.form, fb.addons); await calFormPut(env, ev.id, made.user.id, { name: made.user.name, answers: chk0.answers, at: Date.now(), ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }); }
+                { const sel = calAddonSelection(ev.form, fb.addons); await calFormPut(env, ev.id, made.user.id, { name: made.user.name, email: made.user.email || "", answers: chk0.answers, at: Date.now(), ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }); }
                 const st0 = await calSpotStatus(env, ev, made.user.id);
-                { const c0 = await calAddRsvp(env, ev.id, { id: made.user.id, name: made.user.name, status: st0, at: Date.now(), viaForm: true, ...(fb.paidClaim === true && ev.form.payment ? { claimedPaid: Date.now() } : {}) }); if (c0) ev.rsvps = c0.rsvps; }
-                notifyAdminOfFormSignup(env, ctx, ev, { name: made.user.name, phone: made.user.phone, newAccount: true }, chk0.answers, calAddonSelection(ev.form, fb.addons));
+                { const c0 = await calAddRsvp(env, ev.id, { id: made.user.id, name: made.user.name, email: made.user.email || "", status: st0, at: Date.now(), viaForm: true, ...(fb.paidClaim === true && ev.form.payment ? { claimedPaid: Date.now() } : {}) }); if (c0) ev.rsvps = c0.rsvps; }
+                notifyAdminOfFormSignup(env, ctx, ev, { name: made.user.name, phone: made.user.phone, contact: made.user.email || "", newAccount: true }, chk0.answers, calAddonSelection(ev.form, fb.addons));
+                { const sel = calAddonSelection(ev.form, fb.addons); calConfirmEmail(env, ctx, ev, { name: made.user.name, email: made.user.email, status: st0, total: sel.total, addons: ((ev.form.payment || {}).addons || []).filter((a) => sel.ids.includes(a.id)).map((a) => a.label) }); }
                 return jsonResponse({ ok: true, created: true, eventStatus: st0, ...(ev.placePrivate && st0 === "going" ? { place: ev.place || "", mapUrl: ev.mapUrl || "" } : {}), token: made.token, ...publicUser(made.user), clubs: [], waitlist: [] }, 201, corsHeaders);
               }
               const nm = sanitizePersonName(fb && fb.name);
               if (nm.length < 2) return jsonResponse({ error: "Please type your name" }, 400, corsHeaders);
               const contact = String((fb && fb.contact) || "").replace(/[\x00-\x1f\x7f<>]/g, " ").trim().slice(0, 80);
+              const gEmail = okEmail(fb && fb.email); if (!gEmail) return jsonResponse({ error: "Please add your email so we can send your confirmation" }, 400, corsHeaders);
               const chk = checkCalAnswers(ev.form, fb && fb.answers);
               if (chk.error) return jsonResponse({ error: chk.error }, 400, corsHeaders);
               let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
               if (Object.keys(map).length >= 1500) return jsonResponse({ error: "This form is full" }, 400, corsHeaders);
               const gid = `g:${crypto.randomUUID().slice(0, 10)}`;
-              { const sel = calAddonSelection(ev.form, fb && fb.addons); await calFormPut(env, ev.id, gid, { name: nm, contact, answers: chk.answers, at: Date.now(), guest: true, ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }); }
+              { const sel = calAddonSelection(ev.form, fb && fb.addons); await calFormPut(env, ev.id, gid, { name: nm, contact, email: gEmail, answers: chk.answers, at: Date.now(), guest: true, ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }); }
               const stG = await calSpotStatus(env, ev, gid);
-              await calAddRsvp(env, ev.id, { id: gid, name: nm, status: stG, at: Date.now(), guest: true, viaForm: true, ...(fb.paidClaim === true && ev.form.payment ? { claimedPaid: Date.now() } : {}) }); // shows in the attendee list too
-              notifyAdminOfFormSignup(env, ctx, ev, { name: nm, contact }, chk.answers, calAddonSelection(ev.form, fb && fb.addons));
+              await calAddRsvp(env, ev.id, { id: gid, name: nm, email: gEmail, status: stG, at: Date.now(), guest: true, viaForm: true, ...(fb.paidClaim === true && ev.form.payment ? { claimedPaid: Date.now() } : {}) }); // shows in the attendee list too
+              notifyAdminOfFormSignup(env, ctx, ev, { name: nm, contact: contact + (gEmail ? " · " + gEmail : "") }, chk.answers, calAddonSelection(ev.form, fb && fb.addons));
+              { const sel = calAddonSelection(ev.form, fb && fb.addons); calConfirmEmail(env, ctx, ev, { name: nm, email: gEmail, status: stG, total: sel.total, addons: ((ev.form.payment || {}).addons || []).filter((a) => sel.ids.includes(a.id)).map((a) => a.label) }); }
               return jsonResponse({ ok: true, eventStatus: stG, ...(ev.form.payment && stG === "going" ? { payId: gid, payTok: await calGuestPayTok(env, ev.id, gid) } : {}), ...(ev.placePrivate && stG === "going" ? { place: ev.place || "", mapUrl: ev.mapUrl || "" } : {}) }, 200, corsHeaders);
             }
             if (calMatch[2] === "/checkout" && M === "POST") { // a guest (no account) paying right after signing up
@@ -2647,7 +2679,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (uid) for (const cid of calClubs(ev)) if ((await readClubMemberIds(env, cid)).includes(uid)) { inClub = true; break; }
         const mine = (ev.rsvps || []).find((r) => r.id === uid);
         if (!calMatch[2] && M === "GET") {
-          return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, signup: ev.signup || "", contactUrl: ev.contactUrl || "", clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], signup: ev.signup || "", rsvpBy: ev.rsvpBy || "", closed: !!(false /* RSVP-by dates were removed (Nov 2026) */),
+          return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, signup: ev.signup || "", contactUrl: ev.contactUrl || "", spotsAlert: ev.spotsAlert || null, clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], signup: ev.signup || "", rsvpBy: ev.rsvpBy || "", closed: !!(false /* RSVP-by dates were removed (Nov 2026) */),
             going: (ev.rsvps || []).filter((r) => r.status === "going").length, mine: mine ? mine.status : null, inClub,
             publicForm: !!ev.form, form: ev.form || null, ...calCapInfo(ev), waitPos: mine && mine.status === "waitlist" ? calWaitPos(ev, uid) : 0, claimedPaid: !!(mine && mine.claimedPaid), paid: !!(mine && mine.paid), cardPay: stripeOn(env), myAddons: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).addons || []) : [], myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, who.id === "admin" || !!(mine && mine.status === "going")), 200, corsHeaders);
         }
@@ -2663,13 +2695,17 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           if (!wasIn && false /* RSVP-by dates were removed (Nov 2026) */) return jsonResponse({ error: "Sign-ups for this event are closed" }, 400, corsHeaders);
           if (!wasIn && ev.date < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "This event has already happened" }, 400, corsHeaders);
           if (!wasIn && calPayMissing(ev.form, fb, env)) return jsonResponse({ error: PAY_REQ_MSG }, 400, corsHeaders);
-          { const sel = calAddonSelection(ev.form, fb && fb.addons); map = await calFormPut(env, ev.id, uid, { name: who.name, answers: chk.answers, at: Date.now(), ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }); }
+          let mEmail = okEmail(fb && fb.email); // the confirmation goes here; saved on the member's profile for next time
+          { const meU = await readUser(env, uid); if (meU) { if (mEmail && meU.email !== mEmail) { meU.email = mEmail; await writeUser(env, meU); } else if (!mEmail) mEmail = okEmail(meU.email); } }
+          if (!wasIn && !mEmail) return jsonResponse({ error: "Please add your email so we can send your confirmation" }, 400, corsHeaders);
+          { const sel = calAddonSelection(ev.form, fb && fb.addons); map = await calFormPut(env, ev.id, uid, { name: who.name, ...(mEmail ? { email: mEmail } : {}), answers: chk.answers, at: Date.now(), ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }); }
           // Submitting the form IS the RSVP: club members are going at once, people from other clubs wait for approval.
           let status = wasIn ? wasIn.status : null;
           if (!wasIn) {
             status = await calSpotStatus(env, ev, uid); // a form sign-up is open to everyone: filling it in IS the RSVP (past the limit = waitlist)
-            { const c1 = await calAddRsvp(env, ev.id, { id: uid, name: who.name, status, at: Date.now(), viaForm: true, ...(fb.paidClaim === true && ev.form.payment ? { claimedPaid: Date.now() } : {}) }); if (c1) ev.rsvps = c1.rsvps; }
-            notifyAdminOfFormSignup(env, ctx, ev, { name: who.name, newAccount: false }, chk.answers, calAddonSelection(ev.form, fb && fb.addons));
+            { const c1 = await calAddRsvp(env, ev.id, { id: uid, name: who.name, ...(mEmail ? { email: mEmail } : {}), status, at: Date.now(), viaForm: true, ...(fb.paidClaim === true && ev.form.payment ? { claimedPaid: Date.now() } : {}) }); if (c1) ev.rsvps = c1.rsvps; }
+            notifyAdminOfFormSignup(env, ctx, ev, { name: who.name, contact: mEmail || "", newAccount: false }, chk.answers, calAddonSelection(ev.form, fb && fb.addons));
+            { const sel = calAddonSelection(ev.form, fb && fb.addons); calConfirmEmail(env, ctx, ev, { name: who.name, email: mEmail, status, total: sel.total, addons: ((ev.form.payment || {}).addons || []).filter((a) => sel.ids.includes(a.id)).map((a) => a.label) }); }
           }
           return jsonResponse({ ok: true, answers: chk.answers, addons: (map[uid] || {}).addons || [], total: (map[uid] || {}).total ?? null, mine: status, waitPos: status === "waitlist" ? calWaitPos(ev, uid) : 0, going: (ev.rsvps || []).filter((r) => r.status === "going").length, claimedPaid: !!(fb && fb.paidClaim === true && ev.form.payment) || !!(wasIn && wasIn.claimedPaid) }, 200, corsHeaders);
         }
@@ -4702,7 +4738,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!(await readUser(env, userId))) { await env.SITE_DATA.delete(key); return jsonResponse({ error: "That member no longer exists" }, 404, corsHeaders); }
         if (!(await isKnownClubId(env, clubId))) return jsonResponse({ error: "That club no longer exists" }, 404, corsHeaders);
         const ids = await readClubMemberIds(env, clubId);
-        if (!ids.includes(userId)) { ids.push(userId); await writeClubMemberIds(env, clubId, ids); }
+        if (!ids.includes(userId)) { const full = await clubFullMsg(env, clubId); if (full) return jsonResponse({ error: full }, 409, corsHeaders); ids.push(userId); await writeClubMemberIds(env, clubId, ids); }
       }
       await env.SITE_DATA.delete(key);
       // Tell the member next time they open the app (shown once, then cleared): accepted or not approved.
@@ -4731,6 +4767,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const user = await readUser(env, String(body.existingUserId));
         if (!user) return jsonResponse({ error: "That member no longer exists" }, 404, corsHeaders);
         if (!memberIds.includes(user.id)) {
+          const full = await clubFullMsg(env, clubId); if (full) return jsonResponse({ error: full }, 409, corsHeaders);
           memberIds.push(user.id);
           await writeClubMemberIds(env, clubId, memberIds);
         }
@@ -4819,10 +4856,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const clubId = decodeURIComponent(adminDeleteMatch[1]);
       const userId = decodeURIComponent(adminDeleteMatch[2]);
       const memberIds = await readClubMemberIds(env, clubId);
-      if (leadCtx && !(await allClubIdsContaining(env, userId)).some((c) => c !== clubId)) {
+      if (leadCtx && new URL(request.url).searchParams.get("keep") !== "1" && !(await allClubIdsContaining(env, userId)).some((c) => c !== clubId)) {
         return jsonResponse({ error: "They're only in this club — removing them would delete their profile, so ask the main admin." }, 409, corsHeaders);
       }
       await writeClubMemberIds(env, clubId, memberIds.filter(id => id !== userId));
+      if (new URL(request.url).searchParams.get("keep") === "1") return jsonResponse({ ok: true, kept: true }, 200, corsHeaders); // only leaves THIS club; the profile stays
       // Only delete the global identity once they're not in any club anymore.
       const remainingClubs = await allClubIdsContaining(env, userId);
       if (!remainingClubs.length) {
@@ -5224,7 +5262,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const canEv = (e) => calClubs(e).some(canClub) || canForm(e);
       const roster = await readClubRoster(env);
       const clubTitle = (id) => (roster.find((c) => c.id === id) || {}).title || "";
-      const view = (e) => ({ placePrivate: !!e.placePrivate, signup: e.signup || "", contactUrl: e.contactUrl || "", id: e.id, slug: e.slug || "", clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", blocks: e.blocks || [], theme: e.theme || null, hosts: e.hosts || [], editToken: canForm(e) ? (e.editToken || "") : "", histN: e.histN || 0, rsvpBy: e.rsvpBy || "", form: canForm(e) ? (e.form || null) : null, hasForm: !!e.form, canForm: canForm(e), ...(leadCtx ? {} : { formLeads: e.formLeads || [] }), publicForm: !!e.publicForm, capacity: calCap(e), rsvps: e.rsvps || [], ...(e.tbd ? { tbd: true, interest: e.interest || [] } : {}) });
+      const view = (e) => ({ placePrivate: !!e.placePrivate, signup: e.signup || "", contactUrl: e.contactUrl || "", spotsAlert: e.spotsAlert || null, id: e.id, slug: e.slug || "", clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", blocks: e.blocks || [], theme: e.theme || null, hosts: e.hosts || [], editToken: canForm(e) ? (e.editToken || "") : "", histN: e.histN || 0, rsvpBy: e.rsvpBy || "", form: canForm(e) ? (e.form || null) : null, hasForm: !!e.form, canForm: canForm(e), ...(leadCtx ? {} : { formLeads: e.formLeads || [] }), publicForm: !!e.publicForm, capacity: calCap(e), rsvps: e.rsvps || [], ...(e.tbd ? { tbd: true, interest: e.interest || [] } : {}) });
       const all = await readClubCal(env);
       if (!adminCalMatch[1] && M === "GET") return jsonResponse({ events: all.filter(canEv).sort((a, b) => a.date.localeCompare(b.date)).map(view) }, 200, corsHeaders);
       let body = {};
@@ -5674,6 +5712,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           delete fields.logo;
         }
       }
+      if (fields.memberLimit !== undefined) fields.memberLimit = Math.max(0, Math.min(9999, parseInt(fields.memberLimit, 10) || 0)); // 0 = no limit
+      if (fields.desc !== undefined) { fields.desc = String(fields.desc || "").trim().slice(0, 1500); if (!fields.desc) return jsonResponse({ error: "Description can't be empty" }, 400, corsHeaders); }
       const updatedClub = { ...clubs[idx], ...fields };
       const updated = clubs.slice();
       updated[idx] = updatedClub;

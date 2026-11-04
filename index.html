@@ -716,6 +716,15 @@ function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) =>
   .mem-pop-card.adm-wide input:not([type=checkbox]):not([type=radio]), .mem-pop-card.adm-wide select, .mem-pop-card.adm-wide textarea{ font-size:16px; }
   @media (max-width:600px){ .mem-pop-card.adm-wide{ padding:22px 14px 16px; } }
   .ee{ max-width:860px; margin:0 auto; }
+  .adm-clubs{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px; }
+  .adm-club{ position:relative; display:flex; flex-direction:column; align-items:center; text-align:center; gap:6px; padding:20px 16px 18px; border-radius:22px; border:2px solid var(--cc,#76220b); background:var(--cb,#fff); box-shadow:4px 4px 0 var(--cc,#76220b); font:inherit; color:var(--cc,#373d3b); cursor:pointer; transition:transform .12s, box-shadow .12s; }
+  .adm-club:hover{ transform:translate(-2px,-2px); box-shadow:6px 6px 0 var(--cc,#76220b); }
+  .adm-club-logo{ display:flex; align-items:center; justify-content:center; width:86px; height:86px; border-radius:50%; background:#fff; border:3px solid #fff; box-shadow:0 2px 10px rgba(0,0,0,.15); overflow:hidden; font-size:38px; flex:none; } .adm-club-logo img{ width:100%; height:100%; object-fit:cover; }
+  .adm-club-t{ font-size:19px; line-height:1.2; } .adm-club-n{ font-size:14px; font-weight:800; opacity:.85; }
+  .adm-club-full{ position:absolute; top:10px; right:10px; background:#b3261e; color:#fff; font-size:11px; font-weight:800; padding:3px 9px; border-radius:999px; }
+  .adm-club-d{ font-size:13px; line-height:1.35; opacity:.8; color:#373d3b; }
+  .ca-list{ display:flex; flex-direction:column; max-height:340px; overflow:auto; border:1.5px solid #f0e2df; border-radius:12px; } .ca-m{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-top:1px solid rgba(0,0,0,.07); } .ca-list .ca-m:first-child{ border-top:none; }
+  .ca-av{ flex:none; width:36px; height:36px; border-radius:50%; background:#f2d8d7; color:#76220b; font-weight:800; display:flex; align-items:center; justify-content:center; }
   .fb-agree .fbTerm{ font-size:14px; line-height:1.45; padding:10px 12px; border-radius:12px; background:#fef7f4; border:1.5px solid #f2d8d7; } .fb-agree .fbTerm .rich > *:first-child{ margin-top:0; } .fb-agree .fbTerm .rich > *:last-child{ margin-bottom:0; }
   .fb-agree .fbAgreeLbl{ font-weight:700; margin-top:6px; } .fb-agree .fbAgreeLbl input{ width:22px; height:22px; }
   .hf-hosts{ display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin:6px 0 2px; } .hf-host{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; background:#fff; border:1.5px solid #f2d8d7; overflow:hidden; font-size:15px; flex:none; } .hf-host img{ width:100%; height:100%; object-fit:contain; } .hf-hostn{ font-size:12px; color:#776867; font-weight:600; margin-left:2px; }
@@ -742,6 +751,9 @@ function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) =>
   .cal-corner .ccS{ background:var(--brand-rose); color:#fff; }
   .cal-corner .ccHeart{ width:48px; height:48px; min-height:0 !important; padding:0 !important; border-radius:50%; font-size:26px !important; line-height:1 !important; display:flex; align-items:center; justify-content:center; background:#fff; color:#ce8491; border-color:#ce8491; }
   .cal-corner .ccHeart:hover{ background:#ce8491; color:#fff; }
+  .cal-alert{ position:fixed; right:calc(10px + env(safe-area-inset-right, 0px)); z-index:5999; background:#d4261c; color:#fff; font-weight:800; font-size:15px; letter-spacing:.01em; padding:9px 16px; border-radius:999px; box-shadow:0 4px 14px rgba(180,20,10,.38); animation:calAlertPulse 2.2s ease-in-out infinite; pointer-events:none; }
+  @keyframes calAlertPulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.06); } }
+  @media (max-width:520px){ .cal-alert{ font-size:13px; padding:7px 12px; right:calc(6px + env(safe-area-inset-right, 0px)); } }
   .cal-corner .ccNarrow{ display:none; } @media (max-width:520px){ .cal-corner{ top:calc(6px + env(safe-area-inset-top, 0px)); right:calc(6px + env(safe-area-inset-right, 0px)); } .cal-corner .ccS, .cal-corner .ccWide{ display:none; } .cal-corner .ccNarrow{ display:inline; } .cal-corner button{ font-size:12px; line-height:1.15; padding:6px 10px; min-height:0; } }
   .alb-adm{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; } .alb-adm-c{ display:flex; flex-direction:column; gap:4px; padding:6px; border-radius:12px; border:1.5px solid #e6d6d3; background:#fff; } .alb-adm-c img{ width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px; }
   .alb-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:6px; margin-top:6px; } .alb-ph{ padding:0; border:none; background:#eee; border-radius:10px; overflow:hidden; aspect-ratio:1/1; cursor:pointer; } .alb-ph img{ width:100%; height:100%; object-fit:cover; display:block; }
@@ -6624,7 +6636,8 @@ async function clubCalPublicCard(box, id){
         <div style="display:none;"><button type="button" class="club-guide-btn pfModeGuest" style="flex:1;min-width:140px;min-height:48px;text-align:center;">⚡ Continue as a guest</button><button type="button" class="club-guide-btn pfModeIn" style="flex:1;min-width:140px;min-height:48px;text-align:center;">👤 Sign in</button></div>
         <div class="pfGuestBox" style="display:none;">
           <div class="fb-q"><label>Your full name <span class="req">*</span></label><input ${inp} data-base="name" type="text" maxlength="60" autocomplete="name" placeholder="First and last name"></div>
-          <div class="fb-q"><label>Phone / WhatsApp number <span class="req">*</span></label><input ${inp} data-base="phone" type="tel" maxlength="25" autocomplete="tel" inputmode="tel"></div></div>
+          <div class="fb-q"><label>Phone / WhatsApp number <span class="req">*</span></label><input ${inp} data-base="phone" type="tel" maxlength="25" autocomplete="tel" inputmode="tel"></div>
+          <div class="fb-q" style="grid-column:1 / -1;"><label>Email <span class="req">*</span> <small style="font-weight:400;color:#776867;">(we send your confirmation here)</small></label><input ${inp} data-base="email" type="email" maxlength="120" autocomplete="email" inputmode="email" autocapitalize="none" placeholder="you@example.com"></div></div>
         <div class="pfInBox" style="display:none;margin-top:12px;">
           <div class="pfFind">
             <input class="fb-in pfQ" type="search" placeholder="Type your name to find yourself…" autocomplete="off">
@@ -6695,6 +6708,8 @@ async function clubCalPublicCard(box, id){
       const quick = mode === 'guest';
       if(base('name').trim().split(/\s+/).length < 2){ m.textContent = 'Please enter your first and last name.'; return; }
       if(!base('phone').trim()){ m.textContent = 'Please add your phone / WhatsApp number.'; return; }
+      if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(base('email').trim())){ m.textContent = 'Please add your email — your confirmation is sent there.'; return; }
+      try { localStorage.setItem('ev_email', base('email').trim()); } catch {}
       if(!quick && !/^\d{4}$/.test(base('pin'))){ m.textContent = 'Choose a 4-digit PIN.'; return; }
       if(!quick && base('pin') !== base('pin2')){ m.textContent = "The two PINs don't match."; return; }
       const chosenAddons = calAddonIds(box);
@@ -6702,7 +6717,7 @@ async function clubCalPublicCard(box, id){
       const paidClaim = calPayClaimed(box);
       e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Sending…';
       try {
-        const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', body: JSON.stringify(quick ? { name: base('name'), contact: base('phone'), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim } : { name: base('name'), phone: base('phone'), pin: base('pin'), ref: refCode(), why: base('why'), interests: [...box.querySelectorAll('.pfClub:checked')].map(c => c.value), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim }) });
+        const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', body: JSON.stringify(quick ? { name: base('name'), contact: base('phone'), email: base('email').trim(), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim } : { name: base('name'), phone: base('phone'), email: base('email').trim(), pin: base('pin'), ref: refCode(), why: base('why'), interests: [...box.querySelectorAll('.pfClub:checked')].map(c => c.value), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim }) });
         if(r && r.token){ setCmSession(r); renderNavAuth(); }
         box.innerHTML = calSignedUpHtml(d, r, chosenAddons, quick) + `<div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`; wireCalCopy(box);
         if(calCardOk(d) && (r.eventStatus || 'going') === 'going' && (r.payId || r.token)){
@@ -6802,7 +6817,8 @@ async function clubCalMemberCard(box, id){
     paint();
     if(d.form){
       const meName = (getCmSession() || {}).name || '';
-      formBox.innerHTML = `<div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 6px;">1 · 👤 About you</h3><p style="margin:0;">✅ Signed in as <strong>${escapeCm(meName)}</strong> — your details are already on file.</p></div>
+      formBox.innerHTML = `<div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 6px;">1 · 👤 About you</h3><p style="margin:0 0 10px;">✅ Signed in as <strong>${escapeCm(meName)}</strong> — your details are already on file.</p>
+        <div class="fb-q" style="margin:0;"><label>Email <span class="req">*</span> <small style="font-weight:400;color:#776867;">(we send your confirmation here)</small></label><input class="fb-in" data-base="email" type="email" maxlength="120" autocomplete="email" inputmode="email" autocapitalize="none" placeholder="you@example.com" value="${escapeCm((() => { try { return localStorage.getItem('ev_email') || ''; } catch { return ''; } })())}"></div></div>
       <div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 4px;">2 · 📝 Sign up</h3>${d.form.intro ? `<div style="margin:0 0 10px;">${richHtml(d.form.intro)}</div>` : ''}${calFormFieldsHtml(d.form, d.myAnswers, false)}
         ${calAddonsHtml(d.form, d.myAddons)}
         ${calPayInFormHtml(d.form, calCardOk(d))}
@@ -6823,8 +6839,11 @@ async function clubCalMemberCard(box, id){
       });
       formBox.querySelector('.calFormSend').addEventListener('click', async e => {
         const m = formBox.querySelector('.calFormMsg'); { const pe = calPayCheck(formBox, d.form); if(pe){ m.style.color = '#c00'; m.textContent = pe; return; } }
+        const emIn = formBox.querySelector('[data-base="email"]'), emVal = emIn ? emIn.value.trim() : '';
+        if(emIn && !d.mine && !/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(emVal)){ m.style.color = '#c00'; m.textContent = 'Please add your email — your confirmation is sent there.'; emIn.focus(); return; }
+        if(emVal){ try { localStorage.setItem('ev_email', emVal); } catch {} }
         const paidClaim = calPayClaimed(formBox); e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Saving…';
-        try { const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ answers: calFormCollect(formBox, d.form), addons: calAddonIds(formBox), paidClaim }) }); d.myAnswers = r.answers; d.myAddons = r.addons || []; d.mine = r.mine; if(r.claimedPaid) d.claimedPaid = true; d.going = r.going; d.waitPos = r.waitPos || 0; if(d.capacity) d.spotsLeft = Math.max(0, d.capacity - r.going); m.style.color = '#2a7a4a'; m.textContent = r.mine === 'pending' ? '✓ Sent — an admin will approve your spot.' : r.mine === 'waitlist' ? "⏳ It's full — you're on the waitlist. We'll move you up if a spot opens." : "✓ You're signed up — thank you!"; e.target.textContent = 'Update my answers'; const pb = formBox.querySelector('.calPayBox'); paint(); if(pb && d.form.payment){ const nb = formBox.querySelector('.calPayBox'); if(nb) nb.innerHTML = calPayBoxHtml(d); if(r.mine === 'going' && !d.paid) setTimeout(() => { const sb2 = formBox.querySelector('.calStripeBtn'); if(sb2 && !sb2.disabled) sb2.click(); }, 500); } /* paying is part of signing up: the card form opens right after they submit */ }
+        try { const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ answers: calFormCollect(formBox, d.form), addons: calAddonIds(formBox), paidClaim, email: emVal }) }); d.myAnswers = r.answers; d.myAddons = r.addons || []; d.mine = r.mine; if(r.claimedPaid) d.claimedPaid = true; d.going = r.going; d.waitPos = r.waitPos || 0; if(d.capacity) d.spotsLeft = Math.max(0, d.capacity - r.going); m.style.color = '#2a7a4a'; m.textContent = r.mine === 'pending' ? '✓ Sent — an admin will approve your spot.' : r.mine === 'waitlist' ? "⏳ It's full — you're on the waitlist. We'll move you up if a spot opens." : "✓ You're signed up — thank you!"; e.target.textContent = 'Update my answers'; const pb = formBox.querySelector('.calPayBox'); paint(); if(pb && d.form.payment){ const nb = formBox.querySelector('.calPayBox'); if(nb) nb.innerHTML = calPayBoxHtml(d); if(r.mine === 'going' && !d.paid) setTimeout(() => { const sb2 = formBox.querySelector('.calStripeBtn'); if(sb2 && !sb2.disabled) sb2.click(); }, 500); } /* paying is part of signing up: the card form opens right after they submit */ }
         catch(err){ m.style.color = '#c00'; m.textContent = err.message; }
         e.target.disabled = false;
       });
@@ -7050,7 +7069,22 @@ function calMsgBtnHtml(d, past){ // "Message an organizer" events: no sign-up in
 }
 function calFormUrl(id){ return location.origin + '/#/form/' + encodeURIComponent(id); }
 // Big events: "12 of 40 spots left" / "Full — join the waitlist"
+// 🔴 "X spots left" badge in the top-right corner of an event page. The admin can type their own number (the real count is then not shown anywhere).
+function calSpotsAlertSync(d){
+  document.querySelectorAll('.cal-alert').forEach(x => x.remove());
+  if(!d || !d.spotsAlert || state.tab !== 'eventform' || (d.date && calIsPast(d.date))) return false;
+  const a = d.spotsAlert, realFull = !!(d.capacity && (d.spotsLeft || 0) <= 0);
+  let txt = '';
+  if(a.mode === 'custom') txt = realFull ? '🔴 FULL · join the waitlist' : `🔴 ${a.n} spot${a.n === 1 ? '' : 's'} left`;
+  else if(a.mode === 'real' && d.capacity) txt = realFull ? '🔴 FULL · join the waitlist' : `🔴 ${d.spotsLeft} spot${d.spotsLeft === 1 ? '' : 's'} left`;
+  if(!txt) return false;
+  const b = document.createElement('div'); b.className = 'cal-alert'; b.textContent = txt; b.style.top = document.querySelector('.cal-corner') ? 'calc(64px + env(safe-area-inset-top, 0px))' : 'calc(12px + env(safe-area-inset-top, 0px))';
+  document.body.appendChild(b);
+  const watch = setInterval(() => { if(state.tab !== 'eventform' || !b.isConnected){ b.remove(); clearInterval(watch); } }, 700);
+  return true;
+}
 function calSpotsHtml(d){
+  if(calSpotsAlertSync(d)) return ''; // an alert replaces the plain spots line (so the real number can stay hidden)
   if(!d || !d.capacity) return '';
   const left = d.spotsLeft || 0;
   return `<p style="margin:6px 0;font-weight:700;color:${left > 0 ? '#2a7a4a' : '#b3261e'};">🎟️ ${left > 0 ? left + ' of ' + d.capacity + ' spots left' : 'Full — all ' + d.capacity + ' spots are taken, but you can join the waitlist'}${d.waitCount ? ` <small style="font-weight:400;color:#776867;">(${d.waitCount} waiting)</small>` : ''}</p>`;
@@ -8269,6 +8303,9 @@ function calEventEditor(ev, opts){
           ${lab('Payment link (optional — PayPal, Square…)')}<input id="eePLink" type="url" inputmode="url" autocapitalize="none" maxlength="500" placeholder="https://…" value="${escapeCm(pay.link || '')}" style="${F}">
           ${lab('Other ways to pay (optional)')}<textarea id="eePNote" rows="2" maxlength="1000" placeholder="e.g. e-Transfer to pay@example.com with your name" style="${F}">${escapeCm(pay.note || '')}</textarea>
           ${lab('Add-ons people can tick (optional)')}${pay.addons.map((a, i) => `<div style="display:flex;gap:6px;"><input class="eeAoL" data-i="${i}" maxlength="60" placeholder="e.g. T-shirt" value="${escapeCm(a.label || '')}" style="${F}flex:2;"><input class="eeAoP" data-i="${i}" type="number" min="0" step="0.01" placeholder="Price" value="${escapeCm(a.price === undefined ? '' : String(a.price))}" style="${F}flex:1;min-width:0;"><button type="button" class="fb-mini eeAoX" data-i="${i}" style="margin-bottom:8px;">✕</button></div>`).join('')}<button type="button" class="fb-mini" id="eeAoAdd">➕ Add an add-on</button></details></div>` : ''}`}`;
+    q('#eeSu').insertAdjacentHTML('beforeend', `<div class="fb-card ee-alert" style="box-shadow:none;margin-top:12px;"><b style="display:block;margin-bottom:4px;">🔴 “Spots left” alert <small style="font-weight:400;color:#776867;">(red badge, top right of the event page)</small></b>
+      <select id="eeAlertMode" style="${F}max-width:360px;"><option value="">Off — don’t show one</option><option value="real"${alertMode === 'real' ? ' selected' : ''}>Show the real number of spots left (needs “Max spots”)</option><option value="custom"${alertMode === 'custom' ? ' selected' : ''}>Show my own number…</option></select>
+      <div id="eeAlertCustom" ${alertMode === 'custom' ? '' : 'hidden'}>${lab('Number to show')}<input id="eeAlertN" type="number" inputmode="numeric" min="1" max="999" placeholder="e.g. 6" value="${escapeCm(alertN)}" style="${F}max-width:160px;margin-bottom:4px;"><small style="color:#776867;display:block;">The page says “${escapeCm(alertN || 'N')} spots left” no matter how many are really left. Sign-ups still close for real when the “Max spots” is reached (people then join a waitlist).</small></div></div>`);
     q('#eeQs').hidden = q('#eeTerms').hidden = mode === 'msg';
   };
   q('#eeSu').addEventListener('click', e => {
@@ -8278,9 +8315,11 @@ function calEventEditor(ev, opts){
   });
   const syncPay = () => { pay.amount = (val('#eePrice') || '').trim(); if(!q('#eePLink')) return; pay.required = true; pay.link = val('#eePLink').trim(); pay.note = val('#eePNote').trim(); host.querySelectorAll('.eeAoL').forEach(el => { pay.addons[Number(el.dataset.i)].label = el.value; }); host.querySelectorAll('.eeAoP').forEach(el => { pay.addons[Number(el.dataset.i)].price = el.value; }); };
   // keep spots / close date / contact when the mode is switched
+  let alertMode = ev && ev.spotsAlert ? ev.spotsAlert.mode : '', alertN = ev && ev.spotsAlert && ev.spotsAlert.mode === 'custom' ? String(ev.spotsAlert.n) : '';
   let keepCap = ev && ev.capacity ? String(ev.capacity) : '', keepRsvp = ev ? (ev.rsvpBy || '') : '', keepContact = ev && ev.contactUrl ? String(ev.contactUrl).replace(/^mailto:/, '') : '';
   q('#eePrice').addEventListener('input', () => { const v = val('#eePrice').trim(); syncPay(); if(mode !== 'msg'){ const want = v ? 'pay' : 'one'; if(want !== mode){ mode = want; paintSignup2(); } else if(mode === 'pay'){ paintSignup2(); } } });
-  q('#eeSu').addEventListener('input', e => { if(e.target.id === 'cfCap') keepCap = e.target.value; if(e.target.id === 'cfRsvpBy') keepRsvp = e.target.value; if(e.target.id === 'eeContact') keepContact = e.target.value; });
+  q('#eeSu').addEventListener('change', e => { if(e.target.id === 'eeAlertMode'){ alertMode = e.target.value; const c = q('#eeAlertCustom'); if(c) c.hidden = alertMode !== 'custom'; if(alertMode === 'custom'){ const n = q('#eeAlertN'); if(n) n.focus(); } } });
+  q('#eeSu').addEventListener('input', e => { if(e.target.id === 'eeAlertN') alertN = e.target.value; if(e.target.id === 'cfCap') keepCap = e.target.value; if(e.target.id === 'cfRsvpBy') keepRsvp = e.target.value; if(e.target.id === 'eeContact') keepContact = e.target.value; });
   const paintSignup2 = () => { paintSignup(); const c = q('#cfCap'); if(c) c.value = keepCap; const r = q('#cfRsvpBy'); if(r) r.value = keepRsvp; const k = q('#eeContact'); if(k) k.value = keepContact; };
   // ---- 📝 questions ----
   const QT = FB_TYPES.filter(t => t[0] !== 'signature');
@@ -8344,6 +8383,7 @@ function calEventEditor(ev, opts){
     const payment = mode === 'pay' ? (() => { const p = { amount: pay.amount, link: pay.link || '', note: pay.note || '' }; p.required = true; const ao = pay.addons.filter(a => String(a.label || '').trim() && a.price !== '' && Number.isFinite(Number(a.price))).map(a => ({ id: a.id || nid(), label: String(a.label).trim(), price: Number(a.price) })); if(ao.length) p.addons = ao; return p; })() : undefined;
     const form = mode === 'msg' ? null : calFormWithTerms({ title: form0 && form0.title, fields: qs.map(f => ({ ...f, label: String(f.label || '').trim() })) }, gTerms, evTerms, payment || null);
     return { title: val('#cfTitle').trim(), tbd, date: tbd ? '' : val('#cfDate'), time: val('#cfTime').trim(), place: val('#cfPlace'), mapUrl: cleanMapLink(val('#cfMap') || ''), placePrivate: q('#cfPlacePriv').checked,
+      spotsAlert: alertMode === 'real' ? { mode: 'real' } : alertMode === 'custom' && parseInt(alertN, 10) >= 1 ? { mode: 'custom', n: parseInt(alertN, 10) } : null,
       capacity: mode === 'msg' ? 0 : (parseInt(keepCap, 10) || 0), rsvpBy: '', clubIds: ids, hosts: hostsOut, blocks, theme, desc: val('#eeDesc'),
       signup: mode === 'msg' ? 'msg' : form ? 'form' : 'rsvp', contactUrl: mode === 'msg' ? keepContact.trim() : '', form, slug: val('#eeSlug').trim() };
   };
@@ -12713,6 +12753,63 @@ function clubDirEditFormHtml(){
   </div>`;
 }
 
+// 🏛️ Admin → Clubs: big club cards. Tap one to see its members, add / remove people, edit the description and set a member limit.
+function admClubCardsHtml(){
+  const all = state.cmAdminAllMembers, list = (typeof adminClubs === 'function' ? adminClubs() : clubsData) || [];
+  if(!list.length) return '<p class="av-msg">No clubs yet.</p>';
+  return `<div class="adm-clubs">${list.map(c => {
+    const col = clubCol(c.id), n = all ? (all[c.id] || []).length : null, lim = Number(c.memberLimit) || 0, full = lim && n != null && n >= lim;
+    return `<button type="button" class="adm-club" data-admclub="${escapeCm(c.id)}" style="--cc:${col.fg};--cb:${col.bg};">
+      <span class="adm-club-logo">${c.logo ? `<img src="${escapeCm(c.logo)}" alt="" loading="lazy">` : escapeCm(c.emoji || (c.title || '?').charAt(0))}</span>
+      <b class="adm-club-t">${escapeCm(c.title)}</b>
+      <span class="adm-club-n">👥 ${n == null ? '…' : n}${lim ? ` / ${lim}` : ''} member${n === 1 && !lim ? '' : 's'}</span>
+      ${full ? '<span class="adm-club-full">FULL</span>' : ''}
+      <span class="adm-club-d">${escapeCm(String(c.desc || '').replace(/\s+/g, ' ').slice(0, 110))}${String(c.desc || '').length > 110 ? '…' : ''}</span>
+    </button>`; }).join('')}</div>`;
+}
+async function openClubAdminPopup(clubId){
+  const club = clubsData.find(c => c.id === clubId); if(!club) return;
+  const isMain = state.cmAdminLoggedIn === true;
+  const { wrap, close } = ideaPopup('<p class="av-msg">Loading…</p>'); const card = wrap.querySelector('.mem-pop-card'); card.classList.add('adm-wide');
+  if(!state.cmAdminAllMembers) { try { const r = await fetch('/api/admin/club-members', { credentials:'include' }); state.cmAdminAllMembers = r.ok ? await r.json() : {}; } catch { state.cmAdminAllMembers = {}; } }
+  let users = Array.isArray(state.cmAdminAllUsers) ? state.cmAdminAllUsers : null, q = '', addQ = '', msg = '';
+  const members = () => (state.cmAdminAllMembers[clubId] = state.cmAdminAllMembers[clubId] || []);
+  const call = async (path, method, body) => { const r = await fetch(path, { method, credentials:'include', headers:{ 'Content-Type':'application/json' }, body: body ? JSON.stringify(body) : undefined }); const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || 'Something went wrong'); return j; };
+  const paint = () => {
+    const ms = members(), lim = Number(club.memberLimit) || 0, ql = q.trim().toLowerCase();
+    const shown = ms.filter(m => !ql || `${m.name} ${m.username || ''} ${m.phone || ''}`.toLowerCase().includes(ql)).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    const have = new Set(ms.map(m => m.id)), al = addQ.trim().toLowerCase();
+    const cands = al.length >= 2 && users ? users.filter(u => !have.has(u.id) && `${u.name} ${u.username || ''}`.toLowerCase().includes(al)).slice(0, 8) : [];
+    card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
+      <div style="display:flex;align-items:center;gap:14px;margin:0 36px 12px 0;"><span class="adm-club-logo" style="width:64px;height:64px;font-size:30px;">${club.logo ? `<img src="${escapeCm(club.logo)}" alt="">` : escapeCm(club.emoji || (club.title || '?').charAt(0))}</span><div><h3 style="margin:0;">${escapeCm(club.title)}</h3><div style="color:#776867;font-weight:700;">👥 ${ms.length}${lim ? ` of ${lim}` : ''} member${ms.length === 1 && !lim ? '' : 's'}${lim && ms.length >= lim ? ' · <span style="color:#b3261e;">FULL</span>' : ''}</div></div></div>
+      ${isMain ? `<div class="fb-card" style="box-shadow:none;"><label style="display:block;font-size:13px;font-weight:700;color:#776867;margin:0 0 3px;">Description</label><textarea id="caDesc" rows="4" maxlength="1500" style="width:100%;box-sizing:border-box;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-bottom:8px;">${escapeCm(club.desc || '')}</textarea>
+        <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;"><label style="font-size:13px;font-weight:700;color:#776867;">Member limit <small style="font-weight:400;">(0 or empty = no limit)</small><input id="caLim" type="number" min="0" max="9999" inputmode="numeric" value="${lim || ''}" placeholder="No limit" style="display:block;width:160px;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-top:3px;"></label><button type="button" class="club-guide-btn" id="caSave" style="min-height:46px;padding:8px 22px;text-align:center;background:var(--brand-rose);color:#fff;">💾 Save</button></div></div>` : `<p class="ideas-hint" style="text-align:left;">${escapeCm(club.desc || '')}</p>`}
+      <div id="caMsg" style="font-size:14px;min-height:18px;margin:6px 0;">${msg}</div>
+      <h4 style="margin:10px 0 6px;">Members (${ms.length})</h4>
+      <input id="caQ" type="search" placeholder="🔍 Search members…" value="${escapeCm(q)}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-bottom:6px;">
+      <div class="ca-list">${shown.map(m => `<div class="ca-m"><span class="ca-av">${escapeCm(String(m.name || '?').charAt(0).toUpperCase())}</span><span style="flex:1;min-width:0;"><b>${escapeCm(m.name)}</b> <small style="color:#776867;">@${escapeCm(m.username || '')}</small>${m.phone ? `<br><small style="color:#776867;">📞 ${escapeCm(m.phone)}</small>` : ''}</span><button type="button" class="fb-mini caOpen" data-u="${escapeCm(m.id)}">✏️ Profile</button><button type="button" class="fb-mini caRm" data-u="${escapeCm(m.id)}" data-n="${escapeCm(m.name)}" style="background:#fdecea;color:#b3261e;">Remove</button></div>`).join('') || '<p class="av-msg" style="margin:6px 0;">No members found.</p>'}</div>
+      <h4 style="margin:16px 0 6px;">➕ Add someone</h4>
+      <input id="caAdd" type="search" placeholder="Search a profile by name or username…" value="${escapeCm(addQ)}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;">
+      ${al.length >= 2 && !users ? '<p class="av-msg">Loading profiles…</p>' : ''}${cands.map(u => `<div class="ca-m"><span class="ca-av">${escapeCm(String(u.name || '?').charAt(0).toUpperCase())}</span><span style="flex:1;min-width:0;"><b>${escapeCm(u.name)}</b> <small style="color:#776867;">@${escapeCm(u.username || '')}</small></span><button type="button" class="fb-mini caAddBtn" data-u="${escapeCm(u.id)}" style="background:#e6f4ea;">+ Add</button></div>`).join('')}${al.length >= 2 && users && !cands.length ? '<p class="av-msg">No profile matches — create one below.</p>' : ''}
+      <details style="margin-top:8px;"><summary style="cursor:pointer;font-weight:700;padding:6px 0;">Create a brand-new profile</summary><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"><input id="caNewN" placeholder="Name (e.g. Amina K.)" style="flex:2;min-width:160px;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;"><input id="caNewP" type="tel" placeholder="Phone (optional)" style="flex:1;min-width:130px;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;"><button type="button" class="club-guide-btn" id="caNewGo" style="padding:8px 18px;text-align:center;">Create &amp; add</button></div><p class="ideas-hint" style="text-align:left;margin:4px 0 0;">Their starting PIN is 1234 — they pick their own the first time they log in.</p></details>`;
+    const say = (t, ok) => { const m = card.querySelector('#caMsg'); if(m){ m.style.color = ok ? '#2a7a4a' : '#b3261e'; m.textContent = t; } msg = ''; };
+    const sv = card.querySelector('#caSave'); if(sv) sv.addEventListener('click', async () => {
+      const desc = card.querySelector('#caDesc').value.trim(), memberLimit = parseInt(card.querySelector('#caLim').value, 10) || 0;
+      if(!desc) return say('The description can’t be empty.');
+      sv.disabled = true; say('Saving…', true);
+      try { await call('/api/admin/clubs/' + encodeURIComponent(clubId), 'PUT', { fields: { desc, memberLimit } }); club.desc = desc; club.memberLimit = memberLimit; clubsData = await fetchClubsLive(); const c2 = clubsData.find(x => x.id === clubId); if(c2) Object.assign(club, c2); msg = '<span style="color:#2a7a4a;">✅ Saved — live everywhere.</span>'; paint(); if(state.tab === 'admin') render(); }
+      catch(err){ sv.disabled = false; say(err.message); }
+    });
+    card.querySelector('#caQ').addEventListener('input', e => { q = e.target.value; const pos = e.target.selectionStart; paint(); const n = card.querySelector('#caQ'); n.focus(); try { n.setSelectionRange(pos, pos); } catch {} });
+    card.querySelector('#caAdd').addEventListener('input', async e => { addQ = e.target.value; if(addQ.trim().length >= 2 && !users){ paint(); users = await calLoadUsers(); state.cmAdminAllUsers = users; } const pos = e.target.selectionStart; paint(); const n = card.querySelector('#caAdd'); n.focus(); try { n.setSelectionRange(pos, pos); } catch {} });
+    card.querySelectorAll('.caOpen').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.u)));
+    card.querySelectorAll('.caRm').forEach(b => b.addEventListener('click', async () => { if(!confirm(`Remove ${b.dataset.n} from ${club.title}?\n\nTheir profile and other clubs stay — they just leave this club.`)) return; try { await call('/api/admin/club-members/' + encodeURIComponent(clubId) + '/' + encodeURIComponent(b.dataset.u) + '?keep=1', 'DELETE'); state.cmAdminAllMembers[clubId] = members().filter(m => m.id !== b.dataset.u); const u = (state.cmAdminAllUsers || []).find(x => x.id === b.dataset.u); if(u) u.clubs = (u.clubs || []).filter(c => c !== clubId); msg = `<span style="color:#2a7a4a;">✅ ${escapeCm(b.dataset.n)} removed.</span>`; paint(); if(state.tab === 'admin') render(); } catch(err){ say(err.message); } }));
+    card.querySelectorAll('.caAddBtn').forEach(b => b.addEventListener('click', async () => { b.disabled = true; try { const j = await call('/api/admin/club-members/' + encodeURIComponent(clubId), 'POST', { existingUserId: b.dataset.u }); const u = (users || []).find(x => x.id === b.dataset.u); members().push({ id: j.id, name: j.name, username: j.username, phone: (u && u.phone) || '' }); if(u) (u.clubs = u.clubs || []).push(clubId); addQ = ''; msg = `<span style="color:#2a7a4a;">✅ ${escapeCm(j.name)} added.</span>`; paint(); if(state.tab === 'admin') render(); } catch(err){ b.disabled = false; say(err.message); } }));
+    const ng = card.querySelector('#caNewGo'); if(ng) ng.addEventListener('click', async () => { const name = card.querySelector('#caNewN').value.trim(), phone = card.querySelector('#caNewP').value.trim(); if(!name) return say('Type their name.'); ng.disabled = true; try { const full = lim && ms.length >= lim; if(full) throw new Error(`${club.title} is full (${ms.length} of ${lim}). Raise the limit first.`); const j = await call('/api/admin/club-members/' + encodeURIComponent(clubId), 'POST', { name, phone }); members().push({ id: j.id, name: j.name, username: j.username, phone }); state.cmAdminAllUsers = null; users = null; msg = `<span style="color:#2a7a4a;">✅ ${escapeCm(j.name)} created (@${escapeCm(j.username)}, PIN ${escapeCm(j.pin || '1234')}).</span>`; paint(); if(state.tab === 'admin') render(); } catch(err){ ng.disabled = false; say(err.message); } });
+  };
+  paint();
+}
+document.addEventListener('click', e => { const c = e.target.closest('.adm-club'); if(c) openClubAdminPopup(c.dataset.admclub); });
 function clubDirListHtml(){
   return `<h3>Club Directory</h3>
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;">
@@ -12794,6 +12891,7 @@ function renderClubAdminPanel(){
     ${lead ? '' : admSec('evform', '📝 Event submission form (what people fill to suggest an event)', admEvFormHtml(), false)}
   `;
   const clubsGrid = `
+    ${admSec('clubcards', '🏛️ Clubs — tap one to see its members', admClubCardsHtml(), true)}
     ${inboxAdminHtml(lead, 'joins')}
     ${lead ? '' : admSec('stay', '🪁→🏛️ Squads moving to clubs — confirm link', stayAdminHtml(), true)}
     ${lead ? admSec('periodsview', '🗂️ Availability periods — tap one to view it', `<div class="cp-box">${periodHistoryHtml(k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' })) || '<p class="av-msg">Loading…</p>'}</div>`, true) : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}

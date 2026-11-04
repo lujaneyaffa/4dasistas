@@ -1501,3 +1501,8 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - v312: Featured Today also shows on Home for signed-in members (below their For you / clubs).
 - v313: terms ("agree" fields) — each paragraph is its own identical box + "I agree" tick; all must be ticked (rendered with richHtml so a multi-paragraph term no longer spilled out of its box).
 - v314: fix "Sign in as a member to fill the form" for a browser logged in as main admin but not as a member — form POST / checkout now use the public (guest) path for them.
+
+## 2026-11-04 — v315 (Claude)
+- Admin → Clubs: big club cards (admClubCardsHtml); tap → popup with members (search, Profile, Remove=leave club only via DELETE ...?keep=1), add existing/new member, edit description + member limit (club.memberLimit; enforced on join-accept and admin add via clubFullMsg).
+- Event "spots left" red alert top-right (event.spotsAlert {mode:real|custom,n}); custom hides the real number; shows FULL when really full.
+- Emails: registration confirmation (calConfirmEmail) + payment receipt (calPaidNotify) go to the registrant AND bcc/to admin@4dasistas.ca. Forms now ask for an email (required, saved on member profile user.email, rsvp.email, calform entry.email).
