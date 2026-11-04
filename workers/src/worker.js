@@ -1343,6 +1343,10 @@ const writeClubEvents = async (env, clubId, events) => {
 let _calIdeaCache = null;
 const CLUBCAL_KEY = "clubcal";
 // ---- "Featured Today" on the Home page: admin pins (with an end date) + an automatic daily pick that never repeats until everything has been shown ----
+const igCheck = async (env, u) => { // an Instagram profile embed that really shows (not private / renamed / removed)
+  let ok = false; try { const r = await fetch(`https://www.instagram.com/${u}/embed/`, { headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15" } }); const t = r.ok ? await r.text() : ""; ok = !!t && !/may be broken/i.test(t) && /followers/i.test(t); } catch {}
+  await env.SITE_DATA.put(`igok:${u}`, ok ? "1" : "0", { expirationTtl: ok ? 14 * 86400 : 2 * 86400 }); return ok;
+};
 const FEAT_KEY = "featured", FEAT_COLS = ["public", "hosted", "biz"], FEAT_BIZ_CATS = ["shops", "restaurants", "cafes", "beautycare", "catering", "eventservices", "clothing", "wellness"];
 const featToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Toronto" });
 const readFeat = async (env) => { let o = {}; try { o = JSON.parse((await env.SITE_DATA.get(FEAT_KEY)) || "{}") || {}; } catch {} const pins = {}, rot = o.rot && typeof o.rot === "object" ? o.rot : {}; for (const c of FEAT_COLS) pins[c] = Array.isArray(o.pins && o.pins[c]) ? o.pins[c] : []; return { pins, rot: { day: rot.day || "", picks: rot.picks || {}, shown: rot.shown || {} } }; };
@@ -1361,8 +1365,9 @@ const featPools = async (env, today) => {
   const biz = { pick: [], ok: new Set() };
   for (const r of await readItems("resources")) {
     if (!r || !r.id) continue; biz.ok.add(String(r.id));
-    if (FEAT_BIZ_CATS.includes(r.category) && r.title && r.desc && !/permanently closed|\bclosed down\b|\bnow closed\b|\bclosed permanently\b/i.test(r.desc)) biz.pick.push(String(r.id));
+    if (FEAT_BIZ_CATS.includes(r.category) && r.title && r.desc && !/permanently closed|\bclosed down\b|\bnow closed\b|\bclosed permanently\b/i.test(r.desc)) { biz.pick.push(String(r.id)); const m = String(r.instagram || "").match(/instagram\.com\/([A-Za-z0-9._]{1,30})/); if (m && (await env.SITE_DATA.get(`igok:${m[1].toLowerCase()}`)) === "1") (biz.ig = biz.ig || []).push(String(r.id)); }
   }
+  if ((biz.ig || []).length >= 5) biz.pick = biz.ig; // business of the day: ones whose Instagram profile shows (photos!) — once enough have been checked
   const v = { public: pub, hosted, biz }; _featPools = { day: today, at: Date.now(), v }; return v;
 };
 // What shows today: pinned items first (until their end date), the rest picked at random — and an item is not picked again until every other one has had a turn.
@@ -3013,6 +3018,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         B("connector", "🤝", "Connector", "Invite a friend who joins", refs.length >= 1, `${refs.length} / 1`), B("superconnector", "💐", "Super connector", "Invite 5 friends who join", refs.length >= 5, `${refs.length} / 5`),
         B("stepper", "👟", "Stepper", "Join a steps challenge", stepper, ""), B("year", "🎂", "One year", "Be a 4DS member for a year", days >= 365, `${days} / 365 days`)];
       return jsonResponse({ name: u.name, username: u.username, next, rate, badges, attended: n, refs: { count: refs.length, names: refs.slice(-10).map((r) => pubName(r.name)) } }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    if (path === "/api/ig-ok" && request.method === "GET") { // does this Instagram profile embed actually show (not private / renamed)? cached 3 days
+      const u = String(new URL(request.url).searchParams.get("u") || "").toLowerCase(); if (!/^[a-z0-9._]{1,30}$/.test(u)) return jsonResponse({ ok: false }, 200, corsHeaders);
+      const ck = `igok:${u}`, c = await env.SITE_DATA.get(ck); if (c) return jsonResponse({ ok: c === "1" }, 200, { ...corsHeaders, "Cache-Control": "public, max-age=3600" });
+      const ok = await igCheck(env, u); return jsonResponse({ ok }, 200, { ...corsHeaders, "Cache-Control": "public, max-age=3600" });
     }
     if (path === "/api/cal-terms" && request.method === "GET") { let terms = []; try { terms = JSON.parse((await env.SITE_DATA.get("cal:terms")) || "[]"); } catch {} return jsonResponse({ terms: Array.isArray(terms) ? terms : [] }, 200, { ...corsHeaders, "Cache-Control": "no-store" }); }
     if (path === "/api/event-suggestions" && request.method === "POST") {
@@ -5827,6 +5837,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
   async scheduled(controller, env, ctx) {
     if (controller.cron === "23 * * * *") { // hourly: event reminders (a few people per run), then refresh everyone who gets steps from Google Health, so the leaderboard is current even if they don't open the app
       ctx.waitUntil(calSendReminders(env, ctx).catch((e) => console.log("event reminders failed", String(e && e.message))));
+      ctx.waitUntil((async () => { try { let n = 0; let items = []; try { const rr = await fetchSiteFile(env, "/data/resources.json"); const j = rr && rr.ok ? await rr.json() : {}; items = Array.isArray(j.items) ? j.items : []; } catch {} for (const r of items) { const m = String((r && r.instagram) || "").match(/instagram\.com\/([A-Za-z0-9._]{1,30})/); if (!m) continue; const u = m[1].toLowerCase(); if (await env.SITE_DATA.get(`igok:${u}`)) continue; await igCheck(env, u); if (++n >= 8) break; } } catch {} })()); // keep the "Instagram works" list fresh for the business of the day
       ctx.waitUntil((async () => { try { if (!(await ghEnsure(env)) || !(await stepsEnsure(env))) return; const rows = (await env.DB.prepare("SELECT g.user_id AS u FROM gh_tokens g JOIN step_sources s ON s.user_id = g.user_id AND s.source = 'googlehealth'").all()).results || []; for (const r of rows.slice(0, 40)) { try { await ghSync(env, r.u); } catch (e) { console.log("gh hourly", String(e && e.message)); } } _stepsPublicMemo = { at: 0, data: null }; } catch (e) { console.log("gh hourly failed", String(e && e.message)); } })());
       return;
     }

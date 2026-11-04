@@ -1493,3 +1493,8 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - Ticket price is a small pill. Desktop (>=900px) event form page: 960px wide, borderless card, bigger type and inputs, 2-column name/phone.
 - v306: Google map embed always placed right under "Share this page" (calSecOrder wraps calSecOrder0), above the photos/Report link.
 - v307: corner Log in / Sign up is a single heart icon button.
+
+## 2026-11-04 — v308 (Claude)
+- Home "Featured": Hosted by 4DS cards show host logo circles (CLUB_CAL_ITEMS now keep hosts); Business of the day shows the Instagram profile embed (instagram.com/<user>/embed iframe) when it has an Instagram link.
+- v309: /api/ig-ok?u= checks the profile embed works (cached igok:<u> 3 days); the business card swaps its text for the Instagram profile only when it does.
+- v310: business of the day is picked only from businesses whose Instagram profile embed works (igok:<u> = "1", needs ≥5); hourly cron re-checks up to 8 unchecked profiles (ok cached 14 days, broken 2 days).

@@ -716,6 +716,10 @@ function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) =>
   .mem-pop-card.adm-wide input:not([type=checkbox]):not([type=radio]), .mem-pop-card.adm-wide select, .mem-pop-card.adm-wide textarea{ font-size:16px; }
   @media (max-width:600px){ .mem-pop-card.adm-wide{ padding:22px 14px 16px; } }
   .ee{ max-width:860px; margin:0 auto; }
+  .hf-hosts{ display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin:6px 0 2px; } .hf-host{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; background:#fff; border:1.5px solid #f2d8d7; overflow:hidden; font-size:15px; flex:none; } .hf-host img{ width:100%; height:100%; object-fit:contain; } .hf-hostn{ font-size:12px; color:#776867; font-weight:600; margin-left:2px; }
+  .hf-ig{ width:100%; flex:1 1 auto; min-height:0; border:0; border-radius:10px; margin:2px 0; background:#fff; display:block; }
+  .hf-igslot{ display:contents; } .hf-tall.hf-hasig{ justify-content:flex-start; padding:10px 10px 8px; gap:3px; } .hf-tall.hf-hasig .hf-when{ white-space:nowrap !important; overflow:hidden; text-overflow:ellipsis; max-width:100%; } .hf-tall.hf-hasig strong{ font-size:17px !important; } .hf-tall.hf-hasig > *:not(.hf-igslot){ flex-shrink:0; } .hf-tall.hf-hasig .hf-ig{ flex:1 1 0; min-height:120px; } .hf-tall.hf-hasig strong{ -webkit-line-clamp:1 !important; } .hf-hasig .hf-links{ margin-top:2px; }
+  @media (max-width:799px){ .hf-hasig .hf-ig{ flex:0 0 auto; height:380px; } }
   @media (min-width:900px){
     .efPage{ max-width:960px !important; padding:44px 64px 52px !important; border:none !important; border-radius:28px !important; box-shadow:0 18px 60px rgba(118,34,11,.10) !important; background:#fff !important; }
     .efPage #efBox h3:first-of-type{ font-size:36px; line-height:1.15; letter-spacing:-.01em; }
@@ -6314,7 +6318,7 @@ async function refreshClubCalItems(){
     const r = await fetch('/api/club-calendar', { cache:'no-store' });
     if(!r.ok) return;
     CLUB_CAL_ITEMS = ((await r.json()).events || []).map(e => ({ id:'clubcal:' + e.id, title:(e.kind === 'idea' && e.emoji ? e.emoji + ' ' : '') + e.title, tag:'Club', section:'clubevents', calDate:e.date, eventDate:e.date, date:calDateLabel(e.date), time:e.time || '', allDay:!e.time, virtual:false,
-      location:e.clubTitle ? e.clubTitle + ' club' : 'Club event', desc:'', clubCal:true, clubIds:e.clubIds || [e.clubId] }));
+      location:e.clubTitle ? e.clubTitle + ' club' : 'Club event', desc:'', clubCal:true, clubIds:e.clubIds || [e.clubId], hosts:e.hosts || [] }));
     if(state.tab === 'events' && (state.categoryFilter === 'clubs' || state.categoryFilter === 'all')) render();
     homeFeaturedPaint();
   } catch {}
@@ -9318,12 +9322,26 @@ function homeFeaturedInner(){
   const hostedSrc = F ? F.hosted.map(x => (CLUB_CAL_ITEMS || []).find(e => e.id === 'clubcal:' + x.id)).filter(Boolean) : homeFeaturedHosted();
   const bizSrc = F ? F.biz.map(x => (resourcesData || []).find(r => String(r.id) === String(x.id))).filter(Boolean) : homeBusinessesOfDay();
   const pub = pubSrc.map(({ item, when }) => evCard(item.id, emojiTitle(item), when + (eventTimeLabel(item) && eventTimeLabel(item) !== 'All day' ? ' · ' + eventTimeLabel(item) : ''), cityLabel(item) || '', item.desc));
-  const hosted = hostedSrc.map(e => evCard(e.id, e.title, calDateLabel(e.calDate) + (e.time ? ' · ' + formatTime12h(e.time) : ''), e.location || '', e.desc));
-  const bizCards = bizSrc.slice(0, 1).map(b => `<div class="hf-card hf-biz hf-tall"><span class="hf-when">${escapeCm(b.type || 'Business')}${b.location ? ' · ' + escapeCm(b.location) : ''}</span><strong>${escapeCm(b.title)}</strong><span class="hf-sub hf-clamp">${escapeCm(b.desc)}</span><span class="hf-links">${b.website ? `<a href="${escapeCm(b.website)}" target="_blank" rel="noopener">Website</a>` : ''}${b.instagram ? `<a href="${escapeCm(b.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ''}<a href="#/resources/${escapeCm(b.category)}">See in Directory</a></span></div>`);
+  const hostIcons = e => { const rows = calHostRows({ clubIds: e.clubIds, hosts: e.hosts }).filter(r => !r.hide).slice(0, 5); if(!rows.length) return ''; return `<span class="hf-hosts">${rows.map(r => { const lg = calHostLogo(r), nm = calHostName(r); return `<span class="hf-host" title="${escapeCm(nm)}">${lg.src ? `<img src="${escapeCm(lg.src)}" alt="${escapeCm(nm)}" loading="lazy" decoding="async">` : escapeCm(lg.emoji || (nm || '?').charAt(0))}</span>`; }).join('')}<span class="hf-hostn">${escapeCm(rows.map(calHostName).filter(Boolean).join(' × '))}</span></span>`; };
+  const hosted = hostedSrc.map(e => evCard(e.id, e.title, calDateLabel(e.calDate) + (e.time ? ' · ' + formatTime12h(e.time) : ''), '', e.desc).replace('</strong>', '</strong>' + hostIcons(e)));
+  const igUser = b => { const m = String(b.instagram || b.instagramPost || '').match(/instagram\.com\/([A-Za-z0-9._]{1,30})(?:[/?#]|$)/); return m && !['p', 'reel', 'reels', 'tv', 'stories', 'explore'].includes(m[1].toLowerCase()) ? m[1] : ''; };
+  const bizCards = bizSrc.slice(0, 1).map(b => `<div class="hf-card hf-biz hf-tall"><span class="hf-when">${escapeCm(b.type || 'Business')}${b.location ? ' · ' + escapeCm(b.location) : ''}</span><strong>${escapeCm(b.title)}</strong>${igUser(b) ? `<span class="hf-igslot" data-ig="${escapeCm(igUser(b))}" data-t="${escapeCm(b.title)}"><span class="hf-sub hf-clamp">${escapeCm(b.desc)}</span></span>` : `<span class="hf-sub hf-clamp">${escapeCm(b.desc)}</span>`}<span class="hf-links">${b.website ? `<a href="${escapeCm(b.website)}" target="_blank" rel="noopener">Website</a>` : ''}${b.instagram ? `<a href="${escapeCm(b.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ''}<a href="#/resources/${escapeCm(b.category)}">See in Directory</a></span></div>`);
   const col = (title, cards, empty) => { const c = cards.slice(0, 2); while(c.length < (title.includes('Businesses') ? 1 : 2)) c.push(`<div class="hf-card hf-ph"><span>${c.length ? '✨ More soon' : empty}</span></div>`); return `<div class="hf-col"><h4>${title}</h4>${c.join('')}</div>`; };
+  setTimeout(hfIgMount, 0);
   return col('📅 Public events', pub, 'Nothing coming up yet.') + col('🌸 Hosted by 4DS', hosted, 'New 4DS events are on the way.') + col('🏪 Businesses of the day', bizCards, 'Check the Directory!');
 }
 // The server decides what's featured (admin pins first, then a daily random pick); this turns those ids into the items the page already has.
+// Business of the day: show its Instagram profile (photos!) once we know the profile embed works; otherwise keep the text.
+const IG_OK = {};
+function hfIgMount(){
+  document.querySelectorAll('.hf-igslot:not([data-done])').forEach(async sl => {
+    sl.dataset.done = '1'; const u = sl.dataset.ig;
+    if(IG_OK[u] === undefined){ try { IG_OK[u] = !!(await (await fetch('/api/ig-ok?u=' + encodeURIComponent(u))).json()).ok; } catch { IG_OK[u] = false; } }
+    if(!IG_OK[u] || !sl.isConnected) return;
+    sl.innerHTML = `<iframe class="hf-ig" src="https://www.instagram.com/${encodeURIComponent(u)}/embed/" title="${escapeCm(sl.dataset.t)} on Instagram" loading="lazy" scrolling="no"></iframe>`;
+    const card = sl.closest('.hf-card'); if(card) card.classList.add('hf-hasig');
+  });
+}
 function homeFeatPubEntry(id){
   const item = [...sportsData, ...gatheringsData, ...dayActivitiesData, ...mosqueGatheringsData, ...tripsData].find(x => String(x.id) === String(id)); if(!item) return null;
   for(let i = 0; i < 120; i++){
