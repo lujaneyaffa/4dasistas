@@ -4021,6 +4021,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               const aid = `${pl.id}:${day}${lgSfx}`;
               await env.DB.prepare("INSERT OR REPLACE INTO bm_attendance (id, day, data) VALUES (?, ?, ?)").bind(aid, day, JSON.stringify({ id: aid, player_id: pl.id, session_date: day, present: !!a.p_present, ...(lgSfx ? { league: kLg } : {}) })).run();
               await env.DB.prepare("DELETE FROM bm_attendance WHERE id != ? AND json_extract(data, '$.player_id') = ? AND json_extract(data, '$.session_date') = ? AND coalesce(json_extract(data, '$.league'), 'main') = ?").bind(aid, pl.id, day, kLg).run();
+              if (a.p_present && kLg !== "main") { // checked in but not on this leaderboard's list yet: add them (never on a fixed-rotation one, which is exactly 6)
+                const lgs = await bmReadLeagues(env), L = lgs.find((x) => x.id === kLg);
+                if (L && !L.rotation && Array.isArray(L.players) && L.players.length && !L.players.includes(pl.id) && L.players.length < 300) { L.players.push(pl.id); await env.SITE_DATA.put("bm:leagues", JSON.stringify(lgs)); }
+              }
               return jsonResponse({ data: null, error: null }, 200, corsHeaders);
             }
             if (fn === "kiosk_reactivate") {
