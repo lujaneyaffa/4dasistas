@@ -2591,7 +2591,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const all = await readClubCal(env); if (calEnsureSlugs(all)) ctx.waitUntil(calBackfillSlugs(env));
         const ev = calFind(all, calMatch[1]);
         if (!ev) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
-        if (!who || !(who.id.startsWith("m:") || who.id === "admin")) {
+        if (!who || !(who.id.startsWith("m:") || (who.id === "admin" && M === "GET" && !calMatch[2]))) { // (the main admin without a member login fills forms like anyone else)
           // A PUBLICIZED event (publicForm): anyone can open its form straight away and submit it with just a name — no account needed.
           if (!calMatch[2] && M === "GET") return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, cardPay: stripeOn(env), signup: ev.signup || "", contactUrl: ev.contactUrl || "", clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], clubIds: calClubs(ev), publicForm: !!ev.form, form: ev.form || null, signup: ev.signup || "", guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(false /* RSVP-by dates were removed (Nov 2026) */) }, false), 200, corsHeaders);
           if (ev.form) { // ANY event with a form can be filled in without an account

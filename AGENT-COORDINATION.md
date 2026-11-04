@@ -1499,3 +1499,5 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - v309: /api/ig-ok?u= checks the profile embed works (cached igok:<u> 3 days); the business card swaps its text for the Instagram profile only when it does.
 - v310: business of the day is picked only from businesses whose Instagram profile embed works (igok:<u> = "1", needs ≥5); hourly cron re-checks up to 8 unchecked profiles (ok cached 14 days, broken 2 days).
 - v312: Featured Today also shows on Home for signed-in members (below their For you / clubs).
+- v313: terms ("agree" fields) — each paragraph is its own identical box + "I agree" tick; all must be ticked (rendered with richHtml so a multi-paragraph term no longer spilled out of its box).
+- v314: fix "Sign in as a member to fill the form" for a browser logged in as main admin but not as a member — form POST / checkout now use the public (guest) path for them.

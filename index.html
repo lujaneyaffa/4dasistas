@@ -716,6 +716,8 @@ function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) =>
   .mem-pop-card.adm-wide input:not([type=checkbox]):not([type=radio]), .mem-pop-card.adm-wide select, .mem-pop-card.adm-wide textarea{ font-size:16px; }
   @media (max-width:600px){ .mem-pop-card.adm-wide{ padding:22px 14px 16px; } }
   .ee{ max-width:860px; margin:0 auto; }
+  .fb-agree .fbTerm{ font-size:14px; line-height:1.45; padding:10px 12px; border-radius:12px; background:#fef7f4; border:1.5px solid #f2d8d7; } .fb-agree .fbTerm .rich > *:first-child{ margin-top:0; } .fb-agree .fbTerm .rich > *:last-child{ margin-bottom:0; }
+  .fb-agree .fbAgreeLbl{ font-weight:700; margin-top:6px; } .fb-agree .fbAgreeLbl input{ width:22px; height:22px; }
   .hf-hosts{ display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin:6px 0 2px; } .hf-host{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; background:#fff; border:1.5px solid #f2d8d7; overflow:hidden; font-size:15px; flex:none; } .hf-host img{ width:100%; height:100%; object-fit:contain; } .hf-hostn{ font-size:12px; color:#776867; font-weight:600; margin-left:2px; }
   .hf-ig{ width:100%; flex:1 1 auto; min-height:0; border:0; border-radius:10px; margin:2px 0; background:#fff; display:block; }
   .hf-igslot{ display:contents; } .hf-tall.hf-hasig{ justify-content:flex-start; padding:10px 10px 8px; gap:3px; } .hf-tall.hf-hasig .hf-when{ white-space:nowrap !important; overflow:hidden; text-overflow:ellipsis; max-width:100%; } .hf-tall.hf-hasig strong{ font-size:17px !important; } .hf-tall.hf-hasig > *:not(.hf-igslot){ flex-shrink:0; } .hf-tall.hf-hasig .hf-ig{ flex:1 1 0; min-height:120px; } .hf-tall.hf-hasig strong{ -webkit-line-clamp:1 !important; } .hf-hasig .hf-links{ margin-top:2px; }
@@ -6968,7 +6970,7 @@ function calFormFieldsHtml(form, answers, locked){
       const sv = typeof v === 'string' && /^data:image\/png;base64,[A-Za-z0-9+\/=]+$/.test(v) ? v : '';
       inp = locked ? `<div style="padding:8px 10px;border-radius:8px;background:#f3efe9;font-size:13px;color:#776867;">✍️ People draw their signature here with a finger or mouse.</div>` : `<div class="sigBox"><div class="sigPadWrap"><canvas class="sigPad" aria-label="Signature pad: draw your signature here"></canvas><span class="sigX">✕</span><div class="sigLine"></div><span class="sigHint">Sign here</span></div><div class="sigBar"><button type="button" class="fb-mini sigClear">🧹 Clear &amp; start again</button><button type="button" class="fb-mini sigTypeBtn">⌨️ Type my name instead</button></div><input type="text" class="fb-in sigType" maxlength="40" placeholder="Type your full name — it becomes your signature" autocomplete="name" hidden style="margin-top:6px;"><input type="hidden" class="sigVal" data-fid="${f.id}" value="${escapeCm(sv)}"></div>`;
     }
-    else if(f.type === 'agree') return `<div class="fb-q fb-agree"><div class="fbTerm" style="white-space:pre-wrap;font-size:14px;line-height:1.45;padding:10px 12px;border-radius:12px;background:#fef7f4;border:1.5px solid #f2d8d7;">${richLine(f.label)}</div><label class="fb-opt" style="font-weight:700;"><input type="checkbox" data-fid="${f.id}" ${v ? 'checked' : ''} ${dis} style="width:22px;height:22px;"> I agree${f.required ? ' <span class="req">*</span>' : ''}</label></div>`;
+    else if(f.type === 'agree') return String(f.label || '').split(/\n\s*\n/).map(t => t.trim()).filter(Boolean).map(t => `<div class="fb-q fb-agree"><div class="fbTerm">${richHtml(t)}</div><label class="fb-opt fbAgreeLbl"><input type="checkbox" data-fid="${f.id}" ${v ? 'checked' : ''} ${dis}> I agree${f.required ? ' <span class="req">*</span>' : ''}</label></div>`).join(''); // every term (each paragraph) looks the same: its own box + its own "I agree"
     else if(f.type === 'yesno' || f.type === 'choice') inp = (f.type === 'yesno' ? ['Yes', 'No'] : f.options).map(o => `<label class="fb-opt"><input type="radio" name="fq-${f.id}" data-fid="${f.id}" value="${escapeCm(o)}" ${v === o ? 'checked' : ''} ${dis} style="width:20px;height:20px;"> ${escapeCm(o)}</label>`).join('');
     else if(f.type === 'multi') inp = f.options.map(o => `<label class="fb-opt"><input type="checkbox" data-fid="${f.id}" value="${escapeCm(o)}" ${(v || []).includes(o) ? 'checked' : ''} ${dis} style="width:20px;height:20px;"> ${escapeCm(o)}</label>`).join('');
     else inp = `<input class="fb-in" data-fid="${f.id}" type="text" maxlength="200" value="${escapeCm(v || '')}" ${dis}>`;
@@ -7013,7 +7015,7 @@ function calFormCollect(box, form){
   const out = {};
   form.fields.forEach(f => {
     const els = [...box.querySelectorAll(`[data-fid="${f.id}"]`)];
-    if(f.type === 'agree') out[f.id] = els[0] && els[0].checked ? 'yes' : '';
+    if(f.type === 'agree') out[f.id] = els.length && els.every(e => e.checked) ? 'yes' : '';
     else if(f.type === 'multi') out[f.id] = els.filter(e => e.checked).map(e => e.value);
     else if(f.type === 'yesno' || f.type === 'choice'){ const c = els.find(e => e.checked); out[f.id] = c ? c.value : ''; }
     else if(f.type === 'location'){ const raw = els[0] ? els[0].value : ''; let o = ''; try { o = raw ? JSON.parse(raw) : ''; } catch {} out[f.id] = o; }
