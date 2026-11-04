@@ -716,6 +716,10 @@ function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) =>
   .mem-pop-card.adm-wide input:not([type=checkbox]):not([type=radio]), .mem-pop-card.adm-wide select, .mem-pop-card.adm-wide textarea{ font-size:16px; }
   @media (max-width:600px){ .mem-pop-card.adm-wide{ padding:22px 14px 16px; } }
   .ee{ max-width:860px; margin:0 auto; }
+  .cal-corner{ position:fixed; top:calc(10px + env(safe-area-inset-top, 0px)); right:calc(10px + env(safe-area-inset-right, 0px)); z-index:6000; display:flex; gap:6px; }
+  .cal-corner button{ min-height:40px; padding:8px 14px; border-radius:999px; border:2px solid var(--brand-brown); background:#fff; color:var(--brand-brown); font:inherit; font-weight:800; font-size:14px; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.12); }
+  .cal-corner .ccS{ background:var(--brand-rose); color:#fff; }
+  .cal-corner .ccNarrow{ display:none; } @media (max-width:520px){ .cal-corner{ top:calc(6px + env(safe-area-inset-top, 0px)); right:calc(6px + env(safe-area-inset-right, 0px)); } .cal-corner .ccS, .cal-corner .ccWide{ display:none; } .cal-corner .ccNarrow{ display:inline; } .cal-corner button{ font-size:12px; line-height:1.15; padding:6px 10px; min-height:0; } }
   .alb-adm{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; } .alb-adm-c{ display:flex; flex-direction:column; gap:4px; padding:6px; border-radius:12px; border:1.5px solid #e6d6d3; background:#fff; } .alb-adm-c img{ width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:8px; }
   .alb-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:6px; margin-top:6px; } .alb-ph{ padding:0; border:none; background:#eee; border-radius:10px; overflow:hidden; aspect-ratio:1/1; cursor:pointer; } .alb-ph img{ width:100%; height:100%; object-fit:cover; display:block; }
   .fy{ margin:0 0 14px; padding:12px; border-radius:18px; background:#fff; border:2px solid #f2d8d7; }
@@ -6565,7 +6569,17 @@ function clubCalPublicPopup(id){
   wrap.querySelector('.idea-pop-card .av-msg').remove();
   clubCalPublicCard(box, id);
 }
+function calCornerLogin(id){ // not signed in on an event page: Log in / Sign up sits in the top-right corner
+  document.querySelectorAll('.cal-corner').forEach(x => x.remove()); if(getCmSession()) return;
+  const b = document.createElement('div'); b.className = 'cal-corner';
+  b.innerHTML = '<button type="button" class="ccL"><span class="ccWide">Log in</span><span class="ccNarrow">Log in /<br>Sign up</span></button><button type="button" class="ccS">Sign up</button>';
+  document.body.appendChild(b);
+  const go = signup => { calRememberOpen(id); b.remove(); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); if(signup) goToTab('fallsignup'); else { state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); } };
+  b.querySelector('.ccL').addEventListener('click', () => go(false)); b.querySelector('.ccS').addEventListener('click', () => go(true));
+  const watch = setInterval(() => { if(state.tab !== 'eventform' || getCmSession()){ b.remove(); clearInterval(watch); } }, 700);
+}
 async function clubCalPublicCard(box, id){
+  if(state.tab === 'eventform') calCornerLogin(id);
   try {
     const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id)); calUpgradeUrl(d);
     const inp = 'class="fb-in"';
@@ -6583,9 +6597,9 @@ async function clubCalPublicCard(box, id){
       const sb = box.querySelector('.pfS'); if(sb) sb.addEventListener('click', () => { calRememberOpen(id); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); goToTab('fallsignup'); });
       return;
     }
-    const formHtml = `<div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 8px;">1 · 👤 About you</h3>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;"><button type="button" class="club-guide-btn pfModeGuest" style="flex:1;min-width:140px;min-height:48px;text-align:center;">⚡ Continue as a guest</button><button type="button" class="club-guide-btn pfModeIn" style="flex:1;min-width:140px;min-height:48px;text-align:center;">👤 Sign in</button></div>
-        <div class="pfGuestBox" style="display:none;margin-top:12px;"><p class="ideas-hint" style="text-align:left;margin:0 0 8px;">Just your name &amp; phone — no account needed. You can always make one later.</p>
+    const formHtml = `<div class="fb-card" style="margin-top:12px;box-shadow:none;"><h3 style="margin:0 0 8px;">1 · 👤 Your details</h3>
+        <div style="display:none;"><button type="button" class="club-guide-btn pfModeGuest" style="flex:1;min-width:140px;min-height:48px;text-align:center;">⚡ Continue as a guest</button><button type="button" class="club-guide-btn pfModeIn" style="flex:1;min-width:140px;min-height:48px;text-align:center;">👤 Sign in</button></div>
+        <div class="pfGuestBox" style="display:none;">
           <div class="fb-q"><label>Your full name <span class="req">*</span></label><input ${inp} data-base="name" type="text" maxlength="60" autocomplete="name" placeholder="First and last name"></div>
           <div class="fb-q"><label>Phone / WhatsApp number <span class="req">*</span></label><input ${inp} data-base="phone" type="tel" maxlength="25" autocomplete="tel" inputmode="tel"></div></div>
         <div class="pfInBox" style="display:none;margin-top:12px;">
@@ -6626,6 +6640,7 @@ async function clubCalPublicCard(box, id){
     box.querySelector('.pfModeGuest').addEventListener('click', () => setMode('guest'));
     box.querySelector('.pfModeIn').addEventListener('click', () => setMode('in'));
     box.querySelector('.pfModeNew').addEventListener('click', () => setMode('new'));
+    setMode('guest'); { const f = boxes.guest.querySelector('input'); if(f) f.blur(); } // not signed in: just name + phone (logging in is the button in the top corner)
     // "Already a member?": find yourself by name, enter your PIN, and carry on with the form as yourself.
     const q = box.querySelector('.pfQ'), results = box.querySelector('.pfResults'), pinBox = box.querySelector('.pfPin'), lmsg = box.querySelector('.pfLoginMsg');
     let chosen = null, timer = null;

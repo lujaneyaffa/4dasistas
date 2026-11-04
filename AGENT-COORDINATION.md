@@ -1483,3 +1483,7 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - Event photo albums: /api/album/<ev> GET/POST (attendees, after start), admin approve in Submissions (/api/admin/albums); images in cal_images ev=album:<id> (limit 400).
 - Reports: /api/report → KV report:* + admin email; Admin Submissions → Reports. Block: /api/me/block (user.blocked) filters members list + biz reviews. Report/Block on member popup, biz reviews, event pages, album photos.
 - Speed: data JSON uses the saved copy if the network takes >2.5s; Google Fonts via non-blocking link; lazy images.
+
+## 2026-11-04 — v303 (Claude)
+- Public event form (not signed in): no "Continue as guest / Sign in" choice — just name + phone. Log in / Sign up buttons fixed in the top-right corner of event pages (calCornerLogin).
+- v304: corner button collapses to one "Log in / Sign up" button on phones (it overlapped the wordmark).
