@@ -715,6 +715,39 @@ function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) =>
   .mem-pop-card.adm-wide h3{ font-size:24px; }
   .mem-pop-card.adm-wide input:not([type=checkbox]):not([type=radio]), .mem-pop-card.adm-wide select, .mem-pop-card.adm-wide textarea{ font-size:16px; }
   @media (max-width:600px){ .mem-pop-card.adm-wide{ padding:22px 14px 16px; } }
+  .ee{ max-width:860px; margin:0 auto; }
+  .cal-mtabs{ display:flex; gap:8px; margin:0 36px 12px 0; } .cal-mt{ flex:1; padding:12px 10px; border-radius:999px; border:2px solid var(--brand-brown); background:#fff; font:inherit; font-weight:800; font-size:15px; cursor:pointer; color:var(--brand-brown); }
+  .cal-mt.on{ background:var(--brand-brown); color:#fff; }
+  .calEdBox .pgBar{ top:-26px; }
+  .ee-sec{ margin:18px 0 0; padding:16px; border:2px solid #f2d8d7; border-radius:18px; background:#fff; }
+  .ee-h{ display:flex; align-items:center; gap:10px; margin:0 0 10px; } .ee-h h3{ margin:0; font-size:20px; }
+  .ee-n{ flex:none; width:30px; height:30px; border-radius:50%; background:#ce8491; color:#fff; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .ee-2{ display:grid; grid-template-columns:1fr 1fr; gap:0 12px; } @media (max-width:560px){ .ee-2{ grid-template-columns:1fr; } }
+  .ee-chk{ display:flex; gap:10px; align-items:center; margin:2px 0 10px; font-weight:700; font-size:15px; cursor:pointer; } .ee-chk input{ width:22px; height:22px; flex:none; }
+  .ee-circles{ display:flex; flex-wrap:wrap; gap:14px 12px; margin:4px 0 12px; }
+  .ee-c{ display:flex; flex-direction:column; align-items:center; gap:4px; width:84px; border:none; background:none; padding:0; cursor:pointer; font:inherit; color:inherit; }
+  .ee-ci{ display:flex; align-items:center; justify-content:center; width:66px; height:66px; border-radius:50%; background:#fff; border:3px solid #e6d6d3; overflow:hidden; font-size:28px; transition:transform .1s; }
+  .ee-ci img{ width:100%; height:100%; object-fit:contain; }
+  .ee-ci.on{ border-color:#ce8491; box-shadow:0 0 0 3px #f6d4de; transform:scale(1.05); }
+  .ee-c[aria-pressed="true"] .ee-cn{ color:#76220b; font-weight:800; }
+  .ee-cn{ font-size:12px; line-height:1.2; text-align:center; font-weight:600; overflow-wrap:anywhere; }
+  .ee-org .ee-c{ width:76px; flex:none; }
+  .ee-hprev{ margin-top:10px; padding:10px; border-radius:14px; background:#fef7f4; }
+  .ee-lays{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px; }
+  .ee-lay{ display:flex; flex-direction:column; align-items:center; gap:6px; padding:12px 6px; border-radius:14px; border:2px dashed #ce8491; background:#fff; cursor:pointer; font:inherit; font-weight:700; font-size:13px; color:#76220b; }
+  .ee-lay:hover{ background:#fef7f4; }
+  .ee-li{ display:inline-flex; gap:3px; width:44px; height:32px; vertical-align:middle; } .ee-li i{ flex:1; background:#ce8491; border-radius:3px; opacity:.75; }
+  .ee-slots{ display:grid; gap:8px; } .ee-slots.ee-side{ grid-template-columns:1fr 1fr; }
+  .ee-slot{ position:relative; min-height:150px; border-radius:14px; overflow:hidden; }
+  button.ee-slot{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; border:2px dashed #ce8491; background:#fef7f4; cursor:pointer; font:inherit; color:#76220b; font-weight:700; }
+  .ee-one button.ee-slot{ min-height:220px; }
+  .ee-slot.has img{ width:100%; height:100%; display:block; object-fit:cover; max-height:420px; }
+  .ee-slotbar{ position:absolute; left:6px; right:6px; bottom:6px; display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
+  .ee-slotbar .fb-mini{ background:rgba(255,255,255,.95); }
+  .ee-modes{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px; } @media (max-width:560px){ .ee-modes{ grid-template-columns:1fr; } }
+  .ee-mode{ display:flex; flex-direction:column; align-items:center; gap:4px; padding:14px 10px; border-radius:16px; border:2px solid #e6d6d3; background:#fff; cursor:pointer; font:inherit; color:inherit; text-align:center; }
+  .ee-mode small{ color:#776867; font-size:12px; line-height:1.3; } .ee-mode b{ font-size:16px; }
+  .ee-mode.on{ border-color:#ce8491; background:#fdf0f2; box-shadow:0 0 0 3px #f6d4de; }
   .cal-qe{ margin:12px 0; border:2px solid var(--brand-brown); border-radius:14px; background:#fff; padding:4px 14px 14px; }
   .cal-qe summary{ cursor:pointer; font-weight:800; padding:10px 0; font-size:16px; }
   .cal-qe-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px 12px; }
@@ -4321,6 +4354,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
           <input id="esCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
           <label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:44px;"><input id="esVirtual" type="checkbox" style="width:22px;height:22px;"> It's a virtual event (no city)</label>
           <div id="esExtra"></div>
+          <input id="esContact" type="text" maxlength="160" placeholder="Your name + phone or email (so we can reach you)" autocomplete="off" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;">
           <textarea id="esComments" rows="3" maxlength="600" placeholder="Comments (optional) — anything we should know?" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;"></textarea>
           <input id="esWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;">
           <div id="esStatus" style="min-height:18px;font-size:13px;color:#c00;" aria-live="polite"></div>
@@ -4390,7 +4424,7 @@ function setupEventSubmitForm(){
     e.preventDefault();
     const st = document.getElementById('esStatus'), btn = document.getElementById('esSubmit');
     const virtual = document.getElementById('esVirtual').checked;
-    const body = { link: document.getElementById('esLink').value.trim(), name: document.getElementById('esName').value.trim(), date: dateEl.value, city: document.getElementById('esCity').value.trim(), virtual, genre: gSel.value, genreOther: gOther.value.trim(), comments: document.getElementById('esComments').value.trim(), website: document.getElementById('esWebsite').value, extra: extraForm ? calFormCollect(document.getElementById('esExtra'), extraForm) : {} };
+    const body = { link: document.getElementById('esLink').value.trim(), name: document.getElementById('esName').value.trim(), date: dateEl.value, city: document.getElementById('esCity').value.trim(), virtual, genre: gSel.value, genreOther: gOther.value.trim(), contact: (document.getElementById('esContact') || {}).value || '', comments: document.getElementById('esComments').value.trim(), website: document.getElementById('esWebsite').value, extra: extraForm ? calFormCollect(document.getElementById('esExtra'), extraForm) : {} };
     st.style.color = '#c00';
     if(!/^https?:\/\/\S+\.\S+/i.test(body.link)){ st.textContent = 'Please add the link to the event (starting with https://).'; return; }
     if(body.name.length < 3){ st.textContent = "Please add the event's name."; return; }
@@ -6497,7 +6531,7 @@ async function clubCalPublicCard(box, id){
         ['date', `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>`], ['price', calPriceHtml(d)],
         ['place', calPlaceHtml(d)], ['map', calMapHtml(d)], ['desc', calDescHtml(d, true)],
         ['rsvpby', d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''], ['spots', past ? '' : calSpotsHtml(d)],
-        ['action', past ? '<p class="av-msg" style="margin:8px 0 0;">This event has already happened.</p>' : `<p class="av-msg" style="margin:10px 0;">Log in or sign up to RSVP.</p><div style="display:flex;gap:10px;"><button type="button" class="club-guide-btn pfL" style="flex:1;text-align:center;">Log In</button><button type="button" class="fall-cta-btn join-club-btn pfS" style="flex:1;">Sign Up</button></div>`],
+        ['action', past ? '<p class="av-msg" style="margin:8px 0 0;">This event has already happened.</p>' : (d.signup === 'msg' && d.contactUrl) ? calMsgBtnHtml(d, past) : `<p class="av-msg" style="margin:10px 0;">Log in or sign up to RSVP.</p><div style="display:flex;gap:10px;"><button type="button" class="club-guide-btn pfL" style="flex:1;text-align:center;">Log In</button><button type="button" class="fall-cta-btn join-club-btn pfS" style="flex:1;">Sign Up</button></div>`],
         ['link', calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')]]);
       wireCalCopy(box); calAttendeesInto(box, id, d.date);
       const lb = box.querySelector('.pfL'); if(lb) lb.addEventListener('click', () => { calRememberOpen(id); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); });
@@ -6659,7 +6693,7 @@ async function clubCalMemberCard(box, id){
       syncCancel();
       const past = calIsPast(d.date);
       const label = past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going — tap to cancel" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — tap to leave` : d.mine === 'pending' ? '⏳ Requested — waiting for approval (tap to cancel)' : d.inClub ? (d.capacity && !d.spotsLeft ? '🎟️ Join the waitlist' : '🎟️ RSVP — I\'m going') : '🎟️ Request to RSVP';
-      const actionHtml = `${d.form ? `<p style="margin:6px 0;font-weight:700;">${past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — we'll move you up if a spot opens` : d.mine === 'pending' ? '⏳ Requested — waiting for approval' : d.closed ? '🔒 Sign-ups are closed' : d.capacity && !d.spotsLeft ? 'Fill in the form below to join the waitlist 👇' : 'Fill in the form below to sign up 👇'}</p>${d.mine && !past ? '<button type="button" class="av-link calRsvpBtn">Cancel my RSVP</button>' : ''}` : (!d.inClub && !d.mine && !past ? `<a class="club-guide-btn calAskWa" href="https://wa.me/u/${ORGANISER_WA_USERNAME}?text=${waEnc(calAskMessage(d))}" target="_blank" rel="noopener" style="display:block;box-sizing:border-box;width:100%;text-align:center;text-decoration:none;background:#25a244;color:#fff;border-color:#1c7a33;">💬 Ask on WhatsApp if there's a spot</a><p class="ideas-hint" style="margin:6px 0 0;">This event is for ${escapeCm(d.clubTitle || 'a club')} members. Tap to message us — a note is already written for you.</p>` : `<button type="button" class="club-guide-btn calRsvpBtn" ${(d.closed || past) && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>`)}
+      const actionHtml = (d.signup === 'msg' && d.contactUrl) ? calMsgBtnHtml(d, past) : `${d.form ? `<p style="margin:6px 0;font-weight:700;">${past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — we'll move you up if a spot opens` : d.mine === 'pending' ? '⏳ Requested — waiting for approval' : d.closed ? '🔒 Sign-ups are closed' : d.capacity && !d.spotsLeft ? 'Fill in the form below to join the waitlist 👇' : 'Fill in the form below to sign up 👇'}</p>${d.mine && !past ? '<button type="button" class="av-link calRsvpBtn">Cancel my RSVP</button>' : ''}` : (!d.inClub && !d.mine && !past ? `<a class="club-guide-btn calAskWa" href="https://wa.me/u/${ORGANISER_WA_USERNAME}?text=${waEnc(calAskMessage(d))}" target="_blank" rel="noopener" style="display:block;box-sizing:border-box;width:100%;text-align:center;text-decoration:none;background:#25a244;color:#fff;border-color:#1c7a33;">💬 Ask on WhatsApp if there's a spot</a><p class="ideas-hint" style="margin:6px 0 0;">This event is for ${escapeCm(d.clubTitle || 'a club')} members. Tap to message us — a note is already written for you.</p>` : `<button type="button" class="club-guide-btn calRsvpBtn" ${(d.closed || past) && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>`)}
         <div class="calRsvpMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>
         ${(!past && d.mine === 'going') ? '<button type="button" class="club-guide-btn calAddCal" style="width:100%;min-height:46px;margin-top:4px;">📆 Add to my calendar</button>' : ''}`;
       top.innerHTML = calCompose(d, [['cover', calCoverHtml(d)], ['hosts', calHostsHtml(d)], ['club', `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>`], ['title', `<h3 style="margin:0 0 6px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>`],
@@ -6745,7 +6779,17 @@ async function calLoadUsers(){
 function clubCalManage(ev){
   let usersCache = Array.isArray(state.cmAdminAllUsers) ? state.cmAdminAllUsers : null;
   const { wrap, close } = ideaPopup('');
+  { const c = wrap.querySelector('.mem-pop-card'); c.classList.add('adm-wide'); }
+  let tab = state.calMgTab || 'edit';
+  const tabsHtml = () => `<div class="cal-mtabs"><button type="button" class="cal-mt${tab === 'edit' ? ' on' : ''}" data-mt="edit">✏️ Edit event</button><button type="button" class="cal-mt${tab === 'people' ? ' on' : ''}" data-mt="people">👥 People &amp; payments (${(ev.rsvps || []).filter(r => r.status === 'going').length})</button></div>`;
+  wrap.addEventListener('click', e => { const b = e.target.closest('.cal-mt'); if(!b || b.dataset.mt === tab) return; tab = state.calMgTab = b.dataset.mt; paint(); });
   const paint = () => {
+    if(tab === 'edit'){
+      const card = wrap.querySelector('.idea-pop-card');
+      card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>${tabsHtml()}<div class="calEdBox"></div>`;
+      calEventEditor(ev, { into: card.querySelector('.calEdBox'), onSaved: e2 => { if(e2) Object.assign(ev, e2); } });
+      return;
+    }
     const rs = ev.rsvps || [], going = rs.filter(r => r.status === 'going'), pend = rs.filter(r => r.status === 'pending'), wait = rs.filter(r => r.status === 'waitlist').sort((a, b) => (a.at || 0) - (b.at || 0));
     const past = ev.date < new Date().toISOString().slice(0, 10);
     const row = (r, pending, wl) => `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid rgba(0,0,0,.1);"><span style="flex:1;font-weight:600;">${escapeCm(r.name)}</span>
@@ -6754,7 +6798,7 @@ function clubCalManage(ev){
       ${!pending && !r.guest ? `<button type="button" class="calwa" data-k="eventRemind" data-u="${escapeCm(r.id)}" aria-label="WhatsApp reminder" title="WhatsApp reminder" style="border:2px solid #25a244;background:#fff;border-radius:999px;padding:4px 8px;cursor:pointer;">💬</button>` : ''}
       ${!pending && !r.guest && !r.paid && ev.form && ev.form.payment ? `<button type="button" class="calwa" data-k="payRemind" data-u="${escapeCm(r.id)}" aria-label="Payment reminder" title="Payment reminder on WhatsApp" style="border:2px solid #25a244;background:#fff;border-radius:999px;padding:4px 8px;cursor:pointer;">💳💬</button>` : ''}
       <button type="button" class="calrs" data-a="${pending ? 'decline' : 'remove'}" data-u="${escapeCm(r.id)}" style="border:2px solid #b3261e;background:#fdecea;border-radius:999px;padding:4px 10px;cursor:pointer;">${pending && !wl ? '✕ Decline' : 'Remove'}</button></div>`;
-    wrap.querySelector('.idea-pop-card').innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
+    wrap.querySelector('.idea-pop-card').innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>${tabsHtml()}
       ${calHostsHtml(ev)}<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(ev.clubTitle)}</p>
       <h3 style="margin:0 0 6px;">${escapeCm(ev.title)}</h3>
       <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(ev.date))}${ev.time ? ' · ⏰ ' + escapeCm(ev.time) : ''}${past ? ' · <strong>(past)</strong>' : ''}</p>
@@ -6762,20 +6806,7 @@ function clubCalManage(ev){
       ${ev.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;text-align:left;">⏳ RSVP by ${escapeCm(ideaLongDate(ev.rsvpBy))}</p>` : ''}
       ${ev.capacity ? `<p style="margin:4px 0;font-weight:700;color:${going.length >= ev.capacity ? '#b3261e' : '#2a7a4a'};">🎟️ ${going.length} of ${ev.capacity} spots taken${wait.length ? ` · ${wait.length} on the waitlist` : ''}</p>` : ''}
       ${calDescHtml(ev)}
-      <details class="cal-qe"${state.calQeOpen === false ? '' : ' open'}><summary>✏️ Edit the details here</summary>
-        <div class="cal-qe-grid">
-          <label class="cal-qe-wide">Title<input id="qeTitle" maxlength="80" value="${escapeCm(ev.title || '')}"></label>
-          ${ev.tbd ? '<p class="ideas-hint cal-qe-wide" style="text-align:left;margin:0;">📅 Date to be decided — set a date on the full page.</p>' : `<label>Date<input id="qeDate" type="date" value="${escapeCm(ev.date || '')}"></label>`}
-          <label>Time<input id="qeTime" maxlength="30" placeholder="e.g. 7–9 pm" value="${escapeCm(ev.time || '')}"></label>
-          <label class="cal-qe-wide">Place<input id="qePlace" maxlength="200" value="${escapeCm(ev.place || '')}"></label>
-          <label>Spots (0 = no limit)<input id="qeCap" type="number" min="0" max="5000" inputmode="numeric" value="${ev.capacity ? Number(ev.capacity) : 0}"></label>
-          ${ev.tbd ? '' : `<label>RSVP by (optional)<input id="qeRsvp" type="date" value="${escapeCm(ev.rsvpBy || '')}"></label>`}
-          <label class="cal-qe-wide">Description<textarea id="qeDesc" rows="5" maxlength="3000">${escapeCm(ev.desc || '')}</textarea></label>
-        </div>
-        <button type="button" class="club-guide-btn" id="qeSave" style="width:100%;margin-top:10px;text-align:center;background:#2a7a4a;color:#fff;min-height:48px;">💾 Save changes</button>
-        <div id="qeMsg" style="font-size:14px;min-height:18px;margin-top:6px;"></div>
-      </details>
-      <div style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap;"><button type="button" class="club-guide-btn" id="calEditBtn" style="flex:1 1 200px;text-align:center;">🎨 Photos, form &amp; page design</button><button type="button" class="club-guide-btn" id="calDelBtn" style="flex:1 1 120px;text-align:center;background:#fdecea;">🗑 Remove</button></div>
+      <div style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap;"><button type="button" class="club-guide-btn" id="calDelBtn" style="flex:1 1 120px;text-align:center;background:#fdecea;">🗑 Remove this event</button></div><span id="calEditBtn" hidden></span>
       ${pend.length ? `<p class="idea-pop-h" style="color:#b3261e;">⏳ Waiting for approval (${pend.length})</p>${pend.map(r => row(r, true)).join('')}` : ''}
       ${wait.length ? `<p class="idea-pop-h" style="color:#b3261e;">⏳ Waitlist (${wait.length}) — first in line at the top</p>${wait.map(r => row(r, true, true)).join('')}` : ''}
       ${!past && going.length ? '<p style="margin:10px 0 0;"><button type="button" class="club-guide-btn" id="calMsgAll" style="width:100%;text-align:center;background:#fff3cd;">📣 Message everyone going</button></p>' : ''}
@@ -6794,19 +6825,6 @@ function clubCalManage(ev){
     if(fe) fe.addEventListener('click', () => { close(); calPageEditor(ev, { mode:'admin', jump:'pgS4' }); }); // the form is edited on the event's one editing page
     const rb = wrap.querySelector('#calRespBtn'); if(rb) rb.addEventListener('click', () => clubCalShowResponses(ev, wrap.querySelector('#calRespBox')));
     wrap.querySelector('#calEditBtn').addEventListener('click', () => { close(); clubCalForm(ev); });
-    { const qd = wrap.querySelector('.cal-qe'); if(qd) qd.addEventListener('toggle', () => { state.calQeOpen = qd.open; }); }
-    wrap.querySelector('#qeSave').addEventListener('click', async e => {
-      const v = id => { const x = wrap.querySelector(id); return x ? x.value : undefined; }, m = wrap.querySelector('#qeMsg');
-      const body = { title: v('#qeTitle').trim(), time: v('#qeTime').trim(), place: v('#qePlace').trim(), capacity: parseInt(v('#qeCap'), 10) || 0, desc: v('#qeDesc') };
-      if(!ev.tbd){ body.date = v('#qeDate'); body.rsvpBy = v('#qeRsvp') || ''; }
-      e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Saving…';
-      try {
-        const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id), 'PUT', body);
-        Object.assign(ev, j.event); const i = (state.clubCal || []).findIndex(x => x.id === ev.id); if(i >= 0) state.clubCal[i] = j.event;
-        paint(); const m2 = wrap.querySelector('#qeMsg'); if(m2){ m2.style.color = '#2a7a4a'; m2.textContent = '✅ Saved'; }
-        if(state.tab === 'clubs' || state.tab === 'admin') render();
-      } catch(err){ e.target.disabled = false; m.style.color = '#c00'; m.textContent = err.message; }
-    });
     { const mb = wrap.querySelector('#calMsgAll'); if(mb) mb.addEventListener('click', () => calMessageAll(ev)); }
     wrap.querySelector('#calDelBtn').addEventListener('click', async () => {
       if(!confirm('Remove "' + ev.title + '" and its RSVP list?')) return;
@@ -6866,6 +6884,7 @@ function calFormFieldsHtml(form, answers, locked){
       const sv = typeof v === 'string' && /^data:image\/png;base64,[A-Za-z0-9+\/=]+$/.test(v) ? v : '';
       inp = locked ? `<div style="padding:8px 10px;border-radius:8px;background:#f3efe9;font-size:13px;color:#776867;">✍️ People draw their signature here with a finger or mouse.</div>` : `<div class="sigBox"><div class="sigPadWrap"><canvas class="sigPad" aria-label="Signature pad: draw your signature here"></canvas><span class="sigX">✕</span><div class="sigLine"></div><span class="sigHint">Sign here</span></div><div class="sigBar"><button type="button" class="fb-mini sigUndo">↩ Undo</button><button type="button" class="fb-mini sigClear">🧹 Clear &amp; start again</button></div><input type="hidden" class="sigVal" data-fid="${f.id}" value="${escapeCm(sv)}"></div>`;
     }
+    else if(f.type === 'agree') return `<div class="fb-q fb-agree"><div class="fbTerm" style="white-space:pre-wrap;font-size:14px;line-height:1.45;padding:10px 12px;border-radius:12px;background:#fef7f4;border:1.5px solid #f2d8d7;">${richLine(f.label)}</div><label class="fb-opt" style="font-weight:700;"><input type="checkbox" data-fid="${f.id}" ${v ? 'checked' : ''} ${dis} style="width:22px;height:22px;"> I agree${f.required ? ' <span class="req">*</span>' : ''}</label></div>`;
     else if(f.type === 'yesno' || f.type === 'choice') inp = (f.type === 'yesno' ? ['Yes', 'No'] : f.options).map(o => `<label class="fb-opt"><input type="radio" name="fq-${f.id}" data-fid="${f.id}" value="${escapeCm(o)}" ${v === o ? 'checked' : ''} ${dis} style="width:20px;height:20px;"> ${escapeCm(o)}</label>`).join('');
     else if(f.type === 'multi') inp = f.options.map(o => `<label class="fb-opt"><input type="checkbox" data-fid="${f.id}" value="${escapeCm(o)}" ${(v || []).includes(o) ? 'checked' : ''} ${dis} style="width:20px;height:20px;"> ${escapeCm(o)}</label>`).join('');
     else inp = `<input class="fb-in" data-fid="${f.id}" type="text" maxlength="200" value="${escapeCm(v || '')}" ${dis}>`;
@@ -6907,7 +6926,8 @@ function calFormCollect(box, form){
   const out = {};
   form.fields.forEach(f => {
     const els = [...box.querySelectorAll(`[data-fid="${f.id}"]`)];
-    if(f.type === 'multi') out[f.id] = els.filter(e => e.checked).map(e => e.value);
+    if(f.type === 'agree') out[f.id] = els[0] && els[0].checked ? 'yes' : '';
+    else if(f.type === 'multi') out[f.id] = els.filter(e => e.checked).map(e => e.value);
     else if(f.type === 'yesno' || f.type === 'choice'){ const c = els.find(e => e.checked); out[f.id] = c ? c.value : ''; }
     else if(f.type === 'location'){ const raw = els[0] ? els[0].value : ''; let o = ''; try { o = raw ? JSON.parse(raw) : ''; } catch {} out[f.id] = o; }
     else out[f.id] = els[0] ? els[0].value : '';
@@ -6917,6 +6937,12 @@ function calFormCollect(box, form){
 // Every form has its own link people can copy and share; opening it goes straight to the form.
 // The page's address becomes the readable link (an old random-id link is swapped for it once the event has loaded).
 function calUpgradeUrl(d){ if(d && d.slug && state.tab === 'eventform' && state.formEventId !== d.slug){ state.formEventId = d.slug; try{ history.replaceState(null, '', location.pathname + location.search + '#/form/' + encodeURIComponent(d.slug)); }catch(e){} } }
+function calMsgBtnHtml(d, past){ // "Message an organizer" events: no sign-up in the app, just a button that opens WhatsApp / phone / email
+  if(past) return '<p class="av-msg" style="margin:8px 0 0;">This event has already happened.</p>';
+  const u = String(d.contactUrl || ''), wa = /wa\.me|whatsapp/i.test(u), lbl = wa ? '💬 Message the organizer on WhatsApp' : /^mailto:/i.test(u) ? '✉️ Email the organizer' : /^tel:/i.test(u) ? '📞 Call the organizer' : '💬 Message the organizer';
+  const href = wa && !/[?&]text=/.test(u) ? u + (u.includes('?') ? '&' : '?') + 'text=' + encodeURIComponent(`Salam! I'd like to join "${d.title}" (${ideaLongDate(d.date)}) 🌸`) : u;
+  return `<a class="club-guide-btn" href="${escapeCm(href)}" target="_blank" rel="noopener" style="display:block;box-sizing:border-box;width:100%;min-height:50px;line-height:28px;text-align:center;text-decoration:none;background:${wa ? '#25a244' : 'var(--brand-rose)'};color:#fff;border-color:${wa ? '#1c7a33' : 'var(--brand-brown)'};">${lbl}</a><p class="ideas-hint" style="margin:6px 0 0;">To join, message the organizer — they'll sort out your spot.</p>`;
+}
 function calFormUrl(id){ return location.origin + '/#/form/' + encodeURIComponent(id); }
 // Big events: "12 of 40 spots left" / "Full — join the waitlist"
 function calSpotsHtml(d){
@@ -7159,6 +7185,12 @@ function calBlocksHtml(d){
       return `<div style="margin:12px 0;text-align:${['left', 'right'].includes(b.align) ? b.align : 'center'};"><a href="${escapeCm(u)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 24px;min-height:24px;border-radius:999px;font-weight:800;text-decoration:none;border:2px solid ${acc};background:${solid ? acc : 'transparent'};color:${solid ? '#fff' : acc};">${escapeCm(b.label)}</a></div>`;
     }
     if(b.type === 'video' && /^[\w-]{11}$/.test(b.vid || '')) return `<div style="margin:12px 0;"><iframe title="Video" src="https://www.youtube-nocookie.com/embed/${b.vid}" loading="lazy" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="width:100%;aspect-ratio:16/9;border:0;border-radius:12px;display:block;"></iframe>${b.caption ? `<div style="font-size:13px;color:#776867;margin-top:4px;">${escapeCm(b.caption)}</div>` : ''}</div>`;
+    if(b.type === 'photos'){
+      const im = id => `<img src="/api/cal-img/${encodeURIComponent(id)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:14px;display:block;">`, ids = (b.imgs || []).filter(Boolean); if(!ids.length) return '';
+      if(b.layout === 'side') return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0;">${ids.map(id => `<div style="aspect-ratio:1/1;">${im(id)}</div>`).join('')}</div>`;
+      if(b.layout === 'stack') return `<div style="display:flex;flex-direction:column;gap:8px;margin:12px 0;">${ids.map(id => `<img src="/api/cal-img/${encodeURIComponent(id)}" alt="" loading="lazy" style="width:100%;border-radius:14px;display:block;">`).join('')}</div>`;
+      return `<div style="margin:12px 0;"><img src="/api/cal-img/${encodeURIComponent(ids[0])}" alt="" loading="lazy" style="width:100%;border-radius:14px;display:block;"></div>`;
+    }
     if(b.type === 'divider') return `<hr style="border:0;border-top:2px solid ${acc};opacity:.35;margin:16px 0;">`;
     return '';
   }).join('');
@@ -7718,7 +7750,7 @@ async function mountClubCalPlace(wrap){
 }
 // ================= The one-page event editor: everything about an event (hosts, details, cover/text/photos, sign-up form, who's going, sharing) in ONE scrolling page, in the same order as the page people see. =================
 // mode 'admin': a main admin / club admin (new or existing event).  mode 'link': someone with the private edit link (content only, no clubs / spots / payment).
-function calPageEditor(ev, opts){
+function calPageEditorOld(ev, opts){
   opts = opts || {};
   const link = opts.mode === 'link', isNew = !ev, clubs = typeof clubsData !== 'undefined' ? clubsData : [];
   const inline = !!opts.into;
@@ -7890,6 +7922,358 @@ function calPageEditor(ev, opts){
   return { close };
 }
 // Old name, kept so every "Add / Edit event" button opens the new one-page editor.
+// ✂️ Photo cropper: pick the shape, zoom, drag, and choose how much to compress. Resolves to a JPEG blob (≤ ~880 KB) or null.
+function calCropper(src, opts){
+  opts = opts || {};
+  return new Promise(resolve => {
+    const img = new Image(), url = src instanceof Blob ? URL.createObjectURL(src) : String(src);
+    img.onload = () => {
+      const AS = [['free', 'Original'], ['1', 'Square'], ['1.3333', '4:3'], ['1.7778', '16:9'], ['0.75', 'Tall 3:4']];
+      const QS = [['hi', 'Sharp', 1600, .88], ['mid', 'Balanced', 1200, .8], ['lo', 'Small file', 800, .7]];
+      let asp = opts.aspect || 'free', qk = 'mid', zoom = 1, ox = 0, oy = 0;
+      const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 8px;">✂️ Crop your photo</h3>
+        <div class="fb-row" style="flex-wrap:wrap;gap:6px;margin-bottom:8px;">${AS.map(([k, t]) => `<button type="button" class="filter-chip crA" data-a="${k}">${t}</button>`).join('')}</div>
+        <div style="background:#2b2b2b;border-radius:12px;padding:8px;display:flex;justify-content:center;"><canvas class="crCv" style="max-width:100%;touch-action:none;cursor:grab;border-radius:6px;"></canvas></div>
+        <label style="display:flex;align-items:center;gap:10px;margin:10px 0 4px;font-weight:700;font-size:14px;">🔍 Zoom <input type="range" class="crZ" min="1" max="4" step="0.01" value="1" style="flex:1;"></label>
+        <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">Drag the photo to move it inside the frame.</p>
+        <div style="font-weight:700;font-size:14px;margin:6px 0 4px;">📦 Compress</div>
+        <div class="fb-row" style="flex-wrap:wrap;gap:6px;">${QS.map(([k, t]) => `<button type="button" class="filter-chip crQ" data-q="${k}">${t}</button>`).join('')}</div>
+        <div class="crInfo ideas-hint" style="text-align:left;margin:6px 0 0;"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;"><button type="button" class="club-guide-btn crNo" style="flex:1;text-align:center;">Cancel</button><button type="button" class="club-guide-btn crOk" style="flex:2;text-align:center;background:var(--brand-rose);color:#fff;">✓ Use this photo</button></div>`);
+      const cv = wrap.querySelector('.crCv'), cx = cv.getContext('2d');
+      let done = false; const finish = v => { if(done) return; done = true; if(src instanceof Blob) URL.revokeObjectURL(url); close(); resolve(v); };
+      wrap.addEventListener('click', e => { if(e.target === wrap || e.target.closest('.mem-pop-close')) finish(null); }, true);
+      const ratio = () => asp === 'free' ? img.width / img.height : Number(asp);
+      const size = () => { const W = Math.min(560, (wrap.querySelector('.mem-pop-card').clientWidth || 360) - 60); const r = ratio(); let w = W, h = W / r; if(h > 420){ h = 420; w = h * r; } cv.width = Math.round(w); cv.height = Math.round(h); };
+      const base = () => Math.max(cv.width / img.width, cv.height / img.height);
+      const clamp = () => { const s = base() * zoom, iw = img.width * s, ih = img.height * s; ox = Math.min(0, Math.max(cv.width - iw, ox)); oy = Math.min(0, Math.max(cv.height - ih, oy)); };
+      const draw = () => { clamp(); const s = base() * zoom; cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(img, ox, oy, img.width * s, img.height * s);
+        const q = QS.find(x => x[0] === qk), sw = cv.width / s, outW = Math.round(Math.min(q[2], sw)); wrap.querySelector('.crInfo').textContent = `Saved about ${outW} × ${Math.round(outW / ratio())} px.`;
+        wrap.querySelectorAll('.crA').forEach(b => b.classList.toggle('active', b.dataset.a === asp)); wrap.querySelectorAll('.crQ').forEach(b => b.classList.toggle('active', b.dataset.q === qk)); };
+      const reset = () => { size(); zoom = 1; wrap.querySelector('.crZ').value = 1; const s = base(); ox = (cv.width - img.width * s) / 2; oy = (cv.height - img.height * s) / 2; draw(); };
+      wrap.querySelectorAll('.crA').forEach(b => b.addEventListener('click', () => { asp = b.dataset.a; reset(); }));
+      wrap.querySelectorAll('.crQ').forEach(b => b.addEventListener('click', () => { qk = b.dataset.q; draw(); }));
+      wrap.querySelector('.crZ').addEventListener('input', e => { const s0 = base() * zoom, cxm = cv.width / 2, cym = cv.height / 2, ix = (cxm - ox) / s0, iy = (cym - oy) / s0; zoom = Number(e.target.value); const s1 = base() * zoom; ox = cxm - ix * s1; oy = cym - iy * s1; draw(); });
+      let drag = null;
+      cv.addEventListener('pointerdown', e => { e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch {} const r = cv.getBoundingClientRect(); drag = { x: e.clientX, y: e.clientY, ox, oy, k: cv.width / r.width }; cv.style.cursor = 'grabbing'; });
+      cv.addEventListener('pointermove', e => { if(!drag) return; ox = drag.ox + (e.clientX - drag.x) * drag.k; oy = drag.oy + (e.clientY - drag.y) * drag.k; draw(); });
+      const up = () => { drag = null; cv.style.cursor = 'grab'; }; cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+      wrap.querySelector('.crNo').addEventListener('click', () => finish(null));
+      wrap.querySelector('.crOk').addEventListener('click', async e => {
+        e.target.disabled = true; e.target.textContent = 'Preparing…';
+        const s = base() * zoom, sx = -ox / s, sy = -oy / s, sw = cv.width / s, sh = cv.height / s, q = QS.find(x => x[0] === qk);
+        let maxW = q[2], qual = q[3], blob = null;
+        for(let i = 0; i < 8; i++){
+          const outW = Math.max(1, Math.round(Math.min(maxW, sw))), outH = Math.max(1, Math.round(outW * sh / sw)), o = document.createElement('canvas'); o.width = outW; o.height = outH;
+          const ox2 = o.getContext('2d'); ox2.fillStyle = '#fff'; ox2.fillRect(0, 0, outW, outH); ox2.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
+          blob = await new Promise(r => o.toBlob(r, 'image/jpeg', qual));
+          if(blob && blob.size <= 880000) break; maxW = Math.round(maxW * .8); qual = Math.max(.55, qual - .06);
+        }
+        finish(blob);
+      });
+      reset();
+    };
+    img.onerror = () => { if(src instanceof Blob) URL.revokeObjectURL(url); alert("That file couldn't be opened as a photo — try a JPG or PNG."); resolve(null); };
+    img.src = url;
+  });
+}
+async function calUploadBlob(blob, ctx){
+  const r = await fetch('/api/admin/club-cal/image' + (ctx && ctx.evId ? '?ev=' + encodeURIComponent(ctx.evId) : ''), { method:'POST', credentials:'include', headers:{ 'Content-Type': blob.type || 'image/jpeg' }, body: blob });
+  const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || 'Upload failed'); return j.id;
+}
+async function calTermsLoad(force){
+  if(state.calTerms && !force) return state.calTerms;
+  try { const j = await fetch('/api/cal-terms', { cache:'no-store' }).then(r => r.json()); state.calTerms = Array.isArray(j.terms) ? j.terms : []; } catch { state.calTerms = state.calTerms || []; }
+  return state.calTerms;
+}
+// The terms every 4DS event's sign-up includes. Saving can also put them on every upcoming event right away.
+function calTermsEditor(onSaved){
+  const cur = (state.calTerms || []).slice(); while(cur.length < 3) cur.push('');
+  const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 4px;">📜 Terms for every event</h3><p class="ideas-hint" style="text-align:left;margin:0 0 10px;">Everyone ticks “I agree” to each of these before signing up to any 4DS event. Each event can add more of its own.</p>
+    <div class="tmList"></div><button type="button" class="fb-mini tmAdd">➕ Add another</button>
+    <label style="display:flex;gap:8px;align-items:flex-start;margin:12px 0 0;font-size:14px;"><input type="checkbox" class="tmAll" checked style="width:22px;height:22px;flex:none;"> <span>Also update every <b>upcoming</b> 4DS event now<br><small style="color:#776867;">(otherwise each event picks them up the next time you save it)</small></span></label>
+    <div class="tmMsg" style="font-size:14px;min-height:18px;margin-top:8px;"></div>
+    <button type="button" class="club-guide-btn tmSave" style="width:100%;margin-top:6px;text-align:center;background:var(--brand-rose);color:#fff;min-height:48px;">💾 Save terms</button>`);
+  const list = wrap.querySelector('.tmList');
+  const paint = () => { list.innerHTML = cur.map((t, i) => `<div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:8px;"><b style="padding-top:10px;">${i + 1}.</b><textarea class="tmT" data-i="${i}" rows="3" maxlength="1000" placeholder="e.g. I understand 4DS is not responsible for injuries during the activity." style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;">${escapeCm(t)}</textarea><button type="button" class="fb-mini tmX" data-i="${i}" aria-label="Remove">✕</button></div>`).join('');
+    list.querySelectorAll('.tmT').forEach(el => el.addEventListener('input', () => { cur[Number(el.dataset.i)] = el.value; }));
+    list.querySelectorAll('.tmX').forEach(el => el.addEventListener('click', () => { cur.splice(Number(el.dataset.i), 1); paint(); })); };
+  paint();
+  wrap.querySelector('.tmAdd').addEventListener('click', () => { cur.push(''); paint(); });
+  wrap.querySelector('.tmSave').addEventListener('click', async e => {
+    const m = wrap.querySelector('.tmMsg'), terms = cur.map(t => t.trim()).filter(Boolean); e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Saving…';
+    try {
+      const r = await fetch('/api/admin/club-cal-terms', { method:'PUT', credentials:'include', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ terms }) }); const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || 'Could not save');
+      state.calTerms = j.terms;
+      if(wrap.querySelector('.tmAll').checked){
+        if(!state.clubCal || !state.clubCalIsAdminData) await clubCalLoad(true);
+        const today = new Date().toISOString().slice(0, 10), evs = (state.clubCal || []).filter(x => !String(x.id).startsWith('idea:') && (x.tbd || x.date >= today) && x.signup !== 'msg');
+        let n = 0;
+        for(const x of evs){ m.textContent = `Updating events… ${n + 1} of ${evs.length}`; const form = calFormWithTerms(x.form, j.terms); try { await clubCalAdminCall('/' + encodeURIComponent(x.id), 'PUT', { form }); n++; } catch {} }
+        clubCalReload(); m.style.color = '#2a7a4a'; m.textContent = `✅ Saved, and ${n} upcoming event${n === 1 ? '' : 's'} updated.`;
+      } else { m.style.color = '#2a7a4a'; m.textContent = '✅ Saved.'; }
+      if(onSaved) onSaved(j.terms); setTimeout(close, 900);
+    } catch(err){ e.target.disabled = false; m.style.color = '#c00'; m.textContent = err.message; }
+  });
+}
+// The form's questions + the terms (every event's + this event's own) + a signature at the end.
+const CAL_TERM_ID = f => /^(gtrm|etrm)/.test(f.id) || f.id === 'esign';
+function calFormWithTerms(form, globalTerms, evTerms, payment, keepPayment){
+  const qs = (form && form.fields || []).filter(f => !CAL_TERM_ID(f));
+  const own = evTerms !== undefined ? evTerms : (form && form.fields || []).filter(f => /^etrm/.test(f.id)).map(f => f.label);
+  const terms = [...(globalTerms || []).map((t, i) => ({ id: 'gtrm' + i, type: 'agree', label: t, required: true })), ...own.filter(t => String(t).trim()).map((t, i) => ({ id: 'etrm' + i, type: 'agree', label: String(t).trim(), required: true }))];
+  const pay = payment !== undefined ? payment : (form && form.payment);
+  if(!qs.length && !terms.length && !pay) return null;
+  const fields = qs.concat(terms, terms.length || qs.length || pay ? [{ id: 'esign', type: 'signature', label: '✍️ Sign here (draw your signature)', required: true }] : []);
+  const out = { title: (form && form.title) || 'Sign-up form', intro: '', fields }; if(pay) out.payment = pay; return out;
+}
+// ---- THE event editor: one page, the same for every 4DS event (new or existing, from anywhere) ----
+function calEventEditor(ev, opts){
+  opts = opts || {};
+  const isNew = !ev, inline = !!opts.into, clubs = typeof clubsData !== 'undefined' ? clubsData : [];
+  const host = inline ? opts.into : document.createElement('div');
+  if(!inline){ host.className = 'fb-page'; document.body.appendChild(host); }
+  const prevOv = document.body.style.overflow; if(!inline) document.body.style.overflow = 'hidden';
+  let dirty = false, saving = false;
+  const nid = () => Math.random().toString(36).slice(2, 10), upCtx = { evId: ev ? ev.id : '' };
+  const F = 'width:100%;padding:11px 12px;margin-bottom:8px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;font-family:inherit;background:#fff;';
+  const lab = t => `<label style="display:block;font-size:13px;font-weight:700;color:#776867;margin:0 0 3px;">${t}</label>`;
+  // ---- what we're editing ----
+  const oldIds = ev ? ((ev.clubIds && ev.clubIds.length) ? ev.clubIds : [ev.clubId]).filter(Boolean) : [];
+  const hid = new Set(((ev && ev.hosts) || []).filter(h => h.club && h.hide).map(h => h.club));
+  const sel = new Set(oldIds.filter(id => !hid.has(id)));
+  if(isNew){ const own = (typeof adminClubs === 'function' ? adminClubs() : []).map(c => c.id); if(state.cmLead && own.length === 1) sel.add(own[0]); }
+  let noHost = !isNew && !sel.size;
+  const orgs = ((ev && ev.hosts) || []).filter(h => !h.club).map(h => ({ id: h.id || nid(), name: h.name || '', link: h.link || '', logo: h.logo || '' }));
+  const allBlocks = (ev && ev.blocks) || [];
+  let oldBlocks = allBlocks.filter(b => b.type !== 'photos' && !(b.type === 'image' && b.img));
+  const groups = allBlocks.filter(b => b.type === 'photos' || (b.type === 'image' && b.img)).map(b => b.type === 'photos' ? { id: b.id, layout: b.layout, imgs: b.imgs.slice() } : { id: b.id, layout: 'one', imgs: [b.img] });
+  const orig = {}; // uploaded photo id -> the original file (so it can be re-cropped from full size)
+  const form0 = ev && ev.form;
+  const qs = form0 ? form0.fields.filter(f => !CAL_TERM_ID(f)).map(f => ({ ...f, options: f.options ? f.options.slice() : undefined })) : [];
+  const evTerms = form0 ? form0.fields.filter(f => /^etrm/.test(f.id)).map(f => f.label) : [];
+  let mode = ev && ev.signup === 'msg' ? 'msg' : (form0 && form0.payment ? 'pay' : 'one');
+  const pay = form0 && form0.payment ? JSON.parse(JSON.stringify(form0.payment)) : { amount:'', link:'', note:'', addons:[] };
+  pay.addons = pay.addons || [];
+  let gTerms = state.calTerms || [];
+  const SEC = [['eeDetails', '📌 Details'], ['eePhotos', '🖼 Photos'], ['eeHosts', '🤝 Hosts'], ['eeSignup', '✋ Sign-up'], ['eeQs', '📝 Questions'], ['eeTerms', '📜 Terms'], ['eePage', '🔗 Page']];
+  const sec = (n, id, title, help, inner) => `<div class="pgSec ee-sec" id="${id}"><div class="ee-h"><span class="ee-n">${n}</span><h3>${title}</h3></div>${help ? `<p class="ideas-hint" style="text-align:left;margin:0 0 10px;">${help}</p>` : ''}${inner}</div>`;
+  const details = `${lab('Event name')}<input id="cfTitle" type="text" maxlength="80" placeholder="e.g. Pottery night" value="${escapeCm(ev ? ev.title : '')}" style="${F}">
+    <div class="ee-2"><div>${lab('Date')}<input id="cfDate" type="date" value="${escapeCm(ev && !ev.tbd ? ev.date : (opts.presetDate || ''))}" style="${F}"></div><div>${lab('Time (optional)')}<input id="cfTime" type="text" maxlength="30" placeholder="e.g. 6:30 – 9 PM" value="${escapeCm(ev ? ev.time : '')}" style="${F}"></div></div>
+    <label class="ee-chk"><input type="checkbox" id="cfTbd" ${ev && ev.tbd ? 'checked' : ''}> 🕒 Date to be decided</label>
+    ${lab('Location')}<input id="cfPlace" type="hidden" value="${escapeCm(ev ? ev.place : '')}"><div id="cfPlaceSlot"></div><div id="cfPlaceChosen" class="ev-loc-chosen${ev && ev.place ? '' : ' empty'}" style="margin:0 0 8px;">${ev && ev.place ? '📍 ' + escapeCm(ev.place) : 'No place chosen yet'}</div>
+    ${lab('Google Maps link (optional — pins the exact spot)')}<input id="cfMap" type="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Google Maps → Share → Copy link" value="${escapeCm(ev ? (ev.mapUrl || '') : '')}" style="${F}">
+    <label class="ee-chk"><input type="checkbox" id="cfPlacePriv" ${ev && ev.placePrivate ? 'checked' : ''}> 🔒 Only people who signed up can see the location</label>
+    <details style="margin:4px 0 0;"><summary style="cursor:pointer;font-weight:700;font-size:14px;padding:6px 0;">🔁 Repeat this event (optional)</summary><div style="margin:0 0 8px;padding:10px;border-radius:12px;border:2px dashed #f2d8d7;background:#fef7f4;">${lab(isNew ? 'Repeat' : 'Also put this event on more dates (copies with their own sign-ups)')}<select id="cfRepeat" style="${F}"><option value="">${isNew ? 'Just once' : 'No extra dates'}</option><option value="w1">Every week</option><option value="w2">Every 2 weeks</option><option value="m1">Same date every month</option><option value="pick">On dates I pick</option></select>
+      <div id="cfRepEnd" hidden>${lab('Until (last date)')}<input id="cfRepUntil" type="date" style="${F}"></div>
+      <div id="cfRepPick" hidden>${lab('Add more dates')}<div style="display:flex;gap:6px;"><input id="cfRepDate" type="date" style="${F}flex:1;min-width:0;"><button type="button" class="fb-mini" id="cfRepAdd" style="flex:0 0 auto;margin-bottom:8px;">➕ Add</button></div><div id="cfRepChips" style="display:flex;flex-wrap:wrap;gap:6px;"></div></div>
+      <div id="cfRepNote" class="ideas-hint" style="text-align:left;margin:6px 0 0;"></div></div></details>`;
+  const pageSec = `${lab('Page address')}<div style="display:flex;align-items:center;gap:0;border:2px solid var(--brand-brown);border-radius:10px;background:#fff;overflow:hidden;margin-bottom:8px;"><span style="padding:11px 0 11px 12px;color:#776867;font-size:15px;white-space:nowrap;">4dasistas.ca/#/form/</span><input id="eeSlug" type="text" maxlength="50" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="${isNew ? 'made from the name' : ''}" value="${escapeCm(ev ? (ev.slug || '') : '')}" style="flex:1;min-width:0;border:none;padding:11px 12px 11px 2px;font-size:16px;font-family:inherit;outline:none;"></div>
+    ${ev ? `<div class="fb-row" style="margin-bottom:10px;"><button type="button" class="fb-mini" id="eeCopy">📋 Copy link</button><a class="fb-mini" href="/#/form/${escapeCm(encodeURIComponent(ev.slug || ev.id))}" target="_blank" rel="noopener" style="text-decoration:none;">🌐 Open the page</a></div>` : ''}
+    ${lab('Description')}<textarea id="eeDesc" rows="7" maxlength="3000" placeholder="What it is, what to bring, where to meet…" style="${F}resize:vertical;">${escapeCm(ev ? (ev.desc || '') : '')}</textarea>`;
+  let n = 0;
+  host.innerHTML = `<div class="${inline ? '' : 'fb-wrap'} pgEd ee">
+    <div class="pgBar"><div style="display:flex;gap:8px;align-items:center;">${inline ? '' : '<button type="button" class="fb-mini" id="pgClose">✕ Close</button>'}<strong style="flex:1;min-width:0;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${isNew ? '➕ New event' : '✏️ ' + escapeCm(ev.title)}</strong><button type="button" class="fb-mini" id="pgPreview">👁 Preview</button><button type="button" class="club-guide-btn" id="pgSave" style="padding:8px 18px;text-align:center;background:var(--brand-rose);color:#fff;">💾 Save</button></div>
+      <div class="pgJump">${SEC.map(j => `<button type="button" class="pgJ" data-t="${j[0]}">${j[1]}</button>`).join('')}</div><div id="pgMsg" style="font-size:14px;min-height:0;"></div></div>
+    ${sec(++n, 'eeDetails', 'Details', '', details)}
+    ${sec(++n, 'eePhotos', 'Photos', 'Pick a layout, then tap a box to add its photo. You can crop and compress each one.', '<div id="eePh"></div>')}
+    ${sec(++n, 'eeHosts', 'Who’s hosting', 'Tap the clubs hosting it (more than one for a collab), ✕ for no host, or ＋ to add an outside organization.', '<div id="eeHo"></div>')}
+    ${sec(++n, 'eeSignup', 'How people sign up', '', '<div id="eeSu"></div>')}
+    ${sec(++n, 'eeQs', 'Questions', 'Pick from the menu to add a question to the form.', '<div id="eeQ"></div>')}
+    ${sec(++n, 'eeTerms', 'Terms &amp; signature', '', '<div id="eeTe"></div>')}
+    ${sec(++n, 'eePage', 'Public page', '', pageSec)}
+    <input type="file" id="eeFile" accept="image/*" hidden><div style="height:28px;"></div></div>`;
+  const q = s => host.querySelector(s), val = s => (q(s) || {}).value;
+  const say = (t, ok) => { const m = q('#pgMsg'); m.textContent = t || ''; m.style.cssText = t ? `padding:6px 2px;font-weight:700;color:${ok ? '#2a7a4a' : '#b3261e'};` : 'min-height:0;'; };
+  const touch = () => { dirty = true; };
+  // ---- 🤝 hosts ----
+  const circ = (inner, on, extra) => `<span class="ee-ci${on ? ' on' : ''}" ${extra || ''}>${inner}</span>`;
+  const clubFace = c => c.logo ? `<img src="${escapeCm(c.logo)}" alt="">` : escapeCm(c.emoji || (c.title || '?').charAt(0));
+  const paintHosts = () => {
+    q('#eeHo').innerHTML = `<div class="ee-circles">${clubs.map(c => `<button type="button" class="ee-c" data-club="${escapeCm(c.id)}" aria-pressed="${sel.has(c.id)}">${circ(clubFace(c), sel.has(c.id))}<span class="ee-cn">${escapeCm(c.title)}</span></button>`).join('')}
+      <button type="button" class="ee-c" data-none aria-pressed="${noHost}">${circ('✕', noHost, 'style="font-size:26px;color:#b3261e;"')}<span class="ee-cn">No host</span></button>
+      <button type="button" class="ee-c" data-addorg>${circ('＋', false, 'style="font-size:30px;border-style:dashed;"')}<span class="ee-cn">Outside organization</span></button></div>
+      ${orgs.map((o, i) => `<div class="fb-card ee-org" data-o="${i}"><div style="display:flex;gap:12px;align-items:center;"><button type="button" class="ee-c ee-orgLogo" data-o="${i}" title="Upload logo">${circ(o.logo ? `<img src="/api/cal-img/${encodeURIComponent(o.logo)}" alt="">` : '📷', !!o.logo)}<span class="ee-cn">${o.logo ? 'Change logo' : 'Upload logo'}</span></button>
+        <div style="flex:1;min-width:0;"><input class="eeOrgN" data-o="${i}" maxlength="60" placeholder="Organization name" value="${escapeCm(o.name)}" style="${F}"><input class="eeOrgL" data-o="${i}" type="url" inputmode="url" autocapitalize="none" placeholder="Link (website, Instagram…) https://…" value="${escapeCm(o.link)}" style="${F}margin-bottom:0;"></div>
+        <button type="button" class="fb-mini eeOrgX" data-o="${i}" aria-label="Remove" style="background:#fdecea;">🗑</button></div></div>`).join('')}
+      <div class="ee-hprev">${calHostsHtml({ clubIds: [...sel], hosts: [...[...sel].map(id => ({ id: 'c-' + id, club: id })), ...orgs.filter(o => o.name)] }) || '<p class="ideas-hint" style="margin:0;">No host logos will show on the page.</p>'}</div>`;
+  };
+  q('#eeHo').addEventListener('click', e => {
+    const b = e.target.closest('.ee-c'); if(!b) return; touch();
+    if(b.dataset.club){ const id = b.dataset.club; if(sel.has(id)) sel.delete(id); else sel.add(id); noHost = false; }
+    else if(b.hasAttribute('data-none')){ noHost = !noHost; if(noHost) sel.clear(); }
+    else if(b.hasAttribute('data-addorg')){ orgs.push({ id: nid(), name:'', link:'', logo:'' }); paintHosts(); const ins = host.querySelectorAll('.eeOrgN'); if(ins.length) ins[ins.length - 1].focus(); return; }
+    else if(b.classList.contains('ee-orgLogo')){ pickPhoto(async file => { const blob = await calCropper(file, { aspect:'1' }); if(!blob) return; say('Uploading…', true); try { orgs[Number(b.dataset.o)].logo = await calUploadBlob(blob, upCtx); say(''); } catch(err){ say(err.message); } paintHosts(); }); return; }
+    paintHosts();
+  });
+  q('#eeHo').addEventListener('click', e => { const x = e.target.closest('.eeOrgX'); if(x){ orgs.splice(Number(x.dataset.o), 1); touch(); paintHosts(); } });
+  q('#eeHo').addEventListener('input', e => { const i = Number(e.target.dataset.o); if(e.target.classList.contains('eeOrgN')) orgs[i].name = e.target.value; else if(e.target.classList.contains('eeOrgL')) orgs[i].link = e.target.value.trim(); else return; const pv = q('.ee-hprev'); if(pv) pv.innerHTML = calHostsHtml({ clubIds: [...sel], hosts: [...[...sel].map(id => ({ id: 'c-' + id, club: id })), ...orgs.filter(o => o.name)] }); });
+  // ---- 🖼 photos ----
+  const fileIn = q('#eeFile'); let onFile = null;
+  const pickPhoto = cb => { onFile = cb; fileIn.value = ''; fileIn.click(); };
+  fileIn.addEventListener('change', () => { const f = fileIn.files[0]; if(f && onFile) onFile(f); });
+  const LAY = [['one', 'One large', 1], ['side', 'Side by side', 2], ['stack', 'One above the other', 2]];
+  const layIcon = k => k === 'one' ? '<span class="ee-li"><i style="flex:1;"></i></span>' : k === 'side' ? '<span class="ee-li"><i></i><i></i></span>' : '<span class="ee-li" style="flex-direction:column;"><i></i><i></i></span>';
+  const paintPhotos = () => {
+    q('#eePh').innerHTML = `<div class="ee-lays">${LAY.map(([k, t]) => `<button type="button" class="ee-lay" data-lay="${k}">${layIcon(k)}<span>${t}</span></button>`).join('')}</div>
+      ${groups.map((g, gi) => { const L = LAY.find(x => x[0] === g.layout) || LAY[0]; const slots = []; for(let si = 0; si < L[2]; si++) slots.push(g.imgs[si] || ''); return `<div class="fb-card ee-grp"><div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;"><b style="flex:1;">${layIcon(g.layout)} ${L[1]}</b><button type="button" class="fb-mini eeGUp" data-g="${gi}" ${gi === 0 ? 'disabled' : ''}>▲</button><button type="button" class="fb-mini eeGDn" data-g="${gi}" ${gi === groups.length - 1 ? 'disabled' : ''}>▼</button><button type="button" class="fb-mini eeGX" data-g="${gi}" style="background:#fdecea;">🗑</button></div>
+        <div class="ee-slots ee-${g.layout}">${slots.map((id, si) => id ? `<div class="ee-slot has"><img src="/api/cal-img/${encodeURIComponent(id)}" alt=""><div class="ee-slotbar"><button type="button" class="fb-mini eeCrop" data-g="${gi}" data-s="${si}">✂️ Crop</button><button type="button" class="fb-mini eeRep" data-g="${gi}" data-s="${si}">🔄 Replace</button><button type="button" class="fb-mini eeDel" data-g="${gi}" data-s="${si}">✕</button></div></div>` : `<button type="button" class="ee-slot eeAdd" data-g="${gi}" data-s="${si}"><span style="font-size:30px;">📷</span><span>Tap to add a photo</span></button>`).join('')}</div></div>`; }).join('')}
+      ${oldBlocks.length ? `<div class="fb-card" style="background:#fff8e1;"><p style="margin:0 0 6px;font-size:14px;">This page still has ${oldBlocks.length} older section${oldBlocks.length === 1 ? '' : 's'} (text / map / button / video) from the old editor. They still show on the page.</p><button type="button" class="fb-mini" id="eeOldX">🗑 Remove them</button></div>` : ''}`;
+  };
+  const upTo = async (gi, si, src) => { const blob = await calCropper(src); if(!blob) return; say('Uploading photo…', true); try { const id = await calUploadBlob(blob, upCtx); if(src instanceof Blob) orig[id] = src; else if(orig[groups[gi].imgs[si]]) orig[id] = orig[groups[gi].imgs[si]]; groups[gi].imgs[si] = id; touch(); say(''); } catch(err){ say(err.message); } paintPhotos(); };
+  q('#eePh').addEventListener('click', e => {
+    const t = e.target.closest('button'); if(!t) return; const gi = Number(t.dataset.g), si = Number(t.dataset.s);
+    if(t.dataset.lay){ groups.push({ id: nid(), layout: t.dataset.lay, imgs: [] }); touch(); paintPhotos(); const sl = host.querySelectorAll('.eeAdd'); if(sl.length) sl[sl.length - (t.dataset.lay === 'one' ? 1 : 2)].scrollIntoView({ block:'center', behavior:'smooth' }); return; }
+    if(t.classList.contains('eeAdd') || t.classList.contains('eeRep')) return pickPhoto(f => upTo(gi, si, f));
+    if(t.classList.contains('eeCrop')){ const id = groups[gi].imgs[si]; return upTo(gi, si, orig[id] || '/api/cal-img/' + encodeURIComponent(id)); }
+    if(t.classList.contains('eeDel')){ groups[gi].imgs[si] = ''; touch(); return paintPhotos(); }
+    if(t.classList.contains('eeGX')){ if(groups[gi].imgs.some(Boolean) && !confirm('Remove this photo layout?')) return; groups.splice(gi, 1); touch(); return paintPhotos(); }
+    if(t.classList.contains('eeGUp')){ [groups[gi - 1], groups[gi]] = [groups[gi], groups[gi - 1]]; touch(); return paintPhotos(); }
+    if(t.classList.contains('eeGDn')){ [groups[gi + 1], groups[gi]] = [groups[gi], groups[gi + 1]]; touch(); return paintPhotos(); }
+    if(t.id === 'eeOldX'){ if(confirm('Remove the older text / map / button sections from this page?')){ oldBlocks = []; touch(); paintPhotos(); } }
+  });
+  // ---- ✋ sign-up ----
+  const MODES = [['one', '⚡', 'One click', 'They tap “Count me in” (plus the terms and signature).'], ['pay', '💳', 'Pay', 'They pay to sign up — card / Apple Pay, or your link / e-Transfer.'], ['msg', '💬', 'Message an organizer', 'No sign-up on the site — a button opens WhatsApp / phone / email.']];
+  const paintSignup = () => {
+    q('#eeSu').innerHTML = `<div class="ee-modes">${MODES.map(([k, ic, t, h]) => `<button type="button" class="ee-mode${mode === k ? ' on' : ''}" data-mode="${k}"><span style="font-size:26px;">${ic}</span><b>${t}</b><small>${h}</small></button>`).join('')}</div>
+      ${mode === 'msg' ? `${lab('How do people reach the organizer?')}<input id="eeContact" maxlength="300" placeholder="WhatsApp number (e.g. 647 555 1234), a link, or an email" value="${escapeCm(ev && ev.contactUrl ? String(ev.contactUrl).replace(/^mailto:/, '') : '')}" style="${F}">` : `
+        <div class="ee-2"><div>${lab('Max spots (optional — then a waitlist)')}<input id="cfCap" type="number" inputmode="numeric" min="0" max="5000" placeholder="No limit" value="${ev && ev.capacity ? ev.capacity : ''}" style="${F}"></div><div>${lab('Sign-ups close on (optional)')}<input id="cfRsvpBy" type="date" value="${escapeCm(ev ? (ev.rsvpBy || '') : '')}" style="${F}"></div></div>
+        ${mode === 'pay' ? `<div class="fb-card" style="box-shadow:none;"><div class="ee-2"><div>${lab('Price')}<input id="eePAmt" maxlength="30" placeholder="e.g. $15" value="${escapeCm(pay.amount || '')}" style="${F}"></div><div>${lab('Payment')}<select id="eePReq" style="${F}"><option value="">Can sign up first, pay later</option><option value="1" ${pay.required ? 'selected' : ''}>Must pay to sign up</option></select></div></div>
+          ${lab('Payment link (optional — PayPal, Square…)')}<input id="eePLink" type="url" inputmode="url" autocapitalize="none" maxlength="500" placeholder="https://…" value="${escapeCm(pay.link || '')}" style="${F}">
+          ${lab('Other ways to pay (optional)')}<textarea id="eePNote" rows="2" maxlength="1000" placeholder="e.g. e-Transfer to pay@example.com with your name" style="${F}">${escapeCm(pay.note || '')}</textarea>
+          ${lab('Add-ons people can tick (optional)')}${pay.addons.map((a, i) => `<div style="display:flex;gap:6px;"><input class="eeAoL" data-i="${i}" maxlength="60" placeholder="e.g. T-shirt" value="${escapeCm(a.label || '')}" style="${F}flex:2;"><input class="eeAoP" data-i="${i}" type="number" min="0" step="0.01" placeholder="Price" value="${escapeCm(a.price === undefined ? '' : String(a.price))}" style="${F}flex:1;min-width:0;"><button type="button" class="fb-mini eeAoX" data-i="${i}" style="margin-bottom:8px;">✕</button></div>`).join('')}<button type="button" class="fb-mini" id="eeAoAdd">➕ Add an add-on</button></div>` : ''}`}`;
+    q('#eeQs').hidden = q('#eeTerms').hidden = mode === 'msg';
+  };
+  q('#eeSu').addEventListener('click', e => {
+    const m = e.target.closest('.ee-mode'); if(m){ syncPay(); mode = m.dataset.mode; touch(); paintSignup2(); return; }
+    if(e.target.id === 'eeAoAdd'){ syncPay(); pay.addons.push({ id: nid(), label:'', price:'' }); paintSignup2(); return; }
+    const x = e.target.closest('.eeAoX'); if(x){ syncPay(); pay.addons.splice(Number(x.dataset.i), 1); paintSignup2(); }
+  });
+  const syncPay = () => { if(!q('#eePAmt')) return; pay.amount = val('#eePAmt').trim(); pay.required = val('#eePReq') === '1'; pay.link = val('#eePLink').trim(); pay.note = val('#eePNote').trim(); host.querySelectorAll('.eeAoL').forEach(el => { pay.addons[Number(el.dataset.i)].label = el.value; }); host.querySelectorAll('.eeAoP').forEach(el => { pay.addons[Number(el.dataset.i)].price = el.value; }); };
+  // keep spots / close date / contact when the mode is switched
+  let keepCap = ev && ev.capacity ? String(ev.capacity) : '', keepRsvp = ev ? (ev.rsvpBy || '') : '', keepContact = ev && ev.contactUrl ? String(ev.contactUrl).replace(/^mailto:/, '') : '';
+  q('#eeSu').addEventListener('input', e => { if(e.target.id === 'cfCap') keepCap = e.target.value; if(e.target.id === 'cfRsvpBy') keepRsvp = e.target.value; if(e.target.id === 'eeContact') keepContact = e.target.value; });
+  const paintSignup2 = () => { paintSignup(); const c = q('#cfCap'); if(c) c.value = keepCap; const r = q('#cfRsvpBy'); if(r) r.value = keepRsvp; const k = q('#eeContact'); if(k) k.value = keepContact; };
+  // ---- 📝 questions ----
+  const QT = FB_TYPES.filter(t => t[0] !== 'signature');
+  const paintQs = () => {
+    q('#eeQ').innerHTML = (qs.length ? qs.map((f, i) => `<div class="fb-card ee-q"><div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;"><b style="flex:1;font-size:13px;color:#776867;">${i + 1} · ${escapeCm((QT.find(t => t[0] === f.type) || [0, f.type])[1])}</b><button type="button" class="fb-mini eeQUp" data-i="${i}" ${i === 0 ? 'disabled' : ''}>▲</button><button type="button" class="fb-mini eeQDn" data-i="${i}" ${i === qs.length - 1 ? 'disabled' : ''}>▼</button><button type="button" class="fb-mini eeQX" data-i="${i}" style="background:#fdecea;">🗑</button></div>
+      <textarea class="eeQL" data-i="${i}" rows="${Math.min(6, Math.max(1, Math.ceil(String(f.label || '').length / 50)))}" maxlength="1000" placeholder="Type the question" style="${F}resize:vertical;">${escapeCm(f.label || '')}</textarea>
+      ${f.type === 'choice' || f.type === 'multi' ? `<textarea class="eeQO" data-i="${i}" rows="3" placeholder="The choices — one per line (at least 2)" style="${F}">${escapeCm((f.options || []).join('\n'))}</textarea>` : ''}
+      <label class="ee-chk" style="margin:0;"><input type="checkbox" class="eeQR" data-i="${i}" ${f.required ? 'checked' : ''}> Required</label></div>`).join('') : '<p class="av-msg" style="margin:0 0 8px;">No questions — people just give their name and phone.</p>')
+      + `<select id="eeQAdd" style="${F}font-weight:700;"><option value="">➕ Add a question…</option>${QT.map(([k, t]) => `<option value="${k}">${t}</option>`).join('')}</select>`;
+  };
+  q('#eeQ').addEventListener('change', e => {
+    if(e.target.id === 'eeQAdd' && e.target.value){ const t = e.target.value; qs.push({ id: nid(), type: t, label: '', required: false, ...(t === 'choice' || t === 'multi' ? { options: ['Option 1', 'Option 2'] } : {}) }); touch(); paintQs(); const ls = host.querySelectorAll('.eeQL'); if(ls.length){ ls[ls.length - 1].focus(); } return; }
+    if(e.target.classList.contains('eeQR')) qs[Number(e.target.dataset.i)].required = e.target.checked;
+  });
+  q('#eeQ').addEventListener('input', e => { const i = Number(e.target.dataset.i); if(e.target.classList.contains('eeQL')) qs[i].label = e.target.value; else if(e.target.classList.contains('eeQO')) qs[i].options = e.target.value.split('\n').map(x => x.trim()).filter(Boolean); });
+  q('#eeQ').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; const i = Number(b.dataset.i);
+    if(b.classList.contains('eeQX')){ qs.splice(i, 1); touch(); paintQs(); } else if(b.classList.contains('eeQUp')){ [qs[i - 1], qs[i]] = [qs[i], qs[i - 1]]; paintQs(); } else if(b.classList.contains('eeQDn')){ [qs[i + 1], qs[i]] = [qs[i], qs[i + 1]]; paintQs(); } });
+  // ---- 📜 terms & signature ----
+  const paintTerms = () => {
+    q('#eeTe').innerHTML = `<div class="fb-card" style="box-shadow:none;background:#fef7f4;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><b style="flex:1;">For every event</b>${state.cmAdminLoggedIn === true ? '<button type="button" class="fb-mini" id="eeTEdit">✏️ Edit</button>' : ''}</div>
+        ${gTerms.length ? `<ol style="margin:0;padding-left:20px;font-size:14px;">${gTerms.map(t => `<li style="margin-bottom:4px;white-space:pre-wrap;">${escapeCm(t)}</li>`).join('')}</ol>` : '<p class="ideas-hint" style="text-align:left;margin:0;">None yet — tap Edit to write the terms every event uses.</p>'}</div>
+      <b style="display:block;margin:10px 0 6px;">Extra terms for this event</b>
+      ${evTerms.map((t, i) => `<div style="display:flex;gap:6px;align-items:flex-start;"><textarea class="eeT" data-i="${i}" rows="2" maxlength="1000" placeholder="e.g. Bring your own racket." style="${F}flex:1;">${escapeCm(t)}</textarea><button type="button" class="fb-mini eeTX" data-i="${i}">✕</button></div>`).join('')}
+      <button type="button" class="fb-mini" id="eeTAdd">➕ Add a term for this event</button>
+      <div class="fb-card" style="box-shadow:none;margin-top:12px;display:flex;gap:10px;align-items:center;"><span style="font-size:28px;">✍️</span><span><b>Signature</b><br><small style="color:#776867;">At the end everyone ticks “I agree” to each term and draws their signature.</small></span></div>`;
+  };
+  q('#eeTe').addEventListener('input', e => { if(e.target.classList.contains('eeT')) evTerms[Number(e.target.dataset.i)] = e.target.value; });
+  q('#eeTe').addEventListener('click', e => {
+    if(e.target.id === 'eeTAdd'){ evTerms.push(''); touch(); paintTerms(); const t = host.querySelectorAll('.eeT'); if(t.length) t[t.length - 1].focus(); }
+    else if(e.target.closest('.eeTX')){ evTerms.splice(Number(e.target.closest('.eeTX').dataset.i), 1); touch(); paintTerms(); }
+    else if(e.target.id === 'eeTEdit') calTermsEditor(t => { gTerms = t; paintTerms(); });
+  });
+  paintHosts(); paintPhotos(); paintSignup2(); paintQs(); paintTerms();
+  if(!state.calTerms) calTermsLoad().then(t => { gTerms = t; paintTerms(); });
+  mountClubCalPlace(host);
+  { const c = q('#eeCopy'); if(c) c.addEventListener('click', async () => { const u = calFormUrl(val('#eeSlug').trim() || ev.slug || ev.id); try { await navigator.clipboard.writeText(u); c.textContent = '✅ Copied'; } catch { prompt('Copy this link:', u); } }); }
+  { const tb = q('#cfTbd'), dt = q('#cfDate'); const sync = () => { dt.disabled = tb.checked; dt.style.opacity = tb.checked ? '.4' : '1'; }; tb.addEventListener('change', sync); sync(); }
+  // ---- 🔁 repeat ----
+  const repPicked = [];
+  const repDates = () => {
+    const s = q('#cfRepeat'), first = val('#cfDate'); if(!s || !s.value || !first || q('#cfTbd').checked) return [];
+    if(s.value === 'pick') return [...new Set(repPicked.filter(d => d !== first))].sort();
+    const until = val('#cfRepUntil'); if(!until || until <= first) return [];
+    const out = [], d0 = new Date(first + 'T12:00:00');
+    for(let i = 1; i <= 60; i++){ const d = new Date(d0); if(s.value === 'm1') d.setMonth(d0.getMonth() + i); else d.setDate(d0.getDate() + i * (s.value === 'w2' ? 14 : 7)); if(s.value === 'm1' && d.getDate() !== d0.getDate()) continue; const k = d.toLocaleDateString('en-CA'); if(k > until) break; out.push(k); }
+    return out;
+  };
+  const paintRep = () => { const v = val('#cfRepeat'); q('#cfRepEnd').hidden = !(v && v !== 'pick'); q('#cfRepPick').hidden = v !== 'pick'; q('#cfRepChips').innerHTML = repPicked.slice().sort().map(d => `<button type="button" class="filter-chip active cfRepX" data-d="${d}">${escapeCm(calDateLabel(d))} ✕</button>`).join(''); const k = repDates().length; q('#cfRepNote').textContent = v ? (k ? `This makes ${k + 1} events: the first date plus ${k} more. Each has its own sign-ups.` : (v === 'pick' ? 'Add the other dates above.' : 'Pick the last date.')) : ''; };
+  q('#cfRepeat').addEventListener('change', paintRep); q('#cfRepUntil').addEventListener('change', paintRep); q('#cfDate').addEventListener('change', paintRep);
+  q('#cfRepAdd').addEventListener('click', () => { const v = val('#cfRepDate'); if(v && !repPicked.includes(v)) repPicked.push(v); q('#cfRepDate').value = ''; paintRep(); });
+  q('#cfRepChips').addEventListener('click', e => { const b = e.target.closest('.cfRepX'); if(!b) return; repPicked.splice(repPicked.indexOf(b.dataset.d), 1); paintRep(); });
+  // ---- gather / validate / save ----
+  const fallbackClub = () => oldIds[0] || ((typeof adminClubs === 'function' ? adminClubs() : [])[0] || clubs[0] || {}).id;
+  const gather = () => {
+    syncPay();
+    const tbd = q('#cfTbd').checked, ids = sel.size ? [...sel] : (oldIds.length ? oldIds : [fallbackClub()].filter(Boolean));
+    const hostsOut = [...(sel.size ? [...sel].map(id => ({ id: 'c-' + id, club: id })) : ids.map(id => ({ id: 'c-' + id, club: id, hide: true }))), ...orgs.filter(o => o.name.trim()).map(o => ({ id: o.id, name: o.name.trim(), ...(o.link ? { link: o.link } : {}), ...(o.logo ? { logo: o.logo } : {}) }))];
+    const photoBlocks = groups.filter(g => g.imgs.some(Boolean)).map(g => ({ id: g.id, type: 'photos', layout: g.layout, imgs: g.imgs.filter(Boolean) }));
+    const blocks = [...photoBlocks, ...oldBlocks];
+    const theme = { hide: ['club'], order: ['hosts', 'title', 'date', 'price', 'rsvpby', 'place', 'map', ...photoBlocks.map(b => 'b:' + b.id), 'desc', ...oldBlocks.filter(b => b.id).map(b => 'b:' + b.id), 'spots', 'going', 'action', 'form', 'link'] };
+    const payment = mode === 'pay' ? (() => { const p = { amount: pay.amount, link: pay.link, note: pay.note }; if(pay.required) p.required = true; const ao = pay.addons.filter(a => String(a.label || '').trim() && a.price !== '' && Number.isFinite(Number(a.price))).map(a => ({ id: a.id || nid(), label: String(a.label).trim(), price: Number(a.price) })); if(ao.length) p.addons = ao; return p; })() : undefined;
+    const form = mode === 'msg' ? null : calFormWithTerms({ title: form0 && form0.title, fields: qs.map(f => ({ ...f, label: String(f.label || '').trim() })) }, gTerms, evTerms, payment || null);
+    return { title: val('#cfTitle').trim(), tbd, date: tbd ? '' : val('#cfDate'), time: val('#cfTime').trim(), place: val('#cfPlace'), mapUrl: cleanMapLink(val('#cfMap') || ''), placePrivate: q('#cfPlacePriv').checked,
+      capacity: mode === 'msg' ? 0 : (parseInt(keepCap, 10) || 0), rsvpBy: tbd || mode === 'msg' ? '' : keepRsvp, clubIds: ids, hosts: hostsOut, blocks, theme, desc: val('#eeDesc'),
+      signup: mode === 'msg' ? 'msg' : form ? 'form' : 'rsvp', contactUrl: mode === 'msg' ? keepContact.trim() : '', form, slug: val('#eeSlug').trim() };
+  };
+  const fail = (t, id) => { say(t); const s = q('#' + id); if(s) s.scrollIntoView({ block:'start', behavior:'smooth' }); return false; };
+  const validate = g => {
+    if(g.title.length < 3) return fail('Give the event a name (3+ letters).', 'eeDetails');
+    if(!g.tbd && !g.date) return fail('Pick a date (or tick “Date to be decided”).', 'eeDetails');
+    if(!g.clubIds.length) return fail('Pick a hosting club (or ✕ for no host).', 'eeHosts');
+    if(orgs.some(o => !o.name.trim() && (o.link || o.logo))) return fail('Give the outside organization a name.', 'eeHosts');
+    if(orgs.some(o => o.link && !/^(https:\/\/|mailto:|tel:)/i.test(o.link))) return fail('An organization link must start with https://', 'eeHosts');
+    if(mode === 'pay' && !pay.amount && !pay.link && !pay.note) return fail('Add the price (or a payment link) for a paid event.', 'eeSignup');
+    if(mode === 'pay' && pay.link && !/^https:\/\//i.test(pay.link)) return fail('The payment link must start with https://', 'eeSignup');
+    if(mode === 'msg' && !g.contactUrl) return fail('Add how people reach the organizer (WhatsApp number, link or email).', 'eeSignup');
+    if(mode !== 'msg'){ const b = qs.findIndex(f => !String(f.label || '').trim() || ((f.type === 'choice' || f.type === 'multi') && (f.options || []).length < 2)); if(b >= 0) return fail(`Question ${b + 1} needs its text${['choice', 'multi'].includes(qs[b].type) ? ' and at least 2 choices' : ''}.`, 'eeQs'); }
+    if(q('#cfRepeat').value && !g.tbd && !repDates().length) return fail(q('#cfRepeat').value === 'pick' ? 'Add the other dates for the repeat (or set Repeat back).' : 'Pick the last date for the repeat — after the first date.', 'eeDetails');
+    return true;
+  };
+  const close = force => { if(!force && dirty && !confirm('Close without saving your changes?')) return; if(!inline){ host.remove(); document.body.style.overflow = prevOv; } };
+  const preview = () => {
+    const g = gather(), w = document.createElement('div'); w.className = 'fb-page'; w.style.zIndex = '10001';
+    const d = { ...g, clubTitle: '', clubId: g.clubIds[0] };
+    w.innerHTML = `<div class="fb-wrap"><div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;"><button type="button" class="fb-mini" id="pvClose">← Back to editing</button><strong>Preview</strong></div><div class="fb-card" style="display:flex;flex-direction:column;">${calCompose(d, [['hosts', calHostsHtml(d)], ['title', `<h3 style="margin:0 0 4px;">${escapeCm(g.title || 'Your event')}</h3>`], ['date', `<p class="idea-pop-date">📅 ${escapeCm(g.date ? ideaLongDate(g.date) : 'Date to be decided')}${g.time ? ' · ⏰ ' + escapeCm(g.time) : ''}</p>`], ['price', calPriceHtml(d)], ['place', g.place ? `<p style="margin:4px 0;">📍 ${escapeCm(g.place)}</p>` : ''], ['map', g.mapUrl ? calMapHtml({ mapUrl: g.mapUrl, place: g.place, title: g.title }) : ''], ['desc', calDescHtml(d, true)],
+      ['action', g.signup === 'msg' ? calMsgBtnHtml({ ...d, contactUrl: /^\+?[\d\s().-]{7,}$/.test(g.contactUrl) ? 'https://wa.me/' + g.contactUrl.replace(/\D/g, '') : g.contactUrl }, false) : ''],
+      ['form', g.form ? `<div class="fb-card" style="box-shadow:none;margin-top:10px;"><h3 style="margin:0 0 4px;">📝 Sign up</h3>${calFormFieldsHtml(g.form, {}, false)}${calAddonsHtml(g.form, [])}<button type="button" class="club-guide-btn" disabled style="width:100%;text-align:center;">Submit (preview)</button></div>` : (g.signup === 'rsvp' ? '<button type="button" class="club-guide-btn" disabled style="width:100%;text-align:center;">Count me in (preview)</button>' : '')]])}</div></div>`;
+    document.body.appendChild(w); calWireSignatures(w); w.querySelector('#pvClose').addEventListener('click', () => w.remove());
+  };
+  const save = async () => {
+    if(saving) return; const g = gather(); say(''); if(!validate(g)) return;
+    saving = true; const btn = q('#pgSave'); btn.disabled = true; say('Saving…', true);
+    try {
+      const body = { ...g }; if(!body.slug || (ev && body.slug === ev.slug)) delete body.slug;
+      const r = await clubCalAdminCall(isNew ? '' : '/' + encodeURIComponent(ev.id), isNew ? 'POST' : 'PUT', isNew ? { ...body, slug: undefined } : body);
+      if(isNew && g.slug && r && r.event && r.event.slug !== g.slug){ try { await clubCalAdminCall('/' + encodeURIComponent(r.event.id), 'PUT', { slug: g.slug }); } catch(err){ admToastLite('Saved, but the page address: ' + err.message); } }
+      const more = repDates(); let made = 0;
+      for(const d of more){
+        say(`Adding the repeat dates… ${made + 1} of ${more.length}`, true);
+        const shift = k => { if(!k) return ''; const x = new Date(k + 'T12:00:00'); x.setDate(x.getDate() + Math.round((new Date(d + 'T12:00:00') - new Date(g.date + 'T12:00:00')) / 864e5)); return x.toLocaleDateString('en-CA'); };
+        const copy = { ...body, slug: undefined, date: d, rsvpBy: shift(body.rsvpBy), attendees: [] };
+        try { await clubCalAdminCall('', 'POST', copy); made++; } catch(err){ say(`Saved the first ${made + 1} dates, then: ${err.message}`); }
+      }
+      dirty = false; clubCalReload(); admToastLite(made ? `✓ Saved + ${made} more date${made === 1 ? '' : 's'} added` : isNew ? '✓ Event added' : '✓ Saved');
+      if(inline){ say('✅ Saved', true); if(r && r.event) Object.assign(ev, r.event); } else close(true);
+      if(opts.onSaved) opts.onSaved(r && r.event);
+    } catch(err){ say(err.message); }
+    saving = false; btn.disabled = false;
+  };
+  q('#pgSave').addEventListener('click', save);
+  q('#pgPreview').addEventListener('click', preview);
+  { const c = q('#pgClose'); if(c) c.addEventListener('click', () => close()); }
+  host.querySelectorAll('.pgJ').forEach(b => b.addEventListener('click', () => { const s = q('#' + b.dataset.t); if(s) s.scrollIntoView({ block:'start', behavior:'smooth' }); }));
+  host.addEventListener('input', touch, true); host.addEventListener('change', touch, true);
+  if(!inline) window.scrollTo(0, 0);
+  const JMAP = { pgS1:'eeHosts', pgS2:'eeDetails', pgS3:'eePhotos', pgS4:'eeQs', pgS6:'eePage' };
+  if(opts.jump) setTimeout(() => { const s = q('#' + (JMAP[opts.jump] || opts.jump)); if(s) s.scrollIntoView({ block:'start' }); }, 120);
+  return { close };
+}
+// Every 4DS event uses the same one-page editor (an old private 'edit link' still opens the old one).
+function calPageEditor(ev, opts){ if(opts && opts.mode === 'link') return calPageEditorOld(ev, opts); return calEventEditor(ev, opts || {}); }
 function clubCalForm(ev, presetDate){ return calPageEditor(ev, { mode:'admin', presetDate }); }
 
 // The signed-in member's Clubs page has two sub-pages: '' (home with two big buttons), 'vote' and 'avail'.
@@ -10949,6 +11333,14 @@ function admEvDayPopup(key){
   wrap.querySelectorAll('.adm-day-ev').forEach(b => b.addEventListener('click', () => { close(); admEvOpenAny(b.dataset.evid); }));
   wrap.querySelector('#admDayAdd').addEventListener('click', () => { close(); openEventCreate(key); });
 }
+function admSubHistHtml(){
+  if(!state.admSubHist){ if(!state.admSubHistLoading){ state.admSubHistLoading = true; fetch('/api/admin/event-suggestions-history', { credentials:'include', cache:'no-store' }).then(r => r.ok ? r.json() : { history:[] }).catch(() => ({ history:[] })).then(j => { state.admSubHist = j.history || []; state.admSubHistLoading = false; if(state.tab === 'admin') render(); }); } return '<p class="av-msg">Loading…</p>'; }
+  const f = state.admSubHistF || 'all', list = state.admSubHist.filter(x => f === 'all' || x.outcome === f);
+  const who = x => { const b = x.by || {}, parts = []; if(b.name) parts.push(`👤 <b>${escapeCm(b.name)}</b>${b.username ? ' @' + escapeCm(b.username) : ''}`); const ph = b.phone || ''; if(ph) parts.push(`📞 <a href="tel:${escapeCm(String(ph).replace(/[^\d+]/g, ''))}">${escapeCm(ph)}</a>`); if(x.contact) parts.push(`✉️ ${escapeCm(x.contact)}`); return parts.join(' · ') || '<span style="color:#776867;">No contact left (sent before contact details were asked, or not signed in)</span>'; };
+  return `<div class="cp-box"><div class="fb-row" style="margin-bottom:8px;">${[['all', 'All'], ['accepted', '✅ Accepted'], ['rejected', '❌ Rejected']].map(([k, t]) => `<button type="button" class="filter-chip${f === k ? ' active' : ''}" data-shf="${k}">${t}</button>`).join('')}<button type="button" class="fb-mini" id="shRefresh">↻</button></div>
+    ${list.length ? list.map(x => `<div style="padding:10px 0;border-top:1px solid rgba(0,0,0,.1);font-size:14px;"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><span style="font-weight:800;padding:2px 10px;border-radius:999px;font-size:12px;${x.outcome === 'accepted' ? 'background:#e6f4ea;color:#2a7a4a;' : 'background:#fdecea;color:#b3261e;'}">${x.outcome === 'accepted' ? '✅ Accepted' : '❌ Rejected'}</span><strong>${escapeCm(x.name || x.title || '')}</strong><small style="color:#776867;">${x.kind === 'resource' ? 'Resource' : 'Event'}${x.date ? ' · ' + escapeCm(x.date) : ''}${x.city ? ' · ' + escapeCm(x.city) : ''} · decided ${escapeCm(new Date(x.decidedAt).toLocaleDateString('en-CA', { month:'short', day:'numeric' }))}</small></div>
+      <div style="margin-top:4px;">${who(x)}</div>${x.link ? `<a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:13px;">${escapeCm(String(x.link).slice(0, 70))}</a>` : ''}${x.comments ? `<div style="font-size:13px;color:#776867;margin-top:2px;">“${escapeCm(x.comments)}”</div>` : ''}</div>`).join('') : '<p class="av-msg">Nothing here yet. Submissions show up here once you accept or reject them.</p>'}</div>`;
+}
 function admEvSubsHtml(){
   if(!state.cmAdminEventSugs){ if(!state.admEvSugsLoading){ state.admEvSugsLoading = true; cmAdminLoadEventSuggestions().then(() => { state.admEvSugsLoading = false; if(state.tab === 'admin') render(); }); } return '<p class="av-msg">Loading submissions…</p>'; }
   return (state.cmAdminEventSugs.length ? eventSuggestionsAdminHtml() : '<p class="av-msg" style="margin:0;">No submitted events waiting. 🎉</p>') + `<button type="button" class="fb-mini" id="admEvSubsRefresh" style="margin-top:8px;">↻ Check for new</button>`;
@@ -11034,7 +11426,7 @@ function admFormsHtml(){
   if(!state.clubCal || state.clubCalIsAdminData !== calIsAdmin()) clubCalLoad(true);
   if(!state.clubCal) return '<p class="av-msg">Loading events…</p>';
   const today = new Date().toISOString().slice(0, 10);
-  const all = state.clubCal.filter(e => e.form && !String(e.id).startsWith('idea:'));
+  const all = state.clubCal.filter(e => !String(e.id).startsWith('idea:') && !e.tbd);
   const sel = state.admFormSel && all.find(e => e.id === state.admFormSel);
   if(sel){
     const f = state.admFormFilter || 'all';
@@ -11043,38 +11435,43 @@ function admFormsHtml(){
       <button type="button" class="fb-mini" id="afmBack">← All events</button>
       <h3 style="margin:10px 0 2px;overflow-wrap:break-word;">${escapeCm(sel.title)}</h3>
       <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">📅 ${escapeCm(calDateLabel(sel.date))}${sel.time ? ' · ⏰ ' + escapeCm(sel.time) : ''}${sel.place ? ' · 📍 ' + escapeCm(sel.place) : ''}</p>
-      <div class="fb-row" style="margin-bottom:8px;"><button type="button" class="fb-mini" id="afmEdit">✏️ Edit event &amp; form</button><button type="button" class="fb-mini" id="afmManage">👥 Manage attendees &amp; payments</button><button type="button" class="fb-mini" id="afmCsv">⬇️ Download CSV</button></div>
-      <div id="afmSum"></div>
+      <div class="fb-row" style="margin-bottom:8px;"><button type="button" class="fb-mini" id="afmEdit">✏️ Edit event &amp; form</button><button type="button" class="fb-mini" id="afmManage">👥 Manage attendees &amp; payments</button>${sel.form ? '<button type="button" class="fb-mini" id="afmCsv">⬇️ Download CSV</button>' : ''}</div>
+      ${!sel.form ? `<div class="fb-card" style="box-shadow:none;"><p style="margin:0 0 6px;font-weight:800;">👥 ${(sel.rsvps || []).filter(r => r.status === 'going').length} ${sel.date < today ? 'attended' : 'going'}</p>${(sel.rsvps || []).filter(r => r.status === 'going').map(r => `<div style="padding:6px 0;border-top:1px solid rgba(0,0,0,.08);">${escapeCm(r.name)}${r.guest ? ' <small style="color:#776867;">(guest)</small>' : ''}</div>`).join('') || '<p class="av-msg">Nobody yet — tap “Manage attendees” to add people.</p>'}</div>` : `<div id="afmSum"></div>
       <input id="afmQ" type="search" placeholder="Search names or answers…" value="${escapeCm(state.admFormQ || '')}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin:4px 0 8px;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">${chip('all', 'Everyone')}${chip('going', 'Going')}${chip('waitlist', 'Waitlist')}${sel.form.payment ? chip('unpaid', 'Not paid') : ''}</div>
-      <div id="afmTable"><p class="av-msg">Loading answers…</p></div>
+      <div id="afmTable"><p class="av-msg">Loading answers…</p></div>`}
     </div>`;
   }
-  const q = (state.admFormsQ || '').trim().toLowerCase();
-  const up = all.filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date)), past = all.filter(e => e.date < today).sort((a, b) => b.date.localeCompare(a.date));
+  const q = (state.admFormsQ || '').trim().toLowerCase(), sort = state.admFormsSort || 'recent', N = state.admFormsN || 12;
+  const goingN = e => (e.rsvps || []).filter(r => r.status === 'going').length;
   const row = e => {
-    const rs = e.rsvps || [], going = rs.filter(r => r.status === 'going').length, wait = rs.length - going, col = clubCol(e.clubId);
+    const rs = e.rsvps || [], going = goingN(e), wait = rs.filter(r => r.status === 'waitlist' || r.status === 'pending').length, col = clubCol(e.clubId);
     return `<button type="button" class="fb-card afm-open" data-afm="${escapeCm(e.id)}" style="display:flex;gap:10px;align-items:center;width:100%;text-align:left;cursor:pointer;border-color:${col.fg};box-shadow:3px 3px 0 ${col.fg};font:inherit;">
       <span class="cal-date" style="background:${col.bg};color:${col.fg};flex:0 0 74px;">${escapeCm(calDateLabel(e.date))}</span>
-      <span style="flex:1;min-width:0;"><strong style="font-size:16px;overflow-wrap:break-word;">${escapeCm(e.title)}</strong><br><small style="color:#776867;">👥 <b>${going}</b> ${e.date < today ? 'attended' : 'going'}${wait ? ` · ${wait} waiting` : ''} · 📝 ${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'}${e.form.payment ? ' · 💳 paid event' : ''}</small></span>
+      <span style="flex:1;min-width:0;"><strong style="font-size:16px;overflow-wrap:break-word;">${escapeCm(e.title)}</strong><br><small style="color:#776867;">👥 <b>${going}</b> ${e.date < today ? 'attended' : 'going'}${wait ? ` · ${wait} waiting` : ''}${e.form ? ` · 📝 ${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'}` : ''}${e.form && e.form.payment ? ' · 💳 paid' : ''}</small></span>
       <span style="font-size:20px;">›</span></button>`;
   };
   const match = e => !q || `${e.title} ${e.clubTitle || ''} ${e.place || ''}`.toLowerCase().includes(q);
-  const sec = (t, l) => l.filter(match).length ? `<h4 style="margin:14px 0 6px;">${t}</h4>${l.filter(match).map(row).join('')}` : '';
-  return `<p class="ideas-hint" style="margin:6px 0 8px;">Every event with a sign-up form. Tap one to see everyone who filled it in and what they answered.</p>
-    <input id="afmListQ" type="search" placeholder="Search events…" value="${escapeCm(state.admFormsQ || '')}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-bottom:4px;">
-    ${(sec('Upcoming', up) + sec('Past', past)) || `<p class="av-msg" style="text-align:center;">${q ? 'No events match.' : 'No events yet.'}</p>`}`;
+  const cmp = { recent: (a, b) => b.date.localeCompare(a.date), upcoming: (a, b) => (a.date < today) - (b.date < today) || a.date.localeCompare(b.date), most: (a, b) => goingN(b) - goingN(a) || b.date.localeCompare(a.date), least: (a, b) => goingN(a) - goingN(b) || b.date.localeCompare(a.date) }[sort] || ((a, b) => b.date.localeCompare(a.date));
+  const list = all.filter(match).sort(cmp), shown = list.slice(0, N);
+  return `<p class="ideas-hint" style="margin:6px 0 8px;">Every 4DS event. Tap one to see who's coming (and their answers) and to add attendees.</p>
+    <input id="afmListQ" type="search" placeholder="Search events…" value="${escapeCm(state.admFormsQ || '')}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-bottom:6px;">
+    <div class="fb-row" style="margin-bottom:8px;flex-wrap:wrap;gap:6px;">${[['recent', '🕒 Most recent'], ['upcoming', '📅 Upcoming first'], ['most', '🔥 Most attended'], ['least', '🌱 Least attended']].map(([k, t]) => `<button type="button" class="filter-chip${sort === k ? ' active' : ''}" data-afms="${k}">${t}</button>`).join('')}</div>
+    ${shown.map(row).join('') || `<p class="av-msg" style="text-align:center;">${q ? 'No events match.' : 'No events yet.'}</p>`}
+    ${list.length > N ? `<button type="button" class="club-guide-btn" id="afmMore" style="width:100%;text-align:center;margin-top:8px;">Load more (${list.length - N} left)</button>` : ''}`;
 }
 function admFormFmt(v){ return Array.isArray(v) ? v.join(', ') : (v && typeof v === 'object' ? (v.address || '') : (/^data:image\/png;base64,/.test(String(v || '')) ? '✍️ signed' : String(v == null ? '' : v))); }
 async function wireAdmForms(){
   const lq = document.getElementById('afmListQ');
   if(lq) lq.addEventListener('input', () => { state.admFormsQ = lq.value; const p = lq.selectionStart; render(); const n = document.getElementById('afmListQ'); if(n){ n.focus(); try { n.setSelectionRange(p, p); } catch {} } });
+  document.querySelectorAll('[data-afms]').forEach(b => b.addEventListener('click', () => { state.admFormsSort = b.dataset.afms; state.admFormsN = 12; render(); }));
+  { const m = document.getElementById('afmMore'); if(m) m.addEventListener('click', () => { state.admFormsN = (state.admFormsN || 12) + 12; render(); }); }
   document.querySelectorAll('.afm-open').forEach(b => b.addEventListener('click', () => { state.admFormSel = b.dataset.afm; state.admFormQ = ''; state.admFormFilter = 'all'; state.admFormData = null; render(); window.scrollTo(0, 0); }));
-  const tbl = document.getElementById('afmTable'); if(!tbl) return;
-  const ev = (state.clubCal || []).find(e => e.id === state.admFormSel); if(!ev) return;
+  const ev = (state.clubCal || []).find(e => e.id === state.admFormSel); if(!ev || !document.getElementById('afmBack')) return;
   document.getElementById('afmBack').addEventListener('click', () => { state.admFormSel = null; state.admFormData = null; render(); });
   document.getElementById('afmEdit').addEventListener('click', () => clubCalForm(ev));
   document.getElementById('afmManage').addEventListener('click', () => clubCalManage(ev));
+  const tbl = document.getElementById('afmTable'); if(!tbl) return;
   document.querySelectorAll('[data-afmf]').forEach(b => b.addEventListener('click', () => { state.admFormFilter = b.dataset.afmf; document.querySelectorAll('[data-afmf]').forEach(x => x.classList.toggle('active', x === b)); paint(); }));
   const qEl = document.getElementById('afmQ'); qEl.addEventListener('input', () => { state.admFormQ = qEl.value; paint(); });
   let d = state.admFormData && state.admFormData.id === ev.id ? state.admFormData.d : null;
@@ -11523,8 +11920,8 @@ function eventSuggestionsAdminHtml(){
   if(!list) return '';
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Submitted events${list.length ? ` (${list.length})` : ''}</h4>
     ${list.length ? list.map(x => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
-      <span style="min-width:0;"><strong>${escapeCm(x.name)}</strong>${(x.extra || []).length ? `<br><span style="font-size:12px;">${x.extra.map(q => `<b>${escapeCm(richPlain(q.label))}:</b> ${escapeCm(q.value)}`).join(' · ')}</span>` : ''}<br><span style="font-size:12px;color:#776867;">${escapeCm(x.date)} · ${escapeCm(x.city)}${x.genre ? ' · ' + escapeCm(x.genre === 'other' ? 'Other: ' + (x.genreOther || '') : x.genre) : ''}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
-      <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--brand-blush);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn event-sug-dismiss" data-sugid="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted events.</p>'}</div>`;
+      <span style="min-width:0;"><strong>${escapeCm(x.name)}</strong>${(x.by || x.contact) ? `<br><span style="font-size:13px;">${x.by && x.by.name ? '👤 ' + escapeCm(x.by.name) + (x.by.phone ? ' · 📞 ' + escapeCm(x.by.phone) : '') : ''}${x.contact ? (x.by && x.by.name ? ' · ' : '') + '✉️ ' + escapeCm(x.contact) : ''}</span>` : ''}${(x.extra || []).length ? `<br><span style="font-size:12px;">${x.extra.map(q => `<b>${escapeCm(richPlain(q.label))}:</b> ${escapeCm(q.value)}`).join(' · ')}</span>` : ''}<br><span style="font-size:12px;color:#776867;">${escapeCm(x.date)} · ${escapeCm(x.city)}${x.genre ? ' · ' + escapeCm(x.genre === 'other' ? 'Other: ' + (x.genreOther || '') : x.genre) : ''}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
+      <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--brand-blush);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn event-sug-dismiss" data-sugid="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">❌ Reject</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted events.</p>'}</div>`;
 }
 function joinRequestsAdminHtml(){
   const reqs = state.cmAdminJoinRequests;
@@ -12186,6 +12583,9 @@ function renderClubAdminPanel(){
     ` : ''}`;
   const todoGrid = `
     ${inboxAdminHtml(lead, 'subs')}
+    ${lead ? '' : admSec('evsubs', '🔔 Submitted events — accept or reject' + ((state.cmAdminEventSugs || []).length ? ` <span class="adm-badge">${state.cmAdminEventSugs.length}</span>` : ''), admEvSubsHtml(), true)}
+    ${lead ? '' : admSec('subhist', '🗂 Past submissions — accepted or rejected, and who sent them', admSubHistHtml(), false)}
+    ${lead ? '' : admSec('evform', '📝 Event submission form (what people fill to suggest an event)', admEvFormHtml(), false)}
   `;
   const clubsGrid = `
     ${inboxAdminHtml(lead, 'joins')}
@@ -12200,9 +12600,6 @@ function renderClubAdminPanel(){
     <div style="text-align:center;margin:6px 0 12px;"><button type="button" class="club-guide-btn" id="admEvAdd" style="min-height:46px;padding:10px 26px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add event</button></div>
     ${admSec('evsearch', '🔎 Find & edit an event', admEvSearchHtml(), true)}
     ${admSec('evmini', '🗓️ Public calendar — same as everyone sees · tap a day to edit', admEvMiniHtml(), true)}
-    ${admSec('evsubs', '🔔 Submitted events — accept or reject' + ((state.cmAdminEventSugs || []).length ? ` <span class="adm-badge">${state.cmAdminEventSugs.length}</span>` : ''), admEvSubsHtml(), true)}
-    ${admSec('evform', '📝 Event submission form (what people fill to suggest an event)', admEvFormHtml(), false)}
-    ${admSec('labels-ev', '🏷️ Names of event genres', labelsAdminHtml('event'), false)}
   `;
   const featuredGrid = lead ? '' : admSec('featured', '⭐ Featured on the Home page', '<div id="admFeat"><p class="ideas-hint">Loading…</p></div>', true);
   const eventsGrid = lead ? admCeHtml() : `<p class="ideas-hint" style="margin:10px 0 8px;">4DS activities: events hosted by 4DS or a club — sign-ups, spots, payments, answers.</p>${admCeHtml()}`;
@@ -12345,8 +12742,9 @@ const ADM_FIND = [
   ['RSVPs, spots, waitlist, who paid, answers, CSV', 'rsvp spots capacity waitlist paid payment answers csv attendees message', 'events', '', 'clubcal'],
   ['Sign-up form builder', 'form questions builder sign-up', 'events', '', 'clubcal'],
   ['Main calendar: add or edit a public event', 'public calendar event add edit', 'calendar', '', 'evsearch', true],
-  ['Events people submitted', 'submitted events accept reject', 'calendar', '', 'evsubs', true],
-  ['Event genre names', 'genre label names categories events', 'calendar', '', 'labels-ev', true],
+  ['Events people submitted', 'submitted events accept reject', 'todo', '', 'evsubs', true],
+  ['Past submissions (accepted / rejected, contact)', 'past history submissions accepted rejected contact', 'todo', '', 'subhist', true],
+  ['Event submission form', 'submission form questions submit event', 'todo', '', 'evform', true],
   ['Availability calendar', 'availability periods schedule', 'clubs', '', 'avail'],
   ['Club WhatsApp links', 'whatsapp group link club', 'settings', '', 'clublinks', true],
   ['Add or edit clubs (name, logo, colour)', 'club directory add edit logo colour', 'clubs', '', 'clubdir', true],
@@ -13324,7 +13722,9 @@ function wireClubAdminPanel(){
   document.querySelectorAll('.cm-admin-delete-profile').forEach(b => b.addEventListener('click', () => cmAdminDeleteProfile(b.dataset.memberId, b.dataset.name)));
   document.querySelectorAll('.adm-profile-link').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.userId)));
   document.querySelectorAll('.res-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/resource-suggestions/' + encodeURIComponent(b.dataset.sugid), { method:'DELETE', credentials:'include' }); await cmAdminLoadResourceSuggestions(); render(); }));
-  document.querySelectorAll('.event-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/event-suggestions/' + encodeURIComponent(b.dataset.sugid), { method:'DELETE', credentials:'include' }); await cmAdminLoadEventSuggestions(); render(); }));
+  document.querySelectorAll('.event-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/event-suggestions/' + encodeURIComponent(b.dataset.sugid) + '?outcome=rejected', { method:'DELETE', credentials:'include' }); state.admSubHist = null; await cmAdminLoadEventSuggestions(); render(); }));
+  document.querySelectorAll('[data-shf]').forEach(b => b.addEventListener('click', () => { state.admSubHistF = b.dataset.shf; render(); }));
+  { const r = document.getElementById('shRefresh'); if(r) r.addEventListener('click', () => { state.admSubHist = null; render(); }); }
   const loginBtn = document.getElementById('cmAdminLoginBtn');
   if(loginBtn) loginBtn.addEventListener('click', cmAdminLogin);
   const logoutBtn = document.getElementById('cmAdminLogoutBtn');

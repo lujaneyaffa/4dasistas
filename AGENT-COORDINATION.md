@@ -1459,3 +1459,10 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - Removed coach ("Public admin") login (worker refuses coach@; UI shows owner login only) and the "Data now in 4DS"/import block in admin.
 - Admin: section tiles → sticky top nav bar; Calendar tab month view = same as the public calendar (all events) with tap-to-edit; admin popups wider; 4DS activity popup has inline "Edit the details here" (title/date/time/place/spots/RSVP-by/description).
 - 4DS admin profile popup: Merge with another account + Delete buttons.
+
+## 2026-11-04 — v299 (Claude)
+- NEW one-page event editor `calEventEditor` (calPageEditor now routes to it; old editor kept as calPageEditorOld only for private edit links). Sections: Details → Photos (layout templates one/side/stack, cropper+compress, block type "photos") → Hosts (club circles, ✕ none = clubs kept but hidden, ＋ outside orgs with logo/name/link) → Sign-up mode (one click / pay / message organizer = signup "msg" + contactUrl) → Questions (dropdown) → Terms (global KV cal:terms via GET /api/cal-terms, PUT /api/admin/club-cal-terms; per-event terms; stored as form fields type "agree" ids gtrm*/etrm* + signature id esign) → Public page (editable slug, plain description).
+- theme.order now accepts "b:<blockId>" keys; PUT accepts body.slug (ev.slugCustom).
+- clubCalManage popup = tabs "Edit event" (the same editor inline) / "People & payments".
+- Submissions tab: submitted events, past submissions (KV sughist:*, 90 days; GET /api/admin/event-suggestions-history), submission form; genre names section removed. Public submit form asks for contact; signed-in submitter recorded as `by`.
+- Event attendees tab: every 4DS event, sort chips, Load more.

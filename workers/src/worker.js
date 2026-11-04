@@ -413,6 +413,8 @@ const hmacHex = async (secret, message) => {
   const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message));
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 };
+// Past submissions: when one is accepted / rejected it is kept (90 days) with the outcome, so the admin can look back.
+const sugArchive = async (env, kind, raw, outcome) => { try { const x = typeof raw === "string" ? JSON.parse(raw) : raw; if (!x || !x.id) return; await env.SITE_DATA.put(`sughist:${kind}:${x.id}`, JSON.stringify({ ...x, kind, outcome, decidedAt: Date.now() }), { expirationTtl: 90 * 86400 }); } catch {} };
 const reviewSig = (env, kind, id) => hmacHex(`review-link:${env.ADMIN_PASSWORD || ""}`, `${kind}:${id}`);
 const sameSig = (a, b) => { a = String(a || ""); b = String(b || ""); if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0; };
 const reviewUrlFor = async (env, kind, id, action) => `${env.SITE_ORIGIN || "https://4dasistas.ca"}/review/${kind}/${encodeURIComponent(id)}?sig=${await reviewSig(env, kind, id)}${action ? `&a=${action}` : ""}`;
@@ -1384,7 +1386,7 @@ const cleanCalText = (v, n) => String(v || "").replace(/[\x00-\x1f\x7f]/g, " ").
 // A collab event belongs to several clubs: `clubIds` (clubId = the first, kept for older data).
 const calClubs = (e) => (Array.isArray(e.clubIds) && e.clubIds.length ? e.clubIds : [e.clubId]).filter(Boolean);
 // A sign-up form the admin builds for an event: {title, intro, fields:[{id,type,label,required,options?}]}. Answers live in KV `calform:<eventId>` (userId -> {name, answers, at}).
-const CAL_FIELD_TYPES = ["text", "longtext", "yesno", "choice", "multi", "number", "date", "location", "signature"];
+const CAL_FIELD_TYPES = ["text", "longtext", "yesno", "choice", "multi", "number", "date", "location", "signature", "agree"];
 const calFormKey = (eventId) => `calform:${eventId}`;
 const sanitizeCalForm = (f) => {
   if (!f || typeof f !== "object" || !Array.isArray(f.fields)) return null;
@@ -1454,6 +1456,7 @@ const sanitizeCalBlocks = (arr) => {
     else if (b.type === "button") { const label = txt(b.label, 60), url = calLinkOk(b.url); if (label && url) o = { type: "button", label, url, style: pick(b.style, ["solid", "outline"], "solid"), align: pick(b.align, ["left", "center", "right"], "center") }; }
     else if (b.type === "video") { const vid = calYoutubeId(b.url || b.vid); if (vid) o = { type: "video", vid, caption: txt(b.caption, 300) }; }
     else if (b.type === "divider") o = { type: "divider" };
+    else if (b.type === "photos") { const layout = ["one", "side", "stack"].includes(b.layout) ? b.layout : "one", imgs = (Array.isArray(b.imgs) ? b.imgs : []).map(String).filter((x) => CAL_IMG_RE.test(x)).slice(0, layout === "one" ? 1 : 2); if (imgs.length) o = { type: "photos", layout, imgs }; }
     if (o) { seen.add(id); out.push({ id, ...o }); }
   }
   return out;
@@ -1484,7 +1487,7 @@ const sanitizeCalTheme = (t) => {
   if (["s", "l", "off"].includes(t.mapSize)) o.mapSize = t.mapSize; // map size on the page (medium is the default)
   if (t.mapPos === "bottom") o.mapPos = "bottom"; // map at the very end of the page
   const SEC = ["cover", "hosts", "club", "title", "date", "price", "rsvpby", "map", "desc", "spots", "going", "action", "form", "place", "link"];
-  if (Array.isArray(t.order)) { const ord = [...new Set(t.order.map(String).filter((k) => SEC.includes(k)))]; if (ord.length) o.order = ord; } // page sections, top to bottom
+  if (Array.isArray(t.order)) { const ord = [...new Set(t.order.map(String).filter((k) => SEC.includes(k) || /^b:[a-z0-9]{3,16}$/.test(k)))].slice(0, 60); if (ord.length) o.order = ord; } // page sections, top to bottom
   if (Array.isArray(t.hide)) o.hide = [...new Set(t.hide.map(String).filter((k) => SEC.includes(k) && k !== "action" && k !== "form"))]; // sections switched off ([] = show all)
   return Object.keys(o).length ? o : null;
 };
@@ -1545,6 +1548,7 @@ const checkCalAnswers = (form, raw) => {
     else if (fld.type === "yesno") v = v === "Yes" || v === "No" ? v : "";
     else if (fld.type === "number") v = v === "" || v == null ? "" : (Number.isFinite(Number(v)) ? String(Number(v)).slice(0, 20) : "");
     else if (fld.type === "date") v = /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : "";
+    else if (fld.type === "agree") v = v === true || v === "yes" || v === "Agreed" ? "Agreed" : "";
     else if (fld.type === "signature") v = /^data:image\/png;base64,[A-Za-z0-9+\/=]{20,40000}$/.test(String(v || "")) ? String(v) : ""; // a small drawn PNG, nothing else
     else if (fld.type === "location") { // a place picked on the map (Canada only): {address, lat, lng}; the pin is dropped if the coordinates aren't in Canada
       const o = v && typeof v === "object" ? v : null, lat = Number(o && o.lat), lng = Number(o && o.lng), address = cleanCalText(o && o.address, 200);
@@ -1552,7 +1556,7 @@ const checkCalAnswers = (form, raw) => {
     }
     else v = String(v || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, fld.type === "longtext" ? 1000 : 200);
     const empty = Array.isArray(v) ? !v.length : v === "";
-    if (fld.required && empty) return { error: `Please answer: ${calPlain(fld.label)}` };
+    if (fld.required && empty) return { error: fld.type === "agree" ? `Please agree to: ${calPlain(fld.label).slice(0, 80)}` : fld.type === "signature" ? "Please sign the form" : `Please answer: ${calPlain(fld.label)}` };
     if (!empty) answers[fld.id] = v;
   }
   return { answers };
@@ -1694,7 +1698,8 @@ const calSendReminders = async (env, ctx) => {
     await env.SITE_DATA.put(key, JSON.stringify({ sent: [...sent], done: left === 0 }), { expirationTtl: 259200 });
   }
 };
-const calFields = (b) => ({ mapUrl: b.mapUrl ? (isGoogleMapsUrl(b.mapUrl) || "") : "", title: cleanCalText(b.title, 80), date: String(b.date || ""), time: cleanCalText(b.time, 30), place: cleanCalText(b.place, 200), rsvpBy: /^\d{4}-\d{2}-\d{2}$/.test(String(b.rsvpBy || "")) ? String(b.rsvpBy) : "", desc: String(b.desc || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 3000), capacity: Math.max(0, Math.min(5000, parseInt(b.capacity, 10) || 0)), placePrivate: b.placePrivate === true, signup: ["rsvp", "form"].includes(b.signup) ? b.signup : "" })
+const calContactUrl = (v) => { const t = String(v || "").trim(); if (!t) return ""; const dg = t.replace(/[\s().-]/g, ""); if (/^\+?\d{7,15}$/.test(dg)) return "https://wa.me/" + dg.replace(/^\+/, "").replace(/^(\d{10})$/, "1$1"); if (/^[\w.+-]+@[\w-]+\.[\w.]+$/.test(t)) return "mailto:" + t; return calLinkOk(t); };
+const calFields = (b) => ({ mapUrl: b.mapUrl ? (isGoogleMapsUrl(b.mapUrl) || "") : "", title: cleanCalText(b.title, 80), date: String(b.date || ""), time: cleanCalText(b.time, 30), place: cleanCalText(b.place, 200), rsvpBy: /^\d{4}-\d{2}-\d{2}$/.test(String(b.rsvpBy || "")) ? String(b.rsvpBy) : "", desc: String(b.desc || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 3000), capacity: Math.max(0, Math.min(5000, parseInt(b.capacity, 10) || 0)), placePrivate: b.placePrivate === true, signup: ["rsvp", "form", "msg"].includes(b.signup) ? b.signup : "", contactUrl: calContactUrl(b.contactUrl) })
 // 🔒 "Only people who signed up see the location": blank the place / map (and map blocks) for everyone else.
 const calHidePlace = (ev, out, canSee) => { if (!ev.placePrivate || canSee) return { ...out, placePrivate: !!ev.placePrivate }; return { ...out, place: "", mapUrl: "", placeHidden: true, placePrivate: true, blocks: (out.blocks || []).filter((b) => b && b.type !== "map") }; };;
 const isValidDateString = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + "T00:00:00Z"));
@@ -1937,7 +1942,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const kvKey = `${kind === "event" ? "eventsug" : "ressug"}:${id}`;
       const raw = await env.SITE_DATA.get(kvKey);
       if (!raw) return jsonResponse({ error: "Already handled" }, 404, corsHeaders);
-      if (body.action === "deny") { await env.SITE_DATA.delete(kvKey); return jsonResponse({ ok: true }, 200, corsHeaders); }
+      if (body.action === "deny") { await sugArchive(env, kind, raw, "rejected"); await env.SITE_DATA.delete(kvKey); return jsonResponse({ ok: true }, 200, corsHeaders); }
       if (body.action !== "accept") return jsonResponse({ error: "Unknown action" }, 400, corsHeaders);
       if (!env.GITHUB_TOKEN) return jsonResponse({ error: "Server misconfigured: GITHUB_TOKEN is not set" }, 500, corsHeaders);
       let sug; try { sug = JSON.parse(raw); } catch { return jsonResponse({ error: "Could not read that submission" }, 500, corsHeaders); }
@@ -1975,6 +1980,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       }
       const res = await githubPutFile(env, filePath(finalSlug), content, undefined, `Create "${title}" from a community submission (approved via email)`);
       if (!res.ok) return jsonResponse({ error: "GitHub commit failed", detail: (await res.text().catch(() => "")).slice(0, 200) }, 502, corsHeaders);
+      await sugArchive(env, kind, raw, "accepted");
       await env.SITE_DATA.delete(kvKey);
       return jsonResponse({ ok: true, id: finalSlug }, 200, corsHeaders);
     }
@@ -2460,7 +2466,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (editMatch) {
       const tok = editMatch[1], all0 = await readClubCal(env), ev0 = all0.find((e) => e.editToken === tok);
       if (!ev0) return jsonResponse({ error: "This edit link isn't active any more — ask the organiser for a new one" }, 404, corsHeaders);
-      const view = (e) => ({ placePrivate: !!e.placePrivate, signup: e.signup || "", id: e.id, slug: e.slug || "", title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", tbd: !!e.tbd, blocks: e.blocks || [], theme: e.theme || null, hosts: e.hosts || [], clubIds: calClubs(e), form: e.form ? { title: e.form.title, intro: e.form.intro || "", footer: e.form.footer || "", fields: e.form.fields } : null, hasPayment: !!(e.form && e.form.payment), clubTitle: calClubs(e).map((c) => (roster0.find((r) => r.id === c) || {}).title || "").filter(Boolean).join(" × ") });
+      const view = (e) => ({ placePrivate: !!e.placePrivate, signup: e.signup || "", contactUrl: e.contactUrl || "", id: e.id, slug: e.slug || "", title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", tbd: !!e.tbd, blocks: e.blocks || [], theme: e.theme || null, hosts: e.hosts || [], clubIds: calClubs(e), form: e.form ? { title: e.form.title, intro: e.form.intro || "", footer: e.form.footer || "", fields: e.form.fields } : null, hasPayment: !!(e.form && e.form.payment), clubTitle: calClubs(e).map((c) => (roster0.find((r) => r.id === c) || {}).title || "").filter(Boolean).join(" × ") });
       const roster0 = await readClubRoster(env);
       if (editMatch[2] === "/image" && request.method === "POST") { const r = await calImgSave(request, env, ev0.id); return r.error ? jsonResponse({ error: r.error }, 400, corsHeaders) : jsonResponse(r, 201, corsHeaders); }
       if (!editMatch[2] && request.method === "GET") return jsonResponse({ event: view(ev0) }, 200, corsHeaders);
@@ -2555,7 +2561,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!ev) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
         if (!who || !(who.id.startsWith("m:") || who.id === "admin")) {
           // A PUBLICIZED event (publicForm): anyone can open its form straight away and submit it with just a name — no account needed.
-          if (!calMatch[2] && M === "GET") return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], clubIds: calClubs(ev), publicForm: !!ev.form, form: ev.form || null, signup: ev.signup || "", guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) }, false), 200, corsHeaders);
+          if (!calMatch[2] && M === "GET") return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, signup: ev.signup || "", contactUrl: ev.contactUrl || "", clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], clubIds: calClubs(ev), publicForm: !!ev.form, form: ev.form || null, signup: ev.signup || "", guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy) }, false), 200, corsHeaders);
           if (ev.form) { // ANY event with a form can be filled in without an account
             if (calMatch[2] === "/form" && M === "POST") {
               if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
@@ -2597,7 +2603,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (uid) for (const cid of calClubs(ev)) if ((await readClubMemberIds(env, cid)).includes(uid)) { inClub = true; break; }
         const mine = (ev.rsvps || []).find((r) => r.id === uid);
         if (!calMatch[2] && M === "GET") {
-          return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], signup: ev.signup || "", rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy),
+          return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, signup: ev.signup || "", contactUrl: ev.contactUrl || "", clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], signup: ev.signup || "", rsvpBy: ev.rsvpBy || "", closed: !!(ev.rsvpBy && new Date().toISOString().slice(0, 10) > ev.rsvpBy),
             going: (ev.rsvps || []).filter((r) => r.status === "going").length, mine: mine ? mine.status : null, inClub,
             publicForm: !!ev.form, form: ev.form || null, ...calCapInfo(ev), waitPos: mine && mine.status === "waitlist" ? calWaitPos(ev, uid) : 0, claimedPaid: !!(mine && mine.claimedPaid), paid: !!(mine && mine.paid), cardPay: stripeOn(env), myAddons: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).addons || []) : [], myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, who.id === "admin" || !!(mine && mine.status === "going")), 200, corsHeaders);
         }
@@ -2911,6 +2917,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await env.SITE_DATA.put("evsubform", JSON.stringify(cfg));
       return jsonResponse({ ok: true, ...cfg }, 200, corsHeaders);
     }
+    if (path === "/api/cal-terms" && request.method === "GET") { let terms = []; try { terms = JSON.parse((await env.SITE_DATA.get("cal:terms")) || "[]"); } catch {} return jsonResponse({ terms: Array.isArray(terms) ? terms : [] }, 200, { ...corsHeaders, "Cache-Control": "no-store" }); }
     if (path === "/api/event-suggestions" && request.method === "POST") {
       let body;
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
@@ -2940,6 +2947,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await env.SITE_DATA.put(dayKey, String(dayCount + 1), { expirationTtl: 172800 });
       const comments = String(body.comments || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 600);
       const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, link, name, date, city, virtual, genre, genreOther, comments, at: Date.now() };
+      { const ct = clean(body.contact, 160); if (ct) sug.contact = ct; try { const mid = await memberIdFromRequest(); if (mid) { const u = await readUser(env, mid); if (u) sug.by = { id: u.id, name: u.name || "", username: u.username || "", phone: u.phone || "" }; } } catch {} }
       { const cfg = await readEventFormCfg(); if (cfg.form) { const chk = checkCalAnswers(cfg.form, body.extra); if (chk.error) return jsonResponse({ error: chk.error }, 400, corsHeaders); sug.extra = cfg.form.fields.filter((f) => chk.answers[f.id] !== undefined).map((f) => ({ label: f.label, value: Array.isArray(chk.answers[f.id]) ? chk.answers[f.id].join(", ") : (chk.answers[f.id] && typeof chk.answers[f.id] === "object" ? String(chk.answers[f.id].address || "") : String(chk.answers[f.id])) })); } }
       await env.SITE_DATA.put(`eventsug:${sug.id}`, JSON.stringify(sug));
       notifyAdminOfEventSuggestion(env, ctx, sug);
@@ -4432,6 +4440,13 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     // ---- Admin: see everyone's general availability by name (the public /all endpoint above
     // already returns names to any signed-in member too - this is kept for a pre-login/guest-cookie
     // admin view) ----
+    if (path === "/api/admin/event-suggestions-history" && request.method === "GET") {
+      if (leadCtx) return jsonResponse({ error: "Main admin only" }, 403, corsHeaders);
+      const list = await env.SITE_DATA.list({ prefix: "sughist:" }), out = [];
+      for (const k of list.keys) { try { out.push(JSON.parse(await env.SITE_DATA.get(k.name))); } catch {} }
+      out.sort((a, b) => (b.decidedAt || 0) - (a.decidedAt || 0));
+      return jsonResponse({ history: out.filter(Boolean).slice(0, 300) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
     if (path === "/api/admin/event-suggestions" && request.method === "GET") {
       const list = await env.SITE_DATA.list({ prefix: "eventsug:" });
       const out = [];
@@ -4452,11 +4467,13 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     }
     const adminResSugMatch = path.match(/^\/api\/admin\/resource-suggestions\/([^/]+)\/?$/);
     if (adminResSugMatch && request.method === "DELETE") {
+      { const k = `ressug:${decodeURIComponent(adminResSugMatch[1])}`, raw = await env.SITE_DATA.get(k); if (raw) await sugArchive(env, "resource", raw, new URL(request.url).searchParams.get("outcome") === "accepted" ? "accepted" : "rejected"); }
       await env.SITE_DATA.delete(`ressug:${decodeURIComponent(adminResSugMatch[1])}`);
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     const adminSugMatch = path.match(/^\/api\/admin\/event-suggestions\/([^/]+)\/?$/);
     if (adminSugMatch && request.method === "DELETE") {
+      { const k = `eventsug:${decodeURIComponent(adminSugMatch[1])}`, raw = await env.SITE_DATA.get(k); if (raw) await sugArchive(env, "event", raw, new URL(request.url).searchParams.get("outcome") === "accepted" ? "accepted" : "rejected"); }
       await env.SITE_DATA.delete(`eventsug:${decodeURIComponent(adminSugMatch[1])}`);
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
@@ -5054,6 +5071,12 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const r = await calImgSave(request, env, String(url.searchParams.get("ev") || "").slice(0, 60));
       return r.error ? jsonResponse({ error: r.error }, 400, corsHeaders) : jsonResponse(r, 201, corsHeaders);
     }
+    if (path === "/api/admin/club-cal-terms" && request.method === "PUT") { // the terms every event's sign-up includes (main admin)
+      if (leadCtx) return jsonResponse({ error: "Main admin only" }, 403, corsHeaders);
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const terms = (Array.isArray(b.terms) ? b.terms : []).map((t) => String(t || "").replace(/[\x00-\x08\x0b-\x1f\x7f<>]/g, " ").trim().slice(0, 1000)).filter(Boolean).slice(0, 10);
+      await env.SITE_DATA.put("cal:terms", JSON.stringify(terms)); return jsonResponse({ terms }, 200, corsHeaders);
+    }
     const adminCalRespMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/responses\/?$/);
     if (adminCalRespMatch && request.method === "GET") {
       const ev = (await readClubCal(env)).find((e) => e.id === adminCalRespMatch[1]);
@@ -5070,7 +5093,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const canEv = (e) => calClubs(e).some(canClub) || canForm(e);
       const roster = await readClubRoster(env);
       const clubTitle = (id) => (roster.find((c) => c.id === id) || {}).title || "";
-      const view = (e) => ({ placePrivate: !!e.placePrivate, signup: e.signup || "", id: e.id, slug: e.slug || "", clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", blocks: e.blocks || [], theme: e.theme || null, hosts: e.hosts || [], editToken: canForm(e) ? (e.editToken || "") : "", histN: e.histN || 0, rsvpBy: e.rsvpBy || "", form: canForm(e) ? (e.form || null) : null, hasForm: !!e.form, canForm: canForm(e), ...(leadCtx ? {} : { formLeads: e.formLeads || [] }), publicForm: !!e.publicForm, capacity: calCap(e), rsvps: e.rsvps || [], ...(e.tbd ? { tbd: true, interest: e.interest || [] } : {}) });
+      const view = (e) => ({ placePrivate: !!e.placePrivate, signup: e.signup || "", contactUrl: e.contactUrl || "", id: e.id, slug: e.slug || "", clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", blocks: e.blocks || [], theme: e.theme || null, hosts: e.hosts || [], editToken: canForm(e) ? (e.editToken || "") : "", histN: e.histN || 0, rsvpBy: e.rsvpBy || "", form: canForm(e) ? (e.form || null) : null, hasForm: !!e.form, canForm: canForm(e), ...(leadCtx ? {} : { formLeads: e.formLeads || [] }), publicForm: !!e.publicForm, capacity: calCap(e), rsvps: e.rsvps || [], ...(e.tbd ? { tbd: true, interest: e.interest || [] } : {}) });
       const all = await readClubCal(env);
       if (!adminCalMatch[1] && M === "GET") return jsonResponse({ events: all.filter(canEv).sort((a, b) => a.date.localeCompare(b.date)).map(view) }, 200, corsHeaders);
       let body = {};
@@ -5112,7 +5135,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (wantTbd) { f.date = ""; f.rsvpBy = ""; } else if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
         const capBefore = calCap(ev), titleBefore = ev.title;
         Object.assign(ev, f); calApplyDesign(ev, calDesignFields(body));
-        if (ev.slug && ev.title !== titleBefore) { ev.oldSlugs = [...new Set([...(ev.oldSlugs || []), ev.slug])].slice(-5); ev.slug = ""; ev.slug = calMakeSlug(all, ev); } // renamed: new readable link, the old one still works
+        if (ev.slug && ev.title !== titleBefore && !ev.slugCustom) { ev.oldSlugs = [...new Set([...(ev.oldSlugs || []), ev.slug])].slice(-5); ev.slug = ""; ev.slug = calMakeSlug(all, ev); } // renamed: new readable link, the old one still works
+        if (typeof body.slug === "string" && body.slug.trim()) { // the admin typed their own page address
+          const want = calSlugify(body.slug); if (want.length < 3) return jsonResponse({ error: "The page address needs at least 3 letters or numbers" }, 400, corsHeaders);
+          if (want !== ev.slug) { if (CAL_SLUG_RESERVED.has(want) || all.some((e) => e.id !== ev.id && (e.slug === want || (e.oldSlugs || []).includes(want)))) return jsonResponse({ error: `“${want}” is already used by another event — try another address` }, 400, corsHeaders); ev.oldSlugs = [...new Set([...(ev.oldSlugs || []), ev.slug].filter(Boolean))].slice(-5); ev.slug = want; ev.slugCustom = true; }
+        }
         if (wantTbd) { ev.tbd = true; ev.interest = ev.interest || []; } else delete ev.tbd; // (the interest list stays on the event so the admin still sees who was keen)
         if (body.form !== undefined) { // (a club admin without access never sees the form, so their edit of the event details must not touch it)
           const cf = sanitizeCalForm(body.form);
