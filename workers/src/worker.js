@@ -997,6 +997,15 @@ const bmPlayerFor = async (env, user) => {
 // The iPad kiosk: the main group uses one fixed password (4ds1234, any capitalisation). Each extra leaderboard group
 // ("league") has its own kiosk password, set by the main admin and stored hashed in KV bm:lgkey:<id>.
 const bmKioskNorm = (k) => String(k || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+// A leaderboard's game nights: the dates typed in + (if it repeats) every week from "from" to "until" (or a year), minus skipped ones.
+const bmLeagueDates = (l) => {
+  const out = new Set((l.dates || []).filter(Boolean)), r = l.repeat;
+  if (r && /^\d{4}-\d{2}-\d{2}$/.test(r.from || "")) {
+    const d = new Date(r.from + "T12:00:00Z"), end = /^\d{4}-\d{2}-\d{2}$/.test(r.until || "") ? r.until : new Date(d.getTime() + 365 * 86400000).toISOString().slice(0, 10);
+    for (let i = 0; i < 60; i++) { const k = d.toISOString().slice(0, 10); if (k > end) break; out.add(k); d.setUTCDate(d.getUTCDate() + 7); }
+  }
+  const skip = new Set(l.skip || []); return [...out].filter((x) => !skip.has(x)).sort();
+};
 const bmReadLeagues = async (env) => { try { const l = JSON.parse((await env.SITE_DATA.get("bm:leagues")) || "[]"); return Array.isArray(l) ? l : []; } catch { return []; } };
 const bmKioskLeague = async (env, key) => {
   const k = bmKioskNorm(key); if (!k) return null;
@@ -3721,11 +3730,15 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           const name = cl(raw.name, 40); if (!name) return jsonResponse({ error: "Every leaderboard needs a name" }, 400, corsHeaders);
           const t = (v) => /^\d{1,2}:\d{2}$/.test(String(v || "")) ? String(v) : "";
           const dates = [...new Set((Array.isArray(raw.dates) ? raw.dates : []).map(String).filter(isValidDateString))].sort().slice(0, 80);
-          if (id !== "main" && !dates.length) return jsonResponse({ error: `Add at least one date for ${name}` }, 400, corsHeaders);
+          const repeat = raw.repeat && isValidDateString(String(raw.repeat.from || "")) ? { from: String(raw.repeat.from), until: isValidDateString(String(raw.repeat.until || "")) ? String(raw.repeat.until) : "" } : null;
+          const skip = [...new Set((Array.isArray(raw.skip) ? raw.skip : []).map(String).filter(isValidDateString))].sort().slice(-120);
+          const sessions = {}; for (const [k, v] of Object.entries(raw.sessions && typeof raw.sessions === "object" ? raw.sessions : {}).slice(0, 120)) { if (!isValidDateString(k) || !v || typeof v !== "object") continue; const o = { title: cl(v.title, 60), start: t(v.start), end: t(v.end), place: cl(v.place, 120), note: cl(v.note, 300) }; for (const f of Object.keys(o)) if (!o[f]) delete o[f]; if (Object.keys(o).length) sessions[k] = o; }
+          const caption = cl(raw.caption, 400), emoji = cl(raw.emoji, 8);
+          if (id !== "main" && !bmLeagueDates({ dates, repeat, skip }).length) return jsonResponse({ error: `Add at least one date for ${name} (or make it repeat every week)` }, 400, corsHeaders);
           const rotation = id !== "main" && !!raw.rotation;
           const players = id === "main" ? [] : [...new Set((Array.isArray(raw.players) ? raw.players : []).map(String).filter((x) => /^[\w:.-]{1,64}$/.test(x)))].slice(0, 300);
           if (rotation && players.length !== 6) return jsonResponse({ error: `${name}: a fixed-rotation leaderboard needs exactly 6 players (it has ${players.length})` }, 400, corsHeaders);
-          out.push({ id, name, day: cl(raw.day, 20), start: t(raw.start), end: t(raw.end), place: cl(raw.place, 120), dates, players, rotation });
+          out.push({ id, name, day: cl(raw.day, 20), start: t(raw.start), end: t(raw.end), place: cl(raw.place, 120), dates, players, rotation, ...(repeat ? { repeat } : {}), ...(skip.length ? { skip } : {}), ...(Object.keys(sessions).length ? { sessions } : {}), ...(caption ? { caption } : {}), ...(emoji ? { emoji } : {}) });
           const pw = bmKioskNorm(raw.kioskPassword);
           if (raw.kioskPassword && id !== "main") { if (pw.length < 4) return jsonResponse({ error: `Kiosk password for ${name}: use at least 4 letters or numbers` }, 400, corsHeaders); if (pw === "4DS1234") return jsonResponse({ error: "That password belongs to the main group's kiosk — pick a different one" }, 400, corsHeaders); await env.SITE_DATA.put(`bm:lgkey:${id}`, await sha256Hex(`bmlg:${id}:${pw}`)); }
         }
@@ -3840,14 +3853,14 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         let role = "anon";
         if (await isValidSession(getSessionToken(request))) role = "owner";
         else if (await bmLeadIsCoach(env, request)) role = "coach";
-        else if (coachTok && (await env.SITE_DATA.get(`bmcoach:${coachTok}`))) role = "coach";
+        // (coach-token logins were removed Nov 2026)
         else if (meUser) role = "member";
         else if (await bmKioskOk(env, kioskKey)) role = "kiosk";
         const staff = role === "owner" || role === "coach";
         if (path === "/api/bm/leagues" && request.method === "GET") {
           const list = await bmReadLeagues(env);
           if (!list.some((l) => l.id === "main")) list.unshift({ id: "main", name: "Ladies Badminton" });
-          return jsonResponse({ leagues: list.map((l) => ({ id: l.id, name: l.name || "", day: l.day || "", start: l.start || "", end: l.end || "", place: l.place || "", dates: l.dates || [], players: l.players || [], rotation: !!l.rotation })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+          return jsonResponse({ leagues: list.map((l) => ({ id: l.id, name: l.name || "", day: l.day || "", start: l.start || "", end: l.end || "", place: l.place || "", dates: bmLeagueDates(l), players: l.players || [], rotation: !!l.rotation, caption: l.caption || "", emoji: l.emoji || "", sessions: l.sessions || {} })) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
         }
         if (path === "/api/bm/session" && request.method === "POST") {
           if (role === "owner") return jsonResponse({ session: { user: { id: BM_OWNER_ID, email: "owner" }, access_token: "owner" } }, 200, corsHeaders);
@@ -3858,7 +3871,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           if (!ideaRateOk(request.headers.get("CF-Connecting-IP") || "x")) return bmErr("Too many tries — wait a minute", 429);
           let b; try { b = await request.json(); } catch { return bmErr("Invalid request"); }
           const email = String(b.email || "").trim().toLowerCase(), pw = String(b.password || "");
-          if (email === BM_COACH_EMAIL) { // the "Public admin" (the coach): today's games & attendance only
+          if (email === BM_COACH_EMAIL) return bmErr("The coach login was removed. Use the iPad kiosk or the main admin.", 401);
+          if (false) { // (old "Public admin" coach login — removed Nov 2026)
             const h = await env.SITE_DATA.get("bm:coachpw");
             if (!h || h !== await sha256Hex("bmcoach:" + pw)) return bmErr("Invalid login credentials", 401);
             const tok = crypto.randomUUID() + crypto.randomUUID();
@@ -4002,6 +4016,15 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
             await writeUser(env, user); await setPlayer(pl, patch);
             return jsonResponse({ data: null, error: null }, 200, corsHeaders);
           }
+          if (fn === "admin_merge_player") { // two badminton profiles for the same person: everything (games, attendance, points, leaderboards) moves onto the one kept
+            if (role !== "owner") return bmErr("Owner admin only", 403);
+            const keep = String(a.p_keep || ""), drop = String(a.p_drop || ""); if (!keep || !drop || keep === drop) return bmErr("Pick two different players");
+            if (!(await bmMerge(env, keep, drop))) return bmErr("Could not merge those two players");
+            const lgs = await bmReadLeagues(env); let ch = false;
+            for (const L of lgs) if (Array.isArray(L.players) && L.players.includes(drop)) { L.players = [...new Set(L.players.map((x) => (x === drop ? keep : x)))]; ch = true; }
+            if (ch) await env.SITE_DATA.put("bm:leagues", JSON.stringify(lgs));
+            return jsonResponse({ data: true, error: null }, 200, corsHeaders);
+          }
           if (fn === "admin_delete_player") {
             if (role !== "owner") return bmErr("Owner admin only", 403);
             const id = String(a.p_player_id || ""); if (!id) return bmErr("No player");
@@ -4050,7 +4073,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               const g = await env.DB.prepare("SELECT id, day, data FROM bm_games WHERE id = ?").bind(String(a.p_game_id || "")).first(); if (!g) return bmErr("Game not found");
               const d = JSON.parse(g.data);
               if ((d.league || "main") !== kLg) return bmErr("That game belongs to a different leaderboard", 403);
-              if ((g.day || (d.played_at ? bmToronto(new Date(d.played_at)) : "")) !== today) return bmErr("The kiosk can only change tonight's games. Ask the admin for older ones.", 403);
+              { const gd = g.day || (d.played_at ? bmToronto(new Date(d.played_at)) : ""), cut = bmToronto(new Date(Date.now() - 14 * 86400000)); if (!gd || gd < cut || gd > today) return bmErr("The kiosk can only change games from the last 2 weeks. Ask the admin for older ones.", 403); }
               if (fn === "kiosk_delete_game") { await env.DB.prepare("DELETE FROM bm_games WHERE id = ?").bind(g.id).run(); return jsonResponse({ data: true, error: null }, 200, corsHeaders); }
               const w = (Array.isArray(a.p_winner_ids) ? a.p_winner_ids : []).map(String), l = (Array.isArray(a.p_loser_ids) ? a.p_loser_ids : []).map(String), ws = Math.round(Number(a.p_winner_score)), ls = Math.round(Number(a.p_loser_score));
               if (!((w.length === 1 && l.length === 1) || (w.length === 2 && l.length === 2)) || new Set([...w, ...l]).size !== w.length + l.length) return bmErr("Pick a winner and a loser (1v1 or 2v2)");
@@ -4785,6 +4808,12 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await mv("UPDATE OR IGNORE device_tokens SET user_id = ? WHERE user_id = ?", K.id, D.id);
       await mv("UPDATE OR IGNORE event_reviews SET user_id = ? WHERE user_id = ?", K.id, D.id);
       await mv("UPDATE OR IGNORE gh_tokens SET user_id = ? WHERE user_id = ?", K.id, D.id);
+      { // badminton: if both accounts had a badminton profile, merge those too (games, attendance, leaderboards), keeping the kept account's one
+        try {
+          const pk = await env.DB.prepare("SELECT id FROM bm_players WHERE uid = ?").bind(K.id).first(), pd = await env.DB.prepare("SELECT id FROM bm_players WHERE uid = ?").bind(D.id).first();
+          if (pk && pd && pk.id !== pd.id && (await bmMerge(env, pk.id, pd.id))) { const lgs = await bmReadLeagues(env); let ch = false; for (const L of lgs) if (Array.isArray(L.players) && L.players.includes(pd.id)) { L.players = [...new Set(L.players.map((x) => (x === pd.id ? pk.id : x)))]; ch = true; } if (ch) await env.SITE_DATA.put("bm:leagues", JSON.stringify(lgs)); }
+        } catch {}
+      }
       await mv("UPDATE bm_players SET uid = ? WHERE uid = ?", K.id, D.id);
       for (const t of ["steps_daily", "step_participants", "step_sources", "device_tokens", "event_reviews", "gh_tokens", "badge_counts", "member_seen"]) await mv(`DELETE FROM ${t} WHERE user_id = ?`, D.id);
       // 6. squads, push, requests, then remove the duplicate

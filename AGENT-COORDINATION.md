@@ -1450,3 +1450,12 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - sw v296 — Rotation page simplified for recording: ONE card = Now playing + 'who won?' + losing score (keyboard opens straight away, Enter saves) + live sentence ('X + Y beat Z + W 21 – 15') + big ✅ Save game; green 'Saved' banner afterwards; who-is-here is a compact 3-column strip below; standings/games/coming-up under that.
 
 - sw v297 — Rotation: 'Game to: 21 | 11' switch (remembered per device); 11-games: winner 11 + typed loser 0–9, or 'went above 11' → winner 12–15, loser auto (15–14 cap). Fixed: button taps inside the rotation card always redraw even while a text box has focus (rotRender(true)); unlock now updates the page. rotValid accepts both 21- and 11-game scores (edit sheet).
+
+## 2026-11-04 — v298 (Claude)
+- iOS app build 6 uploaded: added camera/photo/microphone usage descriptions (photo upload crashed the app). Not yet attached to a submission.
+- Badminton: "⇄ Swap who won" on recorded games (rotation page list + edit modal); kiosk can edit/delete its league's games from the last 14 days (was tonight only); rotation page lists games by night with "Show all".
+- Badminton: admin merge of two player profiles (rpc admin_merge_player, owner only); 4DS account merge now also merges the two badminton profiles.
+- Leaderboards: caption, weekly repeat (repeat {from,until}, skip[]), per-night overrides sessions[date] {title,start,end,place,note}; public /api/bm/leagues returns computed dates + caption + sessions.
+- Removed coach ("Public admin") login (worker refuses coach@; UI shows owner login only) and the "Data now in 4DS"/import block in admin.
+- Admin: section tiles → sticky top nav bar; Calendar tab month view = same as the public calendar (all events) with tap-to-edit; admin popups wider; 4DS activity popup has inline "Edit the details here" (title/date/time/place/spots/RSVP-by/description).
+- 4DS admin profile popup: Merge with another account + Delete buttons.
