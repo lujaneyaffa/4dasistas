@@ -87,6 +87,14 @@
       "signup": "https://chat.whatsapp.com/G19Z0Kvp2szB270eQwokbI?mode=gi_t",
       "logo": "assets/logos/squad-steps-v4.png",
       "textColour": "#b5703f"
+    },
+    {
+      "id": "club-eco",
+      "slug": "eco",
+      "title": "ECO",
+      "desc": "Yes, you heard that right. Who else will take care of the plane God has blessed u with?",
+      "colour": "#b4cfc4",
+      "textColour": "#373d3b"
     }
   ]
 }
