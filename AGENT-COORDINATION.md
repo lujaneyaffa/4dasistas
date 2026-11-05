@@ -1525,3 +1525,6 @@ _(most recent first — add new entries to the top, trim past ~15)_
 
 ## 2026-11-05 — v321 (Claude)
 - Directory: search bar (#resourceSearch, state.resourceQ) above the List/Map toggle; filters name/type/category/desc/city/etc. in filteredResourceItems (used by list AND map).
+
+## 2026-11-05 — v322 (Claude)
+- Home business-of-the-day Instagram embed: card grows (height:auto) and iframe is 600-640px tall so the photos show instead of a cut-off sliver.
