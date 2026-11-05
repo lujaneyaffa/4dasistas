@@ -1516,3 +1516,6 @@ _(most recent first — add new entries to the top, trim past ~15)_
 
 ## 2026-11-04 — v318 (Claude)
 - badminton.html: Outfit font everywhere (was Arial/Georgia body/h1/buttons/tables), loads weights 400-800.
+
+## 2026-11-05 — v319 (Claude)
+- BUG FIXED: local repo was 24 commits behind origin/main, so every local deploy overwrote the site data and dropped events/resources accepted via email or the editor (e.g. Tatreez Workshop). Merged origin/main. ALWAYS `git fetch && git merge origin/main` BEFORE `scripts/deploy.sh` (deploy.sh now does this check).
