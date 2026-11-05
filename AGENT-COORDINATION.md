@@ -1506,3 +1506,7 @@ _(most recent first — add new entries to the top, trim past ~15)_
 - Admin → Clubs: big club cards (admClubCardsHtml); tap → popup with members (search, Profile, Remove=leave club only via DELETE ...?keep=1), add existing/new member, edit description + member limit (club.memberLimit; enforced on join-accept and admin add via clubFullMsg).
 - Event "spots left" red alert top-right (event.spotsAlert {mode:real|custom,n}); custom hides the real number; shows FULL when really full.
 - Emails: registration confirmation (calConfirmEmail) + payment receipt (calPaidNotify) go to the registrant AND bcc/to admin@4dasistas.ca. Forms now ask for an email (required, saved on member profile user.email, rsvp.email, calform entry.email).
+
+## 2026-11-04 — v316 (Claude) CLOUDFLARE USAGE FIX
+- Cause: /api/bm/q was ~54k of ~58k Worker requests/day. badminton.html `gameRecords()` ran 2 queries every 5s per open tab (loop() ticks every 800ms). Now it reuses the rows load() already fetched (allGames/allPlayersRaw); fallback fetch max once/min. Kiosk poll 15s -> 45s.
+- RULE: never add a setInterval/loop that calls the API without a throttle >= 45s. Check usage with GraphQL (workersInvocationsAdaptive, httpRequestsAdaptiveGroups by clientRequestPath) using the wrangler oauth token. Free plan = 100k Worker requests/day, 5M D1 rows read/day, 100k KV reads/day.
