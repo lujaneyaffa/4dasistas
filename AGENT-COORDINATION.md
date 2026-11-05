@@ -1513,3 +1513,6 @@ _(most recent first — add new entries to the top, trim past ~15)_
 
 ## 2026-11-04 — v317 (Claude)
 - Rotation/tournament leaderboard page (badminton.html rotRender) now opens with the same live podium hero (teaser-podium top 3 + caption) as the main page, centered title.
+
+## 2026-11-04 — v318 (Claude)
+- badminton.html: Outfit font everywhere (was Arial/Georgia body/h1/buttons/tables), loads weights 400-800.
