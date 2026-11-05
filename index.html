@@ -6656,7 +6656,7 @@ async function clubCalPublicCard(box, id){
         ${calFormFieldsHtml(d.form, {}, false)}
         ${calAddonsHtml(d.form, [])}
         ${calPayInFormHtml(d.form, calCardOk(d))}
-        <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;min-height:50px;text-align:center;background:var(--brand-rose);color:#fff;">${calCardOk(d) ? '💳 Continue to payment' : 'Submit'}</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}</div>`;
+        <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;min-height:50px;text-align:center;background:var(--brand-rose);color:#fff;">Submit</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}</div>`;
     box.innerHTML = calCompose(d, [['cover', calCoverHtml(d)], ['hosts', calHostsHtml(d)], ['club', `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>`], ['title', `<h3 style="margin:0 0 4px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>`],
       ['date', `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>`], ['price', calPriceHtml(d)],
       ['rsvpby', d.rsvpBy ? `<p style="margin:4px 0;font-weight:700;color:${d.closed ? '#b3261e' : '#76220b'};">⏳ ${d.closed ? 'Sign-ups are closed' : 'Sign up by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''],
@@ -6714,13 +6714,13 @@ async function clubCalPublicCard(box, id){
       if(!quick && base('pin') !== base('pin2')){ m.textContent = "The two PINs don't match."; return; }
       const chosenAddons = calAddonIds(box);
       { const pe = calPayCheck(box, d.form); if(pe){ m.textContent = pe; return; } }
-      const paidClaim = calPayClaimed(box);
+      const paidClaim = calPayClaimed(box), payHow = calPayHow(box);
       e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Sending…';
       try {
         const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', body: JSON.stringify(quick ? { name: base('name'), contact: base('phone'), email: base('email').trim(), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim } : { name: base('name'), phone: base('phone'), email: base('email').trim(), pin: base('pin'), ref: refCode(), why: base('why'), interests: [...box.querySelectorAll('.pfClub:checked')].map(c => c.value), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim }) });
         if(r && r.token){ setCmSession(r); renderNavAuth(); }
         box.innerHTML = calSignedUpHtml(d, r, chosenAddons, quick) + `<div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`; wireCalCopy(box);
-        if(calCardOk(d) && (r.eventStatus || 'going') === 'going' && (r.payId || r.token)){
+        if(calCardOk(d) && payHow === 'card' && (r.eventStatus || 'going') === 'going' && (r.payId || r.token)){
           try { const j = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/checkout', r.payId ? { method:'POST', body: JSON.stringify({ payId: r.payId, payTok: r.payTok }) } : { method:'POST', headers: ideaHeaders() }); if(j && j.clientSecret) await calOpenStripe(j, id, d, box); }
           catch(err){ admToastLite('Payment: ' + err.message); }
         }
@@ -6826,13 +6826,13 @@ async function clubCalMemberCard(box, id){
         <button type="button" class="club-guide-btn calCancelReg" hidden style="width:100%;min-height:46px;text-align:center;background:#fdecea;border-color:#b3261e;color:#b3261e;margin-top:4px;">❌ Cancel my registration</button>
         ${calFormFooterHtml(d.form)}<div class="calPayBox">${d.form.payment && d.myAnswers ? calPayBoxHtml(d) : ''}</div></div>`;
       const cxBtn = formBox.querySelector('.calCancelReg'), sendBtn = formBox.querySelector('.calFormSend');
-      syncCancel = () => { const past = calIsPast(d.date); const pf = formBox.querySelector('.calPayInForm'); if(pf) pf.hidden = !!(d.mine || d.paid || d.claimedPaid); cxBtn.hidden = !(d.mine && !past); sendBtn.textContent = d.closed && !d.mine ? '🔒 Sign-ups closed' : d.mine ? 'Update my answers' : d.myAnswers ? 'Register again' : (calCardOk(d) && !d.paid ? '💳 Continue to payment' : 'Submit & RSVP'); };
+      syncCancel = () => { const past = calIsPast(d.date); const pf = formBox.querySelector('.calPayInForm'); if(pf) pf.hidden = !!(d.mine || d.paid || d.claimedPaid); cxBtn.hidden = !(d.mine && !past); sendBtn.textContent = d.closed && !d.mine ? '🔒 Sign-ups closed' : d.mine ? 'Update my answers' : d.myAnswers ? 'Register again' : 'Submit & RSVP'; calSyncSendLabel(formBox); };
       cxBtn.addEventListener('click', () => calCancelFlow(d, id, () => { paint(); syncCancel(); admToastLite('Registration cancelled'); }));
       syncCancel();
       wireCalAddons(formBox, d.form); calMountLocations(formBox);
       formBox.addEventListener('click', async ev2 => { // "I've sent my payment"
         const sb = ev2.target.closest('.calStripeBtn');
-        if(sb){ sb.disabled = true; sb.textContent = 'Opening secure payment…'; try { const j = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/checkout', { method:'POST', headers: ideaHeaders() }); if(j && j.clientSecret){ await calOpenStripe(j, id, d, formBox); sb.disabled = false; sb.textContent = '💳 Pay by card · Apple Pay · Google Pay'; return; } throw new Error('No payment form'); } catch(err){ sb.disabled = false; sb.textContent = '💳 Pay by card · Apple Pay · Google Pay'; admToastLite(err.message); } return; }
+        if(sb){ sb.disabled = true; sb.textContent = 'Opening secure payment…'; try { const j = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/checkout', { method:'POST', headers: ideaHeaders() }); if(j && j.clientSecret){ await calOpenStripe(j, id, d, formBox); sb.disabled = false; sb.textContent = '💳 Card · Apple Pay · Google Pay'; return; } throw new Error('No payment form'); } catch(err){ sb.disabled = false; sb.textContent = '💳 Card · Apple Pay · Google Pay'; admToastLite(err.message); } return; }
         const pb2 = ev2.target.closest('.calPaidBtn'); if(!pb2) return; // the link itself opens WhatsApp; we also record the claim
         try { await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/paid', { method:'POST', headers: ideaHeaders() }); d.claimedPaid = true; formBox.querySelector('.calPayBox').innerHTML = calPayBoxHtml(d); admToastLite('✓ Thanks — the organiser will confirm'); }
         catch(err){ admToastLite(err.message); }
@@ -6842,8 +6842,8 @@ async function clubCalMemberCard(box, id){
         const emIn = formBox.querySelector('[data-base="email"]'), emVal = emIn ? emIn.value.trim() : '';
         if(emIn && !d.mine && !/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(emVal)){ m.style.color = '#c00'; m.textContent = 'Please add your email — your confirmation is sent there.'; emIn.focus(); return; }
         if(emVal){ try { localStorage.setItem('ev_email', emVal); } catch {} }
-        const paidClaim = calPayClaimed(formBox); e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Saving…';
-        try { const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ answers: calFormCollect(formBox, d.form), addons: calAddonIds(formBox), paidClaim, email: emVal }) }); d.myAnswers = r.answers; d.myAddons = r.addons || []; d.mine = r.mine; if(r.claimedPaid) d.claimedPaid = true; d.going = r.going; d.waitPos = r.waitPos || 0; if(d.capacity) d.spotsLeft = Math.max(0, d.capacity - r.going); m.style.color = '#2a7a4a'; m.textContent = r.mine === 'pending' ? '✓ Sent — an admin will approve your spot.' : r.mine === 'waitlist' ? "⏳ It's full — you're on the waitlist. We'll move you up if a spot opens." : "✓ You're signed up — thank you!"; e.target.textContent = 'Update my answers'; const pb = formBox.querySelector('.calPayBox'); paint(); if(pb && d.form.payment){ const nb = formBox.querySelector('.calPayBox'); if(nb) nb.innerHTML = calPayBoxHtml(d); if(r.mine === 'going' && !d.paid) setTimeout(() => { const sb2 = formBox.querySelector('.calStripeBtn'); if(sb2 && !sb2.disabled) sb2.click(); }, 500); } /* paying is part of signing up: the card form opens right after they submit */ }
+        const paidClaim = calPayClaimed(formBox), payHow = calPayHow(formBox); e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Saving…';
+        try { const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ answers: calFormCollect(formBox, d.form), addons: calAddonIds(formBox), paidClaim, email: emVal }) }); d.myAnswers = r.answers; d.myAddons = r.addons || []; d.mine = r.mine; if(r.claimedPaid) d.claimedPaid = true; d.going = r.going; d.waitPos = r.waitPos || 0; if(d.capacity) d.spotsLeft = Math.max(0, d.capacity - r.going); m.style.color = '#2a7a4a'; m.textContent = r.mine === 'pending' ? '✓ Sent — an admin will approve your spot.' : r.mine === 'waitlist' ? "⏳ It's full — you're on the waitlist. We'll move you up if a spot opens." : "✓ You're signed up — thank you!"; e.target.textContent = 'Update my answers'; const pb = formBox.querySelector('.calPayBox'); paint(); if(pb && d.form.payment){ const nb = formBox.querySelector('.calPayBox'); if(nb) nb.innerHTML = calPayBoxHtml(d); if(r.mine === 'going' && !d.paid && (!calCardOk(d) || payHow === 'card')) setTimeout(() => { const sb2 = formBox.querySelector('.calStripeBtn'); if(sb2 && !sb2.disabled) sb2.click(); }, 500); } /* paying is part of signing up: the card form opens right after they submit */ }
         catch(err){ m.style.color = '#c00'; m.textContent = err.message; }
         e.target.disabled = false;
       });
@@ -7100,7 +7100,7 @@ function calPaidWaLink(d, cls, label, extra){
 function calPayBoxHtml(d){
   if(!d.form || !d.form.payment || d.mine !== 'going') return '';
   const cardOk = d.cardPay && !d.paid && calTotalFor(d.form, d.myAddons || []).total != null;
-  const cardBtn = cardOk ? '<button type="button" class="club-guide-btn calStripeBtn" style="width:100%;margin-top:8px;text-align:center;background:#111;color:#fff;border-color:#111;">💳 Pay by card · Apple Pay · Google Pay</button><p class="ideas-hint" style="margin:6px 0 0;">Secure payment on Stripe. You\'ll get a message here as soon as it goes through.</p>' : '';
+  const cardBtn = cardOk ? (() => { const t = calTotalFor(d.form, d.myAddons || []); return '<p style="margin:12px 0 0;font-weight:800;">Choose one: pay by e-Transfer (above, no fee) or by card:</p><button type="button" class="club-guide-btn calStripeBtn" style="width:100%;margin-top:8px;text-align:center;background:#111;color:#fff;border-color:#111;">💳 Card · Apple Pay · Google Pay — ' + escapeCm(calMoney(t.total + calFee(t.total), t.sym)) + '</button><p class="ideas-hint" style="margin:6px 0 0;">Includes ' + escapeCm(calMoney(calFee(t.total), t.sym)) + ' Stripe processing fee. Secure payment on Stripe — you\'ll get a message here as soon as it goes through.</p>'; })() : '';
   return calPayHtml(d.form, '', d.myAddons) + cardBtn + (d.paid ? '<p style="margin:8px 0 0;font-weight:700;color:#2a7a4a;">✅ Payment received — thank you!</p>' : d.claimedPaid ? '<p style="margin:8px 0 0;font-weight:700;color:#2a7a4a;">✔️ You told us you paid — the organiser will confirm it.</p>' + calPaidWaLink(d, 'calPaidAgain', '💬 Message us on WhatsApp again', 'background:#fff;color:#1c7a33;') : calPaidWaLink(d, 'calPaidBtn', '✅ I\'ve paid — confirm on WhatsApp') + '<p class="ideas-hint" style="margin:6px 0 0;">Opens WhatsApp with a message to 4DASISTAS already written — just press send.</p>');
 }
 function calSignedUpHtml(d, r, addons, quick){
@@ -7635,26 +7635,42 @@ function wireCalAddons(root, form){
   calWireSignatures(root);
   const upd = () => { const t = root.querySelector('.calTotal'); if(!t) return; const r = calTotalFor(form, calAddonIds(root)); t.textContent = r.total != null ? 'Total: ' + calMoney(r.total, r.sym) : ''; };
   root.querySelectorAll('.calAddon').forEach(c => c.addEventListener('change', () => { upd(); calPayLiveRefresh(root, form); })); upd(); calPayLiveRefresh(root, form);
+  if(!root.dataset.payWired){ root.dataset.payWired = '1'; root.addEventListener('change', e => { if(e.target.classList && e.target.classList.contains('calPayHow')){ calPayLiveRefresh(root, form); calSyncSendLabel(root); } }); }
 }
 function calAddonIds(root){ return [...root.querySelectorAll('.calAddon:checked')].map(c => c.value); }
 // The payment box INSIDE the form (just above Submit): how to pay + a tick box. Required = the tick is needed to submit.
 function calCardOk(d){ return !!(d && d.cardPay && d.form && d.form.payment && calTotalFor(d.form, []).total != null); }
 function calPayInFormHtml(form, card){
   const pay = form && form.payment; if(!pay) return '';
-  if(card) return `<div class="calPayInForm" style="margin-top:12px;"><div class="calPayLive"></div><p class="ideas-hint" style="text-align:left;margin:8px 0 0;">💳 You'll pay on the next step — card, Apple Pay or Google Pay, securely with Stripe.</p></div>`;
+  if(card) return `<div class="calPayInForm" data-card="1" style="margin-top:12px;"><div class="calPayLive"></div></div>`;
   return `<div class="calPayInForm" style="margin-top:12px;"><div class="calPayLive"></div><label class="fb-opt" style="margin-top:8px;"><input type="checkbox" class="calPayClaim" style="width:22px;height:22px;"> <span><b>✅ I've sent my payment</b> <small style="color:${pay.required ? '#b3261e' : '#776867'};font-weight:${pay.required ? '700' : '400'};">${pay.required ? '(required)' : '(optional — you can also pay later)'}</small></span></label></div>`;
+}
+// Card payments (card · Apple Pay · Google Pay) ALWAYS carry Stripe's fee so 4DS receives the full price: charged = (price + 0.30) / (1 - 2.9%). Keep in step with CAL_FEE_* in the Worker.
+function calFee(t){ return Math.round(((t + 0.30) / (1 - 0.029) - t) * 100) / 100; }
+function calPayHow(root){ const r = root.querySelector('.calPayHow:checked'); return r && !r.closest('[hidden]') ? r.value : ''; }
+function calPayChooseHtml(form, ids, sel){
+  const pay = form.payment || {}, r = calTotalFor(form, ids), t = r.total, fee = t != null ? calFee(t) : 0, sym = r.sym;
+  const o = (v, title, sub, extra) => `<label class="fb-opt" style="align-items:flex-start;margin-top:8px;padding:10px 12px;border:2px solid ${sel === v ? '#76220b' : '#e3d2cf'};border-radius:14px;background:${sel === v ? '#fff7f1' : '#fff'};"><input type="radio" name="calPayHow" class="calPayHow" value="${v}" ${sel === v ? 'checked' : ''} style="width:22px;height:22px;margin-top:2px;"> <span style="flex:1;min-width:0;"><b>${title}</b><br><small style="color:#776867;">${sub}</small>${extra || ''}</span></label>`;
+  const eInfo = sel === 'etransfer' ? `<div style="margin-top:8px;font-size:14px;">${pay.note ? `<div style="white-space:pre-wrap;">${escapeCm(pay.note)}</div>` : ''}${pay.link ? `<div style="margin-top:4px;"><a href="${escapeCm(pay.link)}" target="_blank" rel="noopener">${escapeCm(pay.link)}</a></div>` : ''}<label class="fb-opt" style="margin-top:8px;"><input type="checkbox" class="calPayClaim" style="width:22px;height:22px;"> <span><b>✅ I've sent my payment</b> <small style="color:${pay.required ? '#b3261e' : '#776867'};font-weight:${pay.required ? '700' : '400'};">${pay.required ? '(required)' : ''}</small></span></label></div>` : '';
+  return `<div style="padding:12px;border-radius:14px;background:#e6f4ea;border:2px solid #2a7a4a;"><div style="font-weight:800;">💳 Payment${t != null ? ' — ' + escapeCm(calMoney(t, sym)) : ''} · choose one ${pay.required ? '<span style="color:#b3261e;">(required)</span>' : ''}</div>
+    ${o('etransfer', '🏦 e-Transfer', 'No extra fee' + (t != null ? ' · you pay ' + escapeCm(calMoney(t, sym)) : ''), eInfo)}
+    ${o('card', '💳 Card · Apple Pay · Google Pay', t != null ? `Secure payment on Stripe · you pay <b>${escapeCm(calMoney(t + fee, sym))}</b> (${escapeCm(calMoney(t, sym))} + ${escapeCm(calMoney(fee, sym))} Stripe processing fee)` : 'Secure payment on Stripe · the processing fee is added', '')}</div>`;
 }
 function calPayLiveRefresh(root, form){
   const box = root.querySelector('.calPayLive'); if(!box) return;
+  const pf = box.closest('.calPayInForm');
+  if(pf && pf.dataset.card === '1'){ const cur = (box.querySelector('.calPayHow:checked') || {}).value || '', keep = !!(box.querySelector('.calPayClaim') || {}).checked; box.innerHTML = calPayChooseHtml(form, calAddonIds(root), cur); const c = box.querySelector('.calPayClaim'); if(c && keep) c.checked = true; return; }
   box.innerHTML = calPayHtml(form, '💳 Payment' + (form.payment && form.payment.required ? ' (required)' : ''), calAddonIds(root));
 }
 // null = fine, else the message to show. Required payment: the tick box must be ticked (not needed once someone is already signed up).
 function calPayCheck(root, form){
   if(!form || !form.payment || !form.payment.required) return null;
+  { const pf = root.querySelector('.calPayInForm[data-card="1"]'); if(pf && !pf.hidden){ const how = calPayHow(root); if(!how) return 'Please choose how you’ll pay: e-Transfer, or card / Apple Pay / Google Pay.'; if(how === 'card') return null; } }
   const c = root.querySelector('.calPayClaim'); if(!c || c.closest('[hidden]') || c.checked) return null;
   return 'Payment is required — please pay using the details above, then tick “I’ve sent my payment”.';
 }
 function calPayClaimed(root){ const c = root.querySelector('.calPayClaim'); return !!(c && c.checked && !c.closest('[hidden]')); }
+function calSyncSendLabel(root){ const how = calPayHow(root), b = root.querySelector('.pfSend, .calFormSend'); if(!b || b.disabled || !root.querySelector('.calPayInForm[data-card="1"]')) return; if(how === 'card') b.textContent = '💳 Continue to payment'; else if(b.classList.contains('pfSend')) b.textContent = 'Submit'; else if(!/Update|Register again|closed/i.test(b.textContent)) b.textContent = 'Submit & RSVP'; }
 function calPayHtml(form, heading, ids){
   const pay = form && form.payment; if(!pay) return '';
   const r = calTotalFor(form, ids), hasAdd = r.picked.length > 0;

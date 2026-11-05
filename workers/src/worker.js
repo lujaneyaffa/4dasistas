@@ -1535,9 +1535,12 @@ const calAddonSelection = (form, ids) => {
   return { ids: picked.map((a) => a.id), total: Number.isFinite(base) ? Math.round((base + sum) * 100) / 100 : (picked.length ? Math.round(sum * 100) / 100 : null) };
 };
 // ---- Card payments through Stripe Checkout (Stripe's own page offers Apple Pay / Google Pay). Needs the secrets STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET; without them the site works as before.
+// Card / Apple Pay / Google Pay ALWAYS add Stripe's fee on top so 4DS receives the full price: charged = (price + 0.30) / (1 - 2.9%). Same formula as calFee() in index.html.
+const CAL_FEE_PCT = 0.029, CAL_FEE_FIXED = 0.30;
+const calCardFee = (total) => Math.round(((total + CAL_FEE_FIXED) / (1 - CAL_FEE_PCT) - total) * 100) / 100;
 const calStripeSession = async (env, ev, uid, payerName, total) => { // embedded Stripe Checkout (card · Apple Pay · Google Pay) for one sign-up
   const mk = (uiMode) => new URLSearchParams({ mode: "payment", ui_mode: uiMode, ...(uiMode === "embedded" ? { redirect_on_completion: "never" } : { return_url: `${env.SITE_ORIGIN || "https://4dasistas.ca"}/?paid=1#/form/${ev.slug || ev.id}` }), client_reference_id: uid, "metadata[ev]": ev.id, "metadata[uid]": uid,
-    "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "cad", "line_items[0][price_data][unit_amount]": String(Math.round(total * 100)), "line_items[0][price_data][product_data][name]": String(ev.title).slice(0, 120), "payment_intent_data[description]": `${ev.title} — ${payerName}`.slice(0, 250) });
+    "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "cad", "line_items[0][price_data][unit_amount]": String(Math.round(total * 100)), "line_items[0][price_data][product_data][name]": String(ev.title).slice(0, 120), "line_items[1][quantity]": "1", "line_items[1][price_data][currency]": "cad", "line_items[1][price_data][unit_amount]": String(Math.round(calCardFee(total) * 100)), "line_items[1][price_data][product_data][name]": "Card processing fee (Stripe)", "payment_intent_data[description]": `${ev.title} — ${payerName}`.slice(0, 250) });
   for (const m of ["embedded", "embedded_page"]) {
     const sr = await fetch("https://api.stripe.com/v1/checkout/sessions", { method: "POST", headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, "Content-Type": "application/x-www-form-urlencoded" }, body: mk(m) });
     const sj = await sr.json().catch(() => ({})); if (sr.ok && sj.client_secret) return sj.client_secret;
@@ -1581,7 +1584,7 @@ const calPaidNotify = (env, ctx, ev, r) => ctx.waitUntil((async () => {
     let email = okEmail(r.email) || okEmail(entry.email);
     if (!email && !String(r.id).startsWith("g:")) { const u = await readUser(env, r.id); email = okEmail(u && u.email); }
     if (!email) email = okEmail(entry.contact);
-    const total = Number(entry.total), amt = Number.isFinite(total) ? `$${total.toFixed(2).replace(/\.00$/, "")} CAD` : "";
+    const total = Number(r.paidAmount) > 0 ? Number(r.paidAmount) : Number(entry.total), amt = Number.isFinite(total) ? `$${total.toFixed(2).replace(/\.00$/, "")} CAD${Number(r.paidAmount) > 0 && Number(entry.total) > 0 && r.paidAmount > entry.total ? " (includes the card processing fee)" : ""}` : "";
     const rows = emailRow("Event", escapeHtml(ev.title)) + (ev.date ? emailRow("Date", escapeHtml(ev.date)) : "") + emailRow("Name", escapeHtml(r.name || "")) + (amt ? emailRow("Paid", `<strong>${escapeHtml(amt)}</strong>`) : "") + emailRow("How", r.paidVia === "stripe" ? "Card / Apple Pay / Google Pay (Stripe)" : "Confirmed by the organiser") + emailRow("When", escapeHtml(new Date().toLocaleString("en-CA", { timeZone: "America/Toronto", dateStyle: "medium", timeStyle: "short" })));
     const html = emailShell(env, { emoji: "💚", title: "Payment received", preheader: ev.title, body: `<p style="margin:0 0 12px">Hi ${escapeHtml(String(r.name || "there").split(/\s+/)[0])}, thank you! We've received your payment — you're all set.</p>${emailTable(rows)}<p style="margin:16px 0 4px">${emailBtn(`${origin}/#/form/${ev.slug || ev.id}`, "Open the event page →")}</p>`, footer: "Keep this email as your receipt. Questions? Write to admin@4dasistas.ca." });
     await postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [email || CAL_ADMIN_MAIL], ...(email ? { bcc: [CAL_ADMIN_MAIL] } : {}), subject: `Payment received: ${ev.title}${email ? "" : " — " + (r.name || "")}`, html, reply_to: CAL_ADMIN_MAIL });
@@ -2566,7 +2569,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const s = (evt.data && evt.data.object) || {}, md = s.metadata || {};
         if (s.payment_status === "paid" && md.ev && md.uid) {
           let newly = false, rr = null;
-          const upd = await calMutate(env, md.ev, (e) => { const r = (e.rsvps || []).find((x) => x.id === md.uid); if (r && !r.paid) { r.paid = true; r.paidVia = "stripe"; delete r.claimedPaid; newly = true; rr = r; } });
+          const upd = await calMutate(env, md.ev, (e) => { const r = (e.rsvps || []).find((x) => x.id === md.uid); if (r && !r.paid) { r.paid = true; r.paidVia = "stripe"; if (Number(s.amount_total) > 0) r.paidAmount = Number(s.amount_total) / 100; delete r.claimedPaid; newly = true; rr = r; } });
           if (newly && upd && rr) calPaidNotify(env, ctx, upd, rr);
         }
       }
@@ -2719,7 +2722,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           const origin = env.SITE_ORIGIN || "https://4dasistas.ca", back = `${origin}/?paid=1#/form/${ev.slug || ev.id}`;
           // Embedded checkout: the card form (with Apple Pay / Google Pay) opens right inside the app instead of sending people to a Stripe web page.
           const mk = (uiMode) => new URLSearchParams({ mode: "payment", ui_mode: uiMode, ...(uiMode === "embedded" ? { redirect_on_completion: "never" } : { return_url: back }), client_reference_id: uid, "metadata[ev]": ev.id, "metadata[uid]": uid,
-            "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "cad", "line_items[0][price_data][unit_amount]": String(Math.round(total * 100)), "line_items[0][price_data][product_data][name]": String(ev.title).slice(0, 120),
+            "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "cad", "line_items[0][price_data][unit_amount]": String(Math.round(total * 100)), "line_items[0][price_data][product_data][name]": String(ev.title).slice(0, 120), "line_items[1][quantity]": "1", "line_items[1][price_data][currency]": "cad", "line_items[1][price_data][unit_amount]": String(Math.round(calCardFee(total) * 100)), "line_items[1][price_data][product_data][name]": "Card processing fee (Stripe)",
             "payment_intent_data[description]": `${ev.title} — ${who.name}`.slice(0, 250) });
           let sj = {}, sr = null;
           for (const m of ["embedded", "embedded_page"]) {

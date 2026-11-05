@@ -1519,3 +1519,6 @@ _(most recent first — add new entries to the top, trim past ~15)_
 
 ## 2026-11-05 — v319 (Claude)
 - BUG FIXED: local repo was 24 commits behind origin/main, so every local deploy overwrote the site data and dropped events/resources accepted via email or the editor (e.g. Tatreez Workshop). Merged origin/main. ALWAYS `git fetch && git merge origin/main` BEFORE `scripts/deploy.sh` (deploy.sh now does this check).
+
+## 2026-11-05 — v320 (Claude)
+- Event payment: form now says "choose one" — e-Transfer (no fee) or Card/Apple Pay/Google Pay. Card ALWAYS adds Stripe fee (price+0.30)/(1-2.9%) shown to payer + added as a 2nd Stripe line item (calCardFee in worker, calFee in index.html — keep in sync). Stripe amount saved as rsvp.paidAmount; receipt email shows it. Card checkout only opens if card was chosen.
