@@ -541,7 +541,10 @@ const team=t=>t.map(rotBig).join(''),letters=s=>ROT_S[s].map(t=>t.map(i=>ROT_L[i
 const rest=s=>[0,1,2,3,4,5].filter(i=>!ROT_S[s].flat().includes(i)).map(rotBig).join('');
 const inp='width:100%;box-sizing:border-box;font-size:34px;font-weight:800;text-align:center;padding:12px;border-radius:12px;border:2px solid #76220b';
 const hd='style="margin:18px 0 8px;font-size:17px"';
-let h='<h2 style="margin:0 0 2px">🏸 '+esc(LG.name||'Badminton')+'</h2><div class="muted" style="margin-bottom:10px">Doubles · games to 21 (or 11 when short on time) · '+n+' game'+(n===1?'':'s')+' played</div>';
+const played=rank.filter(r=>r.g>0).slice(0,3);
+/* same live podium hero as the main leaderboard page */
+let h='<div style="text-align:center;margin:0 0 14px"><div class="teaser-podium teaser-big" style="margin:6px auto 10px">'+[0,1,2].map(i=>{const x=played[i],c=['one','two','three'][i],m=['🏆','🥈','🥉'][i];return x?'<div class="teaser-pod '+c+'"><div class="tpAv">'+avBubble(x.p,60)+'</div><div class="tpName">'+esc(name(x.p))+'</div><div class="tpPts">'+x.w+'W–'+x.l+'L</div><div class="tpBase">'+m+'</div></div>':'<div class="teaser-pod '+c+'"><div class="blank">❓</div><div class="tpBase">'+m+'</div></div>'}).join('')+'</div><div class="muted" style="font-weight:700;font-size:16px;color:var(--w)">'+(played.length?'🏆 '+esc(LG.name||'Tournament')+' podium · live · '+n+' game'+(n===1?'':'s')+' played':'Who\'s going to be on here!? 👀')+'</div></div>'+
+'<h2 style="margin:0 0 2px;text-align:center">🏸 '+esc(LG.name||'Badminton')+'</h2><div class="muted" style="margin-bottom:10px;text-align:center">Doubles · games to 21 (or 11 when short on time) · '+n+' game'+(n===1?'':'s')+' played</div>';
 if(rotSaved&&Date.now()-rotSavedT<9000)h+='<div style="background:#e6f6ea;border:2px solid #2a7a4a;border-radius:14px;padding:10px 12px;margin-bottom:10px;font-size:15px">✅ Saved: '+rotSaved+'</div>';
 // NOW PLAYING + RECORD in one card
 h+='<div style="background:#fff7f1;border:3px solid #ce8491;border-radius:18px;padding:14px">';

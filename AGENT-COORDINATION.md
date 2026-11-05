@@ -1510,3 +1510,6 @@ _(most recent first — add new entries to the top, trim past ~15)_
 ## 2026-11-04 — v316 (Claude) CLOUDFLARE USAGE FIX
 - Cause: /api/bm/q was ~54k of ~58k Worker requests/day. badminton.html `gameRecords()` ran 2 queries every 5s per open tab (loop() ticks every 800ms). Now it reuses the rows load() already fetched (allGames/allPlayersRaw); fallback fetch max once/min. Kiosk poll 15s -> 45s.
 - RULE: never add a setInterval/loop that calls the API without a throttle >= 45s. Check usage with GraphQL (workersInvocationsAdaptive, httpRequestsAdaptiveGroups by clientRequestPath) using the wrangler oauth token. Free plan = 100k Worker requests/day, 5M D1 rows read/day, 100k KV reads/day.
+
+## 2026-11-04 — v317 (Claude)
+- Rotation/tournament leaderboard page (badminton.html rotRender) now opens with the same live podium hero (teaser-podium top 3 + caption) as the main page, centered title.
