@@ -1522,3 +1522,6 @@ _(most recent first — add new entries to the top, trim past ~15)_
 
 ## 2026-11-05 — v320 (Claude)
 - Event payment: form now says "choose one" — e-Transfer (no fee) or Card/Apple Pay/Google Pay. Card ALWAYS adds Stripe fee (price+0.30)/(1-2.9%) shown to payer + added as a 2nd Stripe line item (calCardFee in worker, calFee in index.html — keep in sync). Stripe amount saved as rsvp.paidAmount; receipt email shows it. Card checkout only opens if card was chosen.
+
+## 2026-11-05 — v321 (Claude)
+- Directory: search bar (#resourceSearch, state.resourceQ) above the List/Map toggle; filters name/type/category/desc/city/etc. in filteredResourceItems (used by list AND map).

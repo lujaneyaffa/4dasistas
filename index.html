@@ -1504,6 +1504,7 @@ small{ font-size:12px; }
   </label>
 </div>
 
+<div class="controls controls-center" id="resourceSearchRow" style="display:none;"><div style="position:relative;width:min(560px,100%);"><input type="search" id="resourceSearch" placeholder="🔍 Search the directory — name, type, city…" autocomplete="off" enterkeyhint="search" style="width:100%;box-sizing:border-box;padding:12px 16px;font:inherit;font-size:16px;border:2px solid var(--brand-brown);border-radius:999px;background:#fff;color:inherit;outline:none;"></div></div>
 <div class="controls controls-center" id="resourceControlsRow" style="display:none;">
   <div class="view-toggle" id="resourceViewToggle">
     <button data-rview="list">List view</button>
@@ -2941,7 +2942,10 @@ function renderTravelFilters(){
 let leafletMap = null;
 
 function filteredResourceItems(){
-  return state.resourceFilter === 'all' ? allResourceItems : allResourceItems.filter(r => r.category === state.resourceFilter);
+  const base = state.resourceFilter === 'all' ? allResourceItems : allResourceItems.filter(r => r.category === state.resourceFilter);
+  const q = String(state.resourceQ || '').toLowerCase().replace(/\s+/g, ' ').trim(); if(!q) return base;
+  const words = q.split(' ');
+  return base.filter(r => { const hay = [r.title, r.type, r.category, r.desc, r.location, r.address, r.city, r.ownedBy, r.cuisine, r.instagram, r.website].map(v => String(v || '')).join(' ').toLowerCase(); return words.every(w => hay.includes(w)); });
 }
 
 // Round-robins through categories so the same category never appears twice in a row.
@@ -3071,7 +3075,7 @@ function renderResourceList(){
   el.className = isMentalHealth ? 'mental-health-grid' : isSmallBiz ? 'small-business-grid' : 'res-list-grid';
   el.style.display = (isMentalHealth || isSmallBiz) ? 'grid' : 'block';
 
-  if(filtered.length === 0){ el.innerHTML = '<div class="empty">Nothing here yet.</div>'; pagEl.innerHTML=''; return; }
+  if(filtered.length === 0){ el.innerHTML = `<div class="empty">${state.resourceQ ? 'No matches for “' + escapeCm(state.resourceQ) + '” — try another word.' : 'Nothing here yet.'}</div>`; pagEl.innerHTML=''; return; }
 
   const pageItems = filtered;
 
@@ -14183,6 +14187,7 @@ function renderInner(){
   const calViewFilter = document.getElementById('calViewFilter');
   if(calViewFilter) calViewFilter.style.display = (!isDirectory && state.view === 'calendar') ? 'flex' : 'none';
   if(calViewFilter) calViewFilter.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.calview === state.calViewMode));
+  document.getElementById('resourceSearchRow').style.display = state.tab === 'resources' ? 'flex' : 'none';
   document.getElementById('resourceControlsRow').style.display = state.tab === 'resources' && !NON_MAPPABLE_RESOURCES.includes(state.resourceFilter) ? 'flex' : 'none';
   document.getElementById('list-view').style.display = 'none';
   document.getElementById('pagination').style.display = 'none';
@@ -14507,6 +14512,7 @@ document.getElementById('eventSortSelect').addEventListener('change', e => {
   render();
 });
 
+{ let rsT = null; const rsIn = document.getElementById('resourceSearch'); if(rsIn) rsIn.addEventListener('input', () => { clearTimeout(rsT); rsT = setTimeout(() => { state.resourceQ = rsIn.value; if(state.tab === 'resources') renderDirectory(); }, 250); }); } // directory search: filters both the list and the map
 document.getElementById('resourceViewToggle').addEventListener('click', e => {
   const btn = e.target.closest('button');
   if(!btn) return;
