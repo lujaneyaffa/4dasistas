@@ -1548,3 +1548,6 @@ _(most recent first — add new entries to the top, trim past ~15)_
 
 ## 2026-11-05 — v328 (Claude)
 - FIX: gameRecords() (badminton.html) threw "allGames is not defined" every 800ms since v316 (different script scope). Now reads window.__bm.games/players. LESSON: after any change, read console errors on the live page.
+
+## 2026-11-05 — v329 (Claude)
+- Admin: Badminton and Steps are now two separate tabs (groups `badminton`, `steps`; old `programs` -> badminton). Quick-find entries point to the right one.
