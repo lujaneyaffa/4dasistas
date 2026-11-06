@@ -1532,3 +1532,13 @@ _(most recent first — add new entries to the top, trim past ~15)_
 ## 2026-11-05 — v323 (Claude)
 - Badminton public Welcome: "Last game night" card with podium, standings AND every game from that night (dayBodyHtml). Archive tab now lists this season's game nights (tap -> standings + games). Day popup also lists all games.
 - Website Leaderboards tab: stale cached "Who will it be?" (older than 2 min) is no longer shown; hidden badminton frames are asked to reload games when the tab opens (bmFramesRefresh, max 1/min).
+
+## 2026-11-05 — v324 (Claude)
+- badminton.html: public "Open kiosk" card hidden (button kept in DOM for bind); fixed top-right heart button #kioskHeart opens the kiosk, hidden while in kiosk view.
+
+## 2026-11-05 — v325 (Claude)
+- badminton Welcome hero (#wTeaserPod/#wTeaserCap): shows last game night top 3 instead of the static "Who's going to be on here" question marks once games exist.
+
+## 2026-11-05 — v326 (Claude)
+- ROOT CAUSE FIX (badminton.html): body fade-in animation used fill "both" which kept a transform on <body>, so every position:fixed element (pop-ups, kiosk heart) scrolled with the page and popups opened at the bottom. Now "backwards". NEVER hold a transform/filter on body/wrap.
+- Last-night card no longer repeats the podium (hero shows it).
