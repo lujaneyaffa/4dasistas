@@ -9740,6 +9740,7 @@ function notificationsCardHtml(){
 
 // ---- A quick run-through for anyone new (or new to this version) — shown once, can be skipped ----
 function showTourOnce(){
+  if(state.tab === 'eventform' || /^#\/form\//.test(location.hash)) return;
   try { if(localStorage.getItem('tourSeen') === '2' || document.getElementById('tourCard') || document.getElementById('welcomeScreen')) return; } catch {}
   if(document.querySelector('.mem-pop')){ setTimeout(showTourOnce, 4000); return; } // wait until other popups (what's new) are closed
   const phone = window.matchMedia('(max-width:700px)').matches, where = phone ? 'bar at the bottom' : 'bar on the left';
@@ -14888,6 +14889,7 @@ document.getElementById('footerAdminModalOverlay').addEventListener('click', e =
 /* ---- First launch: like the iPhone's "hello" — the greeting is WRITTEN across the screen in script, then softly gives way to the next. Cream on the 4DS pink.
    Layout rule (a past bug): nothing that is centred may also be animated with `transform` — the animation overwrites the centring. Centring is done with flexbox/grid only. ---- */
 function showWelcomeOnce(){
+  if(state.tab === 'eventform' || /^#\/form\//.test(location.hash)) return; // someone opening an event link just wants the event: no welcome / tour
   try { if(localStorage.getItem('welcomeSeen')) return; } catch {}
   if(document.getElementById('welcomeScreen')) return;
   const w = document.createElement('div'); w.id = 'welcomeScreen';
