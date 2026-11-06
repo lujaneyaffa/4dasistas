@@ -523,6 +523,16 @@
       "id": "inner-voice-therapy"
     },
     {
+      "title": "Jawahar Life",
+      "type": "wellness",
+      "category": "wellness",
+      "location": "Mississauga",
+      "desc": "She's hosts amazing workshops for discovering the beauty of your feminine self",
+      "ownedBy": "Community submission",
+      "instagram": "https://www.instagram.com/jawaharlife/",
+      "id": "jawahar-life"
+    },
+    {
       "category": "eventservices",
       "title": "Krafted Banners Co",
       "type": "hand painted banners",
@@ -599,6 +609,16 @@
       "phone": "+1 289-796-8098",
       "ownedBy": "Culturally responsive psychology practice",
       "category": "mentalhealth"
+    },
+    {
+      "title": "Ms Kay Fit Studios",
+      "type": "wellness",
+      "category": "wellness",
+      "location": "Oakville",
+      "desc": "Her pilates studio classes are perfectionnnn..reasonably priced and sometimes she hosts fun workshops",
+      "ownedBy": "Community submission",
+      "instagram": "https://www.instagram.com/_mskayfit_/",
+      "id": "ms-kay-fit-studios"
     },
     {
       "id": "my-matcha-cart",
