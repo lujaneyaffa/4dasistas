@@ -1542,3 +1542,6 @@ _(most recent first — add new entries to the top, trim past ~15)_
 ## 2026-11-05 — v326 (Claude)
 - ROOT CAUSE FIX (badminton.html): body fade-in animation used fill "both" which kept a transform on <body>, so every position:fixed element (pop-ups, kiosk heart) scrolled with the page and popups opened at the bottom. Now "backwards". NEVER hold a transform/filter on body/wrap.
 - Last-night card no longer repeats the podium (hero shows it).
+
+## 2026-11-05 — v327 (Claude)
+- Mini tournament page: Swap/Edit/Delete/Undo game buttons now main-admin only (were also shown to anyone with the kiosk password).
