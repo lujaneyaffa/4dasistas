@@ -1971,6 +1971,10 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
+    // Instagram (and some chat apps) turn the "#" in 4dasistas.ca/#/form/xyz into "%23", which the browser then asks the server for as a path. Send those to the real page.
+    { const u0 = new URL(request.url); const m0 = u0.pathname.match(/^\/(?:%23|#)\/(.+)$/i);
+      if (m0 && request.method === "GET") return Response.redirect(`${u0.origin}/#/${m0[1].replace(/^\/+/, "")}`, 302); }
+
     const url = new URL(request.url);
     const path = url.pathname;
 
