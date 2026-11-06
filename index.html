@@ -14136,7 +14136,11 @@ async function checkAdminSession(){
 
 // render() never lets one bad piece of data kill the whole page: if drawing throws, clean up whatever may be blocking taps, fall back to a safe tab and try once more (a half-drawn page is what made every button look dead).
 let _renderFails = 0;
+let _wasEventForm = false;
 function render(){
+  // Opened from an event link: no welcome/tour — but the moment they leave the event page (e.g. tap the 4DS logo) they get it once, as any new visitor would
+  if(state.tab === 'eventform') _wasEventForm = true;
+  else if(_wasEventForm){ _wasEventForm = false; setTimeout(showWelcomeOnce, 400); }
   try { renderInner(); _renderFails = 0; }
   catch(err){
     console.error('render failed', err);
