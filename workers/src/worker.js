@@ -1556,7 +1556,7 @@ const calCardFee = (total) => Math.round(((total + CAL_FEE_FIXED) / (1 - CAL_FEE
 const calStripeSession = async (env, ev, uid, payerName, total) => { // embedded Stripe Checkout (card · Apple Pay · Google Pay) for one sign-up
   const mk = (uiMode) => new URLSearchParams({ mode: "payment", ui_mode: uiMode, ...(uiMode === "embedded" ? { redirect_on_completion: "never" } : { return_url: `${env.SITE_ORIGIN || "https://4dasistas.ca"}/?paid=1#/form/${ev.slug || ev.id}` }), client_reference_id: uid, "metadata[ev]": ev.id, "metadata[uid]": uid,
     "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "cad", "line_items[0][price_data][unit_amount]": String(Math.round(total * 100)), "line_items[0][price_data][product_data][name]": String(ev.title).slice(0, 120), "line_items[1][quantity]": "1", "line_items[1][price_data][currency]": "cad", "line_items[1][price_data][unit_amount]": String(Math.round(calCardFee(total) * 100)), "line_items[1][price_data][product_data][name]": "Card processing fee (Stripe)", "payment_intent_data[description]": `${ev.title} — ${payerName}`.slice(0, 250) });
-  for (const m of ["embedded", "embedded_page"]) {
+  for (const m of ["embedded_page", "embedded"]) {
     const sr = await fetch("https://api.stripe.com/v1/checkout/sessions", { method: "POST", headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, "Content-Type": "application/x-www-form-urlencoded" }, body: mk(m) });
     const sj = await sr.json().catch(() => ({})); if (sr.ok && sj.client_secret) return sj.client_secret;
     console.error("Stripe checkout failed", m, sr.status, JSON.stringify(sj).slice(0, 300));
@@ -2758,7 +2758,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
             "line_items[0][quantity]": "1", "line_items[0][price_data][currency]": "cad", "line_items[0][price_data][unit_amount]": String(Math.round(total * 100)), "line_items[0][price_data][product_data][name]": String(ev.title).slice(0, 120), "line_items[1][quantity]": "1", "line_items[1][price_data][currency]": "cad", "line_items[1][price_data][unit_amount]": String(Math.round(calCardFee(total) * 100)), "line_items[1][price_data][product_data][name]": "Card processing fee (Stripe)",
             "payment_intent_data[description]": `${ev.title} — ${who.name}`.slice(0, 250) });
           let sj = {}, sr = null;
-          for (const m of ["embedded", "embedded_page"]) {
+          for (const m of ["embedded_page", "embedded"]) {
             sr = await fetch("https://api.stripe.com/v1/checkout/sessions", { method: "POST", headers: { Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`, "Content-Type": "application/x-www-form-urlencoded" }, body: mk(m) });
             sj = await sr.json().catch(() => ({}));
             if (sr.ok && sj.client_secret) break;

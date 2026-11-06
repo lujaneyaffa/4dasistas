@@ -6869,7 +6869,7 @@ async function calOpenStripe(j, id, d, formBox){
   wrap.querySelector('.mem-pop-close').addEventListener('click', shut);
   try {
     const stripe = window.Stripe(j.pk);
-    embedded = await stripe.initEmbeddedCheckout({ clientSecret: j.clientSecret, onComplete: () => {
+    embedded = await (stripe.createEmbeddedCheckoutPage || stripe.initEmbeddedCheckout).call(stripe, { clientSecret: j.clientSecret, onComplete: () => {
       shut(); d.paid = true; admToastLite('✓ Paid — thank you! 💚');
       const pb = formBox && formBox.querySelector('.calPayBox'); if(pb) pb.innerHTML = calPayBoxHtml(d);
       setTimeout(() => { try { if(typeof calRefreshOpen === 'function') calRefreshOpen(id); } catch {} }, 2500);
