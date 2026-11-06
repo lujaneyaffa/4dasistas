@@ -9630,7 +9630,7 @@ function paintBmLb(){
   lgs.forEach(l => paintBmLbOne(el.querySelector(`.bmLbOne[data-lg="${CSS.escape(l.id)}"]`), l, lgs.length > 1));
 }
 function paintBmLbOne(el, lg, many){
-  if(!el) return; const d = bmLbFor(lg.id), page = '/badminton' + (lg.id === 'main' ? '' : '?league=' + encodeURIComponent(lg.id));
+  if(!el) return; let d = bmLbFor(lg.id); if(d && d.waiting && Date.now() - (d.at || 0) > 120000) d = null; /* a saved "who will it be?" from before the game is stale — show Loading until fresh numbers arrive */ const page = '/badminton' + (lg.id === 'main' ? '' : '?league=' + encodeURIComponent(lg.id));
   const cls = ['one', 'two', 'three'], med = ['🏆', '🥈', '🥉'], list = (d && !d.waiting && d.list) || [];
   const av = x => x.a ? `<img src="${escapeCm(x.a)}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : escapeCm(x.h || '💗');
   const pod = i => { const x = list[i]; return !x ? `<div class="spod ${cls[i]}"><div class="spav">❓</div><div class="spname">${d && d.waiting ? 'Who will it be?' : '—'}</div><div class="spbase">${med[i]}</div></div>` : `<div class="spod ${cls[i]}"><div class="spav" style="overflow:hidden;">${av(x)}</div><div class="spname">${escapeCm(x.n)}</div><div class="spbase">${med[i]}<small>${escapeCm(String(x.pts))}${x.u === undefined ? ' pts' : ''}</small></div></div>`; };
@@ -9695,8 +9695,11 @@ function mountLeaderboards(){
   const ck = getCmSession() ? 'lbStepsCacheM' : 'lbStepsCache';
   paint(state.lbSteps || lbCacheGet(ck));
   cmApiRaw(getCmSession() ? '/api/me/steps' : '/api/steps/public', getCmSession() ? { headers: ideaHeaders(), cache:'no-store' } : {}).then(d => { state.lbSteps = d; lbCacheSet(ck, d); paint(d); }).catch(() => {});
-  paintBmLb(); ensureBmDataFrame();
+  paintBmLb(); ensureBmDataFrame(); bmFramesRefresh();
 }
+// ask every hidden badminton frame for fresh games right now (so the podium is never a stale copy from before tonight's games)
+let _bmFr = 0;
+function bmFramesRefresh(){ if(Date.now() - _bmFr < 60000) return; _bmFr = Date.now(); [2500].forEach(ms => setTimeout(() => { document.querySelectorAll('iframe[id^="bmDataFrame"]').forEach(f => { try { const w = f.contentWindow; if(w && w.__bm && w.__bm.load) w.__bm.load().then(() => w.__bl && w.__bl()).catch(() => {}); } catch {} }); }, ms)); }
 window.addEventListener('message', e => { try { if(e.origin === location.origin && e.data && e.data.bmLbData){ const d = e.data.bmLbData, id = d.league || 'main'; if(id === 'main'){ state.bmLb = d; lbCacheSet('lbBmCache', d); } state.bmLbAll = Object.assign({}, lbCacheGet('lbBmCacheAll') || {}, state.bmLbAll || {}, { [id]: d }); lbCacheSet('lbBmCacheAll', state.bmLbAll); paintBmLb(); } } catch {} });
 // warm the badminton numbers in the background shortly after the site opens, so the Leaderboards tab never waits
 setTimeout(() => { try { const c = lbCacheGet('lbBmCache'); if(!c || Date.now() - (c.at || 0) > 10 * 60000) ensureBmDataFrame();

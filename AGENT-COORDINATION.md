@@ -1528,3 +1528,7 @@ _(most recent first — add new entries to the top, trim past ~15)_
 
 ## 2026-11-05 — v322 (Claude)
 - Home business-of-the-day Instagram embed: card grows (height:auto) and iframe is 600-640px tall so the photos show instead of a cut-off sliver.
+
+## 2026-11-05 — v323 (Claude)
+- Badminton public Welcome: "Last game night" card with podium, standings AND every game from that night (dayBodyHtml). Archive tab now lists this season's game nights (tap -> standings + games). Day popup also lists all games.
+- Website Leaderboards tab: stale cached "Who will it be?" (older than 2 min) is no longer shown; hidden badminton frames are asked to reload games when the tab opens (bmFramesRefresh, max 1/min).
