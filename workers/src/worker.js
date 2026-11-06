@@ -416,7 +416,7 @@ const hmacHex = async (secret, message) => {
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 };
 // Past submissions: when one is accepted / rejected it is kept (90 days) with the outcome, so the admin can look back.
-const sugArchive = async (env, kind, raw, outcome) => { try { const x = typeof raw === "string" ? JSON.parse(raw) : raw; if (!x || !x.id) return; await env.SITE_DATA.put(`sughist:${kind}:${x.id}`, JSON.stringify({ ...x, kind, outcome, decidedAt: Date.now() }), { expirationTtl: 90 * 86400 }); } catch {} };
+const sugArchive = async (env, kind, raw, outcome, reason) => { try { const x = typeof raw === "string" ? JSON.parse(raw) : raw; if (!x || !x.id) return; await env.SITE_DATA.put(`sughist:${kind}:${x.id}`, JSON.stringify({ ...x, kind, outcome, ...(reason ? { reason } : {}), decidedAt: Date.now() }), { expirationTtl: 90 * 86400 }); } catch {} };
 const reviewSig = (env, kind, id) => hmacHex(`review-link:${env.ADMIN_PASSWORD || ""}`, `${kind}:${id}`);
 const sameSig = (a, b) => { a = String(a || ""); b = String(b || ""); if (a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0; };
 const reviewUrlFor = async (env, kind, id, action) => `${env.SITE_ORIGIN || "https://4dasistas.ca"}/review/${kind}/${encodeURIComponent(id)}?sig=${await reviewSig(env, kind, id)}${action ? `&a=${action}` : ""}`;
@@ -544,7 +544,7 @@ const notifyAdminOfSuggestion = async (env, ctx, kind, sug) => {
   const isEvent = kind === "event";
   const rows = isEvent
     ? (sug.extra || []).map((x) => emailRow(escapeHtml(x.label), escapeHtml(x.value))).join("") + emailRow("Event", escapeHtml(sug.name)) + emailRow("Date", escapeHtml(sug.date)) + emailRow("Genre", escapeHtml(sug.genre === "other" ? `Other: ${sug.genreOther || ""}` : (sug.genre || "—"))) + emailRow("City", escapeHtml(sug.city)) + emailRow("Link", `<a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a>`)
-    : emailRow("Name", escapeHtml(sug.title)) + emailRow("Type", escapeHtml(sug.type === "other" ? `Other: ${sug.typeOther || ""}` : sug.type)) + emailRow("City", escapeHtml(sug.city)) + emailRow("Link", `<a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a>`) + (sug.contact ? emailRow("Submitter contact", escapeHtml(sug.contact)) : "");
+    : emailRow("Name", escapeHtml(sug.title)) + emailRow("Type", escapeHtml(sug.type === "other" ? `Other: ${sug.typeOther || ""}` : sug.type)) + emailRow("City", escapeHtml(sug.city)) + emailRow("Link", `<a href="${escapeHtml(sug.link)}">${escapeHtml(sug.link)}</a>`) + (sug.email ? emailRow("Submitter email", escapeHtml(sug.email)) : "");
   const comments = sug.comments ? emailNote(`<div style="font-size:12px;opacity:.8;margin-bottom:2px">💬 Comments from the submitter</div>${escapeHtml(sug.comments).replace(/\n/g, "<br>")}`) : "";
   const html = emailShell(env, {
     emoji: isEvent ? "🗓️" : "🛍️", title: `New ${isEvent ? "event" : "resource"} submitted`, preheader: isEvent ? `${sug.name} · ${sug.city} · ${sug.date}` : `${sug.title} · ${sug.city}`,
@@ -572,6 +572,21 @@ const notifyAdminOfFormSignup = (env, ctx, ev, person, answers, sel) => {
 };
 const notifyAdminOfEventSuggestion = (env, ctx, sug) => notifyAdminOfSuggestion(env, ctx, "event", sug);
 const notifyAdminOfResourceSuggestion = (env, ctx, sug) => notifyAdminOfSuggestion(env, ctx, "resource", sug);
+// Tell the person who submitted an event / resource what happened to it: accepted, or rejected with the admin's reason. (Older submissions have no email: nothing is sent.)
+const emailSubmitterDecision = async (env, kind, rawOrSug, outcome, reason) => {
+  try {
+    const sug = typeof rawOrSug === "string" ? JSON.parse(rawOrSug) : rawOrSug;
+    const to = okEmail(sug && sug.email);
+    if (!to || !env.RESEND_API_KEY) return;
+    const isEvent = kind === "event", what = isEvent ? "event" : "resource", name = isEvent ? sug.name : sug.title;
+    const origin = env.SITE_ORIGIN || "https://4dasistas.ca", ok = outcome === "accepted";
+    const body = ok
+      ? `<p style="margin:0 0 12px">Great news — your ${what} <strong>${escapeHtml(name)}</strong> was accepted and will show up on the 4DASISTAS ${isEvent ? "calendar" : "directory"} within a few minutes. Thank you for sending it in! 💛</p><p style="margin:16px 0 4px">${emailBtn(origin, "Open 4DASISTAS →")}</p>`
+      : `<p style="margin:0 0 12px">Thank you for sending in your ${what} <strong>${escapeHtml(name)}</strong>. Unfortunately we couldn't add it this time.</p>${reason ? emailNote(`<div style="font-size:12px;opacity:.8;margin-bottom:2px">Reason</div>${escapeHtml(reason).replace(/\n/g, "<br>")}`) : ""}<p style="margin:12px 0 0">You're always welcome to send something else in.</p>`;
+    const html = emailShell(env, { emoji: ok ? "✅" : "💌", title: ok ? `Your ${what} was accepted` : `About your ${what} submission`, preheader: name, body, footer: "Questions? Write to admin@4dasistas.ca." });
+    await postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [to], subject: ok ? `Accepted: ${name}` : `About your submission: ${name}`, html, reply_to: CAL_ADMIN_MAIL });
+  } catch (e) { console.error("submitter decision email failed", String(e && e.message || e)); }
+};
 // ---- Web Push (free phone notifications). A push with NO payload wakes the member's service worker, which then fetches
 // the message text from /api/push/message and shows it (so no payload encryption is needed). Auth is VAPID: a short
 // ES256 JWT signed with VAPID_PRIVATE_JWK (Worker secret); the matching public key is below + in index.html.
@@ -1994,18 +2009,18 @@ export default {
         ? `<label>Event name</label><input id="f_title" value="${e(sug.name)}"><label>Date</label><input id="f_date" type="date" value="${e(sug.date)}"><label>City</label><input id="f_city" value="${e(sug.virtual ? "" : sug.city)}"><label><input id="f_virtual" type="checkbox" ${sug.virtual ? "checked" : ""}>Virtual event</label><label>Link</label><input id="f_link" value="${e(sug.link)}"><label>Show it under which Calendar tab?</label><select id="f_section">${[["functions", "Functions (markets, festivals, gatherings)"], ["activities", "Activities"], ["sports", "Sports"], ["trips", "Trips"], ["mosqueprograms", "Knowledge (mosque programs)"], ["supportprograms", "Support programs"]].map(([k, l]) => `<option value="${k}" ${k === (GENRE_TO_SECTION[sug.genre] || "functions") ? "selected" : ""}>${e(l)}</option>`).join("")}</select>`
         : `<label>Name</label><input id="f_title" value="${e(sug.title)}"><label>Type</label>${sug.type === "other" ? `<div class="note" style="margin:4px 0">They chose “Other”: <strong>${e(sug.typeOther || "")}</strong> — pick the closest type below.</div>` : ""}<select id="f_type">${sug.type === "other" ? '<option value="">Pick a type…</option>' : ""}${RESOURCE_CATEGORIES.map((k) => `<option value="${k}" ${k === sug.type ? "selected" : ""}>${e(k)}</option>`).join("")}</select><label>Link (Instagram / WhatsApp)</label><input id="f_link" value="${e(sug.link)}"><label>City</label><input id="f_city" value="${e(sug.virtual ? "" : sug.city)}"><label><input id="f_virtual" type="checkbox" ${sug.virtual ? "checked" : ""}>Virtual / online only</label>`;
       const genreNote = kind === "event" && sug.genre ? `<div class="note" style="margin:4px 0"><strong>Genre:</strong> ${e(sug.genre === "other" ? `Other — ${sug.genreOther || ""}` : sug.genre)}</div>` : "";
-      const comments = genreNote + (sug.comments ? `<div class="note"><strong>Comments from the submitter</strong>\n${e(sug.comments)}</div>` : "") + (sug.contact ? `<div class="note"><strong>Submitter's contact</strong> (if the link has a problem): ${e(sug.contact)}</div>` : "");
-      return page(`<h1>${kind === "event" ? "Event" : "Resource"} submitted</h1><p style="margin:0;color:#776867">Change anything below, then accept or deny.</p>${comments}${fields}<div class="row"><button class="ok" id="btnAccept">✅ Accept &amp; publish</button><button class="no" id="btnDeny">❌ Deny</button></div><div class="msg" id="msg"></div>
+      const comments = genreNote + (sug.comments ? `<div class="note"><strong>Comments from the submitter</strong>\n${e(sug.comments)}</div>` : "") + (sug.email ? `<div class="note"><strong>Submitter's email</strong> (they'll be told the outcome): ${e(sug.email)}</div>` : "");
+      return page(`<h1>${kind === "event" ? "Event" : "Resource"} submitted</h1><p style="margin:0;color:#776867">Change anything below, then accept or deny.</p>${comments}${fields}<label>If you deny: reason (emailed to the submitter — optional)</label><textarea id="f_reason" rows="3" maxlength="500" placeholder="e.g. We only list events in the GTA" style="width:100%;padding:10px;border-radius:10px;border:2px solid #76220b;font:inherit"></textarea><div class="row"><button class="ok" id="btnAccept">✅ Accept &amp; publish</button><button class="no" id="btnDeny">❌ Deny</button></div><div class="msg" id="msg"></div>
 <script>
 const KIND=${JSON.stringify(kind)},ID=${JSON.stringify(id)},SIG=${JSON.stringify(sig)},PRE=${JSON.stringify(a)};
 const $=i=>document.getElementById(i);
 function vals(){const o={title:$('f_title').value,link:$('f_link').value,city:$('f_city').value,virtual:$('f_virtual').checked};if(KIND==='event'){o.date=$('f_date').value;o.section=$('f_section').value}else o.type=$('f_type').value;return o}
 async function act(action){
-  if(action==='deny'&&!confirm('Deny and delete this submission?'))return;
+  if(action==='deny'&&!confirm('Deny this submission'+(${JSON.stringify(!!sug.email)}?' and email the submitter':'')+'?'))return;
   document.querySelectorAll('button').forEach(b=>b.disabled=true);$('msg').style.color='#373d3b';$('msg').textContent='Working…';
-  try{const r=await fetch('/api/review/'+KIND+'/'+encodeURIComponent(ID),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sig:SIG,action,fields:vals()})});const d=await r.json().catch(()=>({}));
+  try{const r=await fetch('/api/review/'+KIND+'/'+encodeURIComponent(ID),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sig:SIG,action,fields:vals(),reason:$('f_reason').value})});const d=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(d.error||'Something went wrong');
-    $('msg').style.color=action==='accept'?'#2a7a4a':'#b3261e';$('msg').textContent=action==='accept'?'Accepted — it will be live on the site in about a minute.':'Denied and removed.';
+    $('msg').style.color=action==='accept'?'#2a7a4a':'#b3261e';$('msg').textContent=action==='accept'?'Accepted — it will be live on the site in about a minute.':'Denied and removed.'+(${JSON.stringify(!!sug.email)}?' The submitter was emailed.':'');
   }catch(e){$('msg').style.color='#b3261e';$('msg').textContent=e.message;document.querySelectorAll('button').forEach(b=>b.disabled=false)}
 }
 $('btnAccept').onclick=()=>act('accept');$('btnDeny').onclick=()=>act('deny');
@@ -2021,7 +2036,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const kvKey = `${kind === "event" ? "eventsug" : "ressug"}:${id}`;
       const raw = await env.SITE_DATA.get(kvKey);
       if (!raw) return jsonResponse({ error: "Already handled" }, 404, corsHeaders);
-      if (body.action === "deny") { await sugArchive(env, kind, raw, "rejected"); await env.SITE_DATA.delete(kvKey); return jsonResponse({ ok: true }, 200, corsHeaders); }
+      if (body.action === "deny") { const why = String(body.reason || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 500); await sugArchive(env, kind, raw, "rejected", why); await emailSubmitterDecision(env, kind, raw, "rejected", why); await env.SITE_DATA.delete(kvKey); return jsonResponse({ ok: true }, 200, corsHeaders); }
       if (body.action !== "accept") return jsonResponse({ error: "Unknown action" }, 400, corsHeaders);
       if (!env.GITHUB_TOKEN) return jsonResponse({ error: "Server misconfigured: GITHUB_TOKEN is not set" }, 500, corsHeaders);
       let sug; try { sug = JSON.parse(raw); } catch { return jsonResponse({ error: "Could not read that submission" }, 500, corsHeaders); }
@@ -2060,6 +2075,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const res = await githubPutFile(env, filePath(finalSlug), content, undefined, `Create "${title}" from a community submission (approved via email)`);
       if (!res.ok) return jsonResponse({ error: "GitHub commit failed", detail: (await res.text().catch(() => "")).slice(0, 200) }, 502, corsHeaders);
       await sugArchive(env, kind, raw, "accepted");
+      await emailSubmitterDecision(env, kind, sug, "accepted");
       await env.SITE_DATA.delete(kvKey);
       return jsonResponse({ ok: true, id: finalSlug }, 200, corsHeaders);
     }
@@ -3095,6 +3111,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!isValidDateString(date)) return jsonResponse({ error: "Please pick the event's date" }, 400, corsHeaders);
       if (date < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "That date has already passed" }, 400, corsHeaders);
       if (city.length < 2) return jsonResponse({ error: "Please add the city (or tick Virtual)" }, 400, corsHeaders);
+      const email = okEmail(body.email);
+      if (!email) return jsonResponse({ error: "Please add your email so we can tell you if it's accepted" }, 400, corsHeaders);
       const genre = String(body.genre || "");
       if (!EVENT_GENRES.includes(genre)) return jsonResponse({ error: "Please pick the genre of the event" }, 400, corsHeaders);
       const genreOther = genre === "other" ? clean(body.genreOther, 40) : "";
@@ -3109,8 +3127,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await env.SITE_DATA.put(rateKey, String(used + 1), { expirationTtl: 3700 });
       await env.SITE_DATA.put(dayKey, String(dayCount + 1), { expirationTtl: 172800 });
       const comments = String(body.comments || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 600);
-      const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, link, name, date, city, virtual, genre, genreOther, comments, at: Date.now() };
-      { const ct = clean(body.contact, 160); if (ct) sug.contact = ct; try { const mid = await memberIdFromRequest(); if (mid) { const u = await readUser(env, mid); if (u) sug.by = { id: u.id, name: u.name || "", username: u.username || "", phone: u.phone || "" }; } } catch {} }
+      const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, link, name, date, city, virtual, genre, genreOther, comments, email, at: Date.now() };
+      { try { const mid = await memberIdFromRequest(); if (mid) { const u = await readUser(env, mid); if (u) sug.by = { id: u.id, name: u.name || "", username: u.username || "", phone: u.phone || "" }; } } catch {} }
       { const cfg = await readEventFormCfg(); if (cfg.form) { const chk = checkCalAnswers(cfg.form, body.extra); if (chk.error) return jsonResponse({ error: chk.error }, 400, corsHeaders); sug.extra = cfg.form.fields.filter((f) => chk.answers[f.id] !== undefined).map((f) => ({ label: f.label, value: Array.isArray(chk.answers[f.id]) ? chk.answers[f.id].join(", ") : (chk.answers[f.id] && typeof chk.answers[f.id] === "object" ? String(chk.answers[f.id].address || "") : String(chk.answers[f.id])) })); } }
       await env.SITE_DATA.put(`eventsug:${sug.id}`, JSON.stringify(sug));
       notifyAdminOfEventSuggestion(env, ctx, sug);
@@ -3173,6 +3191,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const typeOther = type === "other" ? clean(body.typeOther, 40) : "";
       if (type === "other" && typeOther.length < 2) return jsonResponse({ error: "Please type what kind of resource it is" }, 400, corsHeaders);
       if (!link) return jsonResponse({ error: "Please add an Instagram or WhatsApp link" }, 400, corsHeaders);
+      const email = okEmail(body.email);
+      if (!email) return jsonResponse({ error: "Please add your email so we can tell you if it's accepted" }, 400, corsHeaders);
       if (city.length < 2) return jsonResponse({ error: "Please add the city (or tick Virtual)" }, 400, corsHeaders);
       const ip = request.headers.get("CF-Connecting-IP") || "unknown";
       const rateKey = `sugrate:${ip}:${Math.floor(Date.now() / 3600000)}`;
@@ -3184,8 +3204,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await env.SITE_DATA.put(rateKey, String(used + 1), { expirationTtl: 3700 });
       await env.SITE_DATA.put(dayKey, String(dayCount + 1), { expirationTtl: 172800 });
       const comments = String(body.comments || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 600);
-      const contact = clean(body.contact, 120);
-      const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, title, type, typeOther, link, city, virtual, comments, contact, at: Date.now() };
+      const sug = { id: `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, title, type, typeOther, link, city, virtual, comments, email, at: Date.now() };
       await env.SITE_DATA.put(`ressug:${sug.id}`, JSON.stringify(sug));
       notifyAdminOfResourceSuggestion(env, ctx, sug);
       return jsonResponse({ ok: true }, 201, corsHeaders);
@@ -4632,13 +4651,13 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     }
     const adminResSugMatch = path.match(/^\/api\/admin\/resource-suggestions\/([^/]+)\/?$/);
     if (adminResSugMatch && request.method === "DELETE") {
-      { const k = `ressug:${decodeURIComponent(adminResSugMatch[1])}`, raw = await env.SITE_DATA.get(k); if (raw) await sugArchive(env, "resource", raw, new URL(request.url).searchParams.get("outcome") === "accepted" ? "accepted" : "rejected"); }
+      { const k = `ressug:${decodeURIComponent(adminResSugMatch[1])}`, raw = await env.SITE_DATA.get(k); if (raw) { const sp = new URL(request.url).searchParams, oc = sp.get("outcome") === "accepted" ? "accepted" : "rejected", why = String(sp.get("reason") || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 500); await sugArchive(env, "resource", raw, oc, why); await emailSubmitterDecision(env, "resource", raw, oc, why); } }
       await env.SITE_DATA.delete(`ressug:${decodeURIComponent(adminResSugMatch[1])}`);
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }
     const adminSugMatch = path.match(/^\/api\/admin\/event-suggestions\/([^/]+)\/?$/);
     if (adminSugMatch && request.method === "DELETE") {
-      { const k = `eventsug:${decodeURIComponent(adminSugMatch[1])}`, raw = await env.SITE_DATA.get(k); if (raw) await sugArchive(env, "event", raw, new URL(request.url).searchParams.get("outcome") === "accepted" ? "accepted" : "rejected"); }
+      { const k = `eventsug:${decodeURIComponent(adminSugMatch[1])}`, raw = await env.SITE_DATA.get(k); if (raw) { const sp = new URL(request.url).searchParams, oc = sp.get("outcome") === "accepted" ? "accepted" : "rejected", why = String(sp.get("reason") || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 500); await sugArchive(env, "event", raw, oc, why); await emailSubmitterDecision(env, "event", raw, oc, why); } }
       await env.SITE_DATA.delete(`eventsug:${decodeURIComponent(adminSugMatch[1])}`);
       return jsonResponse({ ok: true }, 200, corsHeaders);
     }

@@ -4416,7 +4416,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
           <input id="esCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
           <label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:44px;"><input id="esVirtual" type="checkbox" style="width:22px;height:22px;"> It's a virtual event (no city)</label>
           <div id="esExtra"></div>
-          <input id="esContact" type="text" maxlength="160" placeholder="Your name + phone or email (so we can reach you)" autocomplete="off" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;">
+          <input id="esEmail" type="email" maxlength="120" required inputmode="email" autocapitalize="none" autocorrect="off" placeholder="Your email (required) — we'll tell you if it's accepted" autocomplete="email" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;">
           <textarea id="esComments" rows="3" maxlength="600" placeholder="Comments (optional) — anything we should know?" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;"></textarea>
           <input id="esWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;">
           <div id="esStatus" style="min-height:18px;font-size:13px;color:#c00;" aria-live="polite"></div>
@@ -4450,8 +4450,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
           <input id="rsCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
           <label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:44px;"><input id="rsVirtual" type="checkbox" style="width:22px;height:22px;"> It's virtual / online only (no city)</label>
           <textarea id="rsComments" rows="3" maxlength="600" placeholder="Why do you recommend it? (optional)" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;"></textarea>
-          <input id="rsContact" type="text" maxlength="120" autocomplete="email" placeholder="Your email or phone (optional)" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
-          <p style="margin:-4px 0 0;font-size:13px;color:#776867;">In case there's an issue with the link, we'll contact you.</p>
+          <input id="rsEmail" type="email" maxlength="120" required inputmode="email" autocapitalize="none" autocorrect="off" placeholder="Your email (required) — we'll tell you if it's accepted" autocomplete="email" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;">
           <input id="rsWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;">
           <div id="rsStatus" style="min-height:18px;font-size:13px;color:#c00;" aria-live="polite"></div>
           <button type="submit" class="club-guide-btn" id="rsSubmit" style="background:#ce8491;color:#fff;width:100%;text-align:center;min-height:46px;">Recommend it</button>
@@ -4486,7 +4485,7 @@ function setupEventSubmitForm(){
     e.preventDefault();
     const st = document.getElementById('esStatus'), btn = document.getElementById('esSubmit');
     const virtual = document.getElementById('esVirtual').checked;
-    const body = { link: document.getElementById('esLink').value.trim(), name: document.getElementById('esName').value.trim(), date: dateEl.value, city: document.getElementById('esCity').value.trim(), virtual, genre: gSel.value, genreOther: gOther.value.trim(), contact: (document.getElementById('esContact') || {}).value || '', comments: document.getElementById('esComments').value.trim(), website: document.getElementById('esWebsite').value, extra: extraForm ? calFormCollect(document.getElementById('esExtra'), extraForm) : {} };
+    const body = { link: document.getElementById('esLink').value.trim(), name: document.getElementById('esName').value.trim(), date: dateEl.value, city: document.getElementById('esCity').value.trim(), virtual, genre: gSel.value, genreOther: gOther.value.trim(), email: (document.getElementById('esEmail') || {}).value.trim() || '', comments: document.getElementById('esComments').value.trim(), website: document.getElementById('esWebsite').value, extra: extraForm ? calFormCollect(document.getElementById('esExtra'), extraForm) : {} };
     st.style.color = '#c00';
     if(!/^https?:\/\/\S+\.\S+/i.test(body.link)){ st.textContent = 'Please add the link to the event (starting with https://).'; return; }
     if(body.name.length < 3){ st.textContent = "Please add the event's name."; return; }
@@ -4494,11 +4493,12 @@ function setupEventSubmitForm(){
     if(!body.genre){ st.textContent = 'Please pick the genre of the event.'; return; }
     if(body.genre === 'other' && body.genreOther.length < 2){ st.textContent = 'Please type what kind of event it is.'; return; }
     if(!virtual && body.city.length < 2){ st.textContent = 'Please add the city, or tick "virtual event".'; return; }
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(body.email)){ st.textContent = "Please add your email so we can tell you if it's accepted."; return; }
     btn.disabled = true; st.textContent = '';
     try {
       await cmApiRaw('/api/event-suggestions', { method:'POST', headers: getCmSession() ? cmAuthHeaders() : { 'Content-Type':'application/json' }, body: JSON.stringify(body) });
       form.reset(); paintExtra(); gOther.style.display = 'none'; document.getElementById('esCity').disabled = false; document.getElementById('esCity').style.opacity = '1';
-      st.style.color = '#2a7a4a'; st.textContent = 'Thank you! Your event was sent — an admin will review it.';
+      st.style.color = '#2a7a4a'; st.textContent = 'Thank you! Your event was sent — we'll email you once an admin has reviewed it.';
     } catch(err){ st.textContent = err.message; }
     btn.disabled = false;
   });
@@ -4527,18 +4527,19 @@ function setupResourceSubmitForm(){
     e.preventDefault();
     const st = document.getElementById('rsStatus'), btn = document.getElementById('rsSubmit');
     const virtual = document.getElementById('rsVirtual').checked;
-    const body = { title: document.getElementById('rsTitle').value.trim(), type: tSel.value, typeOther: tOther.value.trim(), link: document.getElementById('rsLink').value.trim(), city: document.getElementById('rsCity').value.trim(), virtual, comments: document.getElementById('rsComments').value.trim(), contact: document.getElementById('rsContact').value.trim(), website: document.getElementById('rsWebsite').value };
+    const body = { title: document.getElementById('rsTitle').value.trim(), type: tSel.value, typeOther: tOther.value.trim(), link: document.getElementById('rsLink').value.trim(), city: document.getElementById('rsCity').value.trim(), virtual, comments: document.getElementById('rsComments').value.trim(), email: document.getElementById('rsEmail').value.trim(), website: document.getElementById('rsWebsite').value };
     st.style.color = '#c00';
     if(body.title.length < 2){ st.textContent = 'Please add the name of the business or resource.'; return; }
     if(!body.type){ st.textContent = 'Please pick the type of resource.'; return; }
     if(body.type === 'other' && body.typeOther.length < 2){ st.textContent = 'Please type what kind of resource it is.'; return; }
     if(!/(instagram\.com|wa\.me|whatsapp\.com)/i.test(body.link)){ st.textContent = 'Please find their Instagram (tap 🔍 Find, then ✅ Yes) or paste a WhatsApp link.'; return; }
     if(!virtual && body.city.length < 2){ st.textContent = 'Please add the city, or tick "virtual / online only".'; return; }
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(body.email)){ st.textContent = "Please add your email so we can tell you if it's accepted."; return; }
     btn.disabled = true; st.textContent = '';
     try {
       await cmApiRaw('/api/resource-suggestions', { method:'POST', headers: getCmSession() ? cmAuthHeaders() : { 'Content-Type':'application/json' }, body: JSON.stringify(body) });
       form.reset(); igPrev.innerHTML = ''; tOther.style.display = 'none'; document.getElementById('rsCity').disabled = false; document.getElementById('rsCity').style.opacity = '1';
-      st.style.color = '#2a7a4a'; st.textContent = 'Thank you! It was sent — an admin will review it.';
+      st.style.color = '#2a7a4a'; st.textContent = 'Thank you! It was sent — we'll email you once an admin has reviewed it.';
     } catch(err){ st.textContent = err.message; }
     btn.disabled = false;
   });
@@ -11605,10 +11606,10 @@ function admReportsHtml(){
 function admSubHistHtml(){
   if(!state.admSubHist){ if(!state.admSubHistLoading){ state.admSubHistLoading = true; fetch('/api/admin/event-suggestions-history', { credentials:'include', cache:'no-store' }).then(r => r.ok ? r.json() : { history:[] }).catch(() => ({ history:[] })).then(j => { state.admSubHist = j.history || []; state.admSubHistLoading = false; if(state.tab === 'admin') render(); }); } return '<p class="av-msg">Loading…</p>'; }
   const f = state.admSubHistF || 'all', list = state.admSubHist.filter(x => f === 'all' || x.outcome === f);
-  const who = x => { const b = x.by || {}, parts = []; if(b.name) parts.push(`👤 <b>${escapeCm(b.name)}</b>${b.username ? ' @' + escapeCm(b.username) : ''}`); const ph = b.phone || ''; if(ph) parts.push(`📞 <a href="tel:${escapeCm(String(ph).replace(/[^\d+]/g, ''))}">${escapeCm(ph)}</a>`); if(x.contact) parts.push(`✉️ ${escapeCm(x.contact)}`); return parts.join(' · ') || '<span style="color:#776867;">No contact left (sent before contact details were asked, or not signed in)</span>'; };
+  const who = x => { const b = x.by || {}, parts = []; if(b.name) parts.push(`👤 <b>${escapeCm(b.name)}</b>${b.username ? ' @' + escapeCm(b.username) : ''}`); const ph = b.phone || ''; if(ph) parts.push(`📞 <a href="tel:${escapeCm(String(ph).replace(/[^\d+]/g, ''))}">${escapeCm(ph)}</a>`); if(x.email || x.contact) parts.push(`✉️ ${escapeCm(x.email || x.contact)}`); return parts.join(' · ') || '<span style="color:#776867;">No contact left (sent before contact details were asked, or not signed in)</span>'; };
   return `<div class="cp-box"><div class="fb-row" style="margin-bottom:8px;">${[['all', 'All'], ['accepted', '✅ Accepted'], ['rejected', '❌ Rejected']].map(([k, t]) => `<button type="button" class="filter-chip${f === k ? ' active' : ''}" data-shf="${k}">${t}</button>`).join('')}<button type="button" class="fb-mini" id="shRefresh">↻</button></div>
     ${list.length ? list.map(x => `<div style="padding:10px 0;border-top:1px solid rgba(0,0,0,.1);font-size:14px;"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><span style="font-weight:800;padding:2px 10px;border-radius:999px;font-size:12px;${x.outcome === 'accepted' ? 'background:#e6f4ea;color:#2a7a4a;' : 'background:#fdecea;color:#b3261e;'}">${x.outcome === 'accepted' ? '✅ Accepted' : '❌ Rejected'}</span><strong>${escapeCm(x.name || x.title || '')}</strong><small style="color:#776867;">${x.kind === 'resource' ? 'Resource' : 'Event'}${x.date ? ' · ' + escapeCm(x.date) : ''}${x.city ? ' · ' + escapeCm(x.city) : ''} · decided ${escapeCm(new Date(x.decidedAt).toLocaleDateString('en-CA', { month:'short', day:'numeric' }))}</small></div>
-      <div style="margin-top:4px;">${who(x)}</div>${x.link ? `<a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:13px;">${escapeCm(String(x.link).slice(0, 70))}</a>` : ''}${x.comments ? `<div style="font-size:13px;color:#776867;margin-top:2px;">“${escapeCm(x.comments)}”</div>` : ''}</div>`).join('') : '<p class="av-msg">Nothing here yet. Submissions show up here once you accept or reject them.</p>'}</div>`;
+      <div style="margin-top:4px;">${who(x)}</div>${x.link ? `<a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:13px;">${escapeCm(String(x.link).slice(0, 70))}</a>` : ''}${x.reason ? `<div style="font-size:13px;color:#b3261e;margin-top:2px;">Reason sent: ${escapeCm(x.reason)}</div>` : ''}${x.comments ? `<div style="font-size:13px;color:#776867;margin-top:2px;">“${escapeCm(x.comments)}”</div>` : ''}</div>`).join('') : '<p class="av-msg">Nothing here yet. Submissions show up here once you accept or reject them.</p>'}</div>`;
 }
 function admEvSubsHtml(){
   if(!state.cmAdminEventSugs){ if(!state.admEvSugsLoading){ state.admEvSugsLoading = true; cmAdminLoadEventSuggestions().then(() => { state.admEvSugsLoading = false; if(state.tab === 'admin') render(); }); } return '<p class="av-msg">Loading submissions…</p>'; }
@@ -12176,7 +12177,7 @@ function resourceSuggestionsAdminHtml(){
   const label = k => (RESOURCE_CATEGORIES.find(c => c[0] === k) || [k, k])[1];
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Submitted resources${list.length ? ` (${list.length})` : ''}</h4>
     ${list.length ? list.map(x => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
-      <span style="min-width:0;"><strong>${escapeCm(x.title)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(x.type === 'other' ? 'Other: ' + (x.typeOther || '') : label(x.type))} · ${escapeCm(x.city)}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}${x.contact ? `<br><span style="font-size:12px;">📇 Contact: <b>${escapeCm(x.contact)}</b></span>` : ''}</span>
+      <span style="min-width:0;"><strong>${escapeCm(x.title)}</strong><br><span style="font-size:12px;color:#776867;">${escapeCm(x.type === 'other' ? 'Other: ' + (x.typeOther || '') : label(x.type))} · ${escapeCm(x.city)}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}${(x.email||x.contact) ? `<br><span style="font-size:12px;">📇 Contact: <b>${escapeCm(x.email||x.contact)}</b></span>` : ''}</span>
       <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--brand-blush);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn res-sug-dismiss" data-sugid="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">Dismiss</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted resources.</p>'}</div>`;
 }
 async function cmAdminLoadEventSuggestions(){
@@ -12190,7 +12191,7 @@ function eventSuggestionsAdminHtml(){
   if(!list) return '';
   return `<div class="cp-box"><h4 style="margin:0 0 6px;">Submitted events${list.length ? ` (${list.length})` : ''}</h4>
     ${list.length ? list.map(x => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
-      <span style="min-width:0;"><strong>${escapeCm(x.name)}</strong>${(x.by || x.contact) ? `<br><span style="font-size:13px;">${x.by && x.by.name ? '👤 ' + escapeCm(x.by.name) + (x.by.phone ? ' · 📞 ' + escapeCm(x.by.phone) : '') : ''}${x.contact ? (x.by && x.by.name ? ' · ' : '') + '✉️ ' + escapeCm(x.contact) : ''}</span>` : ''}${(x.extra || []).length ? `<br><span style="font-size:12px;">${x.extra.map(q => `<b>${escapeCm(richPlain(q.label))}:</b> ${escapeCm(q.value)}`).join(' · ')}</span>` : ''}<br><span style="font-size:12px;color:#776867;">${escapeCm(x.date)} · ${escapeCm(x.city)}${x.genre ? ' · ' + escapeCm(x.genre === 'other' ? 'Other: ' + (x.genreOther || '') : x.genre) : ''}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
+      <span style="min-width:0;"><strong>${escapeCm(x.name)}</strong>${(x.by || x.email || x.contact) ? `<br><span style="font-size:13px;">${x.by && x.by.name ? '👤 ' + escapeCm(x.by.name) + (x.by.phone ? ' · 📞 ' + escapeCm(x.by.phone) : '') : ''}${(x.email||x.contact) ? (x.by && x.by.name ? ' · ' : '') + '✉️ ' + escapeCm(x.email||x.contact) : ''}</span>` : ''}${(x.extra || []).length ? `<br><span style="font-size:12px;">${x.extra.map(q => `<b>${escapeCm(richPlain(q.label))}:</b> ${escapeCm(q.value)}`).join(' · ')}</span>` : ''}<br><span style="font-size:12px;color:#776867;">${escapeCm(x.date)} · ${escapeCm(x.city)}${x.genre ? ' · ' + escapeCm(x.genre === 'other' ? 'Other: ' + (x.genreOther || '') : x.genre) : ''}</span><br><a href="${escapeCm(x.link)}" target="_blank" rel="noopener" style="font-size:12px;overflow-wrap:anywhere;">${escapeCm(x.link)}</a>${x.comments ? `<br><em style="font-size:12px;">“${escapeCm(x.comments)}”</em>` : ''}</span>
       <span style="display:flex;gap:6px;flex-wrap:wrap;">${x.reviewUrl ? `<a class="club-guide-btn" href="${escapeCm(x.reviewUrl)}" target="_blank" rel="noopener" style="padding:8px 14px;background:var(--brand-blush);text-align:center;text-decoration:none;">Review</a>` : ''}<button type="button" class="club-guide-btn event-sug-dismiss" data-sugid="${escapeCm(x.id)}" style="padding:8px 14px;background:transparent;text-align:center;">❌ Reject</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No submitted events.</p>'}</div>`;
 }
 function joinRequestsAdminHtml(){
@@ -14052,8 +14053,8 @@ function wireClubAdminPanel(){
   }
   document.querySelectorAll('.cm-admin-delete-profile').forEach(b => b.addEventListener('click', () => cmAdminDeleteProfile(b.dataset.memberId, b.dataset.name)));
   document.querySelectorAll('.adm-profile-link').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.userId)));
-  document.querySelectorAll('.res-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/resource-suggestions/' + encodeURIComponent(b.dataset.sugid), { method:'DELETE', credentials:'include' }); await cmAdminLoadResourceSuggestions(); render(); }));
-  document.querySelectorAll('.event-sug-dismiss').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/event-suggestions/' + encodeURIComponent(b.dataset.sugid) + '?outcome=rejected', { method:'DELETE', credentials:'include' }); state.admSubHist = null; await cmAdminLoadEventSuggestions(); render(); }));
+  document.querySelectorAll('.res-sug-dismiss').forEach(b => b.addEventListener('click', async () => { const why = prompt('Reject this. Reason for the submitter (emailed to them if they left an email; leave blank for none):'); if(why === null) return; b.disabled = true; await fetch('/api/admin/resource-suggestions/' + encodeURIComponent(b.dataset.sugid) + '?outcome=rejected&reason=' + encodeURIComponent(why.trim()), { method:'DELETE', credentials:'include' }); await cmAdminLoadResourceSuggestions(); render(); }));
+  document.querySelectorAll('.event-sug-dismiss').forEach(b => b.addEventListener('click', async () => { const why = prompt('Reject this. Reason for the submitter (emailed to them if they left an email; leave blank for none):'); if(why === null) return; b.disabled = true; await fetch('/api/admin/event-suggestions/' + encodeURIComponent(b.dataset.sugid) + '?outcome=rejected&reason=' + encodeURIComponent(why.trim()), { method:'DELETE', credentials:'include' }); state.admSubHist = null; await cmAdminLoadEventSuggestions(); render(); }));
   document.querySelectorAll('.albOk,.albNo').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/albums/' + encodeURIComponent(b.dataset.ev) + '/' + encodeURIComponent(b.dataset.img), { method:'POST', credentials:'include', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ ok: b.classList.contains('albOk') }) }); state.admAlbums = state.admAlbums.filter(x => x.img !== b.dataset.img); render(); }));
   document.querySelectorAll('.repDone').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await fetch('/api/admin/reports/' + encodeURIComponent(b.dataset.id), { method:'DELETE', credentials:'include' }); state.admReports = state.admReports.filter(x => x.id !== b.dataset.id); render(); }));
   document.querySelectorAll('.repProf').forEach(b => b.addEventListener('click', () => openAdminProfile(b.dataset.uid)));
