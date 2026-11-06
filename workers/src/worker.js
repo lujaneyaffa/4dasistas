@@ -1644,7 +1644,7 @@ const calSyncSpots = async (env, ev) => {
 const sleepMs = (n) => new Promise((r) => setTimeout(r, n));
 // ---- Readable event links: 4dasistas.ca/#/form/big-dinner instead of a random id. Slug = the title; a clash adds the date. Old random-id links and old slugs keep working. ----
 const CAL_SLUG_RESERVED = new Set(["tbd", "form", "new", "paid", "rsvp", "attendees", "interest", "message"]);
-const calSlugify = (t) => String(t || "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50).replace(/-+$/g, "");
+const calSlugify = (t) => String(t || "").replace(/^.*\/form\//i, "").replace(/[?#].*$/, "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50).replace(/-+$/g, "");
 const calMakeSlug = (all, ev) => {
   const taken = (x) => CAL_SLUG_RESERVED.has(x) || all.some((e) => e !== ev && e.id !== ev.id && (e.slug === x || (e.oldSlugs || []).includes(x))) || /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(x);
   const base = calSlugify(ev.title) || "event";
@@ -1653,7 +1653,20 @@ const calMakeSlug = (all, ev) => {
   return `${base}-${crypto.randomUUID().slice(0, 4)}`;
 };
 const calEnsureSlugs = (all) => { let changed = false; for (const e of all) if (!e.slug) { e.slug = calMakeSlug(all, e); changed = true; } return changed; };
-const calFind = (all, key) => all.find((e) => e.id === key || e.slug === key) || all.find((e) => (e.oldSlugs || []).includes(key));
+const calFind = (all, key) => {
+  key = String(key || "");
+  const hit = all.find((e) => e.id === key || e.slug === key) || all.find((e) => (e.oldSlugs || []).includes(key));
+  if (hit) return hit;
+  // Forgiving: a whole pasted link, a stray ?utm/#, capitals, or a few extra characters tacked on the end (e.g. "...-talk-23") still finds the event
+  let k = key; try { k = decodeURIComponent(k); } catch {}
+  k = k.replace(/[?#&].*$/, "").replace(/^.*\/form\//i, "").replace(/\/+$/, "").trim().toLowerCase();
+  if (!k) return null;
+  const same = all.find((e) => e.id === k || e.slug === k || (e.oldSlugs || []).includes(k));
+  if (same) return same;
+  const slugs = (e) => [e.slug, ...(e.oldSlugs || [])].filter(Boolean);
+  const near = all.filter((e) => slugs(e).some((sl) => sl.length >= 6 && (k.startsWith(sl + "-") || (k.length >= 6 && sl.startsWith(k)))));
+  return near.length === 1 ? near[0] : null;
+};
 const calBackfillSlugs = (env) => calWithLock(env, "cal:events", async () => { const all = await readClubCal(env); if (calEnsureSlugs(all)) await writeClubCal(env, all); }).catch(() => {});
 // A tiny lock in D1 (one atomic statement) so two sign-ups never read-modify-write the same KV doc at once. Expires by itself after 8s.
 let _lockReady = null;
