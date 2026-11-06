@@ -4498,7 +4498,7 @@ function setupEventSubmitForm(){
     try {
       await cmApiRaw('/api/event-suggestions', { method:'POST', headers: getCmSession() ? cmAuthHeaders() : { 'Content-Type':'application/json' }, body: JSON.stringify(body) });
       form.reset(); paintExtra(); gOther.style.display = 'none'; document.getElementById('esCity').disabled = false; document.getElementById('esCity').style.opacity = '1';
-      st.style.color = '#2a7a4a'; st.textContent = 'Thank you! Your event was sent — we'll email you once an admin has reviewed it.';
+      st.style.color = '#2a7a4a'; st.textContent = 'Thank you! Your event was sent — we will email you once an admin has reviewed it.';
     } catch(err){ st.textContent = err.message; }
     btn.disabled = false;
   });
@@ -4539,7 +4539,7 @@ function setupResourceSubmitForm(){
     try {
       await cmApiRaw('/api/resource-suggestions', { method:'POST', headers: getCmSession() ? cmAuthHeaders() : { 'Content-Type':'application/json' }, body: JSON.stringify(body) });
       form.reset(); igPrev.innerHTML = ''; tOther.style.display = 'none'; document.getElementById('rsCity').disabled = false; document.getElementById('rsCity').style.opacity = '1';
-      st.style.color = '#2a7a4a'; st.textContent = 'Thank you! It was sent — we'll email you once an admin has reviewed it.';
+      st.style.color = '#2a7a4a'; st.textContent = 'Thank you! It was sent — we will email you once an admin has reviewed it.';
     } catch(err){ st.textContent = err.message; }
     btn.disabled = false;
   });
@@ -12867,9 +12867,9 @@ function renderClubAdminPanel(){
   }
   const clubId = state.cmAdminClub;
   // Old tab names still land somewhere sensible (the admin page used to have 8 tabs; it now has 6)
-  const OLD_GROUPS = { team:'settings', directory:'settings', programs:'badminton', profiles:'people' };
+  const OLD_GROUPS = { team:'settings', directory:'settings', badminton:'programs', steps:'programs', profiles:'people' };
   const grp = OLD_GROUPS[state.admGroup] || state.admGroup;
-  const allowedGroups = lead ? ['clubs', 'events', 'forms', 'people'] : ['todo', 'events', 'forms', 'calendar', 'featured', 'clubs', 'people', 'badminton', 'steps', 'settings'];
+  const allowedGroups = lead ? ['clubs', 'events', 'forms', 'people'] : ['todo', 'events', 'forms', 'calendar', 'featured', 'clubs', 'people', 'programs', 'settings'];
   const gsel = allowedGroups.includes(grp) ? grp : (lead ? 'clubs' : 'todo');
   // Club events + quick member (per club) — lives in the Clubs grid
   const clubToolsHtml = `
@@ -12979,7 +12979,7 @@ function renderClubAdminPanel(){
     ${lead ? `<p style="font-size:12px;color:#776867;margin:6px 0 0;">You manage: <strong>${adminClubs().map(c => escapeCm(c.title)).join(', ') || 'no clubs yet'}</strong>. Reminders only go to your clubs' members. Use "➕ New event" at the bottom of the page to add an official event.</p>` : ''}
     ${lead ? '' : admNeedsHtml()}
     ${admFinderHtml(lead)}
-    ${gsel === 'todo' ? todoGrid : gsel === 'clubs' ? clubsGrid : gsel === 'events' ? eventsGrid : gsel === 'calendar' ? calendarTabGrid : gsel === 'featured' ? featuredGrid : gsel === 'forms' ? admFormsHtml() : gsel === 'settings' ? settingsGrid : gsel === 'badminton' ? badmintonGrid : gsel === 'steps' ? stepsGrid : profilesGrid}
+    ${gsel === 'todo' ? todoGrid : gsel === 'clubs' ? clubsGrid : gsel === 'events' ? eventsGrid : gsel === 'calendar' ? calendarTabGrid : gsel === 'featured' ? featuredGrid : gsel === 'forms' ? admFormsHtml() : gsel === 'settings' ? settingsGrid : gsel === 'programs' ? programsGrid : profilesGrid}
   </div>`;
 }
 // ⭐ Featured on Home: pin specific events / businesses for as long as you like; anything left empty is picked automatically each day (no repeats until everything has had a turn).
@@ -13046,7 +13046,7 @@ async function admNeedsLoad(){
 function admNeedsHtml(){
   if(!state.admNeeds){ admNeedsLoad(); return ''; }
   const n = state.admNeeds, inbox = admInboxCount();
-  const chips = [[admSubCount(), '📥', 'submissions to approve', 'todo'], [admJoinCount(), '🙋', 'club join requests', 'clubs'], [n.pendingRsvps, '⏳', 'RSVPs to approve', 'events'], [n.unpaid, '💳', 'unpaid sign-ups', 'events'], [n.tbdKeen, '🕒', 'undated events with interest', 'events'], [n.stayTodo, '🪁', 'squad members to confirm', 'clubs'], [n.stepsStuck, '👟', 'people whose steps aren\'t syncing', 'steps']].filter(c => c[0] > 0);
+  const chips = [[admSubCount(), '📥', 'submissions to approve', 'todo'], [admJoinCount(), '🙋', 'club join requests', 'clubs'], [n.pendingRsvps, '⏳', 'RSVPs to approve', 'events'], [n.unpaid, '💳', 'unpaid sign-ups', 'events'], [n.tbdKeen, '🕒', 'undated events with interest', 'events'], [n.stayTodo, '🪁', 'squad members to confirm', 'clubs'], [n.stepsStuck, '👟', 'people whose steps aren\'t syncing', 'programs']].filter(c => c[0] > 0);
   return `<div class="cp-box" style="margin:10px 0;padding:10px 12px;"><p style="margin:0 0 6px;font-weight:800;">${chips.length ? '🔔 Needs you' : '✅ Nothing needs you right now'}</p>${chips.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">${chips.map(([c, ic, l, g]) => `<button type="button" class="filter-chip adm-need" data-needgroup="${g}" style="min-height:40px;">${ic} <b>${c}</b> ${l}</button>`).join('')}</div>` : ''}<button type="button" class="adm-need-refresh" style="margin-top:6px;border:none;background:none;color:#776867;font-size:12px;text-decoration:underline;cursor:pointer;">↻ refresh</button></div>`;
 }
 function admGroupTilesHtml(lead, cur){
@@ -13060,8 +13060,7 @@ function admGroupTilesHtml(lead, cur){
     ${lead ? '' : tile('featured', '⭐', 'Featured', 'What shows on the Home page', '')}
     ${tile('clubs', '🏛️', 'Clubs', lead ? 'Requests · availability' : 'Join requests · clubs · availability · club admins', admJoinCount() + (lead ? 0 : (n.stayTodo || 0)))}
     ${tile('people', '👥', 'People', lead ? 'Profiles' : 'Profiles · messages', '')}
-    ${lead ? '' : tile('badminton', '🏸', 'Badminton', 'Leaderboards · players · kiosk', '')}
-    ${lead ? '' : tile('steps', '👟', 'Steps', 'Rounds · pledges · leaderboard', n.stepsStuck || '')}
+    ${lead ? '' : tile('programs', '🏸', 'Badminton &amp; Steps', 'Photos · kiosk · rounds', n.stepsStuck || '')}
     ${lead ? '' : tile('settings', '⚙️', 'Site settings', 'Backups · public links · labels', '')}
   </nav>`;
 }
@@ -13087,8 +13086,8 @@ const ADM_FIND = [
   ['Send a WhatsApp message', 'whatsapp send message', 'people', '', 'wasend'],
   ['Change my WhatsApp wording', 'whatsapp template wording message', 'people', '', 'watpl'],
   ['Send a push notification to everyone', 'push notification announce', 'people', '', 'push', true],
-  ['Badminton photos, coach password, iPad kiosk', 'badminton photos coach kiosk ipad', 'badminton', '', 'bmimport', true],
-  ['Steps challenge rounds and pledges', 'steps challenge round pledge charity', 'steps', '', 'stepsadm', true],
+  ['Badminton photos, coach password, iPad kiosk', 'badminton photos coach kiosk ipad', 'programs', '', 'bmimport', true],
+  ['Steps challenge rounds and pledges', 'steps challenge round pledge charity', 'programs', '', 'stepsadm', true],
   ['Database &amp; backups', 'database backup d1 export', 'settings', '', 'database', true],
   ['Public "add a resource / event" links', 'public link share resource submit event', 'settings', '', 'reslink', true],
   ['Resource category names', 'resource category labels names directory', 'settings', '', 'labels-res', true]
