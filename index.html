@@ -11556,10 +11556,10 @@ function admEvResultsHtml(){
 function admEvSearchHtml(){
   return `<div class="cp-box"><input id="admEvQ" type="search" placeholder="Search events by name or place…" value="${escapeCm(state.admEvQ || '')}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;"><div id="admEvResults">${admEvResultsHtml()}</div></div>`;
 }
-function admEvMiniHtml(){ // the SAME month view as the public calendar (every event: dated, repeating, 4DS activities), but tapping opens the editor
+function admEvMiniHtml(mode){ // the SAME month view as the public calendar (every event: dated, repeating, 4DS activities), but tapping opens the editor
   const m = state.admEvMonth || new Date().toISOString().slice(0, 7); state.admEvMonth = m;
   const [y, mo] = m.split('-').map(Number), year = y, month = mo - 1;
-  const dateMap = buildDateMap(itemsForCategoryBase('all'), year, month); state.admEvDateMap = dateMap;
+  const dateMap = buildDateMap(itemsForCategoryBase('all').filter(x => !mode || (String(x.id).startsWith('clubcal:') === (mode === '4ds'))), year, month); state.admEvDateMap = dateMap;
   const startDay = new Date(year, month, 1).getDay(), daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
   const isMobileGrid = window.matchMedia('(max-width:480px)').matches;
@@ -11575,7 +11575,7 @@ function admEvMiniHtml(){ // the SAME month view as the public calendar (every e
     html += '</div>';
     if((isMobileGrid ? d : (startDay + d)) % (isMobileGrid ? 4 : 7) === 0 && d !== daysInMonth) row++;
   }
-  return html + `</div></div><p class="ideas-hint" style="text-align:center;margin:8px 0 0;">Exactly what everyone sees on the calendar. Tap a day to edit its events or add one.</p>`;
+  return html + `</div></div><p class="ideas-hint" style="text-align:center;margin:8px 0 0;">${mode === '4ds' ? 'Only events hosted by 4DS or a club.' : mode === 'public' ? 'Only public events (not hosted by 4DS).' : 'Exactly what everyone sees on the calendar.'} Tap a day to edit its events or add one.</p>`;
 }
 function admEvOpenAny(id){
   id = String(id);
@@ -11786,6 +11786,7 @@ async function wireAdmForms(){
   });
 }
 function wireAdmCalendar(){
+  document.querySelectorAll('[data-admcal]').forEach(b => b.addEventListener('click', () => { state.admCalMode = b.dataset.admcal; render(); }));
   wireAdmEvents();
   const add = document.getElementById('admEvAdd'); if(add) add.addEventListener('click', () => { const { wrap, close } = ideaPopup('<h3 style="margin:0 0 6px;">➕ Add an event</h3><p class="ideas-hint" style="text-align:left;margin:0 0 10px;">What kind of event is it?</p><div style="display:flex;flex-direction:column;gap:8px;"><button type="button" class="club-guide-btn" id="aePub" style="text-align:center;">📅 Public event<br><small>listed on the public calendar for everyone</small></button><button type="button" class="club-guide-btn" id="aeHost" style="text-align:center;background:var(--brand-rose);color:#fff;">🌸 Hosted by 4DS<br><small>sign-ups, spots, form &amp; payment</small></button></div>'); wrap.querySelector('#aePub').addEventListener('click', () => { close(); openEventCreate(); }); wrap.querySelector('#aeHost').addEventListener('click', () => { close(); clubCalForm(null); }); });
   const q = document.getElementById('admEvQ');
@@ -12927,11 +12928,15 @@ function renderClubAdminPanel(){
     ${lead ? '' : admSec('leads', '🧑‍💼 Club admins — who runs which club' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
   `;
   const directoryGrid = lead ? '' : admSec('reslink', '🔗 Public “Add a resource” link', `<div class="cp-box">${calLinkRowHtml('', location.origin + '/#/add-resource', '🔗 Resources link:')}${calLinkRowHtml('', location.origin + '/#/submit-event', '🔗 Events link:')}<p class="ideas-hint" style="text-align:left;margin:0;">Share these with anyone who wants to suggest a business, resource or event — they don't need an account.</p></div>`, true, 'flat') + admSec('labels-res', '🏷️ Names of resource categories', labelsAdminHtml('resource'), true, 'flat');
-  const calendarGrid = `
-    <div style="text-align:center;margin:6px 0 12px;"><button type="button" class="club-guide-btn" id="admEvAdd" style="min-height:46px;padding:10px 26px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add event</button></div>
+  const calMode = state.admCalMode === '4ds' ? '4ds' : 'public';
+  const calSwitch = `<div style="display:flex;gap:8px;margin:6px 0 12px;">${[['4ds', '🌸 4DS calendar'], ['public', '🌍 Public calendar']].map(([k, t]) => `<button type="button" class="club-guide-btn" data-admcal="${k}" style="flex:1;min-height:46px;text-align:center;${calMode === k ? 'background:var(--brand-rose);color:#fff;' : 'background:#fff;'}">${t}</button>`).join('')}</div>`;
+  const calendarGrid = calSwitch + (calMode === '4ds' ? `
+    <p class="ideas-hint" style="margin:0 0 8px;">Events hosted by 4DS or a club: sign-ups, forms, payments. Tap a day to edit, or use the list below.</p>
+    ${admSec('evmini4', '🗓️ 4DS calendar — tap a day to edit', admEvMiniHtml('4ds'), true)}
+    ${admCeHtml()}` : `
+    <div style="text-align:center;margin:6px 0 12px;"><button type="button" class="club-guide-btn" id="admEvAdd" style="min-height:46px;padding:10px 26px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add a public event</button></div>
     ${admSec('evsearch', '🔎 Find & edit an event', admEvSearchHtml(), true)}
-    ${admSec('evmini', '🗓️ Public calendar — same as everyone sees · tap a day to edit', admEvMiniHtml(), true)}
-  `;
+    ${admSec('evmini', '🗓️ Public calendar — tap a day to edit', admEvMiniHtml('public'), true)}`);
   const featuredGrid = lead ? '' : admSec('featured', '⭐ Featured on the Home page', '<div id="admFeat"><p class="ideas-hint">Loading…</p></div>', true);
   const eventsGrid = lead ? admCeHtml() : `<p class="ideas-hint" style="margin:10px 0 8px;">4DS activities: events hosted by 4DS or a club — sign-ups, spots, payments, answers.</p>${admCeHtml()}`;
   const calendarTabGrid = `<p class="ideas-hint" style="margin:6px 0 8px;">The calendar. Add an event that is <b>public</b> (listed for everyone) or <b>hosted by 4DS</b> (sign-ups, form, payment) — both use the same full event page as the 4DS activities tab.</p>${calendarGrid}`;
