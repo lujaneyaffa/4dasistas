@@ -12812,6 +12812,7 @@ async function openClubAdminPopup(clubId){
       <div style="display:flex;align-items:center;gap:14px;margin:0 36px 12px 0;"><span class="adm-club-logo" style="width:64px;height:64px;font-size:30px;">${club.logo ? `<img src="${escapeCm(club.logo)}" alt="">` : escapeCm(club.emoji || (club.title || '?').charAt(0))}</span><div><h3 style="margin:0;">${escapeCm(club.title)}</h3><div style="color:#776867;font-weight:700;">👥 ${ms.length}${lim ? ` of ${lim}` : ''} member${ms.length === 1 && !lim ? '' : 's'}${lim && ms.length >= lim ? ' · <span style="color:#b3261e;">FULL</span>' : ''}</div></div></div>
       ${isMain ? `<div class="fb-card" style="box-shadow:none;"><label style="display:block;font-size:13px;font-weight:700;color:#776867;margin:0 0 3px;">Description</label><textarea id="caDesc" rows="4" maxlength="1500" style="width:100%;box-sizing:border-box;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-bottom:8px;">${escapeCm(club.desc || '')}</textarea>
         <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;"><label style="font-size:13px;font-weight:700;color:#776867;">Member limit <small style="font-weight:400;">(0 or empty = no limit)</small><input id="caLim" type="number" min="0" max="9999" inputmode="numeric" value="${lim || ''}" placeholder="No limit" style="display:block;width:160px;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-top:3px;"></label><button type="button" class="club-guide-btn" id="caSave" style="min-height:46px;padding:8px 22px;text-align:center;background:var(--brand-rose);color:#fff;">💾 Save</button></div></div>` : `<p class="ideas-hint" style="text-align:left;">${escapeCm(club.desc || '')}</p>`}
+      ${isMain ? '<button type="button" class="fb-mini" id="caEditClub" style="margin:4px 0;">✏️ Edit club — name, logo, colours, delete</button>' : ''}
       <div id="caMsg" style="font-size:14px;min-height:18px;margin:6px 0;">${msg}</div>
       <h4 style="margin:10px 0 6px;">Members (${ms.length})</h4>
       <input id="caQ" type="search" placeholder="🔍 Search members…" value="${escapeCm(q)}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-bottom:6px;">
@@ -12820,6 +12821,7 @@ async function openClubAdminPopup(clubId){
       <input id="caAdd" type="search" placeholder="Search a profile by name or username…" value="${escapeCm(addQ)}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;">
       ${al.length >= 2 && !users ? '<p class="av-msg">Loading profiles…</p>' : ''}${cands.map(u => `<div class="ca-m"><span class="ca-av">${escapeCm(String(u.name || '?').charAt(0).toUpperCase())}</span><span style="flex:1;min-width:0;"><b>${escapeCm(u.name)}</b> <small style="color:#776867;">@${escapeCm(u.username || '')}</small></span><button type="button" class="fb-mini caAddBtn" data-u="${escapeCm(u.id)}" style="background:#e6f4ea;">+ Add</button></div>`).join('')}${al.length >= 2 && users && !cands.length ? '<p class="av-msg">No profile matches — create one below.</p>' : ''}
       <details style="margin-top:8px;"><summary style="cursor:pointer;font-weight:700;padding:6px 0;">Create a brand-new profile</summary><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"><input id="caNewN" placeholder="Name (e.g. Amina K.)" style="flex:2;min-width:160px;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;"><input id="caNewP" type="tel" placeholder="Phone (optional)" style="flex:1;min-width:130px;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;"><button type="button" class="club-guide-btn" id="caNewGo" style="padding:8px 18px;text-align:center;">Create &amp; add</button></div><p class="ideas-hint" style="text-align:left;margin:4px 0 0;">Their starting PIN is 1234 — they pick their own the first time they log in.</p></details>`;
+    { const eb = card.querySelector('#caEditClub'); if(eb) eb.addEventListener('click', () => { close(); clubDirStartEdit(clubId); }); }
     const say = (t, ok) => { const m = card.querySelector('#caMsg'); if(m){ m.style.color = ok ? '#2a7a4a' : '#b3261e'; m.textContent = t; } msg = ''; };
     const sv = card.querySelector('#caSave'); if(sv) sv.addEventListener('click', async () => {
       const desc = card.querySelector('#caDesc').value.trim(), memberLimit = parseInt(card.querySelector('#caLim').value, 10) || 0;
@@ -12919,12 +12921,11 @@ function renderClubAdminPanel(){
     ${lead ? '' : admSec('evform', '📝 Event submission form (what people fill to suggest an event)', admEvFormHtml(), false)}
   `;
   const clubsGrid = `
-    ${admSec('clubcards', '🏛️ Clubs — tap one to see its members', admClubCardsHtml(), true)}
+    ${admSec('clubcards', '🏛️ Clubs — tap one to see its members', (lead ? '' : `<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:0 0 8px;"><span style="font-size:13px;color:#776867;">Add a new club</span><button type="button" id="cdAddBtn" aria-label="Add a new club" title="Add a new club" style="width:44px;height:44px;border-radius:50%;border:2px solid var(--brand-brown);background:var(--brand-rose);color:#fff;font-size:28px;line-height:1;cursor:pointer;padding:0;">+</button></div>${clubDirEditFormHtml()}`) + admClubCardsHtml(), true)}
     ${inboxAdminHtml(lead, 'joins')}
     ${lead ? '' : admSec('stay', '🪁→🏛️ Squads moving to clubs — confirm link', stayAdminHtml(), true)}
     ${lead ? admSec('periodsview', '🗂️ Availability periods — tap one to view it', `<div class="cp-box">${periodHistoryHtml(k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' })) || '<p class="av-msg">Loading…</p>'}</div>`, true) : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
     ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
-    ${lead ? '' : admSec('clubdir', '🏛️ Club directory (add / edit clubs)', clubDirListHtml(), false)}
     ${lead ? '' : admSec('leads', '🧑‍💼 Club admins — who runs which club' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
   `;
   const directoryGrid = lead ? '' : admSec('reslink', '🔗 Public “Add a resource” link', `<div class="cp-box">${calLinkRowHtml('', location.origin + '/#/add-resource', '🔗 Resources link:')}${calLinkRowHtml('', location.origin + '/#/submit-event', '🔗 Events link:')}<p class="ideas-hint" style="text-align:left;margin:0;">Share these with anyone who wants to suggest a business, resource or event — they don't need an account.</p></div>`, true, 'flat') + admSec('labels-res', '🏷️ Names of resource categories', labelsAdminHtml('resource'), true, 'flat');
@@ -13083,7 +13084,7 @@ const ADM_FIND = [
   ['Event submission form', 'submission form questions submit event', 'todo', '', 'evform', true],
   ['Availability calendar', 'availability periods schedule', 'clubs', '', 'avail'],
   ['Club WhatsApp links', 'whatsapp group link club', 'settings', '', 'clublinks', true],
-  ['Add or edit clubs (name, logo, colour)', 'club directory add edit logo colour', 'clubs', '', 'clubdir', true],
+  ['Add or edit clubs (name, logo, colour)', 'club directory add edit logo colour', 'clubs', '', 'clubcards', true],
   ['Club admins (who runs which club)', 'club admin lead leader', 'clubs', '', 'leads', true],
   ['Find or edit a member', 'profile member search edit archive delete', 'people', '', ''],
   ['Create a profile', 'create new profile member', 'people', '', 'newprofile'],
@@ -13240,14 +13241,14 @@ function clubDirStartCreate(){
   state.cmAdminClubDirEditing = 'new';
   state.cmAdminClubDirDraft = { title:'', desc:'', logo:'', signup:'', emoji:'', colour:'#e1eaf1' };
   state.cmAdminClubDirError = '';
-  render();
+  render(); setTimeout(() => { const t = document.getElementById('cdTitle'); if(t) t.scrollIntoView({ block:'center' }); }, 60);
 }
 function clubDirStartEdit(id){
   const club = clubsData.find(c => c.id === id) || {};
   state.cmAdminClubDirEditing = id;
   state.cmAdminClubDirDraft = { title: club.title || '', desc: club.desc || '', logo: club.logo || '', signup: club.signup || '', emoji: club.emoji || '', colour: club.colour || '#e1eaf1', textColour: club.textColour || '#373d3b' }; // textColour MUST be carried over, or saving any club edit silently reset its text colour (that's what wiped the club text colours)
   state.cmAdminClubDirError = '';
-  render();
+  render(); setTimeout(() => { const t = document.getElementById('cdTitle'); if(t) t.scrollIntoView({ block:'center' }); }, 60);
 }
 function clubDirCancel(){
   state.cmAdminClubDirEditing = null;
