@@ -9179,13 +9179,9 @@ function renderMyClubsSectionHtml(){
   { const an = state.availAnnounce; let seen = ''; try { seen = localStorage.getItem('availAnn') || ''; } catch {}
     if(an && an.id !== seen) annBanner = `<div class="av-waitlist" style="max-width:520px;margin:0 auto 14px;text-align:center;">📣 ${escapeCm(an.text)}${state.availDeadline ? ` <strong>Deadline: ${escapeCm(new Date(state.availDeadline + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' }))}</strong>` : ''} <button type="button" class="club-guide-btn" data-clubspage="avail" data-annid="${escapeCm(an.id)}" style="padding:6px 14px;font-size:13px;margin:6px 4px 0;">Add my availability</button><button type="button" class="av-link" id="availAnnDismiss" data-annid="${escapeCm(an.id)}" style="margin-top:6px;">Dismiss</button></div>`; }
   const stayBanner = state.stayDue ? `<div class="av-waitlist" style="max-width:520px;margin:0 auto 14px;text-align:center;">🪁 Squads are now clubs! <button type="button" class="club-guide-btn" onclick="location.hash='#/stay'" style="margin-top:6px;">Choose which to stay in →</button></div>` : '';
-  return `${topRow}${pendingBanner}${stayBanner}${annBanner}${myTodoHtml()}
-    ${votingMine.length ? `<div class="clubs-big-btns">
-      ${bigBtn('avail', '📅', 'Availability', 'Add yours &amp; see everyone\'s')}
-      ${bigBtn('vote', '🗳️', 'Vote', votingMine.length > 1 ? 'All your clubs\' ideas in one place' : 'Vote on ideas for ' + escapeCm(votingMine[0].title))}
-    </div>` : ''}
+  return `${topRow}${pendingBanner}${stayBanner}${myTodoHtml()}
     <h3 class="clubs-popular-title" style="margin:16px 0 2px;">CLUBS YOU'RE IN</h3>
-    <p class="ideas-hint" style="text-align:center;margin:0 0 4px;">${votingMine.length ? "Tap a club to see its ideas and who's free." : 'Tap a group to open it.'}</p>
+    <p class="ideas-hint" style="text-align:center;margin:0 0 4px;">Tap a club for details.</p>
     <div class="club-bubbles">${myClubs.map((c, i) => clubBubbleHtml(c, i)).join('')}</div>
     <div style="text-align:center;margin:8px 0 0;display:flex;align-items:center;justify-content:center;gap:8px;"><button type="button" id="homeManageClubs" aria-label="Manage my clubs: join or quit" title="Join or quit clubs" style="width:42px;height:42px;flex:none;border-radius:50%;border:2px solid var(--brand-brown);background:#fff;font-size:20px;line-height:1;cursor:pointer;padding:0;">⚙️</button><span style="font-size:13px;color:#776867;">Join or quit clubs</span></div>
     <div style="margin-top:18px;">${clubCalSectionHtml(true)}</div>
