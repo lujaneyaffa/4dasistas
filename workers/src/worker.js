@@ -398,7 +398,7 @@ const pendingClubIdsFor = async (env, userId) => {
   for (const clubId of await clubIdList(env)) if (await env.SITE_DATA.get(joinReqKey(clubId, userId))) out.push(clubId);
   return out;
 };
-const JOIN_REQUESTS_MAX_PENDING_PER_PERSON = 4;
+const JOIN_REQUESTS_MAX_PENDING_PER_PERSON = 40; // effectively no limit — a person can ask to join as many clubs as they like
 // Emails the admin each time someone asks to join a club. Needs the ADMIN_NOTIFY_EMAIL secret; if it isn't
 // set (or Resend isn't), the request is still saved and shows up in the admin panel - it just can't email.
 const EVENT_SUGGESTION_MAX_PENDING = 300;
@@ -3747,6 +3747,17 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await env.SITE_DATA.put(joinReqKey(clubId, me.id), JSON.stringify({ at: Date.now() }));
       notifyAdminOfJoinRequest(env, ctx, me, club);
       return jsonResponse({ ok: true, pending: [...pending, clubId] }, 201, corsHeaders);
+    }
+    // A member leaves a club themselves (their profile and other clubs stay).
+    const leaveClubMatch = path.match(/^\/api\/clubs\/([^/]+)\/leave\/?$/);
+    if (leaveClubMatch && request.method === "POST") {
+      const meId = await memberIdFromRequest();
+      if (!meId) return jsonResponse({ error: "Sign in first" }, 401, corsHeaders);
+      const clubId = decodeURIComponent(leaveClubMatch[1]);
+      const ids = await readClubMemberIds(env, clubId);
+      if (!ids.includes(meId)) return jsonResponse({ ok: true, clubs: await allClubIdsContaining(env, meId) }, 200, corsHeaders);
+      await writeClubMemberIds(env, clubId, ids.filter((id) => id !== meId));
+      return jsonResponse({ ok: true, clubs: await allClubIdsContaining(env, meId) }, 200, corsHeaders);
     }
     const membersListMatch = path === "/api/members" || path === "/api/members/";
     const memberProfileMatch = path.match(/^\/api\/members\/([^/]+)\/?$/);
