@@ -8501,6 +8501,33 @@ function openCommunityClub(id){
     <p class="idea-pop-h">📅 Coming up</p>${evs.length ? evs.map(e => `<button type="button" class="cc-ev" data-calid="${escapeCm(e.id)}" style="display:block;width:100%;text-align:left;border:none;border-top:1px solid rgba(0,0,0,.08);background:none;padding:9px 0;font:inherit;cursor:pointer;min-height:44px;"><b>${escapeCm(e.title)}</b><br><small style="color:#776867;">${escapeCm(new Date(e.date + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' }))}${e.time ? ' · ' + escapeCm(e.time) : ''}</small></button>`).join('') : '<p class="av-msg">Nothing scheduled yet.</p>'}`);
   wrap.querySelectorAll('.cc-ev').forEach(b => b.addEventListener('click', () => { close(); clubCalOpen(b.dataset.calid); }));
 }
+// Someone who isn't signed in taps a club: a small preview (members, its latest hosted activities) and an invitation to join — not the club's own page.
+async function openClubPublicPreview(id){
+  const c = clubsData.find(x => x.id === id); if(!c) return;
+  const col = clubCol(id);
+  const { wrap, close } = ideaPopup('<p class="av-msg">Loading…</p>');
+  try {
+    if(!state.clubCal && !state.clubCalLoading) await clubCalLoad();
+    for(let i = 0; i < 20 && !state.clubCal && state.clubCalLoading; i++) await new Promise(r => setTimeout(r, 150));
+    if(!state.clubCounts){ try { const r = await fetch('/api/club-counts'); state.clubCounts = r.ok ? ((await r.json()).counts || {}) : {}; } catch { state.clubCounts = {}; } }
+  } catch {}
+  const today = new Date().toISOString().slice(0, 10);
+  const mine = (state.clubCal || []).filter(e => !String(e.id).startsWith('idea:') && e.kind !== 'idea' && !e.tbd && (e.clubIds || [e.clubId]).includes(id));
+  const past = mine.filter(e => e.date && e.date <= today).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
+  const n = state.clubCounts ? state.clubCounts[id] : null;
+  const card = wrap.querySelector('.idea-pop-card') || wrap.querySelector('.mem-pop-card'); if(!card) return;
+  card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
+    <div style="text-align:center;">${c.logo ? `<img src="${escapeCm(c.logo)}" alt="" style="width:86px;height:86px;object-fit:contain;border-radius:50%;background:${col.bg};">` : `<div style="font-size:48px;">${escapeCm(c.emoji || (c.title || '?').charAt(0))}</div>`}
+    <h3 style="margin:8px 0 2px;color:${col.fg};">${escapeCm(c.title)}</h3>
+    <p style="margin:0 0 10px;font-weight:800;">👥 ${n == null ? '—' : n} member${n === 1 ? '' : 's'}</p></div>
+    <p style="margin:0 0 10px;font-size:14px;line-height:1.5;text-align:center;">${escapeCm(c.desc || '')}</p>
+    <p class="idea-pop-h">🎉 Recent activities</p>${past.length ? past.map(e => `<div style="padding:8px 0;border-top:1px solid rgba(0,0,0,.08);"><b>${escapeCm(e.title)}</b><br><small style="color:#776867;">${escapeCm(calDateLabel(e.date))}${e.place && !e.placePrivate ? ' · ' + escapeCm(e.place) : ''}</small></div>`).join('') : '<p class="av-msg" style="margin:4px 0 8px;">No activities yet — you could help start them!</p>'}
+    <div style="margin-top:14px;padding:12px;border-radius:14px;background:#fef7f4;border:2px solid #f2d8d7;text-align:center;"><p style="margin:0 0 10px;font-weight:700;">Want to be part of ${escapeCm(c.title)}?<br><span style="font-weight:400;font-size:13px;">Create a free 4DS account, then request to join.</span></p>
+      <div style="display:flex;gap:10px;"><button type="button" class="fall-cta-btn join-club-btn cpS" style="flex:1;">Create account</button><button type="button" class="club-guide-btn cpL" style="flex:1;text-align:center;">Log in</button></div></div>`;
+  card.querySelector('.mem-pop-close').addEventListener('click', close);
+  card.querySelector('.cpS').addEventListener('click', () => { close(); goToTab('fallsignup'); });
+  card.querySelector('.cpL').addEventListener('click', () => { close(); state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); });
+}
 function openClubIdeas(clubId){
   if(isCommunityClub(clubId)){ openCommunityClub(clubId); return; }
   if(state.tab !== 'clubideas') state.ideasFrom = state.tab; // so Back returns to where this board was opened from (Home for signed-in members)
@@ -14624,7 +14651,7 @@ document.body.addEventListener('click', e => {
   if(clubsPageBtn){ setClubsPage(clubsPageBtn.dataset.clubspage); return; }
   const clubCard = e.target.closest('[data-club-id]');
   if(clubCard && !e.target.closest('a')){
-    if(clubCard.classList.contains('club-card')) openClubIdeas(clubCard.dataset.clubId);
+    if(clubCard.classList.contains('club-card')){ if(!getCmSession() && !calIsAdmin()) openClubPublicPreview(clubCard.dataset.clubId); else openClubIdeas(clubCard.dataset.clubId); }
     return;
   }
   const trigger = e.target.closest('[data-id]');

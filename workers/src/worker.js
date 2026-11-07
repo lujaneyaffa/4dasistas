@@ -2152,6 +2152,12 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const roster = await readClubRoster(env);
       return jsonResponse({ build: WORKER_BUILD, d1Bound: !!env.DB, clubs: roster.map((c) => c.title), clubFile: _fileClubsStatus }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
+    // Public: how many members each (visible) club has. Just numbers, no names.
+    if (path === "/api/club-counts" && request.method === "GET") {
+      const counts = {};
+      for (const c of (await readClubRoster(env)).filter((x) => x && !x.hidden)) { try { counts[c.id] = (await readClubMemberIds(env, c.id)).length; } catch { counts[c.id] = 0; } }
+      return jsonResponse({ counts }, 200, { ...corsHeaders, "Cache-Control": "public, max-age=300" });
+    }
     if (path === "/api/clubs" && request.method === "GET") {
       const all = await readClubRoster(env);
       // A club the admin has hidden for a while is left out for the public; the logged-in admin still gets it (marked hidden) so it can be shown again.
