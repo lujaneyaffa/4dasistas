@@ -2147,6 +2147,29 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     // pasted into Instagram/WhatsApp/iMessage. Hash routes (#/clubs/<slug>) can't do this — a share-card
     // crawler fetches the URL and reads its HTML, it never runs JS to see location.hash. This page is a
     // real, crawlable path only for that purpose; a real visitor gets bounced straight into the app.
+    // The Clubs page itself (4dasistas.ca/clubs): a preview card showing the club icons, then straight on to the app's Clubs page.
+    if (/^\/clubs\/?$/.test(path) && request.method === "GET") {
+      const title = "Join a club — 4DASISTAS", desc = "See every 4DASISTAS club, who's in it and what they've been up to. Create an account and request to join.";
+      const img = "https://4dasistas.ca/assets/og-clubs.png?v=1", dest = "/#/clubs";
+      const html = `<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escapeHtml(title)}</title>
+<meta name="description" content="${escapeHtml(desc)}">
+<meta property="og:title" content="${escapeHtml(title)}">
+<meta property="og:description" content="${escapeHtml(desc)}">
+<meta property="og:image" content="${img}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://4dasistas.ca/clubs">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="${img}">
+<meta http-equiv="refresh" content="0; url=${dest}">
+<script>location.replace(${JSON.stringify(dest)});</script>
+</head><body>Opening 4DASISTAS… <a href="${dest}">Tap here</a> if nothing happens.</body></html>`;
+      return new Response(html, { headers: { "Content-Type": "text/html; charset=UTF-8", "Cache-Control": "no-store, must-revalidate", ...corsHeaders } });
+    }
     const clubPathMatch = path.match(/^\/clubs\/([a-z0-9-]+)\/?$/);
     if (clubPathMatch && request.method === "GET") {
       const club = (await readClubRoster(env)).find((c) => c.slug === clubPathMatch[1]);
