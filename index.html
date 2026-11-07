@@ -9148,9 +9148,10 @@ function renderMyClubsSectionHtml(){
     ${state.joinReqError ? `<p style="color:#c00;font-size:13px;text-align:center;margin:0 0 8px;">${escapeCm(state.joinReqError)}</p>` : ''}
     <div style="max-width:480px;margin:0 auto;display:flex;flex-direction:column;gap:8px;">${rows}</div>` : '';
   const topRow = `<div style="margin-bottom:14px;">${changePinButtonHtml()}</div>`;
+  const gearRow = `<div style="text-align:center;margin:0 0 12px;display:flex;align-items:center;justify-content:center;gap:8px;"><button type="button" id="homeManageClubs" aria-label="Manage my clubs: join or quit" title="Join or quit clubs" style="width:42px;height:42px;flex:none;border-radius:50%;border:2px solid var(--brand-brown);background:#fff;font-size:20px;line-height:1;cursor:pointer;padding:0;">⚙️</button><span style="font-size:13px;color:#776867;">Join or quit clubs</span></div>`;
   if(!myClubs.length){
     // Not in a club yet: they can still look at the club calendar and ask to RSVP.
-    return `${topRow}${pendingBanner}
+    return `${topRow}${pendingBanner}${gearRow}
       <p class="ideas-hint" style="max-width:520px;margin:0 auto;text-align:center;">You're not in a club yet. Request the club(s) you're part of below — an admin will approve them.</p>
       <div style="margin-top:18px;">${clubCalSectionHtml(true)}</div>
       ${requestSection}`;
@@ -9186,6 +9187,7 @@ function renderMyClubsSectionHtml(){
     <h3 class="clubs-popular-title" style="margin:16px 0 2px;">CLUBS YOU'RE IN</h3>
     <p class="ideas-hint" style="text-align:center;margin:0 0 4px;">${votingMine.length ? "Tap a club to see its ideas and who's free." : 'Tap a group to open it.'}</p>
     <div class="club-bubbles">${myClubs.map((c, i) => clubBubbleHtml(c, i)).join('')}</div>
+    <div style="text-align:center;margin:8px 0 0;display:flex;align-items:center;justify-content:center;gap:8px;"><button type="button" id="homeManageClubs" aria-label="Manage my clubs: join or quit" title="Join or quit clubs" style="width:42px;height:42px;flex:none;border-radius:50%;border:2px solid var(--brand-brown);background:#fff;font-size:20px;line-height:1;cursor:pointer;padding:0;">⚙️</button><span style="font-size:13px;color:#776867;">Join or quit clubs</span></div>
     <div style="margin-top:18px;">${clubCalSectionHtml(true)}</div>
     ${requestSection}`;
 }
