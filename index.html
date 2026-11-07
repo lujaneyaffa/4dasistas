@@ -12950,7 +12950,7 @@ function renderClubAdminPanel(){
     ${admSec('watpl', '💬 WhatsApp messages — your wording', waTemplatesAdminHtml(), false)}
     ${lead ? '' : admSec('push', '📲 Push notifications to everyone', pushAdminHtml(), false)}
   `;
-  const badmintonGrid = admSec('bmimport', '🏸 Badminton — photos, coach password &amp; iPad kiosk', bmImportHtml(), false);
+  const badmintonGrid = admSec('bmimport', '🏸 Badminton — photos, coach password &amp; iPad kiosk', bmImportHtml(), true);
   const stepsGrid = admSec('stepsadm', '👟 Steps challenge — rounds &amp; pledges', stepsAdminHtml(), false);
   const programsGrid = badmintonGrid + stepsGrid;
   const profilesGrid = `
