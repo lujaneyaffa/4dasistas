@@ -9507,6 +9507,8 @@ function hfIgMount(){
     if(!IG_OK[u] || !sl.isConnected) return;
     sl.innerHTML = `<iframe class="hf-ig" src="https://www.instagram.com/${encodeURIComponent(u)}/embed/" title="${escapeCm(sl.dataset.t)} on Instagram" loading="lazy" scrolling="no"></iframe>`;
     const card = sl.closest('.hf-card'); if(card) card.classList.add('hf-hasig');
+    // Fit the profile embed to what it really shows (header + 2 rows of 3 posts) so there's no big empty gap under the posts.
+    { const fr = sl.querySelector('iframe'); if(fr){ const fit = () => { if(!fr.isConnected){ window.removeEventListener('resize', fit); return; } const w = fr.clientWidth || 300; fr.style.setProperty('height', Math.round(140 + 2 * (w / 3) + 30) + 'px', 'important'); fr.style.setProperty('min-height', '0', 'important'); }; fit(); window.addEventListener('resize', fit); } }
   });
 }
 function homeFeatPubEntry(id){
