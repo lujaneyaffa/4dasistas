@@ -8553,6 +8553,31 @@ async function openClubPublicPreview(id){
     } catch(err){ b.disabled = false; q('.cpMsg').style.color = '#b3261e'; q('.cpMsg').textContent = err.message; }
   });
 }
+// Home → "Join or quit a club": every club in one list, with Quit for the ones you're in and Request to join for the rest.
+function openClubsManager(){
+  const sess = getCmSession(); if(!sess) return;
+  const { wrap, close } = ideaPopup('<p class="av-msg">Loading…</p>');
+  const paint = () => {
+    const s2 = getCmSession() || sess, mine = new Set(s2.clubs || []), pend = new Set(state.myPending || []);
+    const row = c => { const col = clubCol(c.id), inn = mine.has(c.id);
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid rgba(0,0,0,.08);"><button type="button" data-prevclub="${escapeCm(c.id)}" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;border:none;background:none;padding:0;font:inherit;color:inherit;text-align:left;cursor:pointer;"><span style="width:38px;height:38px;border-radius:50%;background:${col.bg};display:inline-flex;align-items:center;justify-content:center;flex:none;overflow:hidden;">${c.logo ? `<img src="${escapeCm(c.logo)}" alt="" style="width:100%;height:100%;object-fit:contain;">` : escapeCm(c.emoji || c.title.charAt(0))}</span><b style="overflow-wrap:anywhere;">${escapeCm(c.title)}</b></button>
+        ${inn ? `<button type="button" class="club-guide-btn cmQuit" data-c="${escapeCm(c.id)}" style="padding:6px 12px;font-size:13px;background:transparent;color:#b3261e;border-color:#b3261e;flex:none;">Quit</button>` : pend.has(c.id) ? '<span style="font-size:12px;color:#776867;text-align:right;flex:none;">Requested ✓<br>waiting</span>' : `<button type="button" class="club-guide-btn cmJoin" data-c="${escapeCm(c.id)}" style="padding:6px 12px;font-size:13px;background:var(--brand-blush);flex:none;">Request to join</button>`}</div>`; };
+    const all = clubsData.slice(), inn = all.filter(c => mine.has(c.id)), out = all.filter(c => !mine.has(c.id));
+    const card = wrap.querySelector('.mem-pop-card');
+    card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 4px;">🏛️ Your clubs</h3><p class="ideas-hint" style="text-align:left;margin:0 0 6px;">Tap a club for details. An admin approves every request.</p><div id="cmErr" style="color:#b3261e;font-size:13px;min-height:16px;"></div>
+      ${inn.length ? inn.map(row).join('') : '<p class="av-msg">You are not in a club yet.</p>'}
+      <h4 style="margin:16px 0 0;">Other clubs</h4>${out.length ? out.map(row).join('') : '<p class="av-msg">You are in every club 🎉</p>'}`;
+    card.querySelector('.mem-pop-close').addEventListener('click', close);
+    card.querySelectorAll('.cmJoin').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await requestToJoinClub(b.dataset.c); const e = card.querySelector('#cmErr'); if(state.joinReqError) e.textContent = state.joinReqError; paint(); }));
+    card.querySelectorAll('.cmQuit').forEach(b => b.addEventListener('click', async () => {
+      const c = clubsData.find(x => x.id === b.dataset.c); if(!c || !confirm(`Quit ${c.title}?\n\nYou'll stop seeing its events and ideas. You can ask to join again any time.`)) return;
+      b.disabled = true;
+      try { const d = await cmApiRaw('/api/clubs/' + encodeURIComponent(c.id) + '/leave', { method:'POST', headers:{ 'Authorization':'Bearer ' + sess.token } }); setCmSession(Object.assign({}, getCmSession(), { clubs: d.clubs || (getCmSession().clubs || []).filter(x => x !== c.id) })); state.publicIdeasAll = null; state.clubCounts = null; render(); refreshMe(); paint(); }
+      catch(err){ b.disabled = false; card.querySelector('#cmErr').textContent = err.message; }
+    }));
+  };
+  paint();
+}
 function openClubIdeas(clubId){
   if(isCommunityClub(clubId)){ openCommunityClub(clubId); return; }
   if(state.tab !== 'clubideas') state.ideasFrom = state.tab; // so Back returns to where this board was opened from (Home for signed-in members)
@@ -9895,7 +9920,7 @@ function myHomeHtml(){
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;"><button type="button" id="homeGreeting" aria-label="Open my profile and settings" style="border:none;background:none;padding:2px 0;margin:0;font-family:'Outfit',system-ui,sans-serif;font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.2;text-align:left;cursor:pointer;background-image:linear-gradient(90deg,#e3a3ad,#ce8491 38%,#a8505f 75%,#76220b);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;">Asalamu Aleykum, ${escapeCm(first)}</button></div>
     ${forYouHtml()}
     <p style="margin:0 0 6px;font-weight:800;font-size:14px;">🏛️ Your clubs</p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:0 0 14px;">${cards}</div>${homeStepsCardHtml()}${homeBadmintonRsvpHtml()}${extras.join('')}</div>`;
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:0 0 14px;">${cards}</div><div style="text-align:center;margin:-4px 0 14px;"><button type="button" class="club-guide-btn" id="homeManageClubs" style="padding:8px 18px;text-align:center;">➕ Join or quit a club</button></div>${homeStepsCardHtml()}${extras.join('')}</div>`;
 }
 document.addEventListener('click', e => {
   const mh = e.target.closest('.my-home'); 
@@ -9905,6 +9930,7 @@ document.addEventListener('click', e => {
     const day = e.target.closest('[data-calday]'); if(day){ clubCalDayPopup(day.dataset.calday); return; }
     if(e.target.closest('.home-caltoday')){ state.view = 'calendar'; state.calViewMode = 'day'; goToTab('events'); return; }
   }
+  { const mb = e.target.closest('#homeManageClubs'); if(mb){ openClubsManager(); return; } }
   const c = e.target.closest('.home-myclub'); if(c){ openClubPublicPreview(c.dataset.myclub); return; }
   const v = e.target.closest('.home-ev'); if(v){ clubCalOpen(v.dataset.calid); return; }
   if(e.target.closest('#homeGreeting')) openSettingsPopup();
