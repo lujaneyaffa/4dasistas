@@ -1660,7 +1660,7 @@ let sportsData = [];
 let gatheringsData = [];
 let dayActivitiesData = [];
 let tripsData = [];
-let clubsData = [];
+let clubsData = [], clubsAllData = []; // clubsData = what the public sees; clubsAllData also has clubs the admin has temporarily hidden
 let resourcesData = [];
 let mosqueGatheringsData = [];
 let supportProgramsData = [];
@@ -1707,6 +1707,10 @@ document.addEventListener('error', e => {
   if(d && !im.src.endsWith(d)){ im.dataset.logoRetry = '1'; im.src = d + '?r=1'; }
 }, true);
 async function fetchClubsLive(){
+  const all = await fetchClubsRaw(); clubsAllData = all;
+  return all.filter(c => !c.hidden);
+}
+async function fetchClubsRaw(){
   try {
     const res = await fetch('/api/clubs', { cache: 'no-store' });
     if (!res.ok) throw new Error(`/api/clubs returned ${res.status}`);
@@ -11246,7 +11250,7 @@ async function cmDoSignIn(){
    ============================================================ */
 // A club lead is a scoped admin (assigned one or more clubs by the main admin). They get the admin panel for those clubs only.
 function adminClubs(){
-  if(state.cmAdminLoggedIn === true || !state.cmLead) return clubsData;
+  if(state.cmAdminLoggedIn === true || !state.cmLead) return clubsAllData.length ? clubsAllData : clubsData;
   const own = new Set(state.cmLead.clubs || []);
   return clubsData.filter(c => own.has(c.id));
 }
@@ -12749,7 +12753,7 @@ function clubDirEditFormHtml(){
   const editing = state.cmAdminClubDirEditing;
   if(!editing) return '';
   const isNew = editing === 'new';
-  const club = isNew ? null : clubsData.find(c => c.id === editing);
+  const club = isNew ? null : (clubsAllData.find(c => c.id === editing) || clubsData.find(c => c.id === editing));
   const draft = state.cmAdminClubDirDraft || { title:'', desc:'', logo:'', signup:'', emoji:'', colour:'#e1eaf1' };
   return `<div class="cp-box" style="margin-top:10px;">
     <h4 style="margin:0 0 6px;">${isNew ? 'Add a new club' : 'Edit ' + escapeCm((club && club.title) || editing)}</h4>
@@ -12787,7 +12791,7 @@ function admClubCardsHtml(){
   if(!list.length) return '<p class="av-msg">No clubs yet.</p>';
   return `<div class="adm-clubs">${list.map(c => {
     const col = clubCol(c.id), n = all ? (all[c.id] || []).length : null, lim = Number(c.memberLimit) || 0, full = lim && n != null && n >= lim;
-    return `<button type="button" class="adm-club" data-admclub="${escapeCm(c.id)}" style="--cc:${col.fg};--cb:${col.bg};">
+    return `<button type="button" class="adm-club" data-admclub="${escapeCm(c.id)}" style="--cc:${col.fg};--cb:${col.bg};${c.hidden ? 'opacity:.55;' : ''}">${c.hidden ? '<span class="adm-club-full" style="background:#776867;">HIDDEN</span>' : ''}
       <span class="adm-club-logo">${c.logo ? `<img src="${escapeCm(c.logo)}" alt="" loading="lazy">` : escapeCm(c.emoji || (c.title || '?').charAt(0))}</span>
       <b class="adm-club-t">${escapeCm(c.title)}</b>
       <span class="adm-club-n">👥 ${n == null ? '…' : n}${lim ? ` / ${lim}` : ''} member${n === 1 && !lim ? '' : 's'}</span>
@@ -12796,7 +12800,7 @@ function admClubCardsHtml(){
     </button>`; }).join('')}</div>`;
 }
 async function openClubAdminPopup(clubId){
-  const club = clubsData.find(c => c.id === clubId); if(!club) return;
+  const club = (clubsAllData.length ? clubsAllData : clubsData).find(c => c.id === clubId); if(!club) return;
   const isMain = state.cmAdminLoggedIn === true;
   const { wrap, close } = ideaPopup('<p class="av-msg">Loading…</p>'); const card = wrap.querySelector('.mem-pop-card'); card.classList.add('adm-wide');
   if(!state.cmAdminAllMembers) { try { const r = await fetch('/api/admin/club-members', { credentials:'include' }); state.cmAdminAllMembers = r.ok ? await r.json() : {}; } catch { state.cmAdminAllMembers = {}; } }
@@ -12812,7 +12816,7 @@ async function openClubAdminPopup(clubId){
       <div style="display:flex;align-items:center;gap:14px;margin:0 36px 12px 0;"><span class="adm-club-logo" style="width:64px;height:64px;font-size:30px;">${club.logo ? `<img src="${escapeCm(club.logo)}" alt="">` : escapeCm(club.emoji || (club.title || '?').charAt(0))}</span><div><h3 style="margin:0;">${escapeCm(club.title)}</h3><div style="color:#776867;font-weight:700;">👥 ${ms.length}${lim ? ` of ${lim}` : ''} member${ms.length === 1 && !lim ? '' : 's'}${lim && ms.length >= lim ? ' · <span style="color:#b3261e;">FULL</span>' : ''}</div></div></div>
       ${isMain ? `<div class="fb-card" style="box-shadow:none;"><label style="display:block;font-size:13px;font-weight:700;color:#776867;margin:0 0 3px;">Description</label><textarea id="caDesc" rows="4" maxlength="1500" style="width:100%;box-sizing:border-box;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-bottom:8px;">${escapeCm(club.desc || '')}</textarea>
         <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap;"><label style="font-size:13px;font-weight:700;color:#776867;">Member limit <small style="font-weight:400;">(0 or empty = no limit)</small><input id="caLim" type="number" min="0" max="9999" inputmode="numeric" value="${lim || ''}" placeholder="No limit" style="display:block;width:160px;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-top:3px;"></label><button type="button" class="club-guide-btn" id="caSave" style="min-height:46px;padding:8px 22px;text-align:center;background:var(--brand-rose);color:#fff;">💾 Save</button></div></div>` : `<p class="ideas-hint" style="text-align:left;">${escapeCm(club.desc || '')}</p>`}
-      ${isMain ? '<button type="button" class="fb-mini" id="caEditClub" style="margin:4px 0;">✏️ Edit club — name, logo, colours, delete</button>' : ''}
+      ${isMain ? `<div class="fb-row" style="margin:4px 0;"><button type="button" class="fb-mini" id="caEditClub">✏️ Edit club — name, logo, colours, delete</button><button type="button" class="fb-mini" id="caHide">${club.hidden ? '👁 Show on the site again' : '🙈 Hide from the site for now'}</button></div>${club.hidden ? '<p class="ideas-hint" style="text-align:left;margin:0 0 6px;">This club is hidden: the public can’t see it. Members, events and sign-ups are kept.</p>' : ''}` : ''}
       <div id="caMsg" style="font-size:14px;min-height:18px;margin:6px 0;">${msg}</div>
       <h4 style="margin:10px 0 6px;">Members (${ms.length})</h4>
       <input id="caQ" type="search" placeholder="🔍 Search members…" value="${escapeCm(q)}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-bottom:6px;">
@@ -12821,13 +12825,14 @@ async function openClubAdminPopup(clubId){
       <input id="caAdd" type="search" placeholder="Search a profile by name or username…" value="${escapeCm(addQ)}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;">
       ${al.length >= 2 && !users ? '<p class="av-msg">Loading profiles…</p>' : ''}${cands.map(u => `<div class="ca-m"><span class="ca-av">${escapeCm(String(u.name || '?').charAt(0).toUpperCase())}</span><span style="flex:1;min-width:0;"><b>${escapeCm(u.name)}</b> <small style="color:#776867;">@${escapeCm(u.username || '')}</small></span><button type="button" class="fb-mini caAddBtn" data-u="${escapeCm(u.id)}" style="background:#e6f4ea;">+ Add</button></div>`).join('')}${al.length >= 2 && users && !cands.length ? '<p class="av-msg">No profile matches — create one below.</p>' : ''}
       <details style="margin-top:8px;"><summary style="cursor:pointer;font-weight:700;padding:6px 0;">Create a brand-new profile</summary><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"><input id="caNewN" placeholder="Name (e.g. Amina K.)" style="flex:2;min-width:160px;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;"><input id="caNewP" type="tel" placeholder="Phone (optional)" style="flex:1;min-width:130px;padding:11px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;"><button type="button" class="club-guide-btn" id="caNewGo" style="padding:8px 18px;text-align:center;">Create &amp; add</button></div><p class="ideas-hint" style="text-align:left;margin:4px 0 0;">Their starting PIN is 1234 — they pick their own the first time they log in.</p></details>`;
+    { const hb = card.querySelector('#caHide'); if(hb) hb.addEventListener('click', async () => { const want = !club.hidden; if(want && !confirm(`Hide ${club.title} from the public site?\n\nIt stays in admin and nothing is deleted. Show it again any time.`)) return; hb.disabled = true; try { await call('/api/admin/clubs/' + encodeURIComponent(clubId), 'PUT', { fields: { hidden: want } }); clubsData = await fetchClubsLive(); const c2 = clubsAllData.find(x => x.id === clubId); if(c2) Object.assign(club, c2); club.hidden = want; msg = `<span style="color:#2a7a4a;">${want ? '🙈 Hidden from the public site' : '👁 Showing on the site again'}</span>`; paint(); render(); } catch(err){ hb.disabled = false; say(err.message); } }); }
     { const eb = card.querySelector('#caEditClub'); if(eb) eb.addEventListener('click', () => { close(); clubDirStartEdit(clubId); }); }
     const say = (t, ok) => { const m = card.querySelector('#caMsg'); if(m){ m.style.color = ok ? '#2a7a4a' : '#b3261e'; m.textContent = t; } msg = ''; };
     const sv = card.querySelector('#caSave'); if(sv) sv.addEventListener('click', async () => {
       const desc = card.querySelector('#caDesc').value.trim(), memberLimit = parseInt(card.querySelector('#caLim').value, 10) || 0;
       if(!desc) return say('The description can’t be empty.');
       sv.disabled = true; say('Saving…', true);
-      try { await call('/api/admin/clubs/' + encodeURIComponent(clubId), 'PUT', { fields: { desc, memberLimit } }); club.desc = desc; club.memberLimit = memberLimit; clubsData = await fetchClubsLive(); const c2 = clubsData.find(x => x.id === clubId); if(c2) Object.assign(club, c2); msg = '<span style="color:#2a7a4a;">✅ Saved — live everywhere.</span>'; paint(); if(state.tab === 'admin') render(); }
+      try { await call('/api/admin/clubs/' + encodeURIComponent(clubId), 'PUT', { fields: { desc, memberLimit } }); club.desc = desc; club.memberLimit = memberLimit; clubsData = await fetchClubsLive(); const c2 = clubsAllData.find(x => x.id === clubId); if(c2) Object.assign(club, c2); msg = '<span style="color:#2a7a4a;">✅ Saved — live everywhere.</span>'; paint(); if(state.tab === 'admin') render(); }
       catch(err){ sv.disabled = false; say(err.message); }
     });
     card.querySelector('#caQ').addEventListener('input', e => { q = e.target.value; const pos = e.target.selectionStart; paint(); const n = card.querySelector('#caQ'); n.focus(); try { n.setSelectionRange(pos, pos); } catch {} });
@@ -13244,7 +13249,7 @@ function clubDirStartCreate(){
   render(); setTimeout(() => { const t = document.getElementById('cdTitle'); if(t) t.scrollIntoView({ block:'center' }); }, 60);
 }
 function clubDirStartEdit(id){
-  const club = clubsData.find(c => c.id === id) || {};
+  const club = clubsAllData.find(c => c.id === id) || clubsData.find(c => c.id === id) || {};
   state.cmAdminClubDirEditing = id;
   state.cmAdminClubDirDraft = { title: club.title || '', desc: club.desc || '', logo: club.logo || '', signup: club.signup || '', emoji: club.emoji || '', colour: club.colour || '#e1eaf1', textColour: club.textColour || '#373d3b' }; // textColour MUST be carried over, or saving any club edit silently reset its text colour (that's what wiped the club text colours)
   state.cmAdminClubDirError = '';

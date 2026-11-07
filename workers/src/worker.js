@@ -2153,7 +2153,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ build: WORKER_BUILD, d1Bound: !!env.DB, clubs: roster.map((c) => c.title), clubFile: _fileClubsStatus }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     if (path === "/api/clubs" && request.method === "GET") {
-      return jsonResponse({ clubs: await readClubRoster(env) }, 200, corsHeaders);
+      const all = await readClubRoster(env);
+      // A club the admin has hidden for a while is left out for the public; the logged-in admin still gets it (marked hidden) so it can be shown again.
+      const adminToo = all.some((c) => c && c.hidden) && await isAdminRequest(env, request).catch(() => false);
+      return jsonResponse({ clubs: adminToo ? all : all.filter((c) => !(c && c.hidden)) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
 
     const readSubs = async () => { try { const a = JSON.parse((await env.SITE_DATA.get(SUBSCRIBER_INDEX_KEY)) || "[]"); return Array.isArray(a) ? a : []; } catch { return []; } };
@@ -5751,6 +5754,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           delete fields.logo;
         }
       }
+      if (fields.hidden !== undefined) fields.hidden = fields.hidden === true; // true = temporarily hidden from the public site
       if (fields.memberLimit !== undefined) fields.memberLimit = Math.max(0, Math.min(9999, parseInt(fields.memberLimit, 10) || 0)); // 0 = no limit
       if (fields.desc !== undefined) { fields.desc = String(fields.desc || "").trim().slice(0, 1500); if (!fields.desc) return jsonResponse({ error: "Description can't be empty" }, 400, corsHeaders); }
       const updatedClub = { ...clubs[idx], ...fields };
