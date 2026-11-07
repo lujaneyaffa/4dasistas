@@ -53,7 +53,8 @@
       "desc": "Recite, review and reflect together — a consistent circle for staying close to the Quran.",
       "signup": "https://chat.whatsapp.com/LTYiWdI8xno3dCWpDDiwGR?mode=gi_t",
       "logo": "assets/logos/squad-quran-v4.png",
-      "textColour": "#7a726d"
+      "textColour": "#7a726d",
+      "memberLimit": 0
     },
     {
       "id": "club-badminton",
