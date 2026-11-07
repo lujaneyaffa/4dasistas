@@ -8542,7 +8542,7 @@ async function openClubPublicPreview(id){
   if(q('.cpS')) q('.cpS').addEventListener('click', () => { close(); goToTab('fallsignup'); });
   if(q('.cpL')) q('.cpL').addEventListener('click', () => { close(); state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); });
   if(q('.cpOpen')) q('.cpOpen').addEventListener('click', () => { close(); openClubIdeas(id); });
-  if(q('.cpJoin')) q('.cpJoin').addEventListener('click', async e => { const b = e.currentTarget; b.disabled = true; await requestToJoinClub(id); if(state.joinReqError){ q('.cpMsg').style.color = '#b3261e'; q('.cpMsg').textContent = state.joinReqError; b.disabled = false; } else { close(); openClubPublicPreview(id); } });
+  if(q('.cpJoin')) q('.cpJoin').addEventListener('click', async e => { const b = e.currentTarget; const a = await askJoinReason(id); if(!a) return; b.disabled = true; await requestToJoinClub(id, a); if(state.joinReqError){ q('.cpMsg').style.color = '#b3261e'; q('.cpMsg').textContent = state.joinReqError; b.disabled = false; } else { close(); openClubPublicPreview(id); } });
   if(q('.cpLeave')) q('.cpLeave').addEventListener('click', async e => {
     if(!confirm(`Quit ${c.title}?\n\nYou'll stop seeing its events and ideas. You can ask to join again any time.`)) return;
     const b = e.currentTarget; b.disabled = true;
@@ -8568,7 +8568,7 @@ function openClubsManager(){
       ${inn.length ? inn.map(row).join('') : '<p class="av-msg">You are not in a club yet.</p>'}
       <h4 style="margin:16px 0 0;">Other clubs</h4>${out.length ? out.map(row).join('') : '<p class="av-msg">You are in every club 🎉</p>'}`;
     card.querySelector('.mem-pop-close').addEventListener('click', close);
-    card.querySelectorAll('.cmJoin').forEach(b => b.addEventListener('click', async () => { b.disabled = true; await requestToJoinClub(b.dataset.c); const e = card.querySelector('#cmErr'); if(state.joinReqError) e.textContent = state.joinReqError; paint(); }));
+    card.querySelectorAll('.cmJoin').forEach(b => b.addEventListener('click', async () => { const a = await askJoinReason(b.dataset.c); if(!a) return; b.disabled = true; await requestToJoinClub(b.dataset.c, a); const e = card.querySelector('#cmErr'); if(state.joinReqError) e.textContent = state.joinReqError; paint(); }));
     card.querySelectorAll('.cmQuit').forEach(b => b.addEventListener('click', async () => {
       const c = clubsData.find(x => x.id === b.dataset.c); if(!c || !confirm(`Quit ${c.title}?\n\nYou'll stop seeing its events and ideas. You can ask to join again any time.`)) return;
       b.disabled = true;
@@ -8907,7 +8907,28 @@ async function refreshMe(){
   if(state.tab === 'clubs' || state.tab === 'stay') render();
   maybeShowPushGate();
 }
-async function requestToJoinClub(clubId){
+// Before asking to join: why they like the club + a promise they can commit for the next month.
+function askJoinReason(clubId){
+  const c = clubsData.find(x => x.id === clubId) || { title:'this club' };
+  return new Promise(res => {
+    const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 6px;">Request to join ${escapeCm(c.title)}</h3>
+      <label style="display:block;font-weight:700;margin:8px 0 4px;">Why do you like this club?</label>
+      <textarea id="jrWhy" rows="4" maxlength="500" placeholder="Tell us a little…" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;"></textarea>
+      <label style="display:flex;align-items:flex-start;gap:10px;margin:12px 0;font-size:15px;line-height:1.35;"><input type="checkbox" id="jrCommit" style="width:22px;height:22px;flex:none;margin-top:1px;"> I'm sure I can commit to this club for the next month</label>
+      <div id="jrErr" style="color:#b3261e;font-size:13px;min-height:16px;"></div>
+      <button type="button" class="club-guide-btn" id="jrGo" style="width:100%;min-height:46px;text-align:center;background:var(--brand-rose);color:#fff;">Send request</button>`);
+    let done = false; const fin = v => { if(done) return; done = true; close(); res(v); };
+    wrap.querySelector('.mem-pop-close').addEventListener('click', () => fin(null));
+    wrap.addEventListener('click', e => { if(e.target === wrap) fin(null); });
+    wrap.querySelector('#jrGo').addEventListener('click', () => {
+      const why = wrap.querySelector('#jrWhy').value.trim(), commit = wrap.querySelector('#jrCommit').checked, er = wrap.querySelector('#jrErr');
+      if(why.length < 3){ er.textContent = 'Please tell us why you like this club.'; return; }
+      if(!commit){ er.textContent = 'Please tick that you can commit for the next month.'; return; }
+      fin({ why, commit: true });
+    });
+  });
+}
+async function requestToJoinClub(clubId, extra){
   const session = getCmSession();
   if(!session) return;
   // Mark it requested right away and only ever ADD to the list: two quick taps send two requests, and a
@@ -8916,7 +8937,7 @@ async function requestToJoinClub(clubId){
   state.joinReqError = '';
   render();
   try {
-    const d = await cmApiRaw('/api/clubs/' + encodeURIComponent(clubId) + '/join-request', { method:'POST', headers:{ 'Authorization':'Bearer ' + session.token } });
+    const d = await cmApiRaw('/api/clubs/' + encodeURIComponent(clubId) + '/join-request', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + session.token }, body: JSON.stringify(extra || {}) });
     state.myPending = Array.from(new Set((state.myPending || []).concat(d.pending || [])));
   } catch(err){
     state.myPending = (state.myPending || []).filter(id => id !== clubId);
@@ -8929,7 +8950,7 @@ function wireMyClubsSection(){
   if(profBtn) profBtn.addEventListener('click', openEditProfilePopup);
   const outBtn = document.getElementById('mySignOutBtn');
   if(outBtn) outBtn.addEventListener('click', cmMemberSignOut);
-  document.querySelectorAll('.join-req-btn').forEach(b => b.addEventListener('click', () => { b.disabled = true; requestToJoinClub(b.dataset.clubId); }));
+  document.querySelectorAll('.join-req-btn').forEach(b => b.addEventListener('click', async () => { const a = await askJoinReason(b.dataset.clubId); if(!a) return; b.disabled = true; requestToJoinClub(b.dataset.clubId, a); }));
 }
 function changePinButtonHtml(){
   const pill = 'min-height:44px;padding:10px 20px;border-radius:999px;border:2px solid var(--brand-brown);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;';
@@ -9920,7 +9941,7 @@ function myHomeHtml(){
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;"><button type="button" id="homeGreeting" aria-label="Open my profile and settings" style="border:none;background:none;padding:2px 0;margin:0;font-family:'Outfit',system-ui,sans-serif;font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.2;text-align:left;cursor:pointer;background-image:linear-gradient(90deg,#e3a3ad,#ce8491 38%,#a8505f 75%,#76220b);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;">Asalamu Aleykum, ${escapeCm(first)}</button></div>
     ${forYouHtml()}
     <p style="margin:0 0 6px;font-weight:800;font-size:14px;">🏛️ Your clubs</p>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:0 0 14px;">${cards}</div><div style="text-align:center;margin:-4px 0 14px;"><button type="button" class="club-guide-btn" id="homeManageClubs" style="padding:8px 18px;text-align:center;">➕ Join or quit a club</button></div>${homeStepsCardHtml()}${extras.join('')}</div>`;
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center;margin:0 0 14px;">${cards}<button type="button" id="homeManageClubs" aria-label="Manage my clubs: join or quit" title="Join or quit clubs" style="width:42px;height:42px;flex:none;border-radius:50%;border:2px solid var(--brand-brown);background:#fff;font-size:20px;line-height:1;cursor:pointer;padding:0;">⚙️</button></div>${homeStepsCardHtml()}${extras.join('')}</div>`;
 }
 document.addEventListener('click', e => {
   const mh = e.target.closest('.my-home'); 
@@ -12284,7 +12305,7 @@ function joinRequestsAdminHtml(){
     ${reqs.length ? reqs.map(r => `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 0;border-top:1px solid rgba(0,0,0,0.1);">
       <span><button type="button" class="adm-profile-link" data-user-id="${escapeCm(r.userId)}" style="border:none;background:none;padding:0;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;color:inherit;">${escapeCm(r.name)}</button> <span style="color:#776867;font-size:12px;">${escapeCm(r.username)}</span><br>wants to join <strong>${escapeCm(r.clubTitle)}</strong>${r.phone ? ` · <a href="tel:${escapeCm(String(r.phone).replace(/[^\d+]/g, ''))}" style="color:inherit;">${escapeCm(r.phone)}</a>` : ''}
         ${(r.ranked || []).length ? `<br><span style="font-size:12px;"><strong>Their picks:</strong> ${(r.ranked || []).slice(0, 4).map((c, i) => `${i + 1}. ${escapeCm(c)}`).join(' &nbsp; ')}</span>` : ''}
-        ${r.why ? `<br><span style="font-size:12px;color:#776867;white-space:pre-wrap;">“${escapeCm(r.why.length > 160 ? r.why.slice(0, 160) + '…' : r.why)}”</span>` : ''}
+        ${r.why ? `<br><span style="font-size:12px;color:#776867;white-space:pre-wrap;">“${escapeCm(r.why.length > 300 ? r.why.slice(0, 300) + '…' : r.why)}”</span>` : ''}${r.commit ? `<br><span style="font-size:12px;color:#2a7a4a;font-weight:700;">✅ Can commit for the next month</span>` : ''}
         ${r.lead && /yes/i.test(r.lead) ? `<br><span style="font-size:12px;">🌟 Interested in leading</span>` : ''}</span>
       <span style="display:flex;gap:6px;"><button type="button" class="club-guide-btn join-req-accept" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:var(--brand-blush);text-align:center;">Accept</button><button type="button" class="club-guide-btn join-req-decline" data-club-id="${escapeCm(r.clubId)}" data-user-id="${escapeCm(r.userId)}" style="padding:8px 14px;background:transparent;text-align:center;">Decline</button></span></div>`).join('') : '<p style="font-size:13px;margin:0;">No pending requests.</p>'}
     <p id="joinReqAdminStatus" style="color:#c00;font-size:12px;margin:6px 0 0;"></p></div>`;

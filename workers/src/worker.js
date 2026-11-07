@@ -387,9 +387,9 @@ const listJoinRequests = async (env) => {
   const out = [];
   for (const k of list.keys) {
     const [, clubId, userId] = k.name.split(":");
-    let at = 0;
-    try { at = JSON.parse((await env.SITE_DATA.get(k.name)) || "{}").at || 0; } catch {}
-    out.push({ clubId, userId, at });
+    let at = 0, why = "", commit = false;
+    try { const j = JSON.parse((await env.SITE_DATA.get(k.name)) || "{}"); at = j.at || 0; why = j.why || ""; commit = j.commit === true; } catch {}
+    out.push({ clubId, userId, at, why, commit });
   }
   return out;
 };
@@ -1057,13 +1057,13 @@ const writeSquadMemberIds = (env, id, ids) => env.SITE_DATA.put(squadMembersKey(
 // Club leaders' email addresses are PRIVATE (their own KV key — never in the public clubs file): they get an email when someone asks to join their club.
 const LEADER_EMAILS_KEY = "clubleaderemails";
 const readLeaderEmails = async (env) => { try { const o = JSON.parse((await env.SITE_DATA.get(LEADER_EMAILS_KEY)) || "{}"); return o && typeof o === "object" ? o : {}; } catch { return {}; } };
-const notifyAdminOfJoinRequest = (env, ctx, user, club) => {
+const notifyAdminOfJoinRequest = (env, ctx, user, club, req) => {
   if (!env.RESEND_API_KEY) return;
   const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
   const f = user.form || {};
   const picks = Array.isArray(f.ranked) && f.ranked.length ? `<p style="margin:0 0 6px"><strong>Their picks:</strong> ${f.ranked.slice(0, 4).map((c, i) => `${i + 1}. ${escapeHtml(c)}`).join(" &nbsp; ")}</p>` : "";
   const html = emailShell(env, { emoji: "🙋‍♀️", title: "New club join request", preheader: `${user.name} → ${club.title}`,
-    body: `<p style="margin:0 0 6px"><strong>${escapeHtml(user.name)}</strong> <span style="color:#776867">@${escapeHtml(user.username)}</span> asked to join</p><p style="margin:0 0 14px">${emailChip(escapeHtml(club.title))}</p>${user.phone ? `<p style="margin:0 0 6px">📞 ${escapeHtml(user.phone)}</p>` : ""}${picks}${f.why ? emailNote(`<div style="font-size:12px;opacity:.8;margin-bottom:2px">💬 What they wrote</div>${escapeHtml(String(f.why).slice(0, 400)).replace(/\n/g, "<br>")}`) : ""}<p style="margin:16px 0 4px">${emailBtn(origin + "/#/admin", "Review the request →")}</p>`,
+    body: `<p style="margin:0 0 6px"><strong>${escapeHtml(user.name)}</strong> <span style="color:#776867">@${escapeHtml(user.username)}</span> asked to join</p><p style="margin:0 0 14px">${emailChip(escapeHtml(club.title))}</p>${user.phone ? `<p style="margin:0 0 6px">📞 ${escapeHtml(user.phone)}</p>` : ""}${picks}${(req && req.why) ? emailNote(`<div style="font-size:12px;opacity:.8;margin-bottom:2px">💬 Why they like this club</div>${escapeHtml(String(req.why).slice(0, 500)).replace(/\n/g, "<br>")}<div style="margin-top:8px">✅ Says they can commit for the next month</div>`) : ""}${f.why ? emailNote(`<div style="font-size:12px;opacity:.8;margin-bottom:2px">💬 What they wrote</div>${escapeHtml(String(f.why).slice(0, 400)).replace(/\n/g, "<br>")}`) : ""}<p style="margin:16px 0 4px">${emailBtn(origin + "/#/admin", "Review the request →")}</p>`,
     footer: "Accept or decline under 🏛️ Clubs → Notifications on your admin page." });
   const subject = `Join request: ${user.name} → ${club.title}`, from = env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>";
   sendAdminEmail(env, ctx, subject, html);
@@ -3738,14 +3738,18 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const me = meId ? await readUser(env, meId) : null;
       if (!me) return jsonResponse({ error: "Sign in to request to join a club" }, 401, corsHeaders);
       const clubId = decodeURIComponent(joinReqMatch[1]);
+      let jb = {}; try { jb = await request.json(); } catch {}
+      const why = String((jb && jb.why) || "").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, " ").trim().slice(0, 500);
+      if (why.length < 3) return jsonResponse({ error: "Tell us why you like this club" }, 400, corsHeaders);
+      if (!jb || jb.commit !== true) return jsonResponse({ error: "Please confirm you can commit for the next month" }, 400, corsHeaders);
       const club = (await readClubRoster(env)).find((c) => c.id === clubId);
       if (!club) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
       if ((await readClubMemberIds(env, clubId)).includes(me.id)) return jsonResponse({ error: "You're already in this club" }, 409, corsHeaders);
       const pending = await pendingClubIdsFor(env, me.id);
       if (pending.includes(clubId)) return jsonResponse({ ok: true, pending }, 200, corsHeaders);
       if (pending.length >= JOIN_REQUESTS_MAX_PENDING_PER_PERSON) return jsonResponse({ error: "You have several requests waiting already — please wait for an admin to answer them" }, 429, corsHeaders);
-      await env.SITE_DATA.put(joinReqKey(clubId, me.id), JSON.stringify({ at: Date.now() }));
-      notifyAdminOfJoinRequest(env, ctx, me, club);
+      await env.SITE_DATA.put(joinReqKey(clubId, me.id), JSON.stringify({ at: Date.now(), why, commit: true }));
+      notifyAdminOfJoinRequest(env, ctx, me, club, { why, commit: true });
       return jsonResponse({ ok: true, pending: [...pending, clubId] }, 201, corsHeaders);
     }
     // A member leaves a club themselves (their profile and other clubs stay).
@@ -4783,7 +4787,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (leadCtx && !leadCtx.clubs.includes(r.clubId)) continue;
         const user = await readUser(env, r.userId);
         if (!user) continue;
-        out.push({ clubId: r.clubId, clubTitle: (roster.find((c) => c.id === r.clubId) || {}).title || r.clubId, userId: r.userId, name: user.name, username: user.username, phone: user.phone || "", at: r.at, ranked: (user.form && Array.isArray(user.form.ranked)) ? user.form.ranked : [], why: (user.form && user.form.why) ? String(user.form.why).slice(0, 300) : "", lead: (user.form && user.form.lead) || "", standby: Array.isArray(user.waitlist) ? user.waitlist : [] });
+        out.push({ clubId: r.clubId, clubTitle: (roster.find((c) => c.id === r.clubId) || {}).title || r.clubId, userId: r.userId, name: user.name, username: user.username, phone: user.phone || "", at: r.at, ranked: (user.form && Array.isArray(user.form.ranked)) ? user.form.ranked : [], why: r.why || ((user.form && user.form.why) ? String(user.form.why).slice(0, 300) : ""), commit: r.commit === true, lead: (user.form && user.form.lead) || "", standby: Array.isArray(user.waitlist) ? user.waitlist : [] });
       }
       return jsonResponse({ requests: out }, 200, corsHeaders);
     }
