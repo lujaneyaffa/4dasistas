@@ -533,7 +533,7 @@ bar.innerHTML=
 const pills=document.createElement('div');pills.id='lgPills';pills.innerHTML=LEAGUES.length>1?LEAGUES.map(l=>'<a href="/badminton'+(l.id==='main'?'':'?league='+encodeURIComponent(l.id))+'" class="lgPill'+(l.id===LEAGUE?' on':'')+'">'+esc(lgLabel(l))+'</a>').join(''):'';top.appendChild(pills);
 if(heart)top.appendChild(heart);wrap.insertAdjacentElement('afterbegin',top)}
 if(cfgd||LEAGUE!=='main'){const f=SEASON_DATES[0],l=SEASON_DATES[SEASON_DATES.length-1],mo=a=>a?new Date(a[0],a[1]-1,a[2]).toLocaleDateString(undefined,{month:'short',year:'numeric'}):'';
-document.querySelectorAll('#publicScheduleCard .muted,.v-allschedule > .muted').forEach(m=>{m.textContent=(f?mo(f)+' – '+mo(l)+' season · ':'')+LG.timeTxt+(LG.place?' · '+LG.place:'')});
+document.querySelectorAll('#publicScheduleCard .muted,.v-allschedule > .muted').forEach(m=>{m.textContent=(f?(mo(f)===mo(l)?mo(f):mo(f)+' – '+mo(l)+' season')+' · ':'')+LG.timeTxt+(LG.place?' · '+LG.place:'')});if(LEAGUE!=='main'){const h=document.querySelector('#publicScheduleCard h2');if(h)h.textContent='SCHEDULE'}
 const tb=document.querySelector('.v-allschedule .sched-table tbody');if(tb&&LEAGUE!=='main'){document.querySelectorAll('.rsvp-th').forEach(x=>x.remove());tb.innerHTML=SEASON_DATES.map(([y,mo2,da],i)=>{const d=new Date(y,mo2-1,da);return '<tr><td>'+d.toLocaleDateString(undefined,{weekday:'long'})+'</td><td>'+d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+'</td><td>'+(i+1)+'</td></tr>'}).join('')}}}
 /* ===== Fixed-rotation leaderboards: 6 players, doubles to 21, one court. The games go round a fixed list of 15 (everyone partners everyone equally); no rounds or weeks to count. ===== */
 const ROT=!!(LGCFG&&LGCFG.rotation&&(LGCFG.players||[]).length>=6);
