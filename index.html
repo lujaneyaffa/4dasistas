@@ -12935,7 +12935,6 @@ function renderClubAdminPanel(){
     ${admSec('evmini4', '🗓️ 4DS calendar — tap a day to edit', admEvMiniHtml('4ds'), true)}
     ${admCeHtml()}` : `
     <div style="text-align:center;margin:6px 0 12px;"><button type="button" class="club-guide-btn" id="admEvAdd" style="min-height:46px;padding:10px 26px;text-align:center;background:var(--brand-rose);color:#fff;">➕ Add a public event</button></div>
-    ${admSec('evsearch', '🔎 Find & edit an event', admEvSearchHtml(), true)}
     ${admSec('evmini', '🗓️ Public calendar — tap a day to edit', admEvMiniHtml('public'), true)}`);
   const featuredGrid = lead ? '' : admSec('featured', '⭐ Featured on the Home page', '<div id="admFeat"><p class="ideas-hint">Loading…</p></div>', true);
   const eventsGrid = lead ? admCeHtml() : `<p class="ideas-hint" style="margin:10px 0 8px;">4DS activities: events hosted by 4DS or a club — sign-ups, spots, payments, answers.</p>${admCeHtml()}`;
