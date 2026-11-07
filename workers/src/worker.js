@@ -1427,7 +1427,12 @@ const sanitizeCalForm = (f) => {
     if (seen.has(id)) id = crypto.randomUUID().slice(0, 8);
     seen.add(id);
     const fld = { id, type: x.type, label, required: !!x.required };
-    if (x.type === "choice" || x.type === "multi") { fld.options = (Array.isArray(x.options) ? x.options : []).map((o) => cleanCalText(o, 160)).filter(Boolean).slice(0, 12); if (fld.options.length < 2) continue; }
+    if (x.type === "choice" || x.type === "multi") {
+      fld.options = (Array.isArray(x.options) ? x.options : []).map((o) => cleanCalText(o, 160)).filter(Boolean).slice(0, 20); if (fld.options.length < 2) continue;
+      // Optional spot limit per choice (time slots / activities): { "10:00 AM": 6 }
+      const caps = {}; if (x.caps && typeof x.caps === "object") for (const o of fld.options) { const n = Math.floor(Number(x.caps[o])); if (Number.isFinite(n) && n >= 1 && n <= 5000) caps[o] = n; }
+      if (Object.keys(caps).length) fld.caps = caps;
+    }
     fields.push(fld);
   }
   const longText = (v, n) => String(v || "").replace(/[\x00-\x08\x0b-\x1f\x7f<>]/g, " ").trim().slice(0, n);
@@ -1627,6 +1632,35 @@ const checkCalAnswers = (form, raw) => {
   }
   return { answers };
 };
+// Limited choices (time slots, activities): how many people already picked each, and whether a new answer would overfill one.
+const calCapsUsed = (form, map, exceptPid) => {
+  const used = {};
+  for (const f of (form && form.fields) || []) if (f.caps) { used[f.id] = {}; for (const o of Object.keys(f.caps)) used[f.id][o] = 0; }
+  for (const [pid, ent] of Object.entries(map || {})) {
+    if (pid === exceptPid) continue;
+    const a = (ent && ent.answers) || {};
+    for (const f of form.fields) { if (!f.caps) continue; const v = a[f.id], arr = Array.isArray(v) ? v : (v ? [v] : []); for (const o of arr) if (o in used[f.id]) used[f.id][o]++; }
+  }
+  return used;
+};
+const calCapsPre = async (env, ev, pid, answers) => {
+  const form = ev && ev.form; if (!form || !(form.fields || []).some((f) => f.caps)) return "";
+  let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
+  const used = calCapsUsed(form, map, pid);
+  for (const f of form.fields) {
+    if (!f.caps) continue; const v = answers && answers[f.id], arr = Array.isArray(v) ? v : (v ? [v] : []);
+    for (const o of arr) if (f.caps[o] && used[f.id][o] >= f.caps[o]) return `Sorry, “${o}” just filled up — please pick another one.`;
+  }
+  return "";
+};
+// The form as sent to people: each limited choice also says how many spots are left.
+const calFormWithLeft = async (env, ev) => {
+  const form = ev && ev.form; if (!form) return null;
+  if (!(form.fields || []).some((f) => f.caps)) return form;
+  let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
+  const used = calCapsUsed(form, map, "");
+  return { ...form, fields: form.fields.map((f) => f.caps ? { ...f, _left: Object.fromEntries(Object.keys(f.caps).map((o) => [o, Math.max(0, f.caps[o] - (used[f.id][o] || 0))])) } : f) };
+};
 // ---- BIG EVENTS: capacity + waitlist, safe concurrent sign-ups, reminders ----
 // Spots are claimed with ONE atomic D1 statement (table cal_spots) so two people can never take the last spot; everyone past the limit is "waitlist" (first come, first served).
 // The event list itself is a single KV doc, so every sign-up re-reads it fresh and re-checks after writing (calMutate) — and KV allows ~1 write/second per key, so a rush retries with a short back-off.
@@ -1789,7 +1823,7 @@ const calSendReminders = async (env, ctx) => {
 // 🔴 "X spots left" alert shown top-right on the event page: the real number, or a number the admin picks (null = off).
 const calSpotsAlert = (v) => { if (!v || typeof v !== "object") return null; if (v.mode === "real") return { mode: "real" }; if (v.mode === "custom") { const n = Math.round(Number(v.n)); return Number.isFinite(n) && n >= 1 && n <= 999 ? { mode: "custom", n } : null; } return null; };
 const calContactUrl = (v) => { const t = String(v || "").trim(); if (!t) return ""; const dg = t.replace(/[\s().-]/g, ""); if (/^\+?\d{7,15}$/.test(dg)) return "https://wa.me/" + dg.replace(/^\+/, "").replace(/^(\d{10})$/, "1$1"); if (/^[\w.+-]+@[\w-]+\.[\w.]+$/.test(t)) return "mailto:" + t; return calLinkOk(t); };
-const calFields = (b) => ({ mapUrl: b.mapUrl ? (isGoogleMapsUrl(b.mapUrl) || "") : "", title: cleanCalText(b.title, 80), date: String(b.date || ""), time: cleanCalText(b.time, 30), place: cleanCalText(b.place, 200), rsvpBy: /^\d{4}-\d{2}-\d{2}$/.test(String(b.rsvpBy || "")) ? String(b.rsvpBy) : "", desc: String(b.desc || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 3000), capacity: Math.max(0, Math.min(5000, parseInt(b.capacity, 10) || 0)), placePrivate: b.placePrivate === true, signup: ["rsvp", "form", "msg"].includes(b.signup) ? b.signup : "", contactUrl: calContactUrl(b.contactUrl), spotsAlert: calSpotsAlert(b.spotsAlert) })
+const calFields = (b) => ({ mapUrl: b.mapUrl ? (isGoogleMapsUrl(b.mapUrl) || "") : "", title: cleanCalText(b.title, 80), date: String(b.date || ""), time: cleanCalText(b.time, 30), place: cleanCalText(b.place, 200), rsvpBy: /^\d{4}-\d{2}-\d{2}$/.test(String(b.rsvpBy || "")) ? String(b.rsvpBy) : "", desc: String(b.desc || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, 3000), capacity: Math.max(0, Math.min(5000, parseInt(b.capacity, 10) || 0)), placePrivate: b.placePrivate === true, signup: ["rsvp", "form", "msg"].includes(b.signup) ? b.signup : "", contactUrl: calContactUrl(b.contactUrl), spotsAlert: calSpotsAlert(b.spotsAlert), priceText: cleanCalText(b.priceText, 30) })
 // 🔒 "Only people who signed up see the location": blank the place / map (and map blocks) for everyone else.
 const calHidePlace = (ev, out, canSee) => { if (!ev.placePrivate || canSee) return { ...out, placePrivate: !!ev.placePrivate }; return { ...out, place: "", mapUrl: "", placeHidden: true, placePrivate: true, blocks: (out.blocks || []).filter((b) => b && b.type !== "map") }; };;
 const isValidDateString = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + "T00:00:00Z"));
@@ -2571,14 +2605,14 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (editMatch) {
       const tok = editMatch[1], all0 = await readClubCal(env), ev0 = all0.find((e) => e.editToken === tok);
       if (!ev0) return jsonResponse({ error: "This edit link isn't active any more — ask the organiser for a new one" }, 404, corsHeaders);
-      const view = (e) => ({ placePrivate: !!e.placePrivate, signup: e.signup || "", contactUrl: e.contactUrl || "", spotsAlert: e.spotsAlert || null, id: e.id, slug: e.slug || "", title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", tbd: !!e.tbd, blocks: e.blocks || [], theme: e.theme || null, hosts: e.hosts || [], clubIds: calClubs(e), form: e.form ? { title: e.form.title, intro: e.form.intro || "", footer: e.form.footer || "", fields: e.form.fields } : null, hasPayment: !!(e.form && e.form.payment), clubTitle: calClubs(e).map((c) => (roster0.find((r) => r.id === c) || {}).title || "").filter(Boolean).join(" × ") });
+      const view = (e) => ({ priceText: e.priceText || "", placePrivate: !!e.placePrivate, signup: e.signup || "", contactUrl: e.contactUrl || "", spotsAlert: e.spotsAlert || null, id: e.id, slug: e.slug || "", title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", rsvpBy: e.rsvpBy || "", tbd: !!e.tbd, blocks: e.blocks || [], theme: e.theme || null, hosts: e.hosts || [], clubIds: calClubs(e), form: e.form ? { title: e.form.title, intro: e.form.intro || "", footer: e.form.footer || "", fields: e.form.fields } : null, hasPayment: !!(e.form && e.form.payment), clubTitle: calClubs(e).map((c) => (roster0.find((r) => r.id === c) || {}).title || "").filter(Boolean).join(" × ") });
       const roster0 = await readClubRoster(env);
       if (editMatch[2] === "/image" && request.method === "POST") { const r = await calImgSave(request, env, ev0.id); return r.error ? jsonResponse({ error: r.error }, 400, corsHeaders) : jsonResponse(r, 201, corsHeaders); }
       if (!editMatch[2] && request.method === "GET") return jsonResponse({ event: view(ev0) }, 200, corsHeaders);
       if (!editMatch[2] && request.method === "PUT") {
         let body = {}; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
         if (String(body.mapUrl || "").trim() && !isGoogleMapsUrl(body.mapUrl)) return jsonResponse({ error: "That isn't a Google Maps link — in Google Maps tap Share → Copy link" }, 400, corsHeaders);
-        const f = calFields({ ...ev0, title: body.title !== undefined ? body.title : ev0.title, date: body.date !== undefined ? body.date : ev0.date, time: body.time !== undefined ? body.time : ev0.time, place: body.place !== undefined ? body.place : ev0.place, mapUrl: body.mapUrl !== undefined ? body.mapUrl : ev0.mapUrl, desc: body.desc !== undefined ? body.desc : ev0.desc, rsvpBy: body.rsvpBy !== undefined ? body.rsvpBy : ev0.rsvpBy, capacity: calCap(ev0) });
+        const f = calFields({ ...ev0, title: body.title !== undefined ? body.title : ev0.title, date: body.date !== undefined ? body.date : ev0.date, time: body.time !== undefined ? body.time : ev0.time, place: body.place !== undefined ? body.place : ev0.place, mapUrl: body.mapUrl !== undefined ? body.mapUrl : ev0.mapUrl, desc: body.desc !== undefined ? body.desc : ev0.desc, rsvpBy: body.rsvpBy !== undefined ? body.rsvpBy : ev0.rsvpBy, capacity: calCap(ev0), priceText: body.priceText !== undefined ? body.priceText : ev0.priceText });
         if (f.title.length < 3) return jsonResponse({ error: "Give the event a name (3+ letters)" }, 400, corsHeaders);
         if (!ev0.tbd && !isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
         if (ev0.tbd) { f.date = ""; f.rsvpBy = ""; }
@@ -2666,7 +2700,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!ev) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
         if (!who || !(who.id.startsWith("m:") || (who.id === "admin" && M === "GET" && !calMatch[2]))) { // (the main admin without a member login fills forms like anyone else)
           // A PUBLICIZED event (publicForm): anyone can open its form straight away and submit it with just a name — no account needed.
-          if (!calMatch[2] && M === "GET") return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, cardPay: stripeOn(env), signup: ev.signup || "", contactUrl: ev.contactUrl || "", spotsAlert: ev.spotsAlert || null, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], clubIds: calClubs(ev), publicForm: !!ev.form, form: ev.form || null, signup: ev.signup || "", guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(false /* RSVP-by dates were removed (Nov 2026) */) }, false), 200, corsHeaders);
+          if (!calMatch[2] && M === "GET") return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, cardPay: stripeOn(env), signup: ev.signup || "", contactUrl: ev.contactUrl || "", spotsAlert: ev.spotsAlert || null, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], clubIds: calClubs(ev), publicForm: !!ev.form, form: await calFormWithLeft(env, ev), priceText: ev.priceText || "", signup: ev.signup || "", guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(false /* RSVP-by dates were removed (Nov 2026) */) }, false), 200, corsHeaders);
           if (ev.form) { // ANY event with a form can be filled in without an account
             if (calMatch[2] === "/form" && M === "POST") {
               if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
@@ -2678,6 +2712,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
                 // Base member details came with the form: create the account (and sign them in), then record the sign-up as theirs.
                 const chk0 = checkCalAnswers(ev.form, fb.answers);
                 if (chk0.error) return jsonResponse({ error: chk0.error }, 400, corsHeaders);
+                { const ce = await calCapsPre(env, ev, "", chk0.answers); if (ce) return jsonResponse({ error: ce }, 409, corsHeaders); }
                 if (!okEmail(fb.email)) return jsonResponse({ error: "Please add your email so we can send your confirmation" }, 400, corsHeaders);
                 const made = await createMemberFromForm(env, ctx, ideaIp, fb);
                 if (made.error) return jsonResponse({ error: made.error }, made.status, corsHeaders);
@@ -2694,6 +2729,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               const gEmail = okEmail(fb && fb.email); if (!gEmail) return jsonResponse({ error: "Please add your email so we can send your confirmation" }, 400, corsHeaders);
               const chk = checkCalAnswers(ev.form, fb && fb.answers);
               if (chk.error) return jsonResponse({ error: chk.error }, 400, corsHeaders);
+              { const ce = await calCapsPre(env, ev, "", chk.answers); if (ce) return jsonResponse({ error: ce }, 409, corsHeaders); }
               let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
               if (Object.keys(map).length >= 1500) return jsonResponse({ error: "This form is full" }, 400, corsHeaders);
               const gid = `g:${crypto.randomUUID().slice(0, 10)}`;
@@ -2726,7 +2762,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!calMatch[2] && M === "GET") {
           return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, signup: ev.signup || "", contactUrl: ev.contactUrl || "", spotsAlert: ev.spotsAlert || null, clubId: ev.clubId, clubIds: calClubs(ev), clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], signup: ev.signup || "", rsvpBy: ev.rsvpBy || "", closed: !!(false /* RSVP-by dates were removed (Nov 2026) */),
             going: (ev.rsvps || []).filter((r) => r.status === "going").length, mine: mine ? mine.status : null, inClub,
-            publicForm: !!ev.form, form: ev.form || null, ...calCapInfo(ev), waitPos: mine && mine.status === "waitlist" ? calWaitPos(ev, uid) : 0, claimedPaid: !!(mine && mine.claimedPaid), paid: !!(mine && mine.paid), cardPay: stripeOn(env), myAddons: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).addons || []) : [], myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, who.id === "admin" || !!(mine && mine.status === "going")), 200, corsHeaders);
+            publicForm: !!ev.form, form: await calFormWithLeft(env, ev), priceText: ev.priceText || "", ...calCapInfo(ev), waitPos: mine && mine.status === "waitlist" ? calWaitPos(ev, uid) : 0, claimedPaid: !!(mine && mine.claimedPaid), paid: !!(mine && mine.paid), cardPay: stripeOn(env), myAddons: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).addons || []) : [], myAnswers: ev.form && uid ? ((JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}")[uid] || {}).answers || null) : null }, who.id === "admin" || !!(mine && mine.status === "going")), 200, corsHeaders);
         }
         if (calMatch[2] === "/form" && M === "POST") {
           if (!uid) return jsonResponse({ error: "Sign in as a member to fill the form" }, 403, corsHeaders);
@@ -2735,6 +2771,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           let fb; try { fb = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
           const chk = checkCalAnswers(ev.form, fb && fb.answers);
           if (chk.error) return jsonResponse({ error: chk.error }, 400, corsHeaders);
+          { const ce = await calCapsPre(env, ev, uid, chk.answers); if (ce) return jsonResponse({ error: ce }, 409, corsHeaders); }
           let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
           const wasIn = (ev.rsvps || []).find((r) => r.id === uid);
           if (!wasIn && false /* RSVP-by dates were removed (Nov 2026) */) return jsonResponse({ error: "Sign-ups for this event are closed" }, 400, corsHeaders);
@@ -5325,7 +5362,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const canEv = (e) => calClubs(e).some(canClub) || canForm(e);
       const roster = await readClubRoster(env);
       const clubTitle = (id) => (roster.find((c) => c.id === id) || {}).title || "";
-      const view = (e) => ({ placePrivate: !!e.placePrivate, signup: e.signup || "", contactUrl: e.contactUrl || "", spotsAlert: e.spotsAlert || null, id: e.id, slug: e.slug || "", clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", blocks: e.blocks || [], theme: e.theme || null, hosts: e.hosts || [], editToken: canForm(e) ? (e.editToken || "") : "", histN: e.histN || 0, rsvpBy: e.rsvpBy || "", form: canForm(e) ? (e.form || null) : null, hasForm: !!e.form, canForm: canForm(e), ...(leadCtx ? {} : { formLeads: e.formLeads || [] }), publicForm: !!e.publicForm, capacity: calCap(e), rsvps: e.rsvps || [], ...(e.tbd ? { tbd: true, interest: e.interest || [] } : {}) });
+      const view = (e) => ({ priceText: e.priceText || "", placePrivate: !!e.placePrivate, signup: e.signup || "", contactUrl: e.contactUrl || "", spotsAlert: e.spotsAlert || null, id: e.id, slug: e.slug || "", clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", place: e.place || "", mapUrl: e.mapUrl || "", desc: e.desc || "", blocks: e.blocks || [], theme: e.theme || null, hosts: e.hosts || [], editToken: canForm(e) ? (e.editToken || "") : "", histN: e.histN || 0, rsvpBy: e.rsvpBy || "", form: canForm(e) ? (e.form || null) : null, hasForm: !!e.form, canForm: canForm(e), ...(leadCtx ? {} : { formLeads: e.formLeads || [] }), publicForm: !!e.publicForm, capacity: calCap(e), rsvps: e.rsvps || [], ...(e.tbd ? { tbd: true, interest: e.interest || [] } : {}) });
       const all = await readClubCal(env);
       if (!adminCalMatch[1] && M === "GET") return jsonResponse({ events: all.filter(canEv).sort((a, b) => a.date.localeCompare(b.date)).map(view) }, 200, corsHeaders);
       let body = {};
