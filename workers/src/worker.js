@@ -333,6 +333,7 @@ const publicUser = (u) => ({ id: u.id, name: u.name, username: u.username, photo
 // ---- Club membership: each club just holds a list of member userIds ----
 const clubMembersKey = (clubId) => `clubmembers:${clubId}`;
 
+const readClubLeaders = async (env) => { try { const o = JSON.parse((await env.SITE_DATA.get("clubleaders")) || "{}"); return o && typeof o === "object" ? o : {}; } catch { return {}; } };
 const readClubMemberIds = async (env, clubId) => {
   const raw = await env.SITE_DATA.get(clubMembersKey(clubId));
   return raw ? JSON.parse(raw) : [];
@@ -2218,8 +2219,15 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
     if (path === "/api/clubs" && request.method === "GET") {
       const all = await readClubRoster(env);
       // A club the admin has hidden for a while is left out for the public; the logged-in admin still gets it (marked hidden) so it can be shown again.
-      const adminToo = all.some((c) => c && c.hidden) && await isAdminRequest(env, request).catch(() => false);
-      return jsonResponse({ clubs: adminToo ? all : all.filter((c) => !(c && c.hidden)) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      const leaders = await readClubLeaders(env);
+      const adminToo = (all.some((c) => c && c.hidden) || Object.keys(leaders).length) && await isAdminRequest(env, request).catch(() => false);
+      const out = [];
+      for (const c of (adminToo ? all : all.filter((x) => !(x && x.hidden)))) {
+        const lid = leaders[c.id]; let leader = "";
+        if (lid) { try { const u = await readUser(env, lid); if (u && (await readClubMemberIds(env, c.id)).includes(lid)) { const parts = String(u.name || "").trim().split(/\s+/); leader = parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.` : parts[0] || ""; } } catch {} }
+        out.push(leader ? { ...c, leader, ...(adminToo ? { leaderId: lid } : {}) } : c);
+      }
+      return jsonResponse({ clubs: out }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
 
     const readSubs = async () => { try { const a = JSON.parse((await env.SITE_DATA.get(SUBSCRIBER_INDEX_KEY)) || "[]"); return Array.isArray(a) ? a : []; } catch { return []; } };
@@ -5778,6 +5786,20 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ ok: true, id: finalId, club: newClub }, 201, corsHeaders);
     }
 
+    // Main admin: name (or clear) one member as a club's leader. Optional; kept in KV, not in clubs.json.
+    const adminLeaderMatch = path.match(/^\/api\/admin\/clubs\/([^/]+)\/leader\/?$/);
+    if (adminLeaderMatch && request.method === "PUT") {
+      if (leadCtx) return jsonResponse({ error: "Main admin only" }, 403, corsHeaders);
+      const clubId = decodeURIComponent(adminLeaderMatch[1]);
+      if (!(await isKnownClubId(env, clubId))) return jsonResponse({ error: "Unknown club" }, 404, corsHeaders);
+      let b; try { b = await request.json(); } catch { b = {}; }
+      const userId = String((b && b.userId) || "");
+      const leaders = await readClubLeaders(env);
+      if (!userId) delete leaders[clubId];
+      else { if (!(await readClubMemberIds(env, clubId)).includes(userId)) return jsonResponse({ error: "They need to be a member of this club first" }, 400, corsHeaders); leaders[clubId] = userId; }
+      await env.SITE_DATA.put("clubleaders", JSON.stringify(leaders));
+      return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
     const adminClubMatch = path.match(/^\/api\/admin\/clubs\/([^/]+)\/?$/);
     if (adminClubMatch && (request.method === "PUT" || request.method === "DELETE")) {
       if (!env.GITHUB_TOKEN) return jsonResponse({ error: "Server misconfigured: GITHUB_TOKEN is not set" }, 500, corsHeaders);
