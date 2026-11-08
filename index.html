@@ -11759,21 +11759,34 @@ async function clubCalLeaderAccess(ev){
     catch(err){ e.target.disabled = false; m.style.color = '#c00'; m.textContent = err.message; }
   });
 }
+function admCePins(){ try { return JSON.parse(localStorage.getItem('adm_pinned_ce') || '[]') || []; } catch { return []; } }
+function admCeTogglePin(id){ const a = admCePins(), i = a.indexOf(id); if(i >= 0) a.splice(i, 1); else a.unshift(id); try { localStorage.setItem('adm_pinned_ce', JSON.stringify(a.slice(0, 30))); } catch {} }
 function admCeListHtml(){
   const all = (state.clubCal || []).filter(e => !String(e.id).startsWith('idea:'));
   const today = new Date().toISOString().slice(0, 10), f = state.admCeFilter || 'upcoming', q = (state.admCeQ || '').trim().toLowerCase();
   const list = all.filter(e => (f === 'all' || (f === 'past' ? e.date < today : e.date >= today)) && (!q || `${e.title} ${e.clubTitle || ''} ${e.place || ''}`.toLowerCase().includes(q)))
     .sort((a, b) => f === 'past' ? b.date.localeCompare(a.date) : a.date.localeCompare(b.date));
   if(!state.clubCal) return '<p class="av-msg">Loading events…</p>';
-  if(!list.length) return `<p class="av-msg" style="text-align:center;">No ${f === 'all' ? '' : f + ' '}club events${q ? ' match' : ' yet'}.</p>`;
-  return list.map(e => {
+  const pins = admCePins(), pinned = pins.map(id => all.find(e => e.id === id)).filter(Boolean), rest = list.filter(e => !pins.includes(e.id));
+  if(!rest.length && !pinned.length) return `<p class="av-msg" style="text-align:center;">No ${f === 'all' ? '' : f + ' '}club events${q ? ' match' : ' yet'}.</p>`;
+  const card = e => {
     const rs = e.rsvps || [], going = rs.filter(r => r.status === 'going').length, pend = rs.length - going, col = clubCol(e.clubId);
     return `<div class="fb-card" style="border-color:${col.fg};box-shadow:3px 3px 0 ${col.fg};">
       <div style="display:flex;gap:10px;align-items:flex-start;"><span class="cal-date" style="background:${col.bg};color:${col.fg};flex:0 0 74px;">${escapeCm(calDateLabel(e.date))}${e.date < today ? '<br><small>past</small>' : ''}</span>
         <span style="flex:1;min-width:0;"><strong style="font-size:16px;overflow-wrap:break-word;">${escapeCm(e.title)}</strong><br><small style="color:#776867;">🏷 ${escapeCm(e.clubTitle || avClubTitle(e.clubId))}${e.time ? ' · ⏰ ' + escapeCm(e.time) : ''}${e.place ? ' · 📍 ' + escapeCm(e.place) : ''}</small><br>
         <small>👥 <b>${going}</b> ${calIsPast(e.date) ? 'attended' : 'going'}${pend ? ` · <b style="color:#b3261e;">${pend} waiting</b>` : ''} · ${e.form ? `📝 form (${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'})` : (e.hasForm ? '🔒 has a form (no access)' : '<span style="color:#776867;">no form</span>')}${(e.formLeads || []).length ? ` · 🔑 ${e.formLeads.length} leader${e.formLeads.length === 1 ? '' : 's'}` : ''}${e.rsvpBy ? ` · RSVP by ${escapeCm(calDateLabel(e.rsvpBy))}` : ''}</small></span></div>
-      <div class="fb-row"><button type="button" class="fb-mini ce-edit" data-ceid="${escapeCm(e.id)}">✏️ Edit event &amp; form</button>${e.form ? `<button type="button" class="fb-mini ce-ans" data-ceid="${escapeCm(e.id)}">📋 Answers</button>` : ''}${state.cmAdminLoggedIn === true && e.form ? `<button type="button" class="fb-mini ce-lead" data-ceid="${escapeCm(e.id)}">🔑 Leader access</button>` : ''}<button type="button" class="fb-mini ce-att" data-ceid="${escapeCm(e.id)}">👥 Attendees</button></div></div>`;
-  }).join('');
+      <div class="fb-row"><button type="button" class="fb-mini ce-edit" data-ceid="${escapeCm(e.id)}">✏️ Edit event &amp; form</button>${e.form ? `<button type="button" class="fb-mini ce-ans" data-ceid="${escapeCm(e.id)}">📋 Answers</button>` : ''}${state.cmAdminLoggedIn === true && e.form ? `<button type="button" class="fb-mini ce-lead" data-ceid="${escapeCm(e.id)}">🔑 Leader access</button>` : ''}<button type="button" class="fb-mini ce-att" data-ceid="${escapeCm(e.id)}">👥 Attendees</button><button type="button" class="fb-mini ce-pin" data-ceid="${escapeCm(e.id)}" style="${pins.includes(e.id) ? 'background:#fde9a8;' : ''}">${pins.includes(e.id) ? '📌 Unpin' : '📌 Pin'}</button></div></div>`;
+  };
+  return (pinned.length ? `<p style="margin:4px 0 6px;font-weight:800;">📌 Pinned <small style="font-weight:400;color:#776867;">(only on this device)</small></p>${pinned.map(card).join('')}${rest.length ? '<p style="margin:14px 0 6px;font-weight:800;">Everything else</p>' : ''}` : '') + rest.map(card).join('');
+}
+// A pop-up with the table of everyone signed up to one event (answers, status, payment) — same table the old "Event attendees" tab had.
+function openAttendeesPopup(ev){
+  state.admFormSel = ev.id; state.admFormQ = ''; state.admFormFilter = 'all'; state.admFormData = null;
+  const html = admFormsHtml(); if(!html.includes('afmBack')) return;
+  const { wrap, close } = ideaPopup(html);
+  wrap.querySelector('.mem-pop-card').style.maxWidth = 'min(96vw, 960px)';
+  wireAdmForms();
+  const back = wrap.querySelector('#afmBack'); if(back){ const nb = back.cloneNode(true); back.replaceWith(nb); nb.textContent = '✕ Close'; nb.addEventListener('click', close); }
 }
 function admCeHtml(){
   if(!state.clubCal || state.clubCalIsAdminData !== calIsAdmin()) clubCalLoad(true);
@@ -11792,7 +11805,8 @@ function wireAdmEvents(){
   const wireList = () => {
     document.querySelectorAll('.ce-edit').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) clubCalForm(e); }));
     document.querySelectorAll('.ce-lead').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) clubCalLeaderAccess(e); }));
-    document.querySelectorAll('.ce-att').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) clubCalManage(e); }));
+    document.querySelectorAll('.ce-att').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) openAttendeesPopup(e); }));
+    document.querySelectorAll('.ce-pin').forEach(b => b.addEventListener('click', () => { admCeTogglePin(b.dataset.ceid); const l = document.getElementById('ceList'); if(l){ l.innerHTML = admCeListHtml(); wireList(); } }));
     document.querySelectorAll('.ce-form').forEach(b => b.addEventListener('click', () => {
       const e = find(b.dataset.ceid); if(!e) return;
       openFormBuilder(e.form || null, async f => { try { const j = await clubCalAdminCall('/' + encodeURIComponent(e.id), 'PUT', { form: f }); const i = state.clubCal.findIndex(x => x.id === e.id); if(i >= 0) state.clubCal[i] = j.event; render(); } catch(err){ alert(err.message); } }, { rsvpBy: e.rsvpBy || '', desc: e.desc || '', showRsvpBy: true });
@@ -13004,7 +13018,7 @@ function renderClubAdminPanel(){
   // Old tab names still land somewhere sensible (the admin page used to have 8 tabs; it now has 6)
   const OLD_GROUPS = { team:'settings', directory:'settings', programs:'badminton', profiles:'people' };
   const grp = OLD_GROUPS[state.admGroup] || state.admGroup;
-  const allowedGroups = lead ? ['clubs', 'events', 'forms', 'people'] : ['todo', 'events', 'forms', 'calendar', 'featured', 'clubs', 'people', 'badminton', 'steps', 'settings'];
+  const allowedGroups = lead ? ['clubs', 'events', 'people'] : ['todo', 'events', 'calendar', 'featured', 'clubs', 'people', 'badminton', 'steps', 'settings'];
   const gsel = allowedGroups.includes(grp) ? grp : (lead ? 'clubs' : 'todo');
   // Club events + quick member (per club) — lives in the Clubs grid
   const clubToolsHtml = `
@@ -13192,7 +13206,6 @@ function admGroupTilesHtml(lead, cur){
   return `<nav class="adm-tiles" aria-label="Admin sections">
     ${lead ? '' : tile('todo', '📥', 'Submissions', 'Events &amp; resources sent in to approve', admSubCount())}
     ${tile('events', '🎟️', '4DS activities', lead ? 'Sign-ups · forms · answers' : 'Hosted events · sign-ups · payments', (n.pendingRsvps || 0) + (n.unpaid || 0))}
-    ${tile('forms', '📝', 'Event attendees', 'Who signed up · what they answered', '')}
     ${lead ? '' : tile('calendar', '📅', 'Calendar', 'Add &amp; edit events · public or 4DS', '')}
     ${lead ? '' : tile('featured', '⭐', 'Featured', 'What shows on the Home page', '')}
     ${tile('clubs', '🏛️', 'Clubs', lead ? 'Requests · availability' : 'Join requests · clubs · availability · club admins', admJoinCount() + (lead ? 0 : (n.stayTodo || 0)))}
