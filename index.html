@@ -7376,7 +7376,9 @@ function calShrinkImage(file){
   });
 }
 async function calUploadImage(file, ctx){
-  const blob = await calShrinkImage(file);
+  // GIFs are sent as-is (re-drawing them would freeze them into a still picture)
+  if(file.type === 'image/gif' && file.size > 1400000) throw new Error('That GIF is too big (' + (file.size / 1048576).toFixed(1) + ' MB) — the limit is 1.3 MB. Shrink it free at ezgif.com/optimize and try again.');
+  const blob = file.type === 'image/gif' ? file : await calShrinkImage(file);
   const url = ctx && ctx.token ? '/api/event-edit/' + ctx.token + '/image' : '/api/admin/club-cal/image' + (ctx && ctx.evId ? '?ev=' + encodeURIComponent(ctx.evId) : '');
   const r = await fetch(url, { method:'POST', credentials:'include', headers:{ 'Content-Type': blob.type }, body: blob });
   const j = await r.json().catch(() => ({}));

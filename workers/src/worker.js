@@ -1540,7 +1540,7 @@ const calImgSave = async (request, env, evId) => {
   if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(ctype)) return { error: "Photos only (JPG, PNG, WebP or GIF)" };
   const buf = new Uint8Array(await request.arrayBuffer());
   if (!buf.length) return { error: "Empty photo" };
-  if (buf.length > 900000) return { error: "That photo is too big — try a smaller one" };
+  if (buf.length > (ctype === "image/gif" ? 1450000 : 900000)) return { error: "That photo is too big — try a smaller one" };
   await calImgEnsure(env);
   if (evId) { const lim = String(evId).startsWith("album:") ? 400 : 40; const n = (await env.DB.prepare("SELECT COUNT(*) AS n FROM cal_images WHERE ev = ?").bind(evId).first()).n; if (n >= lim) return { error: `This event already has ${lim} photos` }; }
   let bin = ""; for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
