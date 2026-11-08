@@ -1433,6 +1433,7 @@ const sanitizeCalForm = (f) => {
       // Optional spot limit per choice (time slots / activities): { "10:00 AM": 6 }
       const caps = {}; if (x.caps && typeof x.caps === "object") for (const o of fld.options) { const n = Math.floor(Number(x.caps[o])); if (Number.isFinite(n) && n >= 1 && n <= 5000) caps[o] = n; }
       if (Object.keys(caps).length) fld.caps = caps;
+      if (x.type === "multi") { const mp = Math.floor(Number(x.maxPick)); if (Number.isFinite(mp) && mp >= 1 && mp < fld.options.length) fld.maxPick = mp; } // most choices a person may tick
       // Optional photo + short text per choice (what the craft / activity is)
       const info = {}; if (x.info && typeof x.info === "object") for (const o of fld.options) { const n = x.info[o]; if (!n || typeof n !== "object") continue; const img = CAL_IMG_RE.test(String(n.img || "")) ? String(n.img) : "", text = String(n.text || "").replace(/[\x00-\x08\x0b-\x1f\x7f<>]/g, " ").trim().slice(0, 300); if (img || text) info[o] = { ...(img ? { img } : {}), ...(text ? { text } : {}) }; }
       if (Object.keys(info).length) fld.info = info;
@@ -1633,6 +1634,7 @@ const checkCalAnswers = (form, raw) => {
       v = address ? { address, ...(Number.isFinite(lat) && Number.isFinite(lng) && lat >= 41 && lat <= 84 && lng >= -142 && lng <= -52 ? { lat: Math.round(lat * 1e5) / 1e5, lng: Math.round(lng * 1e5) / 1e5 } : {}) } : "";
     }
     else v = String(v || "").replace(/[\x00-\x08\x0b-\x1f\x7f]/g, " ").trim().slice(0, fld.type === "longtext" ? 1000 : 200);
+    if (fld.type === "multi" && fld.maxPick && v.length > fld.maxPick) return { error: `Please pick at most ${fld.maxPick} for: ${calPlain(fld.label).slice(0, 80)}` };
     const empty = Array.isArray(v) ? !v.length : v === "";
     if (fld.required && empty) return { error: fld.type === "agree" ? `Please agree to: ${calPlain(fld.label).slice(0, 80)}` : fld.type === "signature" ? "Please sign the form" : `Please answer: ${calPlain(fld.label)}` };
     if (!empty) answers[fld.id] = v;
