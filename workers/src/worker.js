@@ -5390,6 +5390,21 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
       return jsonResponse({ form: ev.form || null, responses: Object.keys(map).map((uid) => ({ userId: uid, name: map[uid].name, contact: map[uid].contact || "", guest: !!map[uid].guest, paid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).paid, claimedPaid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).claimedPaid, status: ((ev.rsvps || []).find((x) => x.id === uid) || {}).status || "", addons: map[uid].addons || [], total: map[uid].total ?? null, answers: map[uid].answers, at: map[uid].at })).sort((a, b) => a.at - b.at) }, 200, corsHeaders);
     }
+    const adminCalResendMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/resend-confirm\/?$/);
+    if (adminCalResendMatch && request.method === "POST") {
+      const ev = (await readClubCal(env)).find((e) => e.id === adminCalResendMatch[1]);
+      if (!ev || (leadCtx && !(Array.isArray(ev.formLeads) && ev.formLeads.includes(leadCtx.username)))) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
+      let b = {}; try { b = await request.json(); } catch {}
+      let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
+      const uid = String(b.userId || ""), ent = map[uid], r = (ev.rsvps || []).find((x) => x.id === uid);
+      if (!ent || !r) return jsonResponse({ error: "That sign-up wasn't found" }, 404, corsHeaders);
+      let email = okEmail(ent.email) || okEmail(ent.contact);
+      if (!email && !uid.startsWith("g:")) { const u = await readUser(env, uid); email = okEmail(u && u.email); }
+      if (!email) return jsonResponse({ error: "We don't have an email address for them" }, 400, corsHeaders);
+      const pay = (ev.form && ev.form.payment) || {};
+      calConfirmEmail(env, ctx, ev, { answers: ent.answers, name: ent.name, email, status: r.status, paid: !!r.paid, total: ent.total, addons: (pay.addons || []).filter((a) => (ent.addons || []).includes(a.id)).map((a) => a.label) });
+      return jsonResponse({ ok: true, to: email }, 200, corsHeaders);
+    }
     const adminCalMatch = path.match(/^\/api\/admin\/club-cal(?:\/([^/]+)(?:\/rsvp\/([^/]+)\/(accept|decline|remove|add|paid|unpaid)|\/(message|edit-link|restore))?)?\/?$/);
     if (adminCalMatch) {
       const M = request.method;

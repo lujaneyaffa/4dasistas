@@ -11904,9 +11904,16 @@ async function wireAdmForms(){
       <p class="ideas-hint" style="text-align:left;margin:6px 0 0;">Showing ${list.length} of ${rs.length}. Tap a name to see all their answers. Swipe sideways to see every question.</p>`;
     tbl.querySelectorAll('.afm-row').forEach(tr => tr.addEventListener('click', () => {
       const r = rs[Number(tr.dataset.i)];
-      ideaPopup(`<h3 style="margin:0 0 4px;">${escapeCm(r.name)}</h3><p class="ideas-hint" style="text-align:left;margin:0 0 10px;">${stLabel(r)}${r.contact ? ' · ' + escapeCm(r.contact) : ''}${pay ? (r.paid ? ' · <b style="color:#2a7a4a;">💳 Paid</b>' : ' · <span style="color:#b3261e;">not paid</span>') : ''}${r.total != null ? ' · ' + escapeCm(calMoney(r.total, sym)) : ''}</p>
+      const rp = ideaPopup(`<h3 style="margin:0 0 4px;">${escapeCm(r.name)}</h3><p class="ideas-hint" style="text-align:left;margin:0 0 10px;">${stLabel(r)}${r.contact ? ' · ' + escapeCm(r.contact) : ''}${pay ? (r.paid ? ' · <b style="color:#2a7a4a;">💳 Paid</b>' : ' · <span style="color:#b3261e;">not paid</span>') : ''}${r.total != null ? ' · ' + escapeCm(calMoney(r.total, sym)) : ''}</p>
         ${(r.addons || []).length ? `<p style="margin:0 0 8px;"><b>Add-ons:</b> ${escapeCm(aoLabel(r))}</p>` : ''}
-        ${fields.map(x => { const v = (r.answers || {})[x.id]; return `<div style="padding:8px 0;border-top:1px solid rgba(0,0,0,.08);"><div style="font-size:13px;color:#776867;">${escapeCm(richPlain(x.label))}</div>${x.type === 'signature' && /^data:image\/png;base64,/.test(String(v || '')) ? `<img src="${escapeCm(v)}" alt="signature" style="display:block;max-width:260px;width:100%;background:#fff;border:1px solid #ddd;border-radius:8px;margin-top:4px;">` : `<div style="font-size:15px;white-space:pre-wrap;">${escapeCm(admFormFmt(v)) || '<span style="color:#aaa;">—</span>'}</div>`}</div>`; }).join('')}`);
+        ${fields.map(x => { const v = (r.answers || {})[x.id]; return `<div style="padding:8px 0;border-top:1px solid rgba(0,0,0,.08);"><div style="font-size:13px;color:#776867;">${escapeCm(richPlain(x.label))}</div>${x.type === 'signature' && /^data:image\/png;base64,/.test(String(v || '')) ? `<img src="${escapeCm(v)}" alt="signature" style="display:block;max-width:260px;width:100%;background:#fff;border:1px solid #ddd;border-radius:8px;margin-top:4px;">` : `<div style="font-size:15px;white-space:pre-wrap;">${escapeCm(admFormFmt(v)) || '<span style="color:#aaa;">—</span>'}</div>`}</div>`; }).join('')}
+        <div style="margin-top:12px;"><button type="button" class="fb-mini" id="afmResend">✉️ Resend their confirmation email (with all answers)</button><div id="afmResendMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div></div>`);
+      rp.wrap.querySelector('#afmResend').addEventListener('click', async e => {
+        const m = rp.wrap.querySelector('#afmResendMsg'); if(!confirm('Email ' + r.name + ' their confirmation again, with all their answers?')) return;
+        e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Sending…';
+        try { const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/resend-confirm', 'POST', { userId: r.userId }); m.style.color = '#2a7a4a'; m.textContent = '✓ Sent to ' + (j.to || 'them'); }
+        catch(err){ m.style.color = '#c00'; m.textContent = err.message; e.target.disabled = false; }
+      });
     }));
   }
   paint();
