@@ -13084,7 +13084,6 @@ function renderClubAdminPanel(){
   const clubsGrid = `
     ${admSec('clubcards', '🏛️ Clubs — tap one to see its members', (lead ? '' : `<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:0 0 8px;"><span style="font-size:13px;color:#776867;">Add a new club</span><button type="button" id="cdAddBtn" aria-label="Add a new club" title="Add a new club" style="width:44px;height:44px;border-radius:50%;border:2px solid var(--brand-brown);background:var(--brand-rose);color:#fff;font-size:28px;line-height:1;cursor:pointer;padding:0;">+</button></div>${clubDirEditFormHtml()}`) + admClubCardsHtml(), true)}
     ${inboxAdminHtml(lead, 'joins')}
-    ${lead ? '' : admSec('stay', '🪁→🏛️ Squads moving to clubs — confirm link', stayAdminHtml(), true)}
     ${lead ? admSec('periodsview', '🗂️ Availability periods — tap one to view it', `<div class="cp-box">${periodHistoryHtml(k => new Date(k + 'T12:00:00').toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric' })) || '<p class="av-msg">Loading…</p>'}</div>`, true) : admSec('period', '🗓️ Availability period', periodAdminHtml(), true)}
     ${admSec('avail', '📅 Availability calendar', admAvailSectionHtml(), true)}
     ${lead ? '' : admSec('leads', '🧑‍💼 Club admins — who runs which club' + ((state.cmLeads || []).length ? ` <span class="adm-badge" style="background:var(--brand-rose);">${state.cmLeads.length}</span>` : ''), clubLeadsAdminHtml(), false)}
@@ -13234,7 +13233,6 @@ function admGroupTilesHtml(lead, cur){
 const ADM_FIND = [
   ['Approve club join requests', 'join request approve accept decline member', 'clubs', '', 'inbox'],
   ['Submitted events / resources to accept', 'submitted suggestion event resource accept reject', 'todo', '', 'inbox', true],
-  ['Squads moving to clubs', 'squad stay confirm legacy', 'clubs', '', 'stay', true],
   ['Add a 4DS activity (hosted event)', 'add new club event create hosted activity activities', 'events', '', 'clubcal'],
   ['RSVPs, spots, waitlist, who paid, answers, CSV', 'rsvp spots capacity waitlist paid payment answers csv attendees message', 'events', '', 'clubcal'],
   ['Sign-up form builder', 'form questions builder sign-up', 'events', '', 'clubcal'],
