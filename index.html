@@ -11845,7 +11845,7 @@ function admFormsHtml(){
       <h3 style="margin:10px 0 2px;overflow-wrap:break-word;">${escapeCm(sel.title)}</h3>
       <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">📅 ${escapeCm(calDateLabel(sel.date))}${sel.time ? ' · ⏰ ' + escapeCm(sel.time) : ''}${sel.place ? ' · 📍 ' + escapeCm(sel.place) : ''}</p>
       <div class="fb-row" style="margin-bottom:8px;"><button type="button" class="fb-mini" id="afmEdit">✏️ Edit event &amp; form</button><button type="button" class="fb-mini" id="afmManage">👥 Manage attendees &amp; payments</button>${sel.form ? '<button type="button" class="fb-mini" id="afmCsv">⬇️ Download CSV</button>' : ''}</div>
-      ${!sel.form ? `<div class="fb-card" style="box-shadow:none;"><p style="margin:0 0 6px;font-weight:800;">👥 ${(sel.rsvps || []).filter(r => r.status === 'going').length} ${sel.date < today ? 'attended' : 'going'}</p>${(sel.rsvps || []).filter(r => r.status === 'going').map(r => `<div style="padding:6px 0;border-top:1px solid rgba(0,0,0,.08);">${escapeCm(r.name)}${r.guest ? ' <small style="color:#776867;">(guest)</small>' : ''}</div>`).join('') || '<p class="av-msg">Nobody yet — tap “Manage attendees” to add people.</p>'}</div>` : `<div id="afmSum"></div>
+      ${!sel.form ? `<div class="fb-card" style="box-shadow:none;"><p style="margin:0 0 6px;font-weight:800;">👥 ${(sel.rsvps || []).filter(r => r.status === 'going').length} ${sel.date < today ? 'attended' : 'going'}</p>${admSpotsLeftHtml(sel, [], [])}${(sel.rsvps || []).filter(r => r.status === 'going').map(r => `<div style="padding:6px 0;border-top:1px solid rgba(0,0,0,.08);">${escapeCm(r.name)}${r.guest ? ' <small style="color:#776867;">(guest)</small>' : ''}</div>`).join('') || '<p class="av-msg">Nobody yet — tap “Manage attendees” to add people.</p>'}</div>` : `<div id="afmSum"></div>
       <input id="afmQ" type="search" placeholder="Search names or answers…" value="${escapeCm(state.admFormQ || '')}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin:4px 0 8px;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">${chip('all', 'Everyone')}${chip('going', 'Going')}${chip('waitlist', 'Waitlist')}${sel.form.payment ? chip('unpaid', 'Not paid') : ''}</div>
       <div id="afmTable"><p class="av-msg">Loading answers…</p></div>`}
@@ -11868,6 +11868,18 @@ function admFormsHtml(){
     <div class="fb-row" style="margin-bottom:8px;flex-wrap:wrap;gap:6px;">${[['recent', '🕒 Most recent'], ['upcoming', '📅 Upcoming first'], ['most', '🔥 Most attended'], ['least', '🌱 Least attended']].map(([k, t]) => `<button type="button" class="filter-chip${sort === k ? ' active' : ''}" data-afms="${k}">${t}</button>`).join('')}</div>
     ${shown.map(row).join('') || `<p class="av-msg" style="text-align:center;">${q ? 'No events match.' : 'No events yet.'}</p>`}
     ${list.length > N ? `<button type="button" class="club-guide-btn" id="afmMore" style="width:100%;text-align:center;margin-top:8px;">Load more (${list.length - N} left)</button>` : ''}`;
+}
+// Seats left in the event + spots left in every limited time slot / activity
+function admSpotsLeftHtml(ev, fields, rs){
+  const going = (ev.rsvps || []).filter(r => r.status === 'going').length, cap = Number(ev.capacity) || 0;
+  const col = n => n <= 0 ? '#b3261e' : (n <= 2 ? '#b36b00' : '#2a7a4a');
+  let h = cap ? `<div style="margin:0 0 6px;font-weight:700;">🪑 Seats left: <span style="color:${col(cap - going)};">${Math.max(0, cap - going)}</span> <small style="font-weight:400;color:#776867;">(${going} of ${cap} taken)</small></div>` : '';
+  const lim = fields.filter(f => f.caps && Object.keys(f.caps).length);
+  lim.forEach(f => {
+    const used = {}; rs.forEach(r => { const v = (r.answers || {})[f.id]; (Array.isArray(v) ? v : (v ? [v] : [])).forEach(o => { used[o] = (used[o] || 0) + 1; }); });
+    h += `<div style="margin:0 0 6px;"><div style="font-weight:700;font-size:14px;">${escapeCm(richPlain(f.label))}</div>${(f.options || []).filter(o => f.caps[o]).map(o => { const left = Math.max(0, f.caps[o] - (used[o] || 0)); return `<div style="display:flex;gap:8px;font-size:14px;padding:3px 0;border-top:1px solid rgba(0,0,0,.06);"><span style="flex:1;min-width:0;overflow-wrap:anywhere;">${escapeCm(o)}</span><span style="white-space:nowrap;"><b style="color:${col(left)};">${left === 0 ? 'FULL' : left + ' left'}</b> <small style="color:#776867;">(${used[o] || 0}/${f.caps[o]})</small></span></div>`; }).join('')}</div>`;
+  });
+  return h ? `<div style="margin:0 0 8px;padding:10px 12px;border-radius:12px;background:#fff;border:2px solid #f2d8d7;">${h}</div>` : '';
 }
 function admFormFmt(v){ return Array.isArray(v) ? v.join(', ') : (v && typeof v === 'object' ? (v.address || '') : (/^data:image\/png;base64,/.test(String(v || '')) ? '✍️ signed' : String(v == null ? '' : v))); }
 async function wireAdmForms(){
@@ -11893,7 +11905,7 @@ async function wireAdmForms(){
   const aoLabel = r => (r.addons || []).map(id => (((form.payment || {}).addons || []).find(a => a.id === id) || {}).label || '').filter(Boolean).join(', ');
   const stLabel = r => r.status === 'waitlist' ? '⏳ Waitlist' : r.status === 'going' ? '✅ Going' : escapeCm(r.status || '');
   { const going = rs.filter(r => r.status === 'going'), owed = going.reduce((t, r) => t + (Number(r.total) || 0), 0), got = going.filter(r => r.paid).reduce((t, r) => t + (Number(r.total) || 0), 0);
-    document.getElementById('afmSum').innerHTML = `<div style="margin:0 0 8px;padding:10px 12px;border-radius:12px;background:#fef7f4;border:2px solid #f2d8d7;font-weight:700;">👥 ${rs.length} filled it in · ${going.length} going · ${rs.length - going.length} waitlist${pay ? ` · 💳 ${going.filter(r => r.paid).length} paid${owed ? ` (${escapeCm(calMoney(got, sym))} of ${escapeCm(calMoney(owed, sym))})` : ''}` : ''}</div>`; }
+    document.getElementById('afmSum').innerHTML = `<div style="margin:0 0 8px;padding:10px 12px;border-radius:12px;background:#fef7f4;border:2px solid #f2d8d7;font-weight:700;">👥 ${rs.length} filled it in · ${going.length} going · ${rs.length - going.length} waitlist${pay ? ` · 💳 ${going.filter(r => r.paid).length} paid${owed ? ` (${escapeCm(calMoney(got, sym))} of ${escapeCm(calMoney(owed, sym))})` : ''}` : ''}</div>${admSpotsLeftHtml(ev, fields, rs)}`; }
   const shown = () => {
     const f = state.admFormFilter || 'all', q = (state.admFormQ || '').trim().toLowerCase();
     return rs.filter(r => (f === 'all' || (f === 'unpaid' ? r.status === 'going' && !r.paid : r.status === f)) && (!q || [r.name, r.contact].concat(fields.map(x => admFormFmt((r.answers || {})[x.id]))).join(' ').toLowerCase().includes(q)));
