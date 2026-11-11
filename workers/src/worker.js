@@ -5393,6 +5393,22 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
       return jsonResponse({ form: ev.form || null, responses: Object.keys(map).map((uid) => ({ userId: uid, name: map[uid].name, contact: map[uid].contact || "", guest: !!map[uid].guest, paid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).paid, claimedPaid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).claimedPaid, status: ((ev.rsvps || []).find((x) => x.id === uid) || {}).status || "", addons: map[uid].addons || [], total: map[uid].total ?? null, answers: map[uid].answers, at: map[uid].at })).sort((a, b) => a.at - b.at) }, 200, corsHeaders);
     }
+    const adminCalEditAnsMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/edit-answers\/?$/);
+    if (adminCalEditAnsMatch && request.method === "POST") { // the organiser changes someone's time slot / activity picks (any limits are the organiser's call)
+      const ev = (await readClubCal(env)).find((e) => e.id === adminCalEditAnsMatch[1]);
+      if (!ev || !ev.form || (leadCtx && !(Array.isArray(ev.formLeads) && ev.formLeads.includes(leadCtx.username)))) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
+      let b = {}; try { b = await request.json(); } catch {}
+      let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
+      const uid = String(b.userId || ""), ent = map[uid]; if (!ent) return jsonResponse({ error: "That sign-up wasn't found" }, 404, corsHeaders);
+      ent.answers = ent.answers || {};
+      for (const [fid, val] of Object.entries(b.answers && typeof b.answers === "object" ? b.answers : {})) {
+        const f = ev.form.fields.find((x) => x.id === fid && (x.type === "choice" || x.type === "multi")); if (!f) continue;
+        if (f.type === "choice") { if (f.options.includes(String(val))) ent.answers[fid] = String(val); else if (val === "" || val == null) delete ent.answers[fid]; }
+        else { const arr = (Array.isArray(val) ? val : []).map(String).filter((o) => f.options.includes(o)); if (arr.length) ent.answers[fid] = arr; else delete ent.answers[fid]; }
+      }
+      await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map));
+      return jsonResponse({ ok: true, answers: ent.answers }, 200, corsHeaders);
+    }
     const adminCalCancelMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/cancel-registration\/?$/);
     if (adminCalCancelMatch && request.method === "POST") {
       const all = await readClubCal(env), ev = all.find((e) => e.id === adminCalCancelMatch[1]);
