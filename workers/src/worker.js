@@ -1585,7 +1585,7 @@ const stripeVerify = async (env, raw, header) => {
 // "Payment received" message: a push for members, an email for guests who left an email address. Sent when the organiser ticks Paid or when Stripe confirms a card payment.
 const CAL_ADMIN_MAIL = "admin@4dasistas.ca";
 const okEmail = (v) => { const t = String(v || "").trim().toLowerCase(); return /^[^@\s]{1,64}@[^@\s]+\.[^@\s]{2,}$/.test(t) ? t.slice(0, 120) : ""; };
-// 📧 Registration confirmation: one email to the person who signed up, with a copy (bcc) to admin@4dasistas.ca.
+// 📧 Registration confirmation: one email to the person who signed up (no copy to the admin: the separate 'Sign-up' notification already goes to the admin).
 const calConfirmEmail = (env, ctx, ev, p) => ctx.waitUntil((async () => {
   try {
     if (!env.RESEND_API_KEY || !p.email) return;
@@ -1600,7 +1600,7 @@ const calConfirmEmail = (env, ctx, ev, p) => ctx.waitUntil((async () => {
     const ansBit = qa ? `<div style="margin:18px 0 4px;font-size:13px;font-weight:700;color:#76220b;letter-spacing:.6px;text-transform:uppercase">Your answers</div>${emailTable(qa)}` : "";
     const payBit = !wl && pay && p.total != null && !p.paid ? `<p style="margin:14px 0 6px"><strong>Payment:</strong> ${stripeOn(env) ? "if you haven't paid yet, you can pay by card, Apple Pay or Google Pay from your event page." : "please pay using the details on your event page."}</p>${pay.link ? `<p style="margin:0 0 6px">Payment link: <a href="${escapeHtml(pay.link)}">${escapeHtml(pay.link)}</a></p>` : ""}${pay.note ? `<p style="margin:0 0 6px;white-space:pre-wrap">${escapeHtml(pay.note)}</p>` : ""}` : "";
     const html = emailShell(env, { emoji: wl ? "⏳" : "🎉", title: wl ? "You're on the waitlist" : "You're registered!", preheader: ev.title, body: `<p style="margin:0 0 12px">Hi ${escapeHtml(String(p.name || "there").split(/\s+/)[0])}, thank you for signing up. Here's your confirmation:</p>${emailTable(rows)}${ansBit}${payBit}<p style="margin:16px 0 4px">${emailBtn(url, "Open the event page →")}</p>`, footer: "Keep this email as your confirmation. Questions? Just reply or write to admin@4dasistas.ca." });
-    await postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [p.email], bcc: [CAL_ADMIN_MAIL], subject: `${wl ? "Waitlist" : "Registration confirmed"}: ${ev.title}`, html, reply_to: CAL_ADMIN_MAIL });
+    await postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [p.email], subject: `${wl ? "Waitlist" : "Registration confirmed"}: ${ev.title}`, html, reply_to: CAL_ADMIN_MAIL });
   } catch (e) { console.error("registration email failed", String(e && e.message || e)); }
 })());
 // 💚 Payment confirmation: to the person who paid + a copy to admin@4dasistas.ca (the admin always gets it, even if we have no email for them).
