@@ -5393,6 +5393,32 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
       return jsonResponse({ form: ev.form || null, responses: Object.keys(map).map((uid) => ({ userId: uid, name: map[uid].name, contact: map[uid].contact || "", guest: !!map[uid].guest, paid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).paid, claimedPaid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).claimedPaid, status: ((ev.rsvps || []).find((x) => x.id === uid) || {}).status || "", addons: map[uid].addons || [], total: map[uid].total ?? null, answers: map[uid].answers, at: map[uid].at })).sort((a, b) => a.at - b.at) }, 200, corsHeaders);
     }
+    const adminCalCancelMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/cancel-registration\/?$/);
+    if (adminCalCancelMatch && request.method === "POST") {
+      const all = await readClubCal(env), ev = all.find((e) => e.id === adminCalCancelMatch[1]);
+      if (!ev || (leadCtx && !(Array.isArray(ev.formLeads) && ev.formLeads.includes(leadCtx.username)) && !calClubs(ev).some((c) => leadCtx.clubs.includes(c)))) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
+      let b = {}; try { b = await request.json(); } catch {}
+      const uid = String(b.userId || ""), r = (ev.rsvps || []).find((x) => x.id === uid);
+      let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
+      const ent = map[uid];
+      if (!r && !ent) return jsonResponse({ error: "That sign-up wasn't found" }, 404, corsHeaders);
+      const name = String((ent && ent.name) || (r && r.name) || "there");
+      let email = okEmail(ent && ent.email) || okEmail(r && r.email) || okEmail(ent && ent.contact);
+      if (!email && !uid.startsWith("g:")) { const u = await readUser(env, uid); email = okEmail(u && u.email); }
+      const reason = String(b.reason || "").replace(/[\x00-\x08\x0b-\x1f\x7f<>]/g, " ").trim().slice(0, 500);
+      if (r) ev.rsvps = ev.rsvps.filter((x) => x.id !== uid);
+      if (ent) { delete map[uid]; await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map)); }
+      await writeClubCal(env, all);
+      ctx.waitUntil(calAfterRemoval(env, ctx, ev.id, uid));
+      let emailed = false;
+      if (email && env.RESEND_API_KEY) {
+        emailed = true;
+        const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
+        const html = emailShell(env, { emoji: "💛", title: "Your registration was cancelled", preheader: ev.title, body: `<p style="margin:0 0 12px">Hi ${escapeHtml(name.split(/\s+/)[0])}, we are so sorry — we are not able to keep your spot for <strong>${escapeHtml(ev.title)}</strong>${ev.date ? ` on ${escapeHtml(new Date(ev.date + "T12:00:00Z").toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }))}` : ""}, so your registration has been cancelled.</p>${reason ? emailNote(escapeHtml(reason).replace(/\n/g, "<br>")) : ""}<p style="margin:12px 0">If you have any questions, just reply to this email. We hope to see you at another event soon! 💛</p><p style="margin:16px 0 4px">${emailBtn(origin, "See upcoming events →")}</p>`, footer: "Questions? Reply to this email or write to admin@4dasistas.ca." });
+        ctx.waitUntil(postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [email], bcc: [CAL_ADMIN_MAIL], subject: `Registration cancelled: ${ev.title}`, html, reply_to: CAL_ADMIN_MAIL }).catch(() => {}));
+      }
+      return jsonResponse({ ok: true, emailed, to: emailed ? email : "", event: ev }, 200, corsHeaders);
+    }
     const adminCalResendMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/resend-confirm\/?$/);
     if (adminCalResendMatch && request.method === "POST") {
       const ev = (await readClubCal(env)).find((e) => e.id === adminCalResendMatch[1]);

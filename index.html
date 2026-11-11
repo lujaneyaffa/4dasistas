@@ -11930,12 +11930,25 @@ async function wireAdmForms(){
         ${(r.addons || []).length ? `<p style="margin:0 0 8px;"><b>Add-ons:</b> ${escapeCm(aoLabel(r))}</p>` : ''}
         ${fields.map(x => { const v = (r.answers || {})[x.id]; return `<div style="padding:8px 0;border-top:1px solid rgba(0,0,0,.08);"><div style="font-size:13px;color:#776867;">${escapeCm(richPlain(x.label))}</div>${x.type === 'signature' && /^data:image\/png;base64,/.test(String(v || '')) ? `<img src="${escapeCm(v)}" alt="signature" style="display:block;max-width:260px;width:100%;background:#fff;border:1px solid #ddd;border-radius:8px;margin-top:4px;">` : `<div style="font-size:15px;white-space:pre-wrap;">${escapeCm(admFormFmt(v)) || '<span style="color:#aaa;">—</span>'}</div>`}</div>`; }).join('')}
         ${over(r).length ? `<div style="margin-top:12px;padding:10px 12px;border-radius:12px;background:#fdecea;border:2px solid #f3b8b3;"><b style="color:#b3261e;">⚠️ Picked too many:</b> ${over(r).map(o => escapeCm(richPlain(o.f.label)) + ' — ' + o.n + ' (max ' + o.max + ')').join('; ')}<div style="margin-top:8px;"><button type="button" class="fb-mini" id="afmOverWa" style="border:2px solid #25a244;background:#fff;">💬 WhatsApp them to pick ${over(r)[0].max}</button></div></div>` : ''}
+        <div style="margin-top:12px;padding:10px 12px;border-radius:12px;background:#fdecea;border:2px solid #f3b8b3;"><b style="color:#b3261e;">🚫 Cancel their registration</b><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">They get an email saying we are sorry they can’t come. Their spot is freed (the next person on the waitlist moves up).</p><textarea id="afmCancelWhy" rows="2" maxlength="500" placeholder="Reason to include in the email (optional) — e.g. this activity filled up" style="width:100%;box-sizing:border-box;padding:8px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:15px;"></textarea><button type="button" class="fb-mini" id="afmCancel" style="margin-top:6px;background:#b3261e;color:#fff;">🚫 Cancel registration &amp; email them</button><div id="afmCancelMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div></div>
         <div style="margin-top:12px;"><button type="button" class="fb-mini" id="afmResend">✉️ Resend their confirmation email (with all answers)</button><div id="afmResendMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div></div>`);
       const ow = rp.wrap.querySelector('#afmOverWa'); if(ow) ow.addEventListener('click', async () => {
         ow.disabled = true; let u = null; try { const us = await calLoadUsers(); u = (us || []).find(x => x.id === r.userId); } catch {} ow.disabled = false;
         const o = over(r)[0], first = String(r.name || '').split(/\s+/)[0] || 'there', link = '4dasistas.ca/#/form/' + (ev.slug || ev.id);
         const msg = `Hi ${first}! 🌸 Thank you for signing up to ${ev.title}. Sorry — you can pick a maximum of ${o.max} for "${richPlain(o.f.label)}", and you picked ${o.n}. Could you please reply with the ${o.max} you would like most (or change them at ${link})? Thank you! 💛`;
         admWaPrompt('⚠️ Pick ' + o.max + ' only', r.name, (u && u.phone) || (/^[+\d][\d\s().-]{6,}$/.test(r.contact || '') ? r.contact : ''), msg, 'this message');
+      });
+      rp.wrap.querySelector('#afmCancel').addEventListener('click', async e => {
+        const m = rp.wrap.querySelector('#afmCancelMsg');
+        if(!confirm('Are you sure you want to cancel ' + r.name + '’s registration for “' + ev.title + '”?\n\nThey will be emailed that we are sorry they can’t come. This can’t be undone.')) return;
+        e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Cancelling…';
+        try {
+          const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/cancel-registration', 'POST', { userId: r.userId, reason: rp.wrap.querySelector('#afmCancelWhy').value });
+          const i = (state.clubCal || []).findIndex(x => x.id === ev.id); if(i >= 0 && j.event) state.clubCal[i].rsvps = j.event.rsvps || [];
+          state.admFormData = null; document.querySelectorAll('.mem-pop').forEach(x => x.remove());
+          const fresh = (state.clubCal || []).find(x => x.id === ev.id) || ev; openAttendeesPopup(fresh);
+          setTimeout(() => alert(j.emailed ? '✓ Cancelled. We emailed ' + j.to + '.' : '✓ Cancelled. (We have no email address for them, so nobody was emailed — you may want to message them.)'), 50);
+        } catch(err){ m.style.color = '#c00'; m.textContent = err.message; e.target.disabled = false; }
       });
       rp.wrap.querySelector('#afmResend').addEventListener('click', async e => {
         const m = rp.wrap.querySelector('#afmResendMsg'); if(!confirm('Email ' + r.name + ' their confirmation again, with all their answers?')) return;
