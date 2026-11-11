@@ -1433,6 +1433,7 @@ const sanitizeCalForm = (f) => {
       // Optional spot limit per choice (time slots / activities): { "10:00 AM": 6 }
       const caps = {}; if (x.caps && typeof x.caps === "object") for (const o of fld.options) { const n = Math.floor(Number(x.caps[o])); if (Number.isFinite(n) && n >= 1 && n <= 5000) caps[o] = n; }
       if (Object.keys(caps).length) fld.caps = caps;
+      if (x.type === "multi" && Array.isArray(x.defaults)) { const df = fld.options.filter((o) => x.defaults.includes(o)); if (df.length) fld.defaults = df; } // ticked for new sign-ups; they can untick
       if (x.type === "multi") { const mp = Math.floor(Number(x.maxPick)); if (Number.isFinite(mp) && mp >= 1 && mp < fld.options.length) fld.maxPick = mp; } // most choices a person may tick
       // Optional photo + short text per choice (what the craft / activity is)
       const info = {}; if (x.info && typeof x.info === "object") for (const o of fld.options) { const n = x.info[o]; if (!n || typeof n !== "object") continue; const img = CAL_IMG_RE.test(String(n.img || "")) ? String(n.img) : "", text = String(n.text || "").replace(/[\x00-\x08\x0b-\x1f\x7f<>]/g, " ").trim().slice(0, 300); if (img || text) info[o] = { ...(img ? { img } : {}), ...(text ? { text } : {}) }; }
