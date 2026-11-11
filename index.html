@@ -13223,7 +13223,7 @@ async function admNeedsLoad(){
 function admNeedsHtml(){
   if(!state.admNeeds){ admNeedsLoad(); return ''; }
   const n = state.admNeeds, inbox = admInboxCount();
-  const chips = [[admSubCount(), '📥', 'submissions to approve', 'todo'], [admJoinCount(), '🙋', 'club join requests', 'clubs'], [n.pendingRsvps, '⏳', 'RSVPs to approve', 'events'], [n.unpaid, '💳', 'unpaid sign-ups', 'events'], [n.tbdKeen, '🕒', 'undated events with interest', 'events'], [n.stayTodo, '🪁', 'squad members to confirm', 'clubs'], [n.stepsStuck, '👟', 'people whose steps aren\'t syncing', 'steps']].filter(c => c[0] > 0);
+  const chips = [[admSubCount(), '📥', 'submissions to approve', 'todo'], [admJoinCount(), '🙋', 'club join requests', 'clubs'], [n.pendingRsvps, '⏳', 'RSVPs to approve', 'events'], [n.unpaid, '💳', 'unpaid sign-ups', 'events'], [n.tbdKeen, '🕒', 'undated events with interest', 'events'], [n.stepsStuck, '👟', 'people whose steps aren\'t syncing', 'steps']].filter(c => c[0] > 0);
   return `<div class="cp-box" style="margin:10px 0;padding:10px 12px;"><p style="margin:0 0 6px;font-weight:800;">${chips.length ? '🔔 Needs you' : '✅ Nothing needs you right now'}</p>${chips.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">${chips.map(([c, ic, l, g]) => `<button type="button" class="filter-chip adm-need" data-needgroup="${g}" style="min-height:40px;">${ic} <b>${c}</b> ${l}</button>`).join('')}</div>` : ''}<button type="button" class="adm-need-refresh" style="margin-top:6px;border:none;background:none;color:#776867;font-size:12px;text-decoration:underline;cursor:pointer;">↻ refresh</button></div>`;
 }
 function admGroupTilesHtml(lead, cur){
@@ -13234,7 +13234,7 @@ function admGroupTilesHtml(lead, cur){
     ${tile('events', '🎟️', '4DS activities', lead ? 'Sign-ups · forms · answers' : 'Hosted events · sign-ups · payments', (n.pendingRsvps || 0) + (n.unpaid || 0))}
     ${lead ? '' : tile('calendar', '📅', 'Calendar', 'Add &amp; edit events · public or 4DS', '')}
     ${lead ? '' : tile('featured', '⭐', 'Featured', 'What shows on the Home page', '')}
-    ${tile('clubs', '🏛️', 'Clubs', lead ? 'Requests · availability' : 'Join requests · clubs · availability · club admins', admJoinCount() + (lead ? 0 : (n.stayTodo || 0)))}
+    ${tile('clubs', '🏛️', 'Clubs', lead ? 'Requests · availability' : 'Join requests · clubs · availability · club admins', admJoinCount())}
     ${tile('people', '👥', 'People', lead ? 'Profiles' : 'Profiles · messages', '')}
     ${lead ? '' : tile('badminton', '🏸', 'Badminton', 'Leaderboards · players · kiosk', '')}
     ${lead ? '' : tile('steps', '👟', 'Steps', 'Rounds · pledges · leaderboard', n.stepsStuck || '')}
