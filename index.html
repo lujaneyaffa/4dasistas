@@ -8258,7 +8258,7 @@ function calEventEditor(ev, opts){
   const pay = form0 && form0.payment ? JSON.parse(JSON.stringify(form0.payment)) : { amount:'', link:'', note:'', addons:[] };
   pay.addons = pay.addons || [];
   let gTerms = state.calTerms || [];
-  const SEC = [['eeDetails', '📌 Details'], ['eePhotos', '🖼 Photos'], ['eeHosts', '🤝 Hosts'], ['eeSignup', '✋ Sign-up'], ['eeQs', '📝 Questions'], ['eeTerms', '📜 Terms'], ['eePage', '🔗 Page']];
+  const SEC = [['eePage', '🔗 Link & description'], ['eeDetails', '📌 Details'], ['eePhotos', '🖼 Photos'], ['eeHosts', '🤝 Hosts'], ['eeSignup', '✋ Sign-up'], ['eeQs', '📝 Questions'], ['eeTerms', '📜 Terms']];
   const sec = (n, id, title, help, inner) => `<div class="pgSec ee-sec" id="${id}"><div class="ee-h"><span class="ee-n">${n}</span><h3>${title}</h3></div>${help ? `<p class="ideas-hint" style="text-align:left;margin:0 0 10px;">${help}</p>` : ''}${inner}</div>`;
   const details = `${lab('Event name')}<input id="cfTitle" type="text" maxlength="80" placeholder="e.g. Pottery night" value="${escapeCm(ev ? ev.title : '')}" style="${F}">
     <div class="ee-2"><div>${lab('Date')}<input id="cfDate" type="date" value="${escapeCm(ev && !ev.tbd ? ev.date : (opts.presetDate || ''))}" style="${F}"></div><div>${lab('Time (optional)')}<input id="cfTime" type="text" maxlength="30" placeholder="e.g. 6:30 – 9 PM" value="${escapeCm(ev ? ev.time : '')}" style="${F}"></div></div>
@@ -8278,13 +8278,13 @@ function calEventEditor(ev, opts){
   host.innerHTML = `<div class="${inline ? '' : 'fb-wrap'} pgEd ee">
     <div class="pgBar"><div style="display:flex;gap:8px;align-items:center;">${inline ? '' : '<button type="button" class="fb-mini" id="pgClose">✕ Close</button>'}<strong style="flex:1;min-width:0;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${isNew ? '➕ New event' : '✏️ ' + escapeCm(ev.title)}</strong><button type="button" class="fb-mini" id="pgPreview">👁 Preview</button><button type="button" class="club-guide-btn" id="pgSave" style="padding:8px 18px;text-align:center;background:var(--brand-rose);color:#fff;">💾 Save</button></div>
       <div class="pgJump">${SEC.map(j => `<button type="button" class="pgJ" data-t="${j[0]}">${j[1]}</button>`).join('')}</div><div id="pgMsg" style="font-size:14px;min-height:0;"></div></div>
+    ${sec(++n, 'eePage', 'Link &amp; description', 'Copy the link and edit the description here.', pageSec)}
     ${sec(++n, 'eeDetails', 'Details', '', details)}
     ${sec(++n, 'eePhotos', 'Photos', 'Pick a layout, then tap a box to add its photo. You can crop and compress each one.', '<div id="eePh"></div>')}
     ${sec(++n, 'eeHosts', 'Who’s hosting', 'Tap the clubs hosting it (more than one for a collab), ✕ for no host, or ＋ to add an outside organization.', '<div id="eeHo"></div>')}
     ${sec(++n, 'eeSignup', 'How people sign up', '', '<div id="eeSu"></div>')}
     ${sec(++n, 'eeQs', 'Questions', 'Pick from the menu to add a question to the form.', '<div id="eeQ"></div>')}
     ${sec(++n, 'eeTerms', 'Terms &amp; signature', '', '<div id="eeTe"></div>')}
-    ${sec(++n, 'eePage', 'Public page', '', pageSec)}
     <input type="file" id="eeFile" accept="image/*" hidden><div style="height:28px;"></div></div>`;
   const q = s => host.querySelector(s), val = s => (q(s) || {}).value;
   const say = (t, ok) => { const m = q('#pgMsg'); m.textContent = t || ''; m.style.cssText = t ? `padding:6px 2px;font-weight:700;color:${ok ? '#2a7a4a' : '#b3261e'};` : 'min-height:0;'; };
