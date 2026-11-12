@@ -4036,7 +4036,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           if (id !== "main" && !bmLeagueDates({ dates, repeat, skip }).length) return jsonResponse({ error: `Add at least one date for ${name} (or make it repeat every week)` }, 400, corsHeaders);
           const rotation = id !== "main" && !!raw.rotation;
           const players = id === "main" ? [] : [...new Set((Array.isArray(raw.players) ? raw.players : []).map(String).filter((x) => /^[\w:.-]{1,64}$/.test(x)))].slice(0, 300);
-          if (rotation && players.length !== 6) return jsonResponse({ error: `${name}: a fixed-rotation leaderboard needs exactly 6 players (it has ${players.length})` }, 400, corsHeaders);
+          if (rotation && (players.length < 4 || players.length > 6)) return jsonResponse({ error: `${name}: a fixed-rotation leaderboard needs 4 to 6 players (it has ${players.length})` }, 400, corsHeaders);
           out.push({ id, name, day: cl(raw.day, 20), start: t(raw.start), end: t(raw.end), place: cl(raw.place, 120), dates, players, rotation, ...(repeat ? { repeat } : {}), ...(skip.length ? { skip } : {}), ...(Object.keys(sessions).length ? { sessions } : {}), ...(caption ? { caption } : {}), ...(emoji ? { emoji } : {}) });
           const pw = bmKioskNorm(raw.kioskPassword);
           if (raw.kioskPassword && id !== "main") { if (pw.length < 4) return jsonResponse({ error: `Kiosk password for ${name}: use at least 4 letters or numbers` }, 400, corsHeaders); if (pw === "4DS1234") return jsonResponse({ error: "That password belongs to the main group's kiosk — pick a different one" }, 400, corsHeaders); await env.SITE_DATA.put(`bm:lgkey:${id}`, await sha256Hex(`bmlg:${id}:${pw}`)); }
