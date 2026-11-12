@@ -5415,6 +5415,24 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map));
       return jsonResponse({ ok: true, answers: ent.answers }, 200, corsHeaders);
     }
+    if (path === "/api/admin/club-cal/sync-rallies" && request.method === "POST") { // make the calendar's "ISNA Rallies" events follow the Thursday leaderboard schedule
+      if (leadCtx) return jsonResponse({ error: "Main admin only" }, 403, corsHeaders);
+      const main = (await bmReadLeagues(env)).find((l) => l.id === "main") || {};
+      let dates = bmLeagueDates(main);
+      if (!dates.length) dates = ["2026-10-09", "2026-10-16", "2026-10-22", "2026-10-29", "2026-11-05", "2026-11-13", "2026-11-20", "2026-11-26", "2026-12-03", "2026-12-11", "2026-12-17", "2026-12-24", "2026-12-31", "2027-01-07", "2027-01-14", "2027-01-22", "2027-01-28"]; // the schedule the leaderboard page shows when none is saved
+      const today = new Date().toISOString().slice(0, 10), future = dates.filter((d) => d >= today);
+      const all = await readClubCal(env);
+      const rall = all.filter((e) => e.clubId === "club-badminton" && /^isna rallies$/i.test(String(e.title || "").trim()) && e.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+      if (!rall.length) return jsonResponse({ error: "No upcoming “ISNA Rallies” events found on the calendar" }, 400, corsHeaders);
+      let moved = 0, added = 0; const tmpl = rall[0];
+      future.forEach((d, i) => {
+        if (rall[i]) { if (rall[i].date !== d) { rall[i].date = d; moved++; } }
+        else { const c = JSON.parse(JSON.stringify(tmpl)); c.id = crypto.randomUUID(); c.rsvps = []; c.date = d; c.at = Date.now(); delete c.slug; c.slug = calMakeSlug(all, c); all.push(c); added++; }
+      });
+      const extra = rall.slice(future.length).map((e) => e.date);
+      await writeClubCal(env, all);
+      return jsonResponse({ ok: true, moved, added, extra, total: future.length }, 200, corsHeaders);
+    }
     const adminCalInviteMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/invite-link\/?$/);
     if (adminCalInviteMatch && request.method === "GET") {
       const ev = (await readClubCal(env)).find((e) => e.id === adminCalInviteMatch[1]);

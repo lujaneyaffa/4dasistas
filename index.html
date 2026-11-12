@@ -13992,6 +13992,7 @@ function bmImportHtml(){
   return `<div class="cp-box"><p style="font-size:13px;margin:0 0 8px;line-height:1.5;">The badminton app now runs on 4DS at <a href="/badminton" target="_blank">4dasistas.ca/badminton</a>. Players log in with their phone number (or 4DS username) and 4DS PIN.</p>
     <p style="margin:0 0 4px;font-weight:700;">🏆 Leaderboards</p><p style="font-size:12px;color:#776867;margin:0 0 6px;">Each leaderboard is its own group with its own day, time, place, dates, standings and kiosk. The same player can play in more than one. Rankings are never combined.</p>
     <div id="bmLgBox"><p class="av-msg">Loading…</p></div>
+    <div style="margin:8px 0;"><button type="button" class="fb-mini" id="bmSyncRallies">📅 Make the calendar’s “ISNA Rallies” match the Thursday schedule</button><div id="bmSyncMsg" style="font-size:13px;min-height:18px;margin-top:4px;"></div></div>
     <hr style="border:none;border-top:1px solid rgba(0,0,0,.1);margin:10px 0;">
     <div id="bmMsg" style="font-size:13px;line-height:1.5;margin:8px 0;white-space:pre-wrap;"></div>
     <hr style="border:none;border-top:1px solid rgba(0,0,0,.1);margin:10px 0;">
@@ -15498,5 +15499,15 @@ function homeStepsCardHtml(){
 document.addEventListener('click', e => { if(e.target.closest('[data-gosteps]')) location.hash = '#/steps'; });
 </script>
 
+<script>
+document.addEventListener('click', async e => {
+  const b = e.target.closest && e.target.closest('#bmSyncRallies'); if(!b) return;
+  const m = document.getElementById('bmSyncMsg');
+  if(!confirm('Move the upcoming “ISNA Rallies” events on the 4DS calendar to the Thursday leaderboard’s schedule dates? (Dates are changed; sign-ups stay with each event.)')) return;
+  b.disabled = true; m.style.color = '#776867'; m.textContent = 'Syncing…';
+  try { const j = await clubCalAdminCall('/sync-rallies', 'POST', {}); m.style.color = '#2a7a4a'; m.textContent = '✓ Done — ' + j.moved + ' moved, ' + j.added + ' added' + (j.extra && j.extra.length ? '. These extra events are no longer on the schedule (delete them if you want): ' + j.extra.join(', ') : '.'); state.clubCal = null; }
+  catch(err){ m.style.color = '#c00'; m.textContent = err.message; } b.disabled = false;
+});
+</script>
 </body>
 </html>
