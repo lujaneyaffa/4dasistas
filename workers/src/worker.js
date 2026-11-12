@@ -1433,6 +1433,7 @@ const sanitizeCalForm = (f) => {
       // Optional spot limit per choice (time slots / activities): { "10:00 AM": 6 }
       const caps = {}; if (x.caps && typeof x.caps === "object") for (const o of fld.options) { const n = Math.floor(Number(x.caps[o])); if (Number.isFinite(n) && n >= 1 && n <= 5000) caps[o] = n; }
       if (Object.keys(caps).length) fld.caps = caps;
+      if (x.type === "multi" && Array.isArray(x.locked)) { const lk = fld.options.filter((o) => x.locked.includes(o)); if (lk.length) fld.locked = lk; } // always included; people can't untick them
       if (x.type === "multi" && Array.isArray(x.defaults)) { const df = fld.options.filter((o) => x.defaults.includes(o)); if (df.length) fld.defaults = df; } // ticked for new sign-ups; they can untick
       if (x.type === "multi") { const mp = Math.floor(Number(x.maxPick)); if (Number.isFinite(mp) && mp >= 1 && mp < fld.options.length) fld.maxPick = mp; } // most choices a person may tick
       // Optional photo + short text per choice (what the craft / activity is)
@@ -1624,6 +1625,7 @@ const checkCalAnswers = (form, raw) => {
   for (const fld of form.fields) {
     let v = raw && raw[fld.id];
     if (fld.type === "multi") v = (Array.isArray(v) ? v : []).map(String).filter((o) => fld.options.includes(o));
+    if (fld.type === "multi" && fld.locked) v = [...new Set([...fld.locked, ...v])]; // locked choices are included for everyone
     else if (fld.type === "choice") v = fld.options.includes(String(v)) ? String(v) : "";
     else if (fld.type === "yesno") v = v === "Yes" || v === "No" ? v : "";
     else if (fld.type === "number") v = v === "" || v == null ? "" : (Number.isFinite(Number(v)) ? String(Number(v)).slice(0, 20) : "");
