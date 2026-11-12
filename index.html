@@ -1697,7 +1697,7 @@ const clubLogoFix = cl => (Array.isArray(cl) ? cl : []).map(c => {
   if(!c) return c;
   const designed = CLUB_DESIGNED_LOGO[c.id];
   const out = designed && !String(c.logo || '').startsWith('data:') ? { ...c, logo: designed } : { ...c };
-  if(CLUB_LOOK_FIX[c.id]){ out.colour = CLUB_LOOK_FIX[c.id][0]; out.textColour = CLUB_LOOK_FIX[c.id][1]; }
+  if(CLUB_LOOK_FIX[c.id] && !c.colour){ out.colour = CLUB_LOOK_FIX[c.id][0]; out.textColour = CLUB_LOOK_FIX[c.id][1]; } // only a fallback now — colours you set in Admin → Clubs are used as saved
   return out;
 });
 // if a logo image ever fails to load, swap to the designed one instead of showing alt text
