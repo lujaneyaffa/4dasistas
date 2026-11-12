@@ -6589,6 +6589,10 @@ function clubCalIdeaPopup(e){
     <button type="button" class="club-guide-btn" id="calIdeaOpen" style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Open the ${escapeCm(e.clubTitle.split(' × ')[0])} board</button>`);
   wrap.querySelector('#calIdeaOpen').addEventListener('click', () => { close(); openClubIdeas(e.clubId); });
 }
+// Invite-only events: the secret invite code rides along in the link (#/form/<event>/<code>)
+function calInviteQs(){ return state.formInvite ? '?invite=' + encodeURIComponent(state.formInvite) : ''; }
+function calInviteGate(d){ if(d && d.inviteOnly && !d.inviteOk && !d.mine){ d.form = null; d.publicForm = false; d.lockedInvite = true; } }
+const CAL_LOCKED_HTML = '<div class="fb-card" style="box-shadow:none;margin:10px 0;text-align:center;"><p style="margin:0 0 4px;font-size:18px;font-weight:800;">🔒 Invite only</p><p style="margin:0;">Sign-ups for this event are by invitation. Ask the organizers for your invite link.</p></div>';
 function openEventFormPage(id){
   document.querySelectorAll('.mem-pop').forEach(x => x.remove());
   const known = (state.clubCal || []).find(e => e.id === id); state.formEventId = (known && known.slug) || id; // readable link when we know it
@@ -6629,7 +6633,7 @@ function calCornerLogin(id){ // not signed in on an event page: Log in / Sign up
 async function clubCalPublicCard(box, id){
   if(state.tab === 'eventform') calCornerLogin(id);
   try {
-    const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id)); calUpgradeUrl(d);
+    const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + calInviteQs()); calUpgradeUrl(d); calInviteGate(d);
     const inp = 'class="fb-in"';
     if(!d.form){ // no sign-up form: the same page, with Log in / Sign up to RSVP
       const past = calIsPast(d.date);
@@ -6638,7 +6642,7 @@ async function clubCalPublicCard(box, id){
         ['date', `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calNativeBtn(d)}`], ['price', calPriceHtml(d)],
         ['place', calPlaceHtml(d)], ['map', calMapHtml(d)], ['desc', calDescHtml(d, true)],
         ['rsvpby', d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''], ['spots', past ? '' : calSpotsHtml(d)],
-        ['action', past ? '<p class="av-msg" style="margin:8px 0 0;">This event has already happened.</p>' : (d.signup === 'msg' && d.contactUrl) ? calMsgBtnHtml(d, past) : `<p class="av-msg" style="margin:10px 0;">Log in or sign up to RSVP.</p><div style="display:flex;gap:10px;"><button type="button" class="club-guide-btn pfL" style="flex:1;text-align:center;">Log In</button><button type="button" class="fall-cta-btn join-club-btn pfS" style="flex:1;">Sign Up</button></div>`],
+        ['action', d.lockedInvite ? CAL_LOCKED_HTML : past ? '<p class="av-msg" style="margin:8px 0 0;">This event has already happened.</p>' : (d.signup === 'msg' && d.contactUrl) ? calMsgBtnHtml(d, past) : `<p class="av-msg" style="margin:10px 0;">Log in or sign up to RSVP.</p><div style="display:flex;gap:10px;"><button type="button" class="club-guide-btn pfL" style="flex:1;text-align:center;">Log In</button><button type="button" class="fall-cta-btn join-club-btn pfS" style="flex:1;">Sign Up</button></div>`],
         ['link', calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')]]);
       wireCalCopy(box); calAttendeesInto(box, id, d.date);
       const lb = box.querySelector('.pfL'); if(lb) lb.addEventListener('click', () => { calRememberOpen(id); document.querySelectorAll('.mem-pop').forEach(x => x.remove()); state.clubsLoginPickerOpen = true; state.clubsMyClubsPickerOpen = false; goToTab('clubs'); });
@@ -6730,7 +6734,7 @@ async function clubCalPublicCard(box, id){
       const paidClaim = calPayClaimed(box), payHow = calPayHow(box);
       e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Sending…';
       try {
-        const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', body: JSON.stringify(quick ? { name: base('name'), contact: base('phone'), email: base('email').trim(), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim } : { name: base('name'), phone: base('phone'), email: base('email').trim(), pin: base('pin'), ref: refCode(), why: base('why'), interests: [...box.querySelectorAll('.pfClub:checked')].map(c => c.value), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim }) });
+        const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form' + calInviteQs(), { method:'POST', body: JSON.stringify(quick ? { name: base('name'), contact: base('phone'), email: base('email').trim(), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim } : { name: base('name'), phone: base('phone'), email: base('email').trim(), pin: base('pin'), ref: refCode(), why: base('why'), interests: [...box.querySelectorAll('.pfClub:checked')].map(c => c.value), answers: calFormCollect(box, d.form), addons: calAddonIds(box), paidClaim }) });
         if(r && r.token){ setCmSession(r); renderNavAuth(); }
         box.innerHTML = calSignedUpHtml(d, r, chosenAddons, quick) + `<div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`; wireCalCopy(box);
         if(calCardOk(d) && payHow === 'card' && (r.eventStatus || 'going') === 'going' && (r.payId || r.token)){
@@ -6794,7 +6798,7 @@ function calCancelFlow(d, id, onDone){
 }
 async function clubCalMemberCard(box, id){
   try {
-    const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id), { headers: ideaHeaders() }); calUpgradeUrl(d);
+    const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + calInviteQs(), { headers: ideaHeaders() }); calUpgradeUrl(d); calInviteGate(d);
     box.innerHTML = '';
     const top = document.createElement('div'), formBox = document.createElement('div');
     const linkEnd = document.createElement('div');
@@ -6808,7 +6812,7 @@ async function clubCalMemberCard(box, id){
       syncCancel();
       const past = calIsPast(d.date);
       const label = past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going — tap to cancel" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — tap to leave` : d.mine === 'pending' ? '⏳ Requested — waiting for approval (tap to cancel)' : d.inClub ? (d.capacity && !d.spotsLeft ? '🎟️ Join the waitlist' : '🎟️ RSVP — I\'m going') : '🎟️ Request to RSVP';
-      const actionHtml = (d.signup === 'msg' && d.contactUrl) ? calMsgBtnHtml(d, past) : `${d.form ? `<p style="margin:6px 0;font-weight:700;">${past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — we'll move you up if a spot opens` : d.mine === 'pending' ? '⏳ Requested — waiting for approval' : d.closed ? '🔒 Sign-ups are closed' : d.capacity && !d.spotsLeft ? 'Fill in the form below to join the waitlist 👇' : 'Fill in the form below to sign up 👇'}</p>${d.mine && !past ? '<button type="button" class="av-link calRsvpBtn">Cancel my RSVP</button>' : ''}` : (!d.inClub && !d.mine && !past ? `<a class="club-guide-btn calAskWa" href="https://wa.me/u/${ORGANISER_WA_USERNAME}?text=${waEnc(calAskMessage(d))}" target="_blank" rel="noopener" style="display:block;box-sizing:border-box;width:100%;text-align:center;text-decoration:none;background:#25a244;color:#fff;border-color:#1c7a33;">💬 Ask on WhatsApp if there's a spot</a><p class="ideas-hint" style="margin:6px 0 0;">This event is for ${escapeCm(d.clubTitle || 'a club')} members. Tap to message us — a note is already written for you.</p>` : `<button type="button" class="club-guide-btn calRsvpBtn" ${(d.closed || past) && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>`)}
+      const actionHtml = d.lockedInvite ? CAL_LOCKED_HTML : (d.signup === 'msg' && d.contactUrl) ? calMsgBtnHtml(d, past) : `${d.form ? `<p style="margin:6px 0;font-weight:700;">${past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — we'll move you up if a spot opens` : d.mine === 'pending' ? '⏳ Requested — waiting for approval' : d.closed ? '🔒 Sign-ups are closed' : d.capacity && !d.spotsLeft ? 'Fill in the form below to join the waitlist 👇' : 'Fill in the form below to sign up 👇'}</p>${d.mine && !past ? '<button type="button" class="av-link calRsvpBtn">Cancel my RSVP</button>' : ''}` : (!d.inClub && !d.mine && !past ? `<a class="club-guide-btn calAskWa" href="https://wa.me/u/${ORGANISER_WA_USERNAME}?text=${waEnc(calAskMessage(d))}" target="_blank" rel="noopener" style="display:block;box-sizing:border-box;width:100%;text-align:center;text-decoration:none;background:#25a244;color:#fff;border-color:#1c7a33;">💬 Ask on WhatsApp if there's a spot</a><p class="ideas-hint" style="margin:6px 0 0;">This event is for ${escapeCm(d.clubTitle || 'a club')} members. Tap to message us — a note is already written for you.</p>` : `<button type="button" class="club-guide-btn calRsvpBtn" ${(d.closed || past) && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>`)}
         <div class="calRsvpMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>
         ${(!past && d.mine === 'going') ? '<button type="button" class="club-guide-btn calAddCal" style="width:100%;min-height:46px;margin-top:4px;">📆 Add to my calendar</button>' : ''}`;
       top.innerHTML = calCompose(d, [['cover', calCoverHtml(d)], ['hosts', calHostsHtml(d)], ['club', `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>`], ['title', `<h3 style="margin:0 0 6px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>`],
@@ -6822,7 +6826,7 @@ async function clubCalMemberCard(box, id){
       if(rsvpBtn) rsvpBtn.addEventListener('click', async e => {
         e.target.disabled = true;
         try {
-          const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/rsvp', { method: d.mine ? 'DELETE' : 'POST', headers: ideaHeaders() });
+          const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/rsvp' + (d.mine ? '' : calInviteQs()), { method: d.mine ? 'DELETE' : 'POST', headers: ideaHeaders() });
           d.mine = r.mine; d.going = r.going; d.waitPos = r.waitPos || 0; if(d.capacity) d.spotsLeft = Math.max(0, d.capacity - r.going); state.myTodo = null; paint(); admToastLite(r.mine ? (r.mine === 'going' ? "✓ You're going!" : r.mine === 'waitlist' ? "⏳ It's full — you're on the waitlist" : '⏳ Request sent — an admin will approve it') : 'RSVP cancelled');
         } catch(err){ e.target.disabled = false; top.querySelector('.calRsvpMsg').textContent = err.message; }
       });
@@ -6856,7 +6860,7 @@ async function clubCalMemberCard(box, id){
         if(emIn && !d.mine && !/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(emVal)){ m.style.color = '#c00'; m.textContent = 'Please add your email — your confirmation is sent there.'; emIn.focus(); return; }
         if(emVal){ try { localStorage.setItem('ev_email', emVal); } catch {} }
         const paidClaim = calPayClaimed(formBox), payHow = calPayHow(formBox); e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Saving…';
-        try { const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ answers: calFormCollect(formBox, d.form), addons: calAddonIds(formBox), paidClaim, email: emVal }) }); d.myAnswers = r.answers; d.myAddons = r.addons || []; d.mine = r.mine; if(r.claimedPaid) d.claimedPaid = true; d.going = r.going; d.waitPos = r.waitPos || 0; if(d.capacity) d.spotsLeft = Math.max(0, d.capacity - r.going); m.style.color = '#2a7a4a'; m.textContent = r.mine === 'pending' ? '✓ Sent — an admin will approve your spot.' : r.mine === 'waitlist' ? "⏳ It's full — you're on the waitlist. We'll move you up if a spot opens." : "✓ You're signed up — thank you!"; e.target.textContent = 'Update my answers'; const pb = formBox.querySelector('.calPayBox'); paint(); if(pb && d.form.payment){ const nb = formBox.querySelector('.calPayBox'); if(nb) nb.innerHTML = calPayBoxHtml(d); if(r.mine === 'going' && !d.paid && (!calCardOk(d) || payHow === 'card')) setTimeout(() => { const sb2 = formBox.querySelector('.calStripeBtn'); if(sb2 && !sb2.disabled) sb2.click(); }, 500); } /* paying is part of signing up: the card form opens right after they submit */ }
+        try { const r = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/form' + calInviteQs(), { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ answers: calFormCollect(formBox, d.form), addons: calAddonIds(formBox), paidClaim, email: emVal }) }); d.myAnswers = r.answers; d.myAddons = r.addons || []; d.mine = r.mine; if(r.claimedPaid) d.claimedPaid = true; d.going = r.going; d.waitPos = r.waitPos || 0; if(d.capacity) d.spotsLeft = Math.max(0, d.capacity - r.going); m.style.color = '#2a7a4a'; m.textContent = r.mine === 'pending' ? '✓ Sent — an admin will approve your spot.' : r.mine === 'waitlist' ? "⏳ It's full — you're on the waitlist. We'll move you up if a spot opens." : "✓ You're signed up — thank you!"; e.target.textContent = 'Update my answers'; const pb = formBox.querySelector('.calPayBox'); paint(); if(pb && d.form.payment){ const nb = formBox.querySelector('.calPayBox'); if(nb) nb.innerHTML = calPayBoxHtml(d); if(r.mine === 'going' && !d.paid && (!calCardOk(d) || payHow === 'card')) setTimeout(() => { const sb2 = formBox.querySelector('.calStripeBtn'); if(sb2 && !sb2.disabled) sb2.click(); }, 500); } /* paying is part of signing up: the card form opens right after they submit */ }
         catch(err){ m.style.color = '#c00'; m.textContent = err.message; }
         e.target.disabled = false;
       });
@@ -7070,7 +7074,7 @@ function calFormCollect(box, form){
 }
 // Every form has its own link people can copy and share; opening it goes straight to the form.
 // The page's address becomes the readable link (an old random-id link is swapped for it once the event has loaded).
-function calUpgradeUrl(d){ if(d && d.slug && state.tab === 'eventform' && state.formEventId !== d.slug){ state.formEventId = d.slug; try{ history.replaceState(null, '', location.pathname + location.search + '#/form/' + encodeURIComponent(d.slug)); }catch(e){} } }
+function calUpgradeUrl(d){ if(d && d.slug && state.tab === 'eventform' && state.formEventId !== d.slug){ state.formEventId = d.slug; try{ history.replaceState(null, '', location.pathname + location.search + '#/form/' + encodeURIComponent(d.slug) + (state.formInvite ? '/' + encodeURIComponent(state.formInvite) : '')); }catch(e){} } }
 // 🚩 Report anything (event, photo, review, member) — goes to the admin. 🚫 Block hides a member from you.
 function openReport(kind, target, label){
   const R = ['Inappropriate or offensive', 'Harassment or bullying', 'Spam or a scam', 'Fake or misleading', 'Privacy concern', 'Something else'];
@@ -8258,6 +8262,7 @@ function calEventEditor(ev, opts){
   const qs = form0 ? form0.fields.filter(f => !CAL_TERM_ID(f)).map(f => ({ ...f, options: f.options ? f.options.slice() : undefined })) : [];
   const evTerms = form0 ? form0.fields.filter(f => /^etrm/.test(f.id)).map(f => f.label) : [];
   let mode = ev && ev.signup === 'msg' ? 'msg' : (form0 && form0.payment ? 'pay' : 'one');
+  let inviteOn = !!(ev && ev.inviteOnly);
   const pay = form0 && form0.payment ? JSON.parse(JSON.stringify(form0.payment)) : { amount:'', link:'', note:'', addons:[] };
   pay.addons = pay.addons || [];
   let gTerms = state.calTerms || [];
@@ -8349,6 +8354,8 @@ function calEventEditor(ev, opts){
           ${lab('Payment link (optional — PayPal, Square…)')}<input id="eePLink" type="url" inputmode="url" autocapitalize="none" maxlength="500" placeholder="https://…" value="${escapeCm(pay.link || '')}" style="${F}">
           ${lab('Other ways to pay (optional)')}<textarea id="eePNote" rows="2" maxlength="1000" placeholder="e.g. e-Transfer to pay@example.com with your name" style="${F}">${escapeCm(pay.note || '')}</textarea>
           ${lab('Add-ons people can tick (optional)')}${pay.addons.map((a, i) => `<div style="display:flex;gap:6px;"><input class="eeAoL" data-i="${i}" maxlength="60" placeholder="e.g. T-shirt" value="${escapeCm(a.label || '')}" style="${F}flex:2;"><input class="eeAoP" data-i="${i}" type="number" min="0" step="0.01" placeholder="Price" value="${escapeCm(a.price === undefined ? '' : String(a.price))}" style="${F}flex:1;min-width:0;"><button type="button" class="fb-mini eeAoX" data-i="${i}" style="margin-bottom:8px;">✕</button></div>`).join('')}<button type="button" class="fb-mini" id="eeAoAdd">➕ Add an add-on</button></details></div>` : ''}`}`;
+    if(mode !== 'msg') q('#eeSu').insertAdjacentHTML('beforeend', `<div class="fb-card" style="box-shadow:none;margin-top:12px;"><label class="ee-chk" style="margin:0;font-weight:800;"><input type="checkbox" id="eeInvite" ${inviteOn ? 'checked' : ''}> 🔒 Invite only</label><p class="ideas-hint" style="text-align:left;margin:4px 0 0;">Only people with your secret invite link can sign up. Without it they see “Invite only”. You can always add people yourself under 👥 Attendees.</p><div id="eeInviteLink" style="margin-top:8px;">${inviteOn ? (ev ? '<small style="color:#776867;">Getting the link…</small>' : '<small style="color:#776867;">Save the event first — then your invite link shows up here.</small>') : ''}</div></div>`);
+    if(mode !== 'msg' && inviteOn && ev){ clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/invite-link', 'GET').then(j => { const b = q('#eeInviteLink'); if(b) b.innerHTML = `<div class="fb-row" style="flex-wrap:wrap;gap:6px;"><input readonly value="${escapeCm(j.link)}" style="${F}flex:1;min-width:200px;margin:0;" onclick="this.select()"><button type="button" class="fb-mini" id="eeInviteCopy">📋 Copy invite link</button></div>`; const c = q('#eeInviteCopy'); if(c) c.addEventListener('click', async () => { try { await navigator.clipboard.writeText(j.link); c.textContent = '✅ Copied'; } catch { prompt('Copy your invite link:', j.link); } }); }).catch(() => { const b = q('#eeInviteLink'); if(b) b.innerHTML = '<small style="color:#c00;">Couldn’t get the link.</small>'; }); }
     q('#eeSu').insertAdjacentHTML('beforeend', `<div class="fb-card ee-alert" style="box-shadow:none;margin-top:12px;"><b style="display:block;margin-bottom:4px;">🔴 “Spots left” alert <small style="font-weight:400;color:#776867;">(red badge, top right of the event page)</small></b>
       <select id="eeAlertMode" style="${F}max-width:360px;"><option value="">Off — don’t show one</option><option value="real"${alertMode === 'real' ? ' selected' : ''}>Show the real number of spots left (needs “Max spots”)</option><option value="custom"${alertMode === 'custom' ? ' selected' : ''}>Show my own number…</option></select>
       <div id="eeAlertCustom" ${alertMode === 'custom' ? '' : 'hidden'}>${lab('Number to show')}<input id="eeAlertN" type="number" inputmode="numeric" min="1" max="999" placeholder="e.g. 6" value="${escapeCm(alertN)}" style="${F}max-width:160px;margin-bottom:4px;"><small style="color:#776867;display:block;">The page says “${escapeCm(alertN || 'N')} spots left” no matter how many are really left. Sign-ups still close for real when the “Max spots” is reached (people then join a waitlist).</small></div></div>`);
@@ -8364,7 +8371,7 @@ function calEventEditor(ev, opts){
   let alertMode = ev && ev.spotsAlert ? ev.spotsAlert.mode : '', alertN = ev && ev.spotsAlert && ev.spotsAlert.mode === 'custom' ? String(ev.spotsAlert.n) : '';
   let keepCap = ev && ev.capacity ? String(ev.capacity) : '', keepRsvp = ev ? (ev.rsvpBy || '') : '', keepContact = ev && ev.contactUrl ? String(ev.contactUrl).replace(/^mailto:/, '') : '';
   q('#eePrice').addEventListener('input', () => { const v = val('#eePrice').trim(); syncPay(); if(mode !== 'msg'){ const want = v && !calIsFreeText(v) ? 'pay' : 'one'; if(want !== mode){ mode = want; paintSignup2(); } else if(mode === 'pay'){ paintSignup2(); } } });
-  q('#eeSu').addEventListener('change', e => { if(e.target.id === 'eeAlertMode'){ alertMode = e.target.value; const c = q('#eeAlertCustom'); if(c) c.hidden = alertMode !== 'custom'; if(alertMode === 'custom'){ const n = q('#eeAlertN'); if(n) n.focus(); } } });
+  q('#eeSu').addEventListener('change', e => { if(e.target.id === 'eeInvite'){ inviteOn = e.target.checked; paintSignup2(); return; } if(e.target.id === 'eeAlertMode'){ alertMode = e.target.value; const c = q('#eeAlertCustom'); if(c) c.hidden = alertMode !== 'custom'; if(alertMode === 'custom'){ const n = q('#eeAlertN'); if(n) n.focus(); } } });
   q('#eeSu').addEventListener('input', e => { if(e.target.id === 'eeAlertN') alertN = e.target.value; if(e.target.id === 'cfCap') keepCap = e.target.value; if(e.target.id === 'cfRsvpBy') keepRsvp = e.target.value; if(e.target.id === 'eeContact') keepContact = e.target.value; });
   const paintSignup2 = () => { paintSignup(); const c = q('#cfCap'); if(c) c.value = keepCap; const r = q('#cfRsvpBy'); if(r) r.value = keepRsvp; const k = q('#eeContact'); if(k) k.value = keepContact; };
   // ---- 📝 questions ----
@@ -8438,7 +8445,7 @@ function calEventEditor(ev, opts){
     return { title: val('#cfTitle').trim(), tbd, date: tbd ? '' : val('#cfDate'), time: val('#cfTime').trim(), place: val('#cfPlace'), mapUrl: cleanMapLink(val('#cfMap') || ''), placePrivate: q('#cfPlacePriv').checked,
       spotsAlert: alertMode === 'real' ? { mode: 'real' } : alertMode === 'custom' && parseInt(alertN, 10) >= 1 ? { mode: 'custom', n: parseInt(alertN, 10) } : null,
       capacity: mode === 'msg' ? 0 : (parseInt(keepCap, 10) || 0), rsvpBy: '', clubIds: ids, hosts: hostsOut, blocks, theme, desc: val('#eeDesc'),
-      signup: mode === 'msg' ? 'msg' : form ? 'form' : 'rsvp', contactUrl: mode === 'msg' ? keepContact.trim() : '', form, priceText: mode === 'pay' ? '' : (calIsFreeText(val('#eePrice')) ? (val('#eePrice').trim().slice(0, 30)) : ''), slug: val('#eeSlug').trim() };
+      signup: mode === 'msg' ? 'msg' : form ? 'form' : 'rsvp', inviteOnly: mode !== 'msg' && inviteOn, contactUrl: mode === 'msg' ? keepContact.trim() : '', form, priceText: mode === 'pay' ? '' : (calIsFreeText(val('#eePrice')) ? (val('#eePrice').trim().slice(0, 30)) : ''), slug: val('#eeSlug').trim() };
   };
   const fail = (t, id) => { say(t); const s = q('#' + id); if(s) s.scrollIntoView({ block:'start', behavior:'smooth' }); return false; };
   const validate = g => {
@@ -11842,7 +11849,7 @@ function admCeListHtml(){
       <div style="display:flex;gap:10px;align-items:flex-start;"><span class="cal-date" style="background:${col.bg};color:${col.fg};flex:0 0 74px;">${escapeCm(calDateLabel(e.date))}${e.date < today ? '<br><small>past</small>' : ''}</span>
         <span style="flex:1;min-width:0;"><strong style="font-size:16px;overflow-wrap:break-word;">${escapeCm(e.title)}</strong><br><small style="color:#776867;">🏷 ${escapeCm(e.clubTitle || avClubTitle(e.clubId))}${e.time ? ' · ⏰ ' + escapeCm(e.time) : ''}${e.place ? ' · 📍 ' + escapeCm(e.place) : ''}</small><br>
         <small>👥 <b>${going}</b> ${calIsPast(e.date) ? 'attended' : 'going'}${pend ? ` · <b style="color:#b3261e;">${pend} waiting</b>` : ''} · ${e.form ? `📝 form (${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'})` : (e.hasForm ? '🔒 has a form (no access)' : '<span style="color:#776867;">no form</span>')}${(e.formLeads || []).length ? ` · 🔑 ${e.formLeads.length} leader${e.formLeads.length === 1 ? '' : 's'}` : ''}${e.rsvpBy ? ` · RSVP by ${escapeCm(calDateLabel(e.rsvpBy))}` : ''}</small></span></div>
-      <div class="fb-row"><button type="button" class="fb-mini ce-edit" data-ceid="${escapeCm(e.id)}">✏️ Edit event &amp; form</button>${e.form ? `<button type="button" class="fb-mini ce-ans" data-ceid="${escapeCm(e.id)}">📋 Answers</button>` : ''}${state.cmAdminLoggedIn === true && e.form ? `<button type="button" class="fb-mini ce-lead" data-ceid="${escapeCm(e.id)}">🔑 Leader access</button>` : ''}<button type="button" class="fb-mini ce-att" data-ceid="${escapeCm(e.id)}">👥 Attendees</button><button type="button" class="fb-mini ce-pin" data-ceid="${escapeCm(e.id)}" style="${pins.includes(e.id) ? 'background:#fde9a8;' : ''}">${pins.includes(e.id) ? '📌 Unpin' : '📌 Pin'}</button></div></div>`;
+      <div class="fb-row"><button type="button" class="fb-mini ce-edit" data-ceid="${escapeCm(e.id)}">✏️ Edit event &amp; form</button>${e.form ? `<button type="button" class="fb-mini ce-ans" data-ceid="${escapeCm(e.id)}">📋 Answers</button>` : ''}${state.cmAdminLoggedIn === true && e.form ? `<button type="button" class="fb-mini ce-lead" data-ceid="${escapeCm(e.id)}">🔑 Leader access</button>` : ''}<button type="button" class="fb-mini ce-att" data-ceid="${escapeCm(e.id)}">👥 Attendees</button><button type="button" class="fb-mini ce-pin" data-ceid="${escapeCm(e.id)}" style="${pins.includes(e.id) ? 'background:#fde9a8;' : ''}">${pins.includes(e.id) ? '📌 Unpin' : '📌 Pin'}</button>${state.cmAdminLoggedIn === true ? `<button type="button" class="fb-mini ce-del" data-ceid="${escapeCm(e.id)}" style="background:#fdecea;">🗑 Delete</button>` : ''}</div></div>`;
   };
   return (pinned.length ? `<p style="margin:4px 0 6px;font-weight:800;">📌 Pinned <small style="font-weight:400;color:#776867;">(only on this device)</small></p>${pinned.map(card).join('')}${rest.length ? '<p style="margin:14px 0 6px;font-weight:800;">Everything else</p>' : ''}` : '') + rest.map(card).join('');
 }
@@ -11873,6 +11880,13 @@ function wireAdmEvents(){
     document.querySelectorAll('.ce-edit').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) clubCalForm(e); }));
     document.querySelectorAll('.ce-lead').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) clubCalLeaderAccess(e); }));
     document.querySelectorAll('.ce-att').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) openAttendeesPopup(e); }));
+    document.querySelectorAll('.ce-del').forEach(b => b.addEventListener('click', async () => {
+      const e = find(b.dataset.ceid); if(!e) return; const n = (e.rsvps || []).length;
+      if(!confirm('Delete “' + e.title + '”?\n\n' + (n ? n + ' ' + (n === 1 ? 'person is' : 'people are') + ' signed up — their sign-ups and answers will be deleted too, and they will NOT be emailed.\n\n' : '') + 'This can’t be undone.')) return;
+      b.disabled = true;
+      try { await clubCalAdminCall('/' + encodeURIComponent(e.id), 'DELETE'); state.clubCal = (state.clubCal || []).filter(x => x.id !== e.id); const l = document.getElementById('ceList'); if(l){ l.innerHTML = admCeListHtml(); wireList(); } }
+      catch(err){ b.disabled = false; alert(err.message); }
+    }));
     document.querySelectorAll('.ce-pin').forEach(b => b.addEventListener('click', () => { admCeTogglePin(b.dataset.ceid); const l = document.getElementById('ceList'); if(l){ l.innerHTML = admCeListHtml(); wireList(); } }));
     document.querySelectorAll('.ce-form').forEach(b => b.addEventListener('click', () => {
       const e = find(b.dataset.ceid); if(!e) return;
@@ -14549,7 +14563,7 @@ function applySlugParts(parts){
   state.cal4dsOnly = false;
   const [slug, ...rest] = parts;
   // A shared FORM link (#/form/<event id>): land on Clubs and open that event's form straight away.
-  if(slug === 'form' && rest[0]){ state.formFromApp = false; state.tab = 'eventform'; state.formEventId = safeDecode(rest[0]); return; }
+  if(slug === 'form' && rest[0]){ state.formFromApp = false; state.tab = 'eventform'; state.formEventId = safeDecode(rest[0]); state.formInvite = rest[1] ? safeDecode(rest[1]) : ''; return; }
   if(slug === 'edit-event' && rest[0]){ state.tab = 'eventedit'; state.editToken = safeDecode(rest[0]); return; } // the private "anyone with this link can edit the page" link
   let tab = slug === 'squads' ? 'clubs' : (SLUG_TO_TAB[slug] || slug); // squads no longer exist: old links land on Clubs
   if(tab === 'steps'){ state.stepsData = null; }
