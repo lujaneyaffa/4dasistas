@@ -6741,7 +6741,8 @@ async function clubCalPublicCard(box, id){
         if(r && r.token){ setCmSession(r); renderNavAuth(); }
         box.innerHTML = calSignedUpHtml(d, r, chosenAddons, quick) + `<div class="efLinkEnd">${calLinkRowHtml('', calFormUrl(d.slug || d.id), '🔗 Share this page:')}</div>`; wireCalCopy(box);
         if(calCardOk(d) && payHow === 'card' && (r.eventStatus || 'going') === 'going' && (r.payId || r.token)){
-          try { const j = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/checkout', r.payId ? { method:'POST', body: JSON.stringify({ payId: r.payId, payTok: r.payTok }) } : { method:'POST', headers: ideaHeaders() }); if(j && j.clientSecret) await calOpenStripe(j, id, d, box); }
+          const openCard = async () => { const j = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + '/checkout', r.payId ? { method:'POST', body: JSON.stringify({ payId: r.payId, payTok: r.payTok }) } : { method:'POST', headers: ideaHeaders() }); if(j && j.clientSecret) await calOpenStripe(j, id, d, box, openCard); };
+          try { await openCard(); }
           catch(err){ admToastLite('Payment: ' + err.message); }
         }
       } catch(err){ e.target.disabled = false; m.style.color = '#c00'; m.textContent = err.message; }
@@ -6875,16 +6876,25 @@ function calLoadStripeJs(){
   if(window.Stripe) return Promise.resolve();
   return new Promise((ok, no) => { const s = document.createElement('script'); s.src = 'https://js.stripe.com/v3/'; s.onload = () => ok(); s.onerror = () => no(new Error("Couldn't load the secure payment form — check your connection")); document.head.appendChild(s); });
 }
-async function calOpenStripe(j, id, d, formBox){
+// They closed the card form without paying: show both ways to pay so they can switch (e-Transfer details, or card again)
+function calAltPayBlock(formBox, d, id, retry){
+  if(!formBox || d.paid || formBox.querySelector('.calAltPay')) return;
+  const el = document.createElement('div'); el.className = 'fb-card calAltPay'; el.style.cssText = 'margin-top:12px;box-shadow:none;';
+  el.innerHTML = `<p style="margin:0 0 6px;font-weight:800;">Haven’t paid yet? Choose how you’d like to pay:</p>${d.form && d.form.payment ? calPayHtml(d.form, '', d.myAddons || []) : ''}<button type="button" class="club-guide-btn calRetryCard" style="width:100%;margin-top:10px;text-align:center;background:#111;color:#fff;border-color:#111;">💳 Pay by card instead</button><div class="calRetryMsg" style="font-size:13px;color:#c00;min-height:16px;margin-top:4px;"></div>`;
+  formBox.appendChild(el); wireCalCopy(el);
+  el.querySelector('.calRetryCard').addEventListener('click', async e => { e.target.disabled = true; try { el.remove(); if(retry) await retry(); } catch(err){ admToastLite('Payment: ' + err.message); } });
+}
+async function calOpenStripe(j, id, d, formBox, retry){
   await calLoadStripeJs();
   const { wrap, close } = ideaPopup('<h3 style="margin:0 0 8px;text-align:center;">💳 Pay securely</h3><div id="calStripeMount" style="min-height:120px;max-height:70vh;overflow-y:auto;"></div>');
   const card = wrap.querySelector('.mem-pop-card'); if(card){ card.style.width = 'min(480px,100%)'; card.style.padding = '18px 10px 12px'; }
   let embedded = null; const shut = () => { try { if(embedded) embedded.destroy(); } catch {} close(); };
-  wrap.querySelector('.mem-pop-close').addEventListener('click', shut);
+  let paidNow = false; const shutAlt = () => { shut(); if(!paidNow) calAltPayBlock(formBox, d, id, retry); };
+  wrap.querySelector('.mem-pop-close').addEventListener('click', shutAlt); wrap.addEventListener('click', ev3 => { if(ev3.target === wrap) shutAlt(); });
   try {
     const stripe = window.Stripe(j.pk);
     embedded = await (stripe.createEmbeddedCheckoutPage || stripe.initEmbeddedCheckout).call(stripe, { clientSecret: j.clientSecret, onComplete: () => {
-      shut(); d.paid = true; admToastLite('✓ Paid — thank you! 💚');
+      paidNow = true; shut(); d.paid = true; admToastLite('✓ Paid — thank you! 💚');
       const pb = formBox && formBox.querySelector('.calPayBox'); if(pb) pb.innerHTML = calPayBoxHtml(d);
       setTimeout(() => { try { if(typeof calRefreshOpen === 'function') calRefreshOpen(id); } catch {} }, 2500);
     } });
@@ -8296,6 +8306,7 @@ function calEventEditor(ev, opts){
     ${sec(++n, 'eeSignup', 'How people sign up', '', '<div id="eeSu"></div>')}
     ${sec(++n, 'eeQs', 'Questions', 'Pick from the menu to add a question to the form.', '<div id="eeQ"></div>')}
     ${sec(++n, 'eeTerms', 'Terms &amp; signature', '', '<div id="eeTe"></div>')}
+    ${ev && !isNew && state.cmAdminLoggedIn === true ? `<div class="fb-card" style="margin-top:22px;border-color:#f3b8b3;box-shadow:none;"><b style="color:#b3261e;">Danger zone</b><p class="ideas-hint" style="text-align:left;margin:2px 0 8px;">Deleting removes the event, everyone’s sign-ups and their answers. It can’t be undone.</p><button type="button" class="fb-mini" id="eeDelete" style="background:#b3261e;color:#fff;">🗑 Delete this event</button></div>` : ''}
     <input type="file" id="eeFile" accept="image/*" hidden><div style="height:28px;"></div></div>`;
   const q = s => host.querySelector(s), val = s => (q(s) || {}).value;
   const say = (t, ok) => { const m = q('#pgMsg'); m.textContent = t || ''; m.style.cssText = t ? `padding:6px 2px;font-weight:700;color:${ok ? '#2a7a4a' : '#b3261e'};` : 'min-height:0;'; };
@@ -8371,7 +8382,7 @@ function calEventEditor(ev, opts){
   });
   const syncPay = () => { pay.amount = (val('#eePrice') || '').trim(); if(!q('#eePLink')) return; pay.required = true; pay.link = val('#eePLink').trim(); pay.note = val('#eePNote').trim(); host.querySelectorAll('.eeAoL').forEach(el => { pay.addons[Number(el.dataset.i)].label = el.value; }); host.querySelectorAll('.eeAoP').forEach(el => { pay.addons[Number(el.dataset.i)].price = el.value; }); };
   // keep spots / close date / contact when the mode is switched
-  let alertMode = ev && ev.spotsAlert ? ev.spotsAlert.mode : '', alertN = ev && ev.spotsAlert && ev.spotsAlert.mode === 'custom' ? String(ev.spotsAlert.n) : '';
+  let alertMode = ev ? (ev.spotsAlert ? ev.spotsAlert.mode : '') : 'real', alertN = ev && ev.spotsAlert && ev.spotsAlert.mode === 'custom' ? String(ev.spotsAlert.n) : '';
   let keepCap = ev && ev.capacity ? String(ev.capacity) : '', keepRsvp = ev ? (ev.rsvpBy || '') : '', keepContact = ev && ev.contactUrl ? String(ev.contactUrl).replace(/^mailto:/, '') : '';
   q('#eePrice').addEventListener('input', () => { const v = val('#eePrice').trim(); syncPay(); if(mode !== 'msg'){ const want = v && !calIsFreeText(v) ? 'pay' : 'one'; if(want !== mode){ mode = want; paintSignup2(); } else if(mode === 'pay'){ paintSignup2(); } } });
   q('#eeSu').addEventListener('change', e => { if(e.target.id === 'eeInvite'){ inviteOn = e.target.checked; paintSignup2(); return; } if(e.target.id === 'eeAlertMode'){ alertMode = e.target.value; const c = q('#eeAlertCustom'); if(c) c.hidden = alertMode !== 'custom'; if(alertMode === 'custom'){ const n = q('#eeAlertN'); if(n) n.focus(); } } });
@@ -8497,6 +8508,13 @@ function calEventEditor(ev, opts){
   q('#pgSave').addEventListener('click', save);
   q('#pgPreview').addEventListener('click', preview);
   { const c = q('#pgClose'); if(c) c.addEventListener('click', () => close()); }
+  { const dl = q('#eeDelete'); if(dl) dl.addEventListener('click', async () => {
+    const n = (ev.rsvps || []).length;
+    if(!confirm('Delete “' + ev.title + '”?\n\n' + (n ? n + ' ' + (n === 1 ? 'person is' : 'people are') + ' signed up — their sign-ups and answers will be deleted too, and they will NOT be emailed.\n\n' : '') + 'This can’t be undone.')) return;
+    dl.disabled = true;
+    try { await clubCalAdminCall('/' + encodeURIComponent(ev.id), 'DELETE'); state.clubCal = (state.clubCal || []).filter(x => x.id !== ev.id); dirty = false; close(true); if(opts.onDeleted) opts.onDeleted(); else render(); }
+    catch(err){ dl.disabled = false; alert(err.message); }
+  }); }
   host.querySelectorAll('.pgJ').forEach(b => b.addEventListener('click', () => { const s = q('#' + b.dataset.t); if(s) s.scrollIntoView({ block:'start', behavior:'smooth' }); }));
   host.addEventListener('input', touch, true); host.addEventListener('change', touch, true);
   if(!inline) window.scrollTo(0, 0);
@@ -11853,7 +11871,7 @@ function admCeListHtml(){
       <div style="display:flex;gap:10px;align-items:flex-start;"><span class="cal-date" style="background:${col.bg};color:${col.fg};flex:0 0 74px;">${escapeCm(calDateLabel(e.date))}${e.date < today ? '<br><small>past</small>' : ''}</span>
         <span style="flex:1;min-width:0;"><strong style="font-size:16px;overflow-wrap:break-word;">${escapeCm(e.title)}</strong><br><small style="color:#776867;">🏷 ${escapeCm(e.clubTitle || avClubTitle(e.clubId))}${e.time ? ' · ⏰ ' + escapeCm(e.time) : ''}${e.place ? ' · 📍 ' + escapeCm(e.place) : ''}</small><br>
         <small>👥 <b>${going}</b> ${calIsPast(e.endDate || e.date) ? 'attended' : 'going'}${pend ? ` · <b style="color:#b3261e;">${pend} waiting</b>` : ''} · ${e.form ? `📝 form (${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'})` : (e.hasForm ? '🔒 has a form (no access)' : '<span style="color:#776867;">no form</span>')}${(e.formLeads || []).length ? ` · 🔑 ${e.formLeads.length} leader${e.formLeads.length === 1 ? '' : 's'}` : ''}${e.rsvpBy ? ` · RSVP by ${escapeCm(calDateLabel(e.rsvpBy))}` : ''}</small></span></div>
-      <div class="fb-row"><button type="button" class="fb-mini ce-edit" data-ceid="${escapeCm(e.id)}">✏️ Edit event &amp; form</button>${e.form ? `<button type="button" class="fb-mini ce-ans" data-ceid="${escapeCm(e.id)}">📋 Answers</button>` : ''}${state.cmAdminLoggedIn === true && e.form ? `<button type="button" class="fb-mini ce-lead" data-ceid="${escapeCm(e.id)}">🔑 Leader access</button>` : ''}<button type="button" class="fb-mini ce-att" data-ceid="${escapeCm(e.id)}">👥 Attendees</button><button type="button" class="fb-mini ce-pin" data-ceid="${escapeCm(e.id)}" style="${pins.includes(e.id) ? 'background:#fde9a8;' : ''}">${pins.includes(e.id) ? '📌 Unpin' : '📌 Pin'}</button>${state.cmAdminLoggedIn === true ? `<button type="button" class="fb-mini ce-del" data-ceid="${escapeCm(e.id)}" style="background:#fdecea;">🗑 Delete</button>` : ''}</div></div>`;
+      <div class="fb-row"><button type="button" class="fb-mini ce-edit" data-ceid="${escapeCm(e.id)}">✏️ Edit event &amp; form</button>${state.cmAdminLoggedIn === true && e.form ? `<button type="button" class="fb-mini ce-lead" data-ceid="${escapeCm(e.id)}">🔑 Leader access</button>` : ''}<button type="button" class="fb-mini ce-att" data-ceid="${escapeCm(e.id)}">👥 Attendees</button><button type="button" class="fb-mini ce-pin" data-ceid="${escapeCm(e.id)}" style="${pins.includes(e.id) ? 'background:#fde9a8;' : ''}">${pins.includes(e.id) ? '📌 Unpin' : '📌 Pin'}</button></div></div>`;
   };
   return (pinned.length ? `<p style="margin:4px 0 6px;font-weight:800;">📌 Pinned <small style="font-weight:400;color:#776867;">(only on this device)</small></p>${pinned.map(card).join('')}${rest.length ? '<p style="margin:14px 0 6px;font-weight:800;">Everything else</p>' : ''}` : '') + rest.map(card).join('');
 }
@@ -11884,13 +11902,6 @@ function wireAdmEvents(){
     document.querySelectorAll('.ce-edit').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) clubCalForm(e); }));
     document.querySelectorAll('.ce-lead').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) clubCalLeaderAccess(e); }));
     document.querySelectorAll('.ce-att').forEach(b => b.addEventListener('click', () => { const e = find(b.dataset.ceid); if(e) openAttendeesPopup(e); }));
-    document.querySelectorAll('.ce-del').forEach(b => b.addEventListener('click', async () => {
-      const e = find(b.dataset.ceid); if(!e) return; const n = (e.rsvps || []).length;
-      if(!confirm('Delete “' + e.title + '”?\n\n' + (n ? n + ' ' + (n === 1 ? 'person is' : 'people are') + ' signed up — their sign-ups and answers will be deleted too, and they will NOT be emailed.\n\n' : '') + 'This can’t be undone.')) return;
-      b.disabled = true;
-      try { await clubCalAdminCall('/' + encodeURIComponent(e.id), 'DELETE'); state.clubCal = (state.clubCal || []).filter(x => x.id !== e.id); const l = document.getElementById('ceList'); if(l){ l.innerHTML = admCeListHtml(); wireList(); } }
-      catch(err){ b.disabled = false; alert(err.message); }
-    }));
     document.querySelectorAll('.ce-pin').forEach(b => b.addEventListener('click', () => { admCeTogglePin(b.dataset.ceid); const l = document.getElementById('ceList'); if(l){ l.innerHTML = admCeListHtml(); wireList(); } }));
     document.querySelectorAll('.ce-form').forEach(b => b.addEventListener('click', () => {
       const e = find(b.dataset.ceid); if(!e) return;
@@ -13326,7 +13337,7 @@ async function admNeedsLoad(){
 function admNeedsHtml(){
   if(!state.admNeeds){ admNeedsLoad(); return ''; }
   const n = state.admNeeds, inbox = admInboxCount();
-  const chips = [[admSubCount(), '📥', 'submissions to approve', 'todo'], [admJoinCount(), '🙋', 'club join requests', 'clubs'], [n.pendingRsvps, '⏳', 'RSVPs to approve', 'events'], [n.unpaid, '💳', 'unpaid sign-ups', 'events'], [n.tbdKeen, '🕒', 'undated events with interest', 'events'], [n.stepsStuck, '👟', 'people whose steps aren\'t syncing', 'steps']].filter(c => c[0] > 0);
+  const chips = [[admSubCount(), '📥', 'submissions to approve', 'todo'], [admJoinCount(), '🙋', 'club join requests', 'clubs'], [n.pendingRsvps, '⏳', 'RSVPs to approve', 'events'], [n.tbdKeen, '🕒', 'undated events with interest', 'events']].filter(c => c[0] > 0);
   return `<div class="cp-box" style="margin:10px 0;padding:10px 12px;"><p style="margin:0 0 6px;font-weight:800;">${chips.length ? '🔔 Needs you' : '✅ Nothing needs you right now'}</p>${chips.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">${chips.map(([c, ic, l, g]) => `<button type="button" class="filter-chip adm-need" data-needgroup="${g}" style="min-height:40px;">${ic} <b>${c}</b> ${l}</button>`).join('')}</div>` : ''}<button type="button" class="adm-need-refresh" style="margin-top:6px;border:none;background:none;color:#776867;font-size:12px;text-decoration:underline;cursor:pointer;">↻ refresh</button></div>`;
 }
 function admGroupTilesHtml(lead, cur){
@@ -13334,7 +13345,7 @@ function admGroupTilesHtml(lead, cur){
   const n = state.admNeeds || {};
   return `<nav class="adm-tiles" aria-label="Admin sections">
     ${lead ? '' : tile('todo', '📥', 'Submissions', 'Events &amp; resources sent in to approve', admSubCount())}
-    ${tile('events', '🎟️', '4DS activities', lead ? 'Sign-ups · forms · answers' : 'Hosted events · sign-ups · payments', (n.pendingRsvps || 0) + (n.unpaid || 0))}
+    ${tile('events', '🎟️', '4DS activities', lead ? 'Sign-ups · forms · answers' : 'Hosted events · sign-ups · payments', (n.pendingRsvps || 0))}
     ${lead ? '' : tile('calendar', '📅', 'Calendar', 'Add &amp; edit events · public or 4DS', '')}
     ${lead ? '' : tile('featured', '⭐', 'Featured', 'What shows on the Home page', '')}
     ${tile('clubs', '🏛️', 'Clubs', lead ? 'Requests · availability' : 'Join requests · clubs · availability · club admins', admJoinCount())}

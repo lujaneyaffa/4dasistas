@@ -2701,7 +2701,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!calMatch[1] && M === "GET") {
         const calAll = await readClubCal(env); if (calEnsureSlugs(calAll)) ctx.waitUntil(calBackfillSlugs(env));
         const events = calAll.filter((e) => !e.tbd).sort((a, b) => a.date.localeCompare(b.date) || String(a.time).localeCompare(String(b.time)))
-          .map((e) => ({ id: e.id, slug: e.slug, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, time: e.time || "", hasForm: !!e.form, publicForm: !!e.form }));
+          .map((e) => ({ id: e.id, slug: e.slug, clubId: e.clubId, clubIds: calClubs(e), clubTitle: calClubs(e).map(clubTitle).filter(Boolean).join(" × "), title: e.title, date: e.date, endDate: e.endDate || "", time: e.time || "", hasForm: !!e.form, publicForm: !!e.form }));
         // Idea bubbles that the admin gave a DATE also show on the calendars (cached ~2 minutes so this stays cheap).
         if (!_calIdeaCache || Date.now() - _calIdeaCache.at > 120000) {
           const items = [];
