@@ -6343,8 +6343,8 @@ async function refreshClubCalItems(){
   try {
     const r = await fetch('/api/club-calendar', { cache:'no-store' });
     if(!r.ok) return;
-    CLUB_CAL_ITEMS = ((await r.json()).events || []).map(e => ({ id:'clubcal:' + e.id, title:(e.kind === 'idea' && e.emoji ? e.emoji + ' ' : '') + e.title, tag:'Club', section:'clubevents', calDate:e.date, eventDate:e.date, date:calDateLabel(e.date), time:e.time || '', allDay:!e.time, virtual:false,
-      location:e.clubTitle ? e.clubTitle + ' club' : 'Club event', desc:'', clubCal:true, clubIds:e.clubIds || [e.clubId], hosts:e.hosts || [] }));
+    CLUB_CAL_ITEMS = ((await r.json()).events || []).flatMap(e => calDaysOf(e).map(day => ({ id:'clubcal:' + e.id, title:(e.kind === 'idea' && e.emoji ? e.emoji + ' ' : '') + e.title, tag:'Club', section:'clubevents', calDate:day, eventDate:day, date:calDateLabel(day), time:e.time || '', allDay:!e.time, virtual:false,
+      location:e.clubTitle ? e.clubTitle + ' club' : 'Club event', desc:'', clubCal:true, clubIds:e.clubIds || [e.clubId], hosts:e.hosts || [] })));
     if(state.tab === 'events' && (state.categoryFilter === 'clubs' || state.categoryFilter === 'all')) render();
     homeFeaturedPaint();
   } catch {}
@@ -6421,7 +6421,7 @@ function clubCalRowHtml(e, today){
   const col = clubCol(e.clubId), rs = e.rsvps || [], going = rs.filter(r => r.status === 'going').length, pend = rs.length - going;
   return `<button type="button" class="cal-row" data-calid="${escapeCm(e.id)}" style="border-color:${col.fg};">
     <span class="cal-date" style="background:${col.bg};color:${col.fg};">${escapeCm(calDateLabel(e.date))}${e.date < today ? '<br><small>past</small>' : ''}</span>
-    <span class="cal-main"><strong>${escapeCm(e.title)}</strong><small>🏷 ${escapeCm(e.clubTitle || avClubTitle(e.clubId))}${e.time ? ' · ' + escapeCm(e.time) : ''}${state.clubCalIsAdminData ? ` · 👥 ${going}${calIsPast(e.date) ? ' attended' : ''}${pend ? ` · <b style="color:#b3261e;">${pend} waiting</b>` : ''}` : ''}</small></span>
+    <span class="cal-main"><strong>${escapeCm(e.title)}</strong><small>🏷 ${escapeCm(e.clubTitle || avClubTitle(e.clubId))}${e.time ? ' · ' + escapeCm(e.time) : ''}${state.clubCalIsAdminData ? ` · 👥 ${going}${calIsPast(e.endDate || e.date) ? ' attended' : ''}${pend ? ` · <b style="color:#b3261e;">${pend} waiting</b>` : ''}` : ''}</small></span>
     <span class="cal-go">›</span></button>`;
 }
 // A small month grid (cute, not the big main calendar): coloured dots show which clubs have something on; tap a day to see its events.
@@ -6429,7 +6429,7 @@ function clubCalGridHtml(list){
   const m = state.clubCalMonth || (list.length ? (list.find(e => e.date >= new Date().toISOString().slice(0, 10)) || list[list.length - 1]).date.slice(0, 7) : new Date().toISOString().slice(0, 7));
   state.clubCalMonth = m;
   const [y, mo] = m.split('-').map(Number), first = new Date(y, mo - 1, 1), dim = new Date(y, mo, 0).getDate();
-  const byDay = {}; list.forEach(e => { if(e.date.startsWith(m)) (byDay[e.date] = byDay[e.date] || []).push(e); });
+  const byDay = {}; list.forEach(e => { calDaysOf(e).forEach(day => { if(day.startsWith(m)) (byDay[day] = byDay[day] || []).push(e); }); });
   const todayK = new Date().toISOString().slice(0, 10);
   // Same look as the main calendar (its month grid: 4 days across on a phone, full titles wrapped, club colours) so 4DS events read the same everywhere.
   const mobile = window.matchMedia('(max-width:480px)').matches, dayFull = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -6542,12 +6542,12 @@ function clubCalDayPopup(key){
       const chips = (list, col) => list.slice(0, 14).map(r => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 10px;border-radius:999px;background:${col};font-size:13px;font-weight:600;">${escapeCm(r.name)}${r.paid ? ' 💳' : ''}</span>`).join('') + (list.length > 14 ? `<small> +${list.length - 14} more</small>` : '');
       sec.innerHTML = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(e.clubTitle)}</p>
         <h3 style="margin:0 0 6px;"><button type="button" class="av-link cdOpen" style="font:inherit;font-weight:800;font-size:18px;text-align:left;color:inherit;text-decoration:underline;">${escapeCm(e.title)}</button></h3>
-        <p class="idea-pop-date" style="margin:0;">📅 ${escapeCm(ideaLongDate(e.date))}${e.time ? ' · ⏰ ' + escapeCm(e.time) : ''}</p>
+        <p class="idea-pop-date" style="margin:0;">📅 ${escapeCm(calRangeLong(e))}${e.time ? ' · ⏰ ' + escapeCm(e.time) : ''}</p>
         ${e.place ? `<p style="margin:4px 0;">📍 ${escapeCm(e.place)}</p>` : ''}
         <p style="margin:4px 0;font-weight:700;color:#76220b;">⏳ ${e.rsvpBy ? 'Last day to RSVP: ' + escapeCm(ideaLongDate(e.rsvpBy)) : 'No RSVP deadline'}</p>
         ${e.desc ? `<p style="margin:6px 0;white-space:pre-wrap;">${escapeCm(e.desc)}</p>` : ''}
         <p style="margin:4px 0;font-size:13px;color:#776867;">📝 ${e.form ? `Form: ${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'})` : (e.hasForm ? 'Has a form (no access)' : 'No form — plain RSVP')}</p>
-        <div style="margin:8px 0 2px;"><strong style="font-size:13px;">${calIsPast(e.date) ? '✅ Attended' : '✅ Going'} (${goingL.length})</strong><div>${goingL.length ? chips(goingL, '#e6f4ea') : '<small style="color:#776867;">Nobody yet.</small>'}</div></div>
+        <div style="margin:8px 0 2px;"><strong style="font-size:13px;">${calIsPast(e.endDate || e.date) ? '✅ Attended' : '✅ Going'} (${goingL.length})</strong><div>${goingL.length ? chips(goingL, '#e6f4ea') : '<small style="color:#776867;">Nobody yet.</small>'}</div></div>
         ${pendL.length ? `<div style="margin:6px 0 2px;"><strong style="font-size:13px;color:#b3261e;">⏳ Waiting for approval (${pendL.length})</strong><div>${chips(pendL, '#fdecea')}</div></div>` : ''}
         <button type="button" class="club-guide-btn cdManage" style="width:100%;margin-top:8px;text-align:center;">👥 Manage attendees / ✏️ edit</button>`;
       sec.querySelector('.cdManage').addEventListener('click', () => { close(); clubCalManage(e); });
@@ -6589,6 +6589,9 @@ function clubCalIdeaPopup(e){
     <button type="button" class="club-guide-btn" id="calIdeaOpen" style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;">Open the ${escapeCm(e.clubTitle.split(' × ')[0])} board</button>`);
   wrap.querySelector('#calIdeaOpen').addEventListener('click', () => { close(); openClubIdeas(e.clubId); });
 }
+// Multi-day events: every day from `date` to `endDate` (an event is one item per day on the calendars)
+function calDaysOf(e){ const out = [e.date]; if(e.endDate && e.endDate > e.date){ const d = new Date(e.date + 'T12:00:00Z'); for(let i = 0; i < 31; i++){ d.setUTCDate(d.getUTCDate() + 1); const k = d.toISOString().slice(0, 10); out.push(k); if(k >= e.endDate) break; } } return out; }
+function calRangeLong(e){ return e.endDate && e.endDate > e.date ? ideaLongDate(e.date) + ' – ' + ideaLongDate(e.endDate) : ideaLongDate(e.date); }
 // Invite-only events: the secret invite code rides along in the link (#/form/<event>/<code>)
 function calInviteQs(){ return state.formInvite ? '?invite=' + encodeURIComponent(state.formInvite) : ''; }
 function calInviteGate(d){ if(d && d.inviteOnly && !d.inviteOk && !d.mine){ d.form = null; d.publicForm = false; d.lockedInvite = true; } }
@@ -6636,10 +6639,10 @@ async function clubCalPublicCard(box, id){
     const d = await cmApiRaw('/api/club-calendar/' + encodeURIComponent(id) + calInviteQs()); calUpgradeUrl(d); calInviteGate(d);
     const inp = 'class="fb-in"';
     if(!d.form){ // no sign-up form: the same page, with Log in / Sign up to RSVP
-      const past = calIsPast(d.date);
+      const past = calIsPast(d.endDate || d.date);
       const clubP = `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>`;
       box.innerHTML = calCompose(d, [['cover', calCoverHtml(d)], ['hosts', calHostsHtml(d)], ['club', clubP], ['title', `<h3 style="margin:0 0 6px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>`],
-        ['date', `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calNativeBtn(d)}`], ['price', calPriceHtml(d)],
+        ['date', `<p class="idea-pop-date">📅 ${escapeCm(calRangeLong(d))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calNativeBtn(d)}`], ['price', calPriceHtml(d)],
         ['place', calPlaceHtml(d)], ['map', calMapHtml(d)], ['desc', calDescHtml(d, true)],
         ['rsvpby', d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''], ['spots', past ? '' : calSpotsHtml(d)],
         ['action', d.lockedInvite ? CAL_LOCKED_HTML : past ? '<p class="av-msg" style="margin:8px 0 0;">This event has already happened.</p>' : (d.signup === 'msg' && d.contactUrl) ? calMsgBtnHtml(d, past) : `<p class="av-msg" style="margin:10px 0;">Log in or sign up to RSVP.</p><div style="display:flex;gap:10px;"><button type="button" class="club-guide-btn pfL" style="flex:1;text-align:center;">Log In</button><button type="button" class="fall-cta-btn join-club-btn pfS" style="flex:1;">Sign Up</button></div>`],
@@ -6675,7 +6678,7 @@ async function clubCalPublicCard(box, id){
         ${calPayInFormHtml(d.form, calCardOk(d))}
         <button type="button" class="club-guide-btn pfSend" ${d.closed ? 'disabled' : ''} style="width:100%;min-height:50px;text-align:center;background:var(--brand-rose);color:#fff;">Submit</button><div class="pfMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>${calFormFooterHtml(d.form)}</div>`;
     box.innerHTML = calCompose(d, [['cover', calCoverHtml(d)], ['hosts', calHostsHtml(d)], ['club', `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>`], ['title', `<h3 style="margin:0 0 4px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>`],
-      ['date', `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calNativeBtn(d)}`], ['price', calPriceHtml(d)],
+      ['date', `<p class="idea-pop-date">📅 ${escapeCm(calRangeLong(d))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calNativeBtn(d)}`], ['price', calPriceHtml(d)],
       ['rsvpby', d.rsvpBy ? `<p style="margin:4px 0;font-weight:700;color:${d.closed ? '#b3261e' : '#76220b'};">⏳ ${d.closed ? 'Sign-ups are closed' : 'Sign up by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''],
       ['place', calPlaceHtml(d)], ['map', calMapHtml(d)], ['desc', calDescHtml(d, true)],
       ['action', d.closed ? '<p style="font-weight:700;">🔒 Sign-ups are closed.</p>' : ''], ['spots', calSpotsHtml(d)], ['form', formHtml],
@@ -6810,13 +6813,13 @@ async function clubCalMemberCard(box, id){
     let syncCancel = () => {};
     const paint = () => {
       syncCancel();
-      const past = calIsPast(d.date);
+      const past = calIsPast(d.endDate || d.date);
       const label = past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going — tap to cancel" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — tap to leave` : d.mine === 'pending' ? '⏳ Requested — waiting for approval (tap to cancel)' : d.inClub ? (d.capacity && !d.spotsLeft ? '🎟️ Join the waitlist' : '🎟️ RSVP — I\'m going') : '🎟️ Request to RSVP';
       const actionHtml = d.lockedInvite ? CAL_LOCKED_HTML : (d.signup === 'msg' && d.contactUrl) ? calMsgBtnHtml(d, past) : `${d.form ? `<p style="margin:6px 0;font-weight:700;">${past ? (d.mine === 'going' ? '✅ You attended' : '🔒 This event has passed') : d.mine === 'going' ? "✅ You're going" : d.mine === 'waitlist' ? `⏳ You're on the waitlist${d.waitPos ? ' (#' + d.waitPos + ')' : ''} — we'll move you up if a spot opens` : d.mine === 'pending' ? '⏳ Requested — waiting for approval' : d.closed ? '🔒 Sign-ups are closed' : d.capacity && !d.spotsLeft ? 'Fill in the form below to join the waitlist 👇' : 'Fill in the form below to sign up 👇'}</p>${d.mine && !past ? '<button type="button" class="av-link calRsvpBtn">Cancel my RSVP</button>' : ''}` : (!d.inClub && !d.mine && !past ? `<a class="club-guide-btn calAskWa" href="https://wa.me/u/${ORGANISER_WA_USERNAME}?text=${waEnc(calAskMessage(d))}" target="_blank" rel="noopener" style="display:block;box-sizing:border-box;width:100%;text-align:center;text-decoration:none;background:#25a244;color:#fff;border-color:#1c7a33;">💬 Ask on WhatsApp if there's a spot</a><p class="ideas-hint" style="margin:6px 0 0;">This event is for ${escapeCm(d.clubTitle || 'a club')} members. Tap to message us — a note is already written for you.</p>` : `<button type="button" class="club-guide-btn calRsvpBtn" ${(d.closed || past) && !d.mine ? 'disabled' : ''} style="width:100%;text-align:center;${d.mine ? '' : 'background:var(--brand-rose);color:#fff;'}">${d.closed && !d.mine ? '🔒 RSVPs closed' : label}</button>`)}
         <div class="calRsvpMsg" style="font-size:13px;color:#c00;min-height:18px;margin-top:6px;"></div>
         ${(!past && d.mine === 'going') ? '<button type="button" class="club-guide-btn calAddCal" style="width:100%;min-height:46px;margin-top:4px;">📆 Add to my calendar</button>' : ''}`;
       top.innerHTML = calCompose(d, [['cover', calCoverHtml(d)], ['hosts', calHostsHtml(d)], ['club', `<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(d.clubTitle)}</p>`], ['title', `<h3 style="margin:0 0 6px;${calTitleStyle(d)}">${escapeCm(d.title)}</h3>`],
-        ['date', `<p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(d.date))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calNativeBtn(d)}`], ['price', calPriceHtml(d)],
+        ['date', `<p class="idea-pop-date">📅 ${escapeCm(calRangeLong(d))}${d.time ? ' · ⏰ ' + escapeCm(d.time) : ''}</p>${calNativeBtn(d)}`], ['price', calPriceHtml(d)],
         ['place', calPlaceHtml(d)], ['map', calMapHtml(d)], ['desc', calDescHtml(d, true)],
         ['rsvpby', d.rsvpBy ? `<p class="ideas-hint" style="margin:4px 0;">⏳ ${d.closed ? 'RSVPs are closed' : 'RSVP by ' + escapeCm(ideaLongDate(d.rsvpBy))}</p>` : ''],
         ['going', `<p class="ideas-hint" style="margin:8px 0;">👥 ${d.going} ${past ? 'attended' : 'going'}</p>`], ['spots', past ? '' : calSpotsHtml(d)], ['action', actionHtml]]);
@@ -6843,7 +6846,7 @@ async function clubCalMemberCard(box, id){
         <button type="button" class="club-guide-btn calCancelReg" hidden style="width:100%;min-height:46px;text-align:center;background:#fdecea;border-color:#b3261e;color:#b3261e;margin-top:4px;">❌ Cancel my registration</button>
         ${calFormFooterHtml(d.form)}<div class="calPayBox">${d.form.payment && d.myAnswers ? calPayBoxHtml(d) : ''}</div></div>`;
       const cxBtn = formBox.querySelector('.calCancelReg'), sendBtn = formBox.querySelector('.calFormSend');
-      syncCancel = () => { const past = calIsPast(d.date); const pf = formBox.querySelector('.calPayInForm'); if(pf) pf.hidden = !!(d.mine || d.paid || d.claimedPaid); cxBtn.hidden = !(d.mine && !past); sendBtn.textContent = d.closed && !d.mine ? '🔒 Sign-ups closed' : d.mine ? 'Update my answers' : d.myAnswers ? 'Register again' : 'Submit & RSVP'; calSyncSendLabel(formBox); };
+      syncCancel = () => { const past = calIsPast(d.endDate || d.date); const pf = formBox.querySelector('.calPayInForm'); if(pf) pf.hidden = !!(d.mine || d.paid || d.claimedPaid); cxBtn.hidden = !(d.mine && !past); sendBtn.textContent = d.closed && !d.mine ? '🔒 Sign-ups closed' : d.mine ? 'Update my answers' : d.myAnswers ? 'Register again' : 'Submit & RSVP'; calSyncSendLabel(formBox); };
       cxBtn.addEventListener('click', () => calCancelFlow(d, id, () => { paint(); syncCancel(); admToastLite('Registration cancelled'); }));
       syncCancel();
       wireCalAddons(formBox, d.form); calMountLocations(formBox);
@@ -6924,7 +6927,7 @@ function clubCalManage(ev){
     wrap.querySelector('.idea-pop-card').innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>${tabsHtml()}
       ${calHostsHtml(ev)}<p class="av-msg" style="margin-bottom:4px;">🏷 ${escapeCm(ev.clubTitle)}</p>
       <h3 style="margin:0 0 6px;">${escapeCm(ev.title)}</h3>
-      <p class="idea-pop-date">📅 ${escapeCm(ideaLongDate(ev.date))}${ev.time ? ' · ⏰ ' + escapeCm(ev.time) : ''}${past ? ' · <strong>(past)</strong>' : ''}</p>
+      <p class="idea-pop-date">📅 ${escapeCm(calRangeLong(ev))}${ev.time ? ' · ⏰ ' + escapeCm(ev.time) : ''}${past ? ' · <strong>(past)</strong>' : ''}</p>
       ${ev.place ? `<p style="margin:4px 0;">📍 ${escapeCm(ev.place)}</p>` : ''}${calMapHtml(ev)}
       ${ev.capacity ? `<p style="margin:4px 0;font-weight:700;color:${going.length >= ev.capacity ? '#b3261e' : '#2a7a4a'};">🎟️ ${going.length} of ${ev.capacity} spots taken${wait.length ? ` · ${wait.length} on the waitlist` : ''}</p>` : ''}
       ${calDescHtml(ev)}
@@ -7102,7 +7105,7 @@ function calFormUrl(id){ return location.origin + '/#/form/' + encodeURIComponen
 // 🔴 "X spots left" badge in the top-right corner of an event page. The admin can type their own number (the real count is then not shown anywhere).
 function calSpotsAlertSync(d){
   document.querySelectorAll('.cal-alert').forEach(x => x.remove());
-  if(!d || !d.spotsAlert || state.tab !== 'eventform' || (d.date && calIsPast(d.date))) return false;
+  if(!d || !d.spotsAlert || state.tab !== 'eventform' || (d.date && calIsPast(d.endDate || d.date))) return false;
   const a = d.spotsAlert, realFull = !!(d.capacity && (d.spotsLeft || 0) <= 0);
   let txt = '';
   if(a.mode === 'custom') txt = realFull ? '🔴 FULL · join the waitlist' : `🔴 ${a.n} spot${a.n === 1 ? '' : 's'} left`;
@@ -7961,7 +7964,7 @@ function calPageEditorOld(ev, opts){
   const clubsHtml = link ? '' : `<p style="margin:0 0 4px;font-weight:700;font-size:14px;">Clubs hosting <small style="font-weight:400;color:#776867;">(tick more than one for a collab)</small></p><div class="cp-clubs" style="margin-bottom:10px;">${clubs.map(c => `<label class="cp-club"><input type="checkbox" class="cf-club" value="${escapeCm(c.id)}" ${sel.has(c.id) ? 'checked' : ''}> ${escapeCm(c.title)}</label>`).join('')}</div>`;
   const detailsHtml = `${lab('Event name')}<input id="cfTitle" type="text" maxlength="80" placeholder="e.g. Pottery night" value="${escapeCm(ev ? ev.title : '')}" style="${f}">
     <label style="display:flex;gap:8px;align-items:center;margin:0 0 6px;font-weight:700;font-size:14px;"><input type="checkbox" id="cfTbd" ${ev && ev.tbd ? 'checked' : ''} style="width:20px;height:20px;"> 🕒 Date to be decided</label>
-    ${lab('Date')}<input id="cfDate" type="date" value="${escapeCm(ev && !ev.tbd ? ev.date : (opts.presetDate || ''))}" style="${f}">
+    ${lab('Date')}<input id="cfDate" type="date" value="${escapeCm(ev && !ev.tbd ? ev.date : (opts.presetDate || ''))}" style="${f}">${lab('Last day (optional — only for a multi-day event)')}<input id="cfEndDate" type="date" value="${escapeCm(ev && ev.endDate ? ev.endDate : '')}" style="${f}">
     ${lab('Time (optional)')}<input id="cfTime" type="text" maxlength="30" placeholder="e.g. 6:30 PM" value="${escapeCm(ev ? ev.time : '')}" style="${f}">
     ${lab('Place (optional)')}${link ? `<input id="cfPlaceText" type="text" maxlength="200" placeholder="Name or address" value="${escapeCm(ev ? ev.place : '')}" style="${f}">` : `<input id="cfPlace" type="hidden" value="${escapeCm(ev ? ev.place : '')}"><div id="cfPlaceSlot"></div><div id="cfPlaceChosen" class="ev-loc-chosen${ev && ev.place ? '' : ' empty'}" style="margin:0 0 8px;">${ev && ev.place ? '📍 ' + escapeCm(ev.place) : 'No place chosen yet'}</div>`}
     ${lab('Google Maps link (optional — shows a map on the page)')}<input id="cfMap" type="url" inputmode="url" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Google Maps → Share → Copy link" value="${escapeCm(ev ? (ev.mapUrl || '') : '')}" style="${f}">
@@ -8052,7 +8055,7 @@ function calPageEditorOld(ev, opts){
   // ---- gather + validate + save ----
   const gather = () => {
     const tbd = q('#cfTbd').checked, d = designP.get();
-    return { title: val('#cfTitle'), tbd, date: tbd ? '' : val('#cfDate'), time: val('#cfTime'), rsvpBy: tbd ? '' : val('#cfRsvpBy'), place: link ? val('#cfPlaceText') : val('#cfPlace'), mapUrl: cleanMapLink(val('#cfMap') || ''), capacity: link ? undefined : (parseInt(val('#cfCap'), 10) || 0),
+    return { title: val('#cfTitle'), tbd, date: tbd ? '' : val('#cfDate'), endDate: tbd ? '' : val('#cfEndDate'), time: val('#cfTime'), rsvpBy: tbd ? '' : val('#cfRsvpBy'), place: link ? val('#cfPlaceText') : val('#cfPlace'), mapUrl: cleanMapLink(val('#cfMap') || ''), capacity: link ? undefined : (parseInt(val('#cfCap'), 10) || 0),
       clubIds: ids(), desc: d.desc, blocks: d.blocks, theme: d.theme, hosts: hostsP.get().filter(h => h.club || h.name), signup: signupMode(), placePrivate: !!(q('#cfPlacePriv') && q('#cfPlacePriv').checked), form: formP.get() };
   };
   const fail = (t, secId) => { say(t); const s = q('#' + secId); if(s) s.scrollIntoView({ block:'start', behavior:'smooth' }); return false; };
@@ -8269,7 +8272,7 @@ function calEventEditor(ev, opts){
   const SEC = [['eePage', '🔗 Link & description'], ['eeDetails', '📌 Details'], ['eePhotos', '🖼 Photos'], ['eeHosts', '🤝 Hosts'], ['eeSignup', '✋ Sign-up'], ['eeQs', '📝 Questions'], ['eeTerms', '📜 Terms']];
   const sec = (n, id, title, help, inner) => `<div class="pgSec ee-sec" id="${id}"><div class="ee-h"><span class="ee-n">${n}</span><h3>${title}</h3></div>${help ? `<p class="ideas-hint" style="text-align:left;margin:0 0 10px;">${help}</p>` : ''}${inner}</div>`;
   const details = `${lab('Event name')}<input id="cfTitle" type="text" maxlength="80" placeholder="e.g. Pottery night" value="${escapeCm(ev ? ev.title : '')}" style="${F}">
-    <div class="ee-2"><div>${lab('Date')}<input id="cfDate" type="date" value="${escapeCm(ev && !ev.tbd ? ev.date : (opts.presetDate || ''))}" style="${F}"></div><div>${lab('Time (optional)')}<input id="cfTime" type="text" maxlength="30" placeholder="e.g. 6:30 – 9 PM" value="${escapeCm(ev ? ev.time : '')}" style="${F}"></div></div>
+    <div class="ee-2"><div>${lab('Date')}<input id="cfDate" type="date" value="${escapeCm(ev && !ev.tbd ? ev.date : (opts.presetDate || ''))}" style="${F}">${lab('Last day (optional — multi-day)')}<input id="cfEndDate" type="date" value="${escapeCm(ev && ev.endDate ? ev.endDate : '')}" style="${F}"></div><div>${lab('Time (optional)')}<input id="cfTime" type="text" maxlength="30" placeholder="e.g. 6:30 – 9 PM" value="${escapeCm(ev ? ev.time : '')}" style="${F}"></div></div>
     <label class="ee-chk"><input type="checkbox" id="cfTbd" ${ev && ev.tbd ? 'checked' : ''}> 🕒 Date to be decided</label>
     ${lab('🎟️ Ticket price (e.g. $15 — or write Free)')}<input id="eePrice" maxlength="30" placeholder="e.g. $15 or Free" value="${escapeCm(form0 && form0.payment ? (form0.payment.amount || '') : (ev && ev.priceText ? ev.priceText : ''))}" style="${F}">
     ${lab('Location')}<input id="cfPlace" type="hidden" value="${escapeCm(ev ? ev.place : '')}"><div id="cfPlaceSlot"></div><div id="cfPlaceChosen" class="ev-loc-chosen${ev && ev.place ? '' : ' empty'}" style="margin:0 0 8px;">${ev && ev.place ? '📍 ' + escapeCm(ev.place) : 'No place chosen yet'}</div>
@@ -8442,7 +8445,7 @@ function calEventEditor(ev, opts){
     const theme = { hide: ['club'], order: ['hosts', 'title', 'date', 'price', 'rsvpby', 'place', 'map', ...photoBlocks.map(b => 'b:' + b.id), 'desc', ...oldBlocks.filter(b => b.id).map(b => 'b:' + b.id), 'spots', 'going', 'action', 'form', 'link'] };
     const payment = mode === 'pay' ? (() => { const p = { amount: pay.amount, link: pay.link || '', note: pay.note || '' }; p.required = true; const ao = pay.addons.filter(a => String(a.label || '').trim() && a.price !== '' && Number.isFinite(Number(a.price))).map(a => ({ id: a.id || nid(), label: String(a.label).trim(), price: Number(a.price) })); if(ao.length) p.addons = ao; return p; })() : undefined;
     const form = mode === 'msg' ? null : calFormWithTerms({ title: form0 && form0.title, fields: qs.map(f => ({ ...f, label: String(f.label || '').trim() })) }, gTerms, evTerms, payment || null);
-    return { title: val('#cfTitle').trim(), tbd, date: tbd ? '' : val('#cfDate'), time: val('#cfTime').trim(), place: val('#cfPlace'), mapUrl: cleanMapLink(val('#cfMap') || ''), placePrivate: q('#cfPlacePriv').checked,
+    return { title: val('#cfTitle').trim(), tbd, date: tbd ? '' : val('#cfDate'), endDate: tbd ? '' : val('#cfEndDate'), time: val('#cfTime').trim(), place: val('#cfPlace'), mapUrl: cleanMapLink(val('#cfMap') || ''), placePrivate: q('#cfPlacePriv').checked,
       spotsAlert: alertMode === 'real' ? { mode: 'real' } : alertMode === 'custom' && parseInt(alertN, 10) >= 1 ? { mode: 'custom', n: parseInt(alertN, 10) } : null,
       capacity: mode === 'msg' ? 0 : (parseInt(keepCap, 10) || 0), rsvpBy: '', clubIds: ids, hosts: hostsOut, blocks, theme, desc: val('#eeDesc'),
       signup: mode === 'msg' ? 'msg' : form ? 'form' : 'rsvp', inviteOnly: mode !== 'msg' && inviteOn, contactUrl: mode === 'msg' ? keepContact.trim() : '', form, priceText: mode === 'pay' ? '' : (calIsFreeText(val('#eePrice')) ? (val('#eePrice').trim().slice(0, 30)) : ''), slug: val('#eeSlug').trim() };
@@ -8755,6 +8758,7 @@ function calNativeBtn(d){
 }
 function calNativeTimes(d){ // "6:30 PM", "6–8 PM", "6:30 PM - 8 PM" -> start / end ms (local time); no time = all day
   const day = String(d.date || '').split('-').map(Number); if(day.length < 3) return null;
+  if(d.endDate && d.endDate > d.date){ const ed = String(d.endDate).split('-').map(Number); return { start: new Date(day[0], day[1] - 1, day[2], 9).getTime(), end: new Date(ed[0], ed[1] - 1, ed[2], 18).getTime(), allDay: true }; }
   const re = /(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?/gi, t = String(d.time || ''), hits = []; let m;
   while((m = re.exec(t)) && hits.length < 2) hits.push(m);
   if(!hits.length) return { start: new Date(day[0], day[1] - 1, day[2], 12).getTime(), end: new Date(day[0], day[1] - 1, day[2], 13).getTime(), allDay: true };
@@ -11848,7 +11852,7 @@ function admCeListHtml(){
     return `<div class="fb-card" style="border-color:${col.fg};box-shadow:3px 3px 0 ${col.fg};">
       <div style="display:flex;gap:10px;align-items:flex-start;"><span class="cal-date" style="background:${col.bg};color:${col.fg};flex:0 0 74px;">${escapeCm(calDateLabel(e.date))}${e.date < today ? '<br><small>past</small>' : ''}</span>
         <span style="flex:1;min-width:0;"><strong style="font-size:16px;overflow-wrap:break-word;">${escapeCm(e.title)}</strong><br><small style="color:#776867;">🏷 ${escapeCm(e.clubTitle || avClubTitle(e.clubId))}${e.time ? ' · ⏰ ' + escapeCm(e.time) : ''}${e.place ? ' · 📍 ' + escapeCm(e.place) : ''}</small><br>
-        <small>👥 <b>${going}</b> ${calIsPast(e.date) ? 'attended' : 'going'}${pend ? ` · <b style="color:#b3261e;">${pend} waiting</b>` : ''} · ${e.form ? `📝 form (${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'})` : (e.hasForm ? '🔒 has a form (no access)' : '<span style="color:#776867;">no form</span>')}${(e.formLeads || []).length ? ` · 🔑 ${e.formLeads.length} leader${e.formLeads.length === 1 ? '' : 's'}` : ''}${e.rsvpBy ? ` · RSVP by ${escapeCm(calDateLabel(e.rsvpBy))}` : ''}</small></span></div>
+        <small>👥 <b>${going}</b> ${calIsPast(e.endDate || e.date) ? 'attended' : 'going'}${pend ? ` · <b style="color:#b3261e;">${pend} waiting</b>` : ''} · ${e.form ? `📝 form (${e.form.fields.length} question${e.form.fields.length === 1 ? '' : 's'})` : (e.hasForm ? '🔒 has a form (no access)' : '<span style="color:#776867;">no form</span>')}${(e.formLeads || []).length ? ` · 🔑 ${e.formLeads.length} leader${e.formLeads.length === 1 ? '' : 's'}` : ''}${e.rsvpBy ? ` · RSVP by ${escapeCm(calDateLabel(e.rsvpBy))}` : ''}</small></span></div>
       <div class="fb-row"><button type="button" class="fb-mini ce-edit" data-ceid="${escapeCm(e.id)}">✏️ Edit event &amp; form</button>${e.form ? `<button type="button" class="fb-mini ce-ans" data-ceid="${escapeCm(e.id)}">📋 Answers</button>` : ''}${state.cmAdminLoggedIn === true && e.form ? `<button type="button" class="fb-mini ce-lead" data-ceid="${escapeCm(e.id)}">🔑 Leader access</button>` : ''}<button type="button" class="fb-mini ce-att" data-ceid="${escapeCm(e.id)}">👥 Attendees</button><button type="button" class="fb-mini ce-pin" data-ceid="${escapeCm(e.id)}" style="${pins.includes(e.id) ? 'background:#fde9a8;' : ''}">${pins.includes(e.id) ? '📌 Unpin' : '📌 Pin'}</button>${state.cmAdminLoggedIn === true ? `<button type="button" class="fb-mini ce-del" data-ceid="${escapeCm(e.id)}" style="background:#fdecea;">🗑 Delete</button>` : ''}</div></div>`;
   };
   return (pinned.length ? `<p style="margin:4px 0 6px;font-weight:800;">📌 Pinned <small style="font-weight:400;color:#776867;">(only on this device)</small></p>${pinned.map(card).join('')}${rest.length ? '<p style="margin:14px 0 6px;font-weight:800;">Everything else</p>' : ''}` : '') + rest.map(card).join('');
