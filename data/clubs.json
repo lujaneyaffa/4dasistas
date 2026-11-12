@@ -97,7 +97,7 @@
       "desc": "Yes, you heard that right. Who else will take care of the planet God has blessed u with?",
       "colour": "#b4cfc4",
       "textColour": "#373d3b",
-      "hidden": true,
+      "hidden": false,
       "memberLimit": 0
     }
   ]
