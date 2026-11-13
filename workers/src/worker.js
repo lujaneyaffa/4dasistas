@@ -2370,6 +2370,15 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           body: `<p style="margin:0 0 10px">Hi ${escapeHtml(String(user.name || "").split(" ")[0])}, tap the button to choose a new PIN. Your login name is <strong>${escapeHtml(user.username)}</strong>.</p><p style="margin:16px 0 4px">${emailBtn(link, "Choose a new PIN →")}</p>`,
           footer: "This link works for 1 hour. If you didn't ask for it, you can ignore this email — your PIN stays the same." });
         ctx.waitUntil(postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [to], subject: "Reset your 4DASISTAS PIN", html }).catch(() => {}));
+      } else if (user && bmDigits(user.phone).length >= 10 && env.WHATSAPP_TOKEN && env.WHATSAPP_PHONE_ID) {
+        // No email, but a phone number: send the same link as a WhatsApp message (approved template; body {{1}} = first name, {{2}} = link).
+        const tok = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+        await env.SITE_DATA.put(`pinreset:${await sha256Hex(tok)}`, JSON.stringify({ userId: user.id, at: Date.now() }), { expirationTtl: 3600 });
+        let digits = bmDigits(user.phone); if (digits.length === 10) digits = "1" + digits;
+        const link = `${origin}/#/reset-pin/${tok}`;
+        const r = await fetch(`https://graph.facebook.com/v21.0/${env.WHATSAPP_PHONE_ID}/messages`, { method: "POST", headers: { "Authorization": `Bearer ${env.WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ messaging_product: "whatsapp", to: digits, type: "template", template: { name: env.WHATSAPP_TEMPLATE || "pin_reset", language: { code: env.WHATSAPP_LANG || "en" }, components: [{ type: "body", parameters: [{ type: "text", text: String(user.name || "there").split(" ")[0] }, { type: "text", text: link }] }] } }) }).catch((e) => ({ ok: false, text: async () => String(e) }));
+        if (!r.ok) { console.error("WhatsApp send failed", r.status, (await r.text()).slice(0, 300)); sendAdminEmail(env, ctx, `PIN reset requested: ${user.name}`, emailShell(env, { emoji: "🔑", title: "Someone forgot their PIN", body: `<p style="margin:0">${escapeHtml(user.name)} asked for a PIN reset but the WhatsApp message failed to send. Reset it from the admin page.</p>` })); }
       } else if (user || ambiguous) {
         // No email on file (or two accounts share the number): nothing is sent to the requester — an admin is told so she can help.
         sendAdminEmail(env, ctx, `PIN reset requested: ${user ? user.name : raw}`, emailShell(env, { emoji: "🔑", title: "Someone forgot their PIN",

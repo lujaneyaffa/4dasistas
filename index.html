@@ -3653,7 +3653,7 @@ function openForgotPin(prefill){
     b.disabled = true; msg.textContent = '';
     try {
       await cmApiRaw('/api/forgot-pin', { method:'POST', body: JSON.stringify({ identifier: v }) });
-      w.firstElementChild.innerHTML = `<div style="text-align:center;"><div style="font-size:40px;">📬</div><h3 style="margin:6px 0;">Check your email</h3><p style="margin:0 0 14px;font-size:14px;line-height:1.5;color:#5b4b49;">If we have an email on file for that account, a link to choose a new PIN is on its way (it works for 1 hour — check spam too).<br><br>No email on file? We've let an admin know, and they'll reach out to reset it for you.</p><button type="button" id="fpDone" class="club-guide-btn" style="width:100%;min-height:48px;">OK</button></div>`;
+      w.firstElementChild.innerHTML = `<div style="text-align:center;"><div style="font-size:40px;">📬</div><h3 style="margin:6px 0;">Check your email</h3><p style="margin:0 0 14px;font-size:14px;line-height:1.5;color:#5b4b49;">If we have an email or WhatsApp number on file for that account, a link to choose a new PIN is on its way (it works for 1 hour — check spam too).<br><br>Nothing on file? We've let an admin know, and they'll reach out to reset it for you.</p><button type="button" id="fpDone" class="club-guide-btn" style="width:100%;min-height:48px;">OK</button></div>`;
       w.querySelector('#fpDone').addEventListener('click', () => w.remove());
     } catch(e){ b.disabled = false; msg.textContent = e.message || 'Something went wrong — please try again.'; }
   };
