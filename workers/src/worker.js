@@ -2343,6 +2343,58 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ ...publicUser(user), clubs, waitlist: visibleWaitlist(user, clubs), token }, 200, corsHeaders);
     }
 
+    // Forgot PIN: they type the phone number, email or username they signed up with. If that account has an email on file we mail a
+    // one-hour reset link there (never to an address typed in the form). The reply is always the same, so it can't be used to find out who has an account.
+    if (path === "/api/forgot-pin" && request.method === "POST") {
+      let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const raw = String(body.identifier || "").trim().slice(0, 120);
+      if (!raw) return jsonResponse({ error: "Enter the phone number or email you signed up with" }, 400, corsHeaders);
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+      const hr = Math.floor(Date.now() / 3600000);
+      const nIp = await rateTouch(env, `forgotrate:ip:${ip}:${hr}`, 3700), nId = await rateTouch(env, `forgotrate:id:${raw.toLowerCase()}:${hr}`, 3700);
+      if ((nIp !== null && nIp > 8) || (nId !== null && nId > 3)) return jsonResponse({ error: "Too many requests — please try again in an hour" }, 429, corsHeaders);
+      let user = null, ambiguous = false;
+      const em = okEmail(raw);
+      if (em) user = (await listAllUsers(env)).find((u) => okEmail(u.email) === em) || null;
+      else if (/^[\d\s().+-]{7,20}$/.test(raw) && bmDigits(raw).length >= 10) {
+        const r = await usernameForPhone(env, bmDigits(raw), ctx);
+        if (r === "ambiguous") ambiguous = true; else if (r) { const id = await findUserIdByUsername(env, r); user = id ? await readUser(env, id) : null; }
+      } else { const un = sanitizeUsername(raw); const id = un ? await findUserIdByUsername(env, un) : null; user = id ? await readUser(env, id) : null; }
+      const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
+      const to = user ? okEmail(user.email) : "";
+      if (user && to && env.RESEND_API_KEY) {
+        const tok = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+        await env.SITE_DATA.put(`pinreset:${await sha256Hex(tok)}`, JSON.stringify({ userId: user.id, at: Date.now() }), { expirationTtl: 3600 });
+        const link = `${origin}/#/reset-pin/${tok}`;
+        const html = emailShell(env, { emoji: "🔑", title: "Reset your PIN", preheader: "Choose a new PIN for your 4DASISTAS login",
+          body: `<p style="margin:0 0 10px">Hi ${escapeHtml(String(user.name || "").split(" ")[0])}, tap the button to choose a new PIN. Your login name is <strong>${escapeHtml(user.username)}</strong>.</p><p style="margin:16px 0 4px">${emailBtn(link, "Choose a new PIN →")}</p>`,
+          footer: "This link works for 1 hour. If you didn't ask for it, you can ignore this email — your PIN stays the same." });
+        ctx.waitUntil(postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [to], subject: "Reset your 4DASISTAS PIN", html }).catch(() => {}));
+      } else if (user || ambiguous) {
+        // No email on file (or two accounts share the number): nothing is sent to the requester — an admin is told so she can help.
+        sendAdminEmail(env, ctx, `PIN reset requested: ${user ? user.name : raw}`, emailShell(env, { emoji: "🔑", title: "Someone forgot their PIN",
+          body: `<p style="margin:0 0 6px">${user ? `<strong>${escapeHtml(user.name)}</strong> <span style="color:#776867">@${escapeHtml(user.username)}</span>` : `Someone typed <strong>${escapeHtml(raw)}</strong> (matches more than one account)`} asked for a PIN reset, but there's no email on file to send a link to.</p><p style="margin:0">Reset it from the admin page and message them the new PIN.</p>` }));
+      }
+      return jsonResponse({ ok: true }, 200, corsHeaders);
+    }
+    if (path === "/api/reset-pin" && request.method === "POST") {
+      let body; try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      const tok = String(body.token || ""), pin = String(body.pin || "").trim();
+      if (!/^[a-f0-9]{64}$/.test(tok)) return jsonResponse({ error: "This reset link isn't valid — please request a new one" }, 400, corsHeaders);
+      if (!/^\d{4}$/.test(pin)) return jsonResponse({ error: "PIN must be exactly 4 digits" }, 400, corsHeaders);
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+      const nIp = await rateTouch(env, `resetrate:ip:${ip}:${Math.floor(Date.now() / 3600000)}`, 3700);
+      if (nIp !== null && nIp > 20) return jsonResponse({ error: "Too many attempts — please try again later" }, 429, corsHeaders);
+      const key = `pinreset:${await sha256Hex(tok)}`;
+      const rec = JSON.parse((await env.SITE_DATA.get(key)) || "null");
+      const user = rec && rec.userId ? await readUser(env, rec.userId) : null;
+      if (!user) return jsonResponse({ error: "This reset link has expired or was already used — please request a new one" }, 400, corsHeaders);
+      user.pinHash = await sha256Hex(pin);
+      await writeUser(env, user);
+      await env.SITE_DATA.delete(key);
+      return jsonResponse({ ok: true, username: user.username }, 200, corsHeaders);
+    }
+
     // Public self-signup (Sign Up form): creates the account, joins the chosen club, and signs them in.
     if (path === "/api/signup" && request.method === "POST") {
       let body;

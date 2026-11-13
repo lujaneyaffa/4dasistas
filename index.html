@@ -3630,6 +3630,61 @@ if(stepsIsNativeApp()){
   document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible'){ stepsNativeSync().then(() => { if(state.tab === 'steps'){ state.stepsData = null; render(); } }); } });
 }
 
+/* ---- Forgot PIN: ask for the phone/email they signed up with -> emailed reset link -> #/reset-pin/<token> ---- */
+function pinModal(inner){
+  const old = document.getElementById('pinModal'); if(old) old.remove();
+  const w = document.createElement('div'); w.id = 'pinModal';
+  w.style.cssText = 'position:fixed;inset:0;z-index:29000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;overflow:auto;';
+  w.innerHTML = `<div style="background:#fff;border-radius:22px;padding:22px 20px;width:100%;max-width:400px;box-sizing:border-box;">${inner}</div>`;
+  w.addEventListener('click', e => { if(e.target === w) w.remove(); });
+  document.body.appendChild(w); return w;
+}
+const PIN_IN = 'width:100%;padding:12px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;margin-bottom:10px;';
+function openForgotPin(prefill){
+  const w = pinModal(`<h3 style="margin:0 0 6px;">🔑 Forgot your PIN?</h3>
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#5b4b49;">Enter the phone number or email you used to create your account and we'll email you a link to choose a new PIN.</p>
+    <div id="fpMsg" style="font-size:13px;min-height:16px;margin-bottom:6px;color:#c00;"></div>
+    <input id="fpId" placeholder="Phone number or email" autocapitalize="none" autocorrect="off" spellcheck="false" autocomplete="username" value="${escapeCm(prefill || '')}" style="${PIN_IN}">
+    <button type="button" id="fpGo" class="club-guide-btn" style="width:100%;min-height:48px;background:var(--brand-blush);">Send reset link</button>
+    <button type="button" id="fpX" style="border:none;background:none;width:100%;min-height:44px;font:inherit;color:#776867;">Cancel</button>`);
+  const go = async () => {
+    const v = w.querySelector('#fpId').value.trim(), msg = w.querySelector('#fpMsg'), b = w.querySelector('#fpGo');
+    if(!v){ msg.textContent = 'Enter your phone number or email.'; return; }
+    b.disabled = true; msg.textContent = '';
+    try {
+      await cmApiRaw('/api/forgot-pin', { method:'POST', body: JSON.stringify({ identifier: v }) });
+      w.firstElementChild.innerHTML = `<div style="text-align:center;"><div style="font-size:40px;">📬</div><h3 style="margin:6px 0;">Check your email</h3><p style="margin:0 0 14px;font-size:14px;line-height:1.5;color:#5b4b49;">If we have an email on file for that account, a link to choose a new PIN is on its way (it works for 1 hour — check spam too).<br><br>No email on file? We've let an admin know, and they'll reach out to reset it for you.</p><button type="button" id="fpDone" class="club-guide-btn" style="width:100%;min-height:48px;">OK</button></div>`;
+      w.querySelector('#fpDone').addEventListener('click', () => w.remove());
+    } catch(e){ b.disabled = false; msg.textContent = e.message || 'Something went wrong — please try again.'; }
+  };
+  w.querySelector('#fpGo').addEventListener('click', go);
+  w.querySelector('#fpId').addEventListener('keydown', e => { if(e.key === 'Enter') go(); });
+  w.querySelector('#fpX').addEventListener('click', () => w.remove());
+  setTimeout(() => { try { w.querySelector('#fpId').focus(); } catch {} }, 50);
+}
+function openResetPin(token){
+  const w = pinModal(`<h3 style="margin:0 0 6px;">🔑 Choose a new PIN</h3>
+    <p style="margin:0 0 12px;font-size:14px;line-height:1.5;color:#5b4b49;">Pick a 4-digit PIN you'll remember.</p>
+    <div id="rpMsg" style="font-size:13px;min-height:16px;margin-bottom:6px;color:#c00;"></div>
+    <input id="rpPin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="New 4-digit PIN" style="${PIN_IN}">
+    <input id="rpPin2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="Type it again" style="${PIN_IN}">
+    <button type="button" id="rpGo" class="club-guide-btn" style="width:100%;min-height:48px;background:var(--brand-blush);">Save new PIN</button>`);
+  const go = async () => {
+    const a = w.querySelector('#rpPin').value.trim(), c = w.querySelector('#rpPin2').value.trim(), msg = w.querySelector('#rpMsg'), b = w.querySelector('#rpGo');
+    if(!/^\d{4}$/.test(a)){ msg.textContent = 'PIN must be exactly 4 digits.'; return; }
+    if(a !== c){ msg.textContent = "The two PINs don't match."; return; }
+    b.disabled = true; msg.textContent = '';
+    try {
+      const r = await cmApiRaw('/api/reset-pin', { method:'POST', body: JSON.stringify({ token, pin: a }) });
+      w.firstElementChild.innerHTML = `<div style="text-align:center;"><div style="font-size:40px;">✅</div><h3 style="margin:6px 0;">PIN updated</h3><p style="margin:0 0 14px;font-size:14px;line-height:1.5;color:#5b4b49;">Log in with <strong>${escapeCm(r.username || 'your username')}</strong> and your new PIN.</p><button type="button" id="rpDone" class="club-guide-btn" style="width:100%;min-height:48px;">Log in</button></div>`;
+      w.querySelector('#rpDone').addEventListener('click', () => { w.remove(); try { localStorage.removeItem('lastLogin2'); } catch {} state.clubsLoginPrefill = false; goToTab('clubs'); });
+    } catch(e){ b.disabled = false; msg.textContent = e.message || 'Something went wrong — please try again.'; }
+  };
+  w.querySelector('#rpGo').addEventListener('click', go);
+  w.querySelector('#rpPin2').addEventListener('keydown', e => { if(e.key === 'Enter') go(); });
+}
+document.addEventListener('click', e => { const t = e.target.closest && e.target.closest('.forgot-pin-link'); if(t){ e.preventDefault(); const u = document.getElementById('clubsLoginUsername') || document.getElementById('stayUser'); openForgotPin(u ? u.value.trim() : ''); } });
+
 /* ---- Squads became clubs: existing squad members log in on #/stay and choose which of the four new clubs to stay in / join ---- */
 async function stayLoad(){
   if(state.stayLoading || !getCmSession()) return;
@@ -3650,7 +3705,7 @@ function stayPageHtml(){
       <input id="stayUser" placeholder="Username or phone number" autocapitalize="none" autocomplete="username" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;margin-bottom:8px;">
       <input id="stayPin" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" placeholder="PIN" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;margin-bottom:10px;">
       <button type="button" class="club-guide-btn" id="stayLoginBtn" style="width:100%;background:var(--brand-blush);">Log in</button>
-      <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;">Forgot your PIN? Message us and we'll reset it.</p></div>`;
+      <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;"><button type="button" class="av-link forgot-pin-link">Forgot your PIN?</button></p></div>`;
   }
   if(!state.stayInfo){ if(!state.stayLoading) stayLoad(); return `${head}<p class="av-msg" style="text-align:center;">${state.stayErr ? escapeCm(state.stayErr) : 'Loading…'}</p>`; }
   const d = state.stayInfo;
@@ -3826,7 +3881,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
         <input id="clubsLoginPin" type="password" autocomplete="current-password" placeholder="${state.clubsStaffLogin ? 'Password' : 'PIN'}" ${state.clubsStaffLogin ? 'autocapitalize="none" autocorrect="off" spellcheck="false"' : 'inputmode="numeric" maxlength="4"'} style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);margin-bottom:10px;box-sizing:border-box;">
         <div id="clubsFaceSlot"></div>
         <button class="club-guide-btn" id="clubsLoginSubmitBtn" style="width:100%;background:var(--brand-blush);">Sign In</button>
-        <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;">Forgot your PIN? An admin can reset it for you — just message us.</p>
+        <p style="font-size:12px;color:var(--muted);margin:10px 0 0;text-align:center;">${state.clubsStaffLogin ? 'Forgot your password? Message us.' : '<button type="button" class="av-link forgot-pin-link">Forgot your PIN?</button>'}</p>
         <p style="margin:8px 0 0;text-align:center;"><button type="button" id="clubsStaffToggle" class="av-link" style="font-size:12px;">${state.clubsStaffLogin ? '← Back to member sign in' : 'Admin or club admin? Sign in here'}</button></p>
       `}
     </div>` : ''}
@@ -14582,6 +14637,7 @@ function applySlugParts(parts){
   const [slug, ...rest] = parts;
   // A shared FORM link (#/form/<event id>): land on Clubs and open that event's form straight away.
   if(slug === 'form' && rest[0]){ state.formFromApp = false; state.tab = 'eventform'; state.formEventId = safeDecode(rest[0]); state.formInvite = rest[1] ? safeDecode(rest[1]) : ''; return; }
+  if(slug === 'reset-pin' && rest[0]){ state.tab = 'clubs'; state.clubsPage = ''; const t = safeDecode(rest[0]); setTimeout(() => openResetPin(t), 400); return; } // the emailed PIN-reset link
   if(slug === 'edit-event' && rest[0]){ state.tab = 'eventedit'; state.editToken = safeDecode(rest[0]); return; } // the private "anyone with this link can edit the page" link
   let tab = slug === 'squads' ? 'clubs' : (SLUG_TO_TAB[slug] || slug); // squads no longer exist: old links land on Clubs
   if(tab === 'steps'){ state.stepsData = null; }
