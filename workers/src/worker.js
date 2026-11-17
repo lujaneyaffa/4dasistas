@@ -5666,6 +5666,12 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         }
         if (wantTbd) { ev.tbd = true; ev.interest = ev.interest || []; } else delete ev.tbd; // (the interest list stays on the event so the admin still sees who was keen)
         if (body.form !== undefined) { // (a club admin without access never sees the form, so their edit of the event details must not touch it)
+          try { // renamed a time slot / activity: keep its seat limit and info (they are keyed by the option's text)
+            for (const bf of (body.form && body.form.fields) || []) {
+              const of = ((ev.form && ev.form.fields) || []).find((x) => x.id === bf.id); if (!of || !Array.isArray(bf.options) || !Array.isArray(of.options) || bf.options.length !== of.options.length) continue;
+              for (const key of ["caps", "info"]) { const m = bf[key]; if (!m || typeof m !== "object") continue; for (const k of Object.keys(m)) { if (bf.options.includes(k)) continue; const i = of.options.indexOf(k); if (i >= 0 && bf.options[i] && !(bf.options[i] in m)) { m[bf.options[i]] = m[k]; } delete m[k]; } }
+            }
+          } catch {}
           const cf = sanitizeCalForm(body.form);
           if (cf) { if (cf.rsvpBy !== undefined && (canForm(ev) || !ev.form)) ev.rsvpBy = cf.rsvpBy; if (cf.desc !== undefined && (canForm(ev) || !ev.form)) ev.desc = cf.desc; delete cf.rsvpBy; delete cf.desc; }
           if (canForm(ev)) { const oldForm = ev.form; if (cf) ev.form = cf; else delete ev.form; if (cf && oldForm) { try { migrated = await calMigrateAnswers(env, ev.id, oldForm, cf); } catch (e) { console.error('migrate answers', String(e && e.message || e)); } } }
