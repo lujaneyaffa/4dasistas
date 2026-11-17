@@ -11990,9 +11990,9 @@ function admFormsHtml(){
       <h3 style="margin:10px 0 2px;overflow-wrap:break-word;">${escapeCm(sel.title)}</h3>
       <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">📅 ${escapeCm(calDateLabel(sel.date))}${sel.time ? ' · ⏰ ' + escapeCm(sel.time) : ''}${sel.place ? ' · 📍 ' + escapeCm(sel.place) : ''}</p>
       <div class="fb-row" style="margin-bottom:8px;"><button type="button" class="fb-mini" id="afmEdit">✏️ Edit event &amp; form</button><button type="button" class="fb-mini" id="afmManage">👥 Manage attendees &amp; payments</button><button type="button" class="fb-mini" id="afmInvite" style="background:#25a244;color:#fff;">💬 Invite a member</button>${sel.form ? '<button type="button" class="fb-mini" id="afmCsv">⬇️ Download CSV</button>' : ''}</div>
-      ${!sel.form ? `<div class="fb-card" style="box-shadow:none;"><p style="margin:0 0 6px;font-weight:800;">👥 ${(sel.rsvps || []).filter(r => r.status === 'going').length} ${sel.date < today ? 'attended' : 'going'}</p>${admSpotsLeftHtml(sel, [], [])}${(sel.rsvps || []).filter(r => r.status === 'going').map(r => `<div style="padding:6px 0;border-top:1px solid rgba(0,0,0,.08);">${escapeCm(r.name)}${r.guest ? ' <small style="color:#776867;">(guest)</small>' : ''}</div>`).join('') || '<p class="av-msg">Nobody yet — tap “Manage attendees” to add people.</p>'}</div>` : `<div id="afmSum"></div>
+      ${!sel.form ? `<div class="fb-card" style="box-shadow:none;"><p style="margin:0 0 6px;font-weight:800;">👥 ${(sel.rsvps || []).filter(r => r.status === 'going').length} ${sel.date < today ? 'attended' : 'going'}</p>${admSpotsLeftHtml(sel, [], [])}${(sel.rsvps || []).filter(r => r.status === 'going').sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })).map(r => `<div style="padding:6px 0;border-top:1px solid rgba(0,0,0,.08);">${escapeCm(r.name)}${r.guest ? ' <small style="color:#776867;">(guest)</small>' : ''}</div>`).join('') || '<p class="av-msg">Nobody yet — tap “Manage attendees” to add people.</p>'}</div>` : `<div id="afmSum"></div>
       <input id="afmQ" type="search" placeholder="Search names or answers…" value="${escapeCm(state.admFormQ || '')}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin:4px 0 8px;">
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">${chip('all', 'Everyone')}${chip('going', 'Going')}${chip('waitlist', 'Waitlist')}${sel.form.payment ? chip('unpaid', 'Not paid') : ''}<button type="button" class="filter-chip" id="afmOverChip" data-afmf="over" style="display:none;color:#b3261e;border-color:#b3261e;">⚠️ Over the limit</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">${chip('all', 'Everyone')}${chip('going', 'Going')}${chip('waitlist', 'Waitlist')}${sel.form.payment ? chip('unpaid', 'Not paid') : ''}<button type="button" class="filter-chip${state.admFormAz ? ' active' : ''}" id="afmAz">🔤 A–Z</button><button type="button" class="filter-chip" id="afmOverChip" data-afmf="over" style="display:none;color:#b3261e;border-color:#b3261e;">⚠️ Over the limit</button></div>
       <div id="afmTable"><p class="av-msg">Loading answers…</p></div>`}
     </div>`;
   }
@@ -12069,6 +12069,7 @@ async function wireAdmForms(){
   });
   const tbl = document.getElementById('afmTable'); if(!tbl) return;
   document.querySelectorAll('[data-afmf]').forEach(b => b.addEventListener('click', () => { state.admFormFilter = b.dataset.afmf; document.querySelectorAll('[data-afmf]').forEach(x => x.classList.toggle('active', x === b)); paint(); }));
+  { const az = document.getElementById('afmAz'); if(az) az.addEventListener('click', () => { state.admFormAz = !state.admFormAz; az.classList.toggle('active', !!state.admFormAz); paint(); }); }
   const qEl = document.getElementById('afmQ'); qEl.addEventListener('input', () => { state.admFormQ = qEl.value; paint(); });
   let d = state.admFormData && state.admFormData.id === ev.id ? state.admFormData.d : null;
   if(!d){
@@ -12093,7 +12094,8 @@ async function wireAdmForms(){
   { const nOver = rs.filter(r => over(r).length).length, ch = document.getElementById('afmOverChip'); if(ch && nOver){ ch.style.display = ''; ch.textContent = '⚠️ Over the limit (' + nOver + ')'; } }
   const shown = () => {
     const f = state.admFormFilter || 'all', q = (state.admFormQ || '').trim().toLowerCase();
-    return rs.filter(r => (f === 'all' || (f === 'over' ? over(r).length > 0 : f === 'unpaid' ? r.status === 'going' && !r.paid : r.status === f)) && (!q || [r.name, r.contact].concat(fields.map(x => admFormFmt((r.answers || {})[x.id]))).join(' ').toLowerCase().includes(q)));
+    const out = rs.filter(r => (f === 'all' || (f === 'over' ? over(r).length > 0 : f === 'unpaid' ? r.status === 'going' && !r.paid : r.status === f)) && (!q || [r.name, r.contact].concat(fields.map(x => admFormFmt((r.answers || {})[x.id]))).join(' ').toLowerCase().includes(q)));
+    return state.admFormAz ? out.slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })) : out;
   };
   const th = 'position:sticky;top:0;background:#f2d8d7;padding:8px 10px;text-align:left;font-size:13px;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;';
   const td = 'padding:8px 10px;border-top:1px solid rgba(0,0,0,.08);font-size:14px;vertical-align:top;max-width:260px;overflow-wrap:break-word;';
