@@ -12015,7 +12015,7 @@ function admFormsHtml(){
       <button type="button" class="fb-mini" id="afmBack">← All events</button>
       <h3 style="margin:10px 0 2px;overflow-wrap:break-word;">${escapeCm(sel.title)}</h3>
       <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">📅 ${escapeCm(calDateLabel(sel.date))}${sel.time ? ' · ⏰ ' + escapeCm(sel.time) : ''}${sel.place ? ' · 📍 ' + escapeCm(sel.place) : ''}</p>
-      <div class="fb-row" style="margin-bottom:8px;"><button type="button" class="fb-mini" id="afmEdit">✏️ Edit event &amp; form</button><button type="button" class="fb-mini" id="afmManage">👥 Manage attendees &amp; payments</button><button type="button" class="fb-mini" id="afmInvite" style="background:#25a244;color:#fff;">💬 Invite a member</button>${sel.form ? '<button type="button" class="fb-mini" id="afmCsv">⬇️ Download CSV</button>' : ''}</div>
+      <div class="fb-row" style="margin-bottom:8px;"><button type="button" class="fb-mini" id="afmEdit">✏️ Edit event &amp; form</button><button type="button" class="fb-mini" id="afmManage">👥 Manage attendees &amp; payments</button><button type="button" class="fb-mini" id="afmInvite" style="background:#25a244;color:#fff;">💬 Invite a member</button><button type="button" class="fb-mini" id="afmRemAll">⏰ Email reminder to everyone going</button>${sel.form ? '<button type="button" class="fb-mini" id="afmCsv">⬇️ Download CSV</button>' : ''}</div>
       ${!sel.form ? `<div class="fb-card" style="box-shadow:none;"><p style="margin:0 0 6px;font-weight:800;">👥 ${(sel.rsvps || []).filter(r => r.status === 'going').length} ${sel.date < today ? 'attended' : 'going'}</p>${admSpotsLeftHtml(sel, [], [])}${(sel.rsvps || []).filter(r => r.status === 'going').sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })).map(r => `<div style="padding:6px 0;border-top:1px solid rgba(0,0,0,.08);">${r.id && !r.guest ? `<button type="button" class="adm-profile-link" data-user-id="${escapeCm(r.id)}" style="border:none;background:none;padding:0;font:inherit;text-decoration:underline;cursor:pointer;">${escapeCm(r.name)}</button>` : escapeCm(r.name)}${r.guest ? ' <small style="color:#776867;">(guest)</small>' : ''}</div>`).join('') || '<p class="av-msg">Nobody yet — tap “Manage attendees” to add people.</p>'}</div>` : `<div id="afmSum"></div>
       <input id="afmQ" type="search" placeholder="Search names or answers…" value="${escapeCm(state.admFormQ || '')}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin:4px 0 8px;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">${chip('all', 'Everyone')}${chip('going', 'Going')}${chip('waitlist', 'Waitlist')}${sel.form.payment ? chip('unpaid', 'Not paid') : ''}<button type="button" class="filter-chip${state.admFormAz ? ' active' : ''}" id="afmAz">🔤 A–Z</button><button type="button" class="filter-chip" id="afmOverChip" data-afmf="over" style="display:none;color:#b3261e;border-color:#b3261e;">⚠️ Over the limit</button></div>
@@ -12062,6 +12062,14 @@ async function wireAdmForms(){
   const ev = (state.clubCal || []).find(e => e.id === state.admFormSel); if(!ev || !document.getElementById('afmBack')) return;
   document.getElementById('afmBack').addEventListener('click', () => { state.admFormSel = null; state.admFormData = null; render(); });
   document.getElementById('afmEdit').addEventListener('click', () => clubCalForm(ev));
+  { const ra = document.getElementById('afmRemAll'); if(ra) ra.addEventListener('click', async () => {
+    const going = (ev.rsvps || []).filter(x => x.status === 'going' && x.id);
+    if(!going.length) return alert('Nobody is marked as going yet.');
+    if(!confirm('Email a reminder (with their own activity / time slot and answers) to all ' + going.length + ' people going?\n\nPeople we have no email for are skipped.')) return;
+    ra.disabled = true; let ok = 0, skip = 0;
+    for(let i = 0; i < going.length; i++){ ra.textContent = 'Sending ' + (i + 1) + '/' + going.length + '…'; try { await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/resend-confirm', 'POST', { userId: going[i].id, mode: 'reminder' }); ok++; } catch(e){ skip++; } }
+    ra.disabled = false; ra.textContent = '⏰ Email reminder to everyone going'; alert('✓ Reminder sent to ' + ok + (skip ? ' · skipped ' + skip + ' (no email)' : '') + '.');
+  }); }
   document.getElementById('afmManage').addEventListener('click', () => clubCalManage(ev));
   document.querySelectorAll('.adm-profile-link').forEach(b => { b.onclick = () => openAdminProfile(b.dataset.userId); });
   document.getElementById('afmInvite').addEventListener('click', async e => {
@@ -12154,14 +12162,21 @@ async function wireAdmForms(){
         <div style="margin-top:12px;padding:10px 12px;border-radius:12px;background:#fdecea;border:2px solid #f3b8b3;"><b style="color:#b3261e;">🚫 Cancel their registration</b><p class="ideas-hint" style="text-align:left;margin:2px 0 6px;">They get an email saying we are sorry they can’t come. Their spot is freed (the next person on the waitlist moves up).</p><textarea id="afmCancelWhy" rows="2" maxlength="500" placeholder="Reason to include in the email (optional) — e.g. this activity filled up" style="width:100%;box-sizing:border-box;padding:8px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:15px;"></textarea><button type="button" class="fb-mini" id="afmCancel" style="margin-top:6px;background:#b3261e;color:#fff;">🚫 Cancel registration &amp; email them</button><div id="afmCancelMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div></div>
         <div style="margin-top:12px;"><button type="button" class="fb-mini" id="afmProf" style="background:#76220b;color:#fff;">👤 Open profile — edit username, clubs, delete…</button></div>
         <div style="margin-top:12px;"><button type="button" class="fb-mini" id="afmWa" style="background:#25a244;color:#fff;">💬 Message on WhatsApp</button><div id="afmWaMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div></div>
-        <div style="margin-top:12px;"><button type="button" class="fb-mini" id="afmResend">✉️ Resend their confirmation email (with all answers)</button><div id="afmResendMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div></div>`);
+        <div style="margin-top:12px;"><button type="button" class="fb-mini" id="afmUpd">✏️ Email: your registration was updated</button> <button type="button" class="fb-mini" id="afmRem">⏰ Email a reminder</button></div><div style="margin-top:12px;"><button type="button" class="fb-mini" id="afmResend">✉️ Resend their confirmation email (with all answers)</button><div id="afmResendMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div></div>`);
       const sv = rp.wrap.querySelector('#afmEditSave'); if(sv) sv.addEventListener('click', async e => {
         const m = rp.wrap.querySelector('#afmEditMsg'), ans = {};
         rp.wrap.querySelectorAll('#afmEditBox input').forEach(inp => { const fid = inp.dataset.fid; if(inp.dataset.ft === 'multi'){ ans[fid] = ans[fid] || []; if(inp.checked) ans[fid].push(inp.value); } else if(inp.checked) ans[fid] = inp.value; else if(!(fid in ans)) ans[fid] = ''; });
         e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Saving…';
         try {
           await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/edit-answers', 'POST', { userId: r.userId, answers: ans });
+          const flat = v => Array.isArray(v) ? v.join(', ') : (v || ''), changes = [];
+          fields.filter(x => x.type === 'choice' || x.type === 'multi').forEach(x => { const o = flat((r.answers || {})[x.id]), n = flat(ans[x.id]); if(o !== n) changes.push(richPlain(x.label) + ': ' + (o || '—') + ' → ' + (n || '—')); });
           state.admFormData = null; document.querySelectorAll('.mem-pop').forEach(x => x.remove()); openAttendeesPopup(ev);
+          if(changes.length) setTimeout(() => { const qp = ideaPopup(`<h3 style="margin:0 0 6px;">✓ Saved</h3><p style="margin:0 0 8px;">${escapeCm(r.name)}’s answers were updated:</p><p style="margin:0 0 10px;font-size:14px;">${changes.map(escapeCm).join('<br>')}</p><button type="button" class="fb-mini" id="chgMail" style="background:#76220b;color:#fff;">✉️ Email them about the change</button> <button type="button" class="fb-mini" id="chgSkip">Not now</button><div id="chgMsg" style="font-size:13px;min-height:18px;margin-top:6px;"></div>`);
+            qp.wrap.querySelector('#chgSkip').addEventListener('click', () => qp.wrap.closest('.mem-pop') ? qp.wrap.closest('.mem-pop').remove() : document.querySelectorAll('.mem-pop').forEach(x => x.remove()));
+            qp.wrap.querySelector('#chgMail').addEventListener('click', async e2 => { const mm = qp.wrap.querySelector('#chgMsg'); e2.target.disabled = true; mm.style.color = '#776867'; mm.textContent = 'Sending…';
+              try { const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/resend-confirm', 'POST', { userId: r.userId, mode: 'updated', changes }); mm.style.color = '#2a7a4a'; mm.textContent = '✓ Emailed ' + (j.to || 'them'); }
+              catch(er){ mm.style.color = '#c00'; mm.textContent = er.message; e2.target.disabled = false; } }); }, 80);
         } catch(err){ m.style.color = '#c00'; m.textContent = err.message; e.target.disabled = false; }
       });
       rp.wrap.querySelector('#afmCancel').addEventListener('click', async e => {
@@ -12184,6 +12199,12 @@ async function wireAdmForms(){
         const first = String(r.name || '').split(' ')[0] || '';
         admWaPrompt('💬 Message ' + (r.name || ''), r.name, phone, `Salam ${first}, for your registration in ${ev.title} I want to ask `, 'this message');
       });
+      [['#afmUpd','updated','Email ' + r.name + ' that their registration was updated (with their current answers)?'],['#afmRem','reminder','Email ' + r.name + ' a reminder with their event details and answers?']].forEach(([sel, mode, q]) => rp.wrap.querySelector(sel).addEventListener('click', async e => {
+        const m = rp.wrap.querySelector('#afmResendMsg'); if(!confirm(q)) return;
+        e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Sending…';
+        try { const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/resend-confirm', 'POST', { userId: r.userId, mode }); m.style.color = '#2a7a4a'; m.textContent = '✓ Sent to ' + (j.to || 'them'); }
+        catch(err){ m.style.color = '#c00'; m.textContent = err.message; } e.target.disabled = false;
+      }));
       rp.wrap.querySelector('#afmResend').addEventListener('click', async e => {
         const m = rp.wrap.querySelector('#afmResendMsg'); if(!confirm('Email ' + r.name + ' their confirmation again, with all their answers?')) return;
         e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Sending…';
