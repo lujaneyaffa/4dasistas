@@ -11989,7 +11989,7 @@ function admFormsHtml(){
       <button type="button" class="fb-mini" id="afmBack">← All events</button>
       <h3 style="margin:10px 0 2px;overflow-wrap:break-word;">${escapeCm(sel.title)}</h3>
       <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">📅 ${escapeCm(calDateLabel(sel.date))}${sel.time ? ' · ⏰ ' + escapeCm(sel.time) : ''}${sel.place ? ' · 📍 ' + escapeCm(sel.place) : ''}</p>
-      <div class="fb-row" style="margin-bottom:8px;"><button type="button" class="fb-mini" id="afmEdit">✏️ Edit event &amp; form</button><button type="button" class="fb-mini" id="afmManage">👥 Manage attendees &amp; payments</button>${sel.form ? '<button type="button" class="fb-mini" id="afmCsv">⬇️ Download CSV</button>' : ''}</div>
+      <div class="fb-row" style="margin-bottom:8px;"><button type="button" class="fb-mini" id="afmEdit">✏️ Edit event &amp; form</button><button type="button" class="fb-mini" id="afmManage">👥 Manage attendees &amp; payments</button><button type="button" class="fb-mini" id="afmInvite" style="background:#25a244;color:#fff;">💬 Invite a member</button>${sel.form ? '<button type="button" class="fb-mini" id="afmCsv">⬇️ Download CSV</button>' : ''}</div>
       ${!sel.form ? `<div class="fb-card" style="box-shadow:none;"><p style="margin:0 0 6px;font-weight:800;">👥 ${(sel.rsvps || []).filter(r => r.status === 'going').length} ${sel.date < today ? 'attended' : 'going'}</p>${admSpotsLeftHtml(sel, [], [])}${(sel.rsvps || []).filter(r => r.status === 'going').map(r => `<div style="padding:6px 0;border-top:1px solid rgba(0,0,0,.08);">${escapeCm(r.name)}${r.guest ? ' <small style="color:#776867;">(guest)</small>' : ''}</div>`).join('') || '<p class="av-msg">Nobody yet — tap “Manage attendees” to add people.</p>'}</div>` : `<div id="afmSum"></div>
       <input id="afmQ" type="search" placeholder="Search names or answers…" value="${escapeCm(state.admFormQ || '')}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin:4px 0 8px;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">${chip('all', 'Everyone')}${chip('going', 'Going')}${chip('waitlist', 'Waitlist')}${sel.form.payment ? chip('unpaid', 'Not paid') : ''}<button type="button" class="filter-chip" id="afmOverChip" data-afmf="over" style="display:none;color:#b3261e;border-color:#b3261e;">⚠️ Over the limit</button></div>
@@ -12037,6 +12037,21 @@ async function wireAdmForms(){
   document.getElementById('afmBack').addEventListener('click', () => { state.admFormSel = null; state.admFormData = null; render(); });
   document.getElementById('afmEdit').addEventListener('click', () => clubCalForm(ev));
   document.getElementById('afmManage').addEventListener('click', () => clubCalManage(ev));
+  document.getElementById('afmInvite').addEventListener('click', async e => {
+    const btn = e.currentTarget; btn.disabled = true; const users = await calLoadUsers(); btn.disabled = false;
+    const going = new Set((ev.rsvps || []).filter(r => r.status === 'going' || r.status === 'waitlist').map(r => String(r.id || r.userId)));
+    const all = (users || []).filter(u => !u.archived && !going.has(String(u.id))).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    const details = [calDateLabel(ev.date), ev.time, ev.place ? '@ ' + ev.place : ''].filter(Boolean).join(' · ');
+    const msgFor = u => `Salam ${String(u.name || '').split(' ')[0] || ''}, are you down for ${ev.title} (${details})?`.replace('  ', ' ');
+    const { wrap } = ideaPopup(`<h3 style="margin:0 0 4px;">💬 Invite a member</h3><p class="ideas-hint" style="text-align:left;margin:0 0 8px;">Pick someone — WhatsApp opens with a casual message about <b>${escapeCm(ev.title)}</b> (no link).</p><input id="invQ" type="search" placeholder="Search members…" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-bottom:8px;"><div id="invList" style="max-height:52vh;overflow:auto;"></div>`);
+    const list = wrap.querySelector('#invList'), q = wrap.querySelector('#invQ');
+    const paint = () => {
+      const t = q.value.trim().toLowerCase(), rows = all.filter(u => !t || String(u.name || '').toLowerCase().includes(t));
+      list.innerHTML = rows.slice(0, 80).map(u => `<button type="button" class="fb-card inv-who" data-id="${escapeCm(u.id)}" style="display:flex;gap:8px;align-items:center;width:100%;text-align:left;cursor:pointer;font:inherit;margin:0 0 6px;"><span style="flex:1;min-width:0;"><b>${escapeCm(u.name || '')}</b>${admWhatsAppLink(u.phone, 'x') ? '' : '<br><small style="color:#b3261e;">no phone on file</small>'}</span><span>💬</span></button>`).join('') || '<p class="av-msg">No members match.</p>';
+      list.querySelectorAll('.inv-who').forEach(b => b.addEventListener('click', () => { const u = all.find(x => String(x.id) === b.dataset.id); if(u) admWaPrompt('💬 Invite ' + (u.name || ''), u.name, u.phone, msgFor(u), 'this invite'); }));
+    };
+    q.addEventListener('input', paint); paint();
+  });
   const tbl = document.getElementById('afmTable'); if(!tbl) return;
   document.querySelectorAll('[data-afmf]').forEach(b => b.addEventListener('click', () => { state.admFormFilter = b.dataset.afmf; document.querySelectorAll('[data-afmf]').forEach(x => x.classList.toggle('active', x === b)); paint(); }));
   const qEl = document.getElementById('afmQ'); qEl.addEventListener('input', () => { state.admFormQ = qEl.value; paint(); });
