@@ -12044,8 +12044,8 @@ async function wireAdmForms(){
     (ev.rsvps || []).forEach(r => { if(r.status !== 'cancelled') addT(r); });
     if(state.admFormData && state.admFormData.id === ev.id) ((state.admFormData.d || {}).responses || []).forEach(addT);
     const all = (users || []).filter(u => !u.archived && !taken.has(String(u.id)) && !takenNames.has(String(u.name || '').trim().toLowerCase()));
-    const details = [calDateLabel(ev.date), ev.time, ev.place ? '@ ' + ev.place : ''].filter(Boolean).join(' · ');
-    const msgFor = u => `Salam ${String(u.name || '').split(' ')[0] || ''}, are you down for ${ev.title} (${details})?`.replace('  ', ' ');
+    const evCity = (() => { if(ev.city) return String(ev.city).trim(); const parts = String(ev.place || '').split(',').map(x => x.trim()).filter(x => x && !/^(ON|Ontario|Canada|[A-Z]\d[A-Z]\s?\d[A-Z]\d)$/i.test(x)); if(!parts.length) return ''; return /\d/.test(parts[0]) && parts[1] ? parts[1] : (/\d/.test(parts[0]) ? '' : parts[0]); })();
+    const msgFor = u => `Salam ${String(u.name || '').split(' ')[0] || ''}, are you down for ${ev.title} on ${calDateLabel(ev.date)}${evCity ? ' in ' + evCity : ''}? lmk!`.replace('  ', ' ');
     const ago = t => { if(!t) return 'never'; const d = Math.floor((Date.now() - t) / 864e5); return d <= 0 ? 'today' : d === 1 ? 'yesterday' : d < 30 ? d + ' days ago' : d < 365 ? Math.floor(d / 30) + ' mo ago' : '1y+ ago'; };
     const clubIds = [...new Set(all.flatMap(u => u.clubs || []))];
     let fClub = ev.clubId && clubIds.includes(ev.clubId) ? ev.clubId : 'all', sort = 'active';
