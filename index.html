@@ -12039,18 +12039,33 @@ async function wireAdmForms(){
   document.getElementById('afmManage').addEventListener('click', () => clubCalManage(ev));
   document.getElementById('afmInvite').addEventListener('click', async e => {
     const btn = e.currentTarget; btn.disabled = true; const users = await calLoadUsers(); btn.disabled = false;
-    const going = new Set((ev.rsvps || []).filter(r => r.status === 'going' || r.status === 'waitlist').map(r => String(r.id || r.userId)));
-    const all = (users || []).filter(u => !u.archived && !going.has(String(u.id))).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    // everyone already signed up (going / waitlist / filled in the form) is left out — matched by id AND by name
+    const taken = new Set(), takenNames = new Set(); const addT = r => { if(!r) return; [r.id, r.userId].filter(Boolean).forEach(v => taken.add(String(v))); if(r.name) takenNames.add(String(r.name).trim().toLowerCase()); };
+    (ev.rsvps || []).forEach(r => { if(r.status !== 'cancelled') addT(r); });
+    if(state.admFormData && state.admFormData.id === ev.id) ((state.admFormData.d || {}).responses || []).forEach(addT);
+    const all = (users || []).filter(u => !u.archived && !taken.has(String(u.id)) && !takenNames.has(String(u.name || '').trim().toLowerCase()));
     const details = [calDateLabel(ev.date), ev.time, ev.place ? '@ ' + ev.place : ''].filter(Boolean).join(' · ');
     const msgFor = u => `Salam ${String(u.name || '').split(' ')[0] || ''}, are you down for ${ev.title} (${details})?`.replace('  ', ' ');
-    const { wrap } = ideaPopup(`<h3 style="margin:0 0 4px;">💬 Invite a member</h3><p class="ideas-hint" style="text-align:left;margin:0 0 8px;">Pick someone — WhatsApp opens with a casual message about <b>${escapeCm(ev.title)}</b> (no link).</p><input id="invQ" type="search" placeholder="Search members…" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-bottom:8px;"><div id="invList" style="max-height:52vh;overflow:auto;"></div>`);
-    const list = wrap.querySelector('#invList'), q = wrap.querySelector('#invQ');
+    const ago = t => { if(!t) return 'never'; const d = Math.floor((Date.now() - t) / 864e5); return d <= 0 ? 'today' : d === 1 ? 'yesterday' : d < 30 ? d + ' days ago' : d < 365 ? Math.floor(d / 30) + ' mo ago' : '1y+ ago'; };
+    const clubIds = [...new Set(all.flatMap(u => u.clubs || []))];
+    let fClub = ev.clubId && clubIds.includes(ev.clubId) ? ev.clubId : 'all', sort = 'active';
+    const { wrap } = ideaPopup(`<h3 style="margin:0 0 4px;">💬 Invite a member</h3><p class="ideas-hint" style="text-align:left;margin:0 0 8px;">People who are <b>not</b> already signed up for <b>${escapeCm(ev.title)}</b>. Tap one — WhatsApp opens with a casual message (no link).</p>
+      <input id="invQ" type="search" placeholder="Search members…" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin-bottom:8px;">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"><select id="invClub" style="flex:1;min-width:140px;padding:9px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:14px;"><option value="all">All members</option>${ev.clubId && clubIds.includes(ev.clubId) ? `<option value="${escapeCm(ev.clubId)}">⭐ This club (${escapeCm(avClubTitle(ev.clubId))})</option>` : ''}<option value="none">Not in any club</option>${clubIds.filter(c => c !== ev.clubId).map(c => `<option value="${escapeCm(c)}">${escapeCm(avClubTitle(c))}</option>`).join('')}</select>
+      <select id="invSort" style="flex:1;min-width:140px;padding:9px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:14px;"><option value="active">🕒 Last active</option><option value="club">⭐ This club first</option><option value="name">🔤 Name A–Z</option></select></div>
+      <div id="invCount" class="ideas-hint" style="text-align:left;margin:0 0 6px;"></div><div id="invList" style="max-height:48vh;overflow:auto;"></div>`);
+    const list = wrap.querySelector('#invList'), q = wrap.querySelector('#invQ'), selC = wrap.querySelector('#invClub'), selS = wrap.querySelector('#invSort'); selC.value = fClub;
+    const inClub = u => (u.clubs || []).includes(ev.clubId);
     const paint = () => {
-      const t = q.value.trim().toLowerCase(), rows = all.filter(u => !t || String(u.name || '').toLowerCase().includes(t));
-      list.innerHTML = rows.slice(0, 80).map(u => `<button type="button" class="fb-card inv-who" data-id="${escapeCm(u.id)}" style="display:flex;gap:8px;align-items:center;width:100%;text-align:left;cursor:pointer;font:inherit;margin:0 0 6px;"><span style="flex:1;min-width:0;"><b>${escapeCm(u.name || '')}</b>${admWhatsAppLink(u.phone, 'x') ? '' : '<br><small style="color:#b3261e;">no phone on file</small>'}</span><span>💬</span></button>`).join('') || '<p class="av-msg">No members match.</p>';
+      const t = q.value.trim().toLowerCase(); fClub = selC.value; sort = selS.value;
+      let rows = all.filter(u => (!t || String(u.name || '').toLowerCase().includes(t)) && (fClub === 'all' || (fClub === 'none' ? !(u.clubs || []).length : (u.clubs || []).includes(fClub))));
+      rows.sort((a, b) => sort === 'name' ? String(a.name || '').localeCompare(String(b.name || '')) : sort === 'club' ? (inClub(b) - inClub(a)) || (admLastActive(b) - admLastActive(a)) : (admLastActive(b) - admLastActive(a)));
+      wrap.querySelector('#invCount').textContent = rows.length + ' member' + (rows.length === 1 ? '' : 's') + ' not signed up yet';
+      list.innerHTML = rows.slice(0, 100).map(u => { const tags = (u.clubs || []).map(c => { const k = clubCol(c); return `<span style="display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:${k.bg};color:${k.fg};margin:2px 4px 0 0;">${escapeCm(avClubTitle(c))}</span>`; }).join('') || '<span style="font-size:11px;color:#776867;">no club yet</span>';
+        return `<button type="button" class="fb-card inv-who" data-id="${escapeCm(u.id)}" style="display:flex;gap:8px;align-items:center;width:100%;text-align:left;cursor:pointer;font:inherit;margin:0 0 6px;"><span style="flex:1;min-width:0;"><b>${escapeCm(u.name || '')}</b> <small style="color:#776867;">· active ${ago(admLastActive(u))}</small><br>${tags}${admWhatsAppLink(u.phone, 'x') ? '' : '<br><small style="color:#b3261e;">no phone on file</small>'}</span><span style="font-size:20px;">💬</span></button>`; }).join('') || '<p class="av-msg">No members match.</p>';
       list.querySelectorAll('.inv-who').forEach(b => b.addEventListener('click', () => { const u = all.find(x => String(x.id) === b.dataset.id); if(u) admWaPrompt('💬 Invite ' + (u.name || ''), u.name, u.phone, msgFor(u), 'this invite'); }));
     };
-    q.addEventListener('input', paint); paint();
+    q.addEventListener('input', paint); selC.addEventListener('change', paint); selS.addEventListener('change', paint); paint();
   });
   const tbl = document.getElementById('afmTable'); if(!tbl) return;
   document.querySelectorAll('[data-afmf]').forEach(b => b.addEventListener('click', () => { state.admFormFilter = b.dataset.afmf; document.querySelectorAll('[data-afmf]').forEach(x => x.classList.toggle('active', x === b)); paint(); }));
