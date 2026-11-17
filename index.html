@@ -6404,6 +6404,31 @@ async function refreshClubCalItems(){
     homeFeaturedPaint();
   } catch {}
 }
+// 📝 A guest (signed up without an account) opens the private link from their confirmation email: they see their answers and can change them.
+async function calGuestEditInit(){
+  const qp = new URLSearchParams(location.search), id = qp.get('reg'), g = qp.get('g'), t = qp.get('t'); if(!id || !g || !t) return;
+  const api = '/api/club-calendar/' + encodeURIComponent(id) + '/mine';
+  const { wrap, close } = ideaPopup('<p class="av-msg">Loading your registration…</p>');
+  let d; try { const r = await fetch(api + '?g=' + encodeURIComponent(g) + '&t=' + encodeURIComponent(t), { cache:'no-store' }); d = await r.json(); if(!r.ok) throw new Error(d.error || 'Something went wrong'); }
+  catch(err){ wrap.querySelector('.mem-pop-card').innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`; return; }
+  const card = wrap.querySelector('.mem-pop-card'), cleanUrl = () => { try { history.replaceState(null, '', location.pathname + location.hash); } catch {} };
+  const draw = (note) => {
+    card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 2px;">📝 Your registration</h3><p class="ideas-hint" style="text-align:left;margin:0 0 8px;"><b>${escapeCm(d.event.title)}</b> · ${escapeCm(calDateLabel(d.event.date))}${d.event.time ? ' · ' + escapeCm(d.event.time) : ''}<br>${escapeCm(d.name)} · ${d.status === 'going' ? '✅ Going' : d.status === 'waitlist' ? '⏳ Waitlist' : escapeCm(d.status || '')}</p>
+      ${d.past ? '<p class="av-msg">This event has already happened, so answers can no longer be changed.</p>' : '<p class="ideas-hint" style="text-align:left;margin:0 0 6px;">These are your answers. Change what you need and tap <b>Send my change</b> — the organizers are notified.</p>'}
+      <div class="gfBox">${calFormFieldsHtml(d.form, d.answers, false)}</div>
+      ${d.past ? '' : '<button type="button" class="club-guide-btn gfSend" style="width:100%;text-align:center;background:var(--brand-rose);color:#fff;margin-top:8px;">Send my change</button>'}<div class="gfMsg" style="font-size:13px;min-height:18px;margin-top:6px;${note ? 'color:#2a7a4a;' : ''}">${note || ''}</div>`;
+    const box = card.querySelector('.gfBox'); try { calMountLocations(box); } catch {}
+    if(d.past) box.querySelectorAll('input,textarea,select').forEach(x => { x.disabled = true; });
+    const sb = card.querySelector('.gfSend'); if(sb) sb.addEventListener('click', async e => {
+      const m = card.querySelector('.gfMsg'); e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Saving…';
+      try { const r = await fetch(api, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ g, t, answers: calFormCollect(box, d.form) }) }); const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error(j.error || 'Could not save'); d.answers = j.answers; draw('✓ Saved — thank you! The organizers have been told about your change.'); }
+      catch(err){ m.style.color = '#c00'; m.textContent = err.message; e.target.disabled = false; }
+    });
+    card.querySelector('.mem-pop-close').addEventListener('click', () => { cleanUrl(); close(); });
+  };
+  draw('');
+}
+setTimeout(calGuestEditInit, 1200);
 // 👥 Who attended a PAST event (public): first names only; tap a name for the date they joined + their clubs.
 // 📸 Photos from the day: approved photos people added + an "Add your photos" button for those who went. Also a small 🚩 Report link.
 async function calAlbumInto(container, id, date){

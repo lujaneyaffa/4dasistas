@@ -1592,6 +1592,7 @@ const calConfirmEmail = (env, ctx, ev, p) => ctx.waitUntil((async () => {
   try {
     if (!env.RESEND_API_KEY || !p.email) return;
     const origin = env.SITE_ORIGIN || "https://4dasistas.ca", url = `${origin}/#/form/${ev.slug || ev.id}`, pay = (ev.form && ev.form.payment) || null, wl = p.status === "waitlist";
+    const mineUrl = p.gid ? `${origin}/?reg=${encodeURIComponent(ev.id)}&g=${encodeURIComponent(p.gid)}&t=${await calGuestPayTok(env, ev.id, p.gid)}#/form/${ev.slug || ev.id}` : "";
     const money = (n) => `$${Number(n).toFixed(2).replace(/\.00$/, "")}`;
     const rows = emailRow("Event", escapeHtml(ev.title)) + (ev.date ? emailRow("Date", escapeHtml(new Date(ev.date + "T12:00:00Z").toLocaleDateString("en-CA", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "UTC" }))) : "") + (ev.time ? emailRow("Time", escapeHtml(ev.time)) : "")
       + (ev.place && !wl ? emailRow("Place", escapeHtml(ev.place) + (ev.mapUrl ? ` · <a href="${escapeHtml(ev.mapUrl)}">map</a>` : "")) : "") + emailRow("Name", escapeHtml(p.name)) + emailRow("Status", wl ? "⏳ On the waitlist — we'll let you know if a spot opens" : "✅ You're going")
@@ -1601,7 +1602,7 @@ const calConfirmEmail = (env, ctx, ev, p) => ctx.waitUntil((async () => {
     const qa = ((ev.form && ev.form.fields) || []).filter((f) => f.type !== "agree" && p.answers && p.answers[f.id] !== undefined && String(ansVal(p.answers[f.id])).trim() !== "").map((f) => emailAnswer(escapeHtml(calPlain(f.label)), escapeHtml(ansVal(p.answers[f.id])))).join("");
     const ansBit = qa ? `<div style="margin:18px 0 4px;font-size:13px;font-weight:700;color:#76220b;letter-spacing:.6px;text-transform:uppercase">Your answers</div>${emailTable(qa)}` : "";
     const payBit = !wl && pay && p.total != null && !p.paid ? `<p style="margin:14px 0 6px"><strong>Payment:</strong> ${stripeOn(env) ? "if you haven't paid yet, you can pay by card, Apple Pay or Google Pay from your event page." : "please pay using the details on your event page."}</p>${pay.link ? `<p style="margin:0 0 6px">Payment link: <a href="${escapeHtml(pay.link)}">${escapeHtml(pay.link)}</a></p>` : ""}${pay.note ? `<p style="margin:0 0 6px;white-space:pre-wrap">${escapeHtml(pay.note)}</p>` : ""}` : "";
-    const html = emailShell(env, { emoji: wl ? "⏳" : "🎉", title: wl ? "You're on the waitlist" : "You're registered!", preheader: ev.title, body: `<p style="margin:0 0 12px">Hi ${escapeHtml(String(p.name || "there").split(/\s+/)[0])}, thank you for signing up. Here's your confirmation:</p>${emailTable(rows)}${ansBit}${payBit}<p style="margin:16px 0 4px">${emailBtn(url, "Open the event page →")}</p>`, footer: "Keep this email as your confirmation. Questions? Just reply or write to admin@4dasistas.ca." });
+    const html = emailShell(env, { emoji: wl ? "⏳" : "🎉", title: wl ? "You're on the waitlist" : "You're registered!", preheader: ev.title, body: `<p style="margin:0 0 12px">Hi ${escapeHtml(String(p.name || "there").split(/\s+/)[0])}, thank you for signing up. Here's your confirmation:</p>${emailTable(rows)}${ansBit}${payBit}<p style="margin:16px 0 4px">${emailBtn(url, "Open the event page →")}</p>${mineUrl ? `<p style="margin:10px 0 4px">Need to change something? <a href="${escapeHtml(mineUrl)}">View your answers &amp; request a change</a> — keep this link private, it is yours.</p>` : ""}`, footer: "Keep this email as your confirmation. Questions? Just reply or write to admin@4dasistas.ca." });
     await postResend(env, { from: env.FROM_EMAIL || "4DASISTAS <updates@4dasistas.ca>", to: [p.email], subject: `${wl ? "Waitlist" : "Registration confirmed"}: ${ev.title}`, html, reply_to: CAL_ADMIN_MAIL });
   } catch (e) { console.error("registration email failed", String(e && e.message || e)); }
 })());
@@ -2740,7 +2741,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ error: "Not allowed" }, 405, corsHeaders);
     }
 
-    const calMatch = path.match(/^\/api\/club-calendar(?:\/([^/]+)(\/rsvp|\/form|\/attendees|\/interest|\/paid|\/checkout)?)?\/?$/);
+    const calMatch = path.match(/^\/api\/club-calendar(?:\/([^/]+)(\/rsvp|\/form|\/mine|\/attendees|\/interest|\/paid|\/checkout)?)?\/?$/);
     if (path === "/api/stripe/webhook" && request.method === "POST") {
       const raw = await request.text();
       if (!(await stripeVerify(env, raw, request.headers.get("Stripe-Signature")))) return jsonResponse({ error: "Bad signature" }, 400, corsHeaders);
@@ -2808,6 +2809,24 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (!who || !(who.id.startsWith("m:") || (who.id === "admin" && M === "GET" && !calMatch[2]))) { // (the main admin without a member login fills forms like anyone else)
           // A PUBLICIZED event (publicForm): anyone can open its form straight away and submit it with just a name — no account needed.
           if (!calMatch[2] && M === "GET") return jsonResponse(calHidePlace(ev, { id: ev.id, slug: ev.slug, cardPay: stripeOn(env), inviteOnly: !!ev.inviteOnly, endDate: ev.endDate || "", inviteOk: invOk, signup: ev.signup || "", contactUrl: ev.contactUrl || "", spotsAlert: ev.spotsAlert || null, clubTitle: calClubs(ev).map(clubTitle).filter(Boolean).join(" × "), title: ev.title, date: ev.date, time: ev.time || "", place: ev.place || "", mapUrl: ev.mapUrl || "", desc: ev.desc || "", blocks: ev.blocks || [], theme: ev.theme || null, hosts: ev.hosts || [], clubIds: calClubs(ev), publicForm: !!ev.form, form: await calFormWithLeft(env, ev), priceText: ev.priceText || "", signup: ev.signup || "", guest: true, ...calCapInfo(ev), rsvpBy: ev.rsvpBy || "", closed: !!(false /* RSVP-by dates were removed (Nov 2026) */) }, false), 200, corsHeaders);
+          if (ev.form && calMatch[2] === "/mine" && (M === "GET" || M === "POST")) { // a guest (no account) looks at their own answers and changes them, via the private link in their confirmation email
+            let rb = {}; if (M === "POST") { try { rb = await request.json(); } catch { rb = {}; } }
+            const gid = String((M === "GET" ? url.searchParams.get("g") : rb.g) || ""), tok = String((M === "GET" ? url.searchParams.get("t") : rb.t) || "");
+            if (!/^g:[\w-]{4,20}$/.test(gid) || !sameSig(tok, await calGuestPayTok(env, ev.id, gid))) return jsonResponse({ error: "This link isn't valid — use the link from your confirmation email." }, 403, corsHeaders);
+            let gmap = {}; try { gmap = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
+            const ge = gmap[gid], gr = (ev.rsvps || []).find((x) => x.id === gid);
+            if (!ge || !gr) return jsonResponse({ error: "We couldn't find your registration — it may have been cancelled. Please sign up again." }, 404, corsHeaders);
+            if (M === "GET") return jsonResponse({ ok: true, name: ge.name, status: gr.status, answers: ge.answers || {}, form: await calFormWithLeft(env, ev), event: { title: ev.title, date: ev.date, time: ev.time || "" }, past: (ev.endDate || ev.date) < new Date().toISOString().slice(0, 10) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+            if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
+            if ((ev.endDate || ev.date) < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "This event has already happened" }, 400, corsHeaders);
+            const gchk = checkCalAnswers(ev.form, rb.answers); if (gchk.error) return jsonResponse({ error: gchk.error }, 400, corsHeaders);
+            { const ce = await calCapsPre(env, ev, gid, gchk.answers); if (ce) return jsonResponse({ error: ce }, 409, corsHeaders); }
+            await calFormPut(env, ev.id, gid, { ...ge, answers: gchk.answers, at: ge.at || Date.now(), editedAt: Date.now() });
+            { const vv = (v) => Array.isArray(v) ? v.join(", ") : (v && typeof v === "object" ? String(v.address || "") : (/^data:image\//.test(String(v)) ? "(signed)" : String(v)));
+              const rows = ((ev.form && ev.form.fields) || []).filter((f) => f.type !== "agree" && gchk.answers[f.id] !== undefined).map((f) => emailRow(escapeHtml(calPlain(f.label)), `${ge.answers && JSON.stringify(ge.answers[f.id]) !== JSON.stringify(gchk.answers[f.id]) ? "✏️ " : ""}${escapeHtml(vv(gchk.answers[f.id]))}`)).join("");
+              sendAdminEmail(env, ctx, `Answers changed: ${ev.title} — ${ge.name}`, emailShell(env, { emoji: "✏️", title: "A registration was changed", preheader: `${ge.name} · ${ev.title}`, body: `<p style="margin:0 0 10px"><strong>${escapeHtml(ge.name)}</strong> changed their answers for <strong>${escapeHtml(ev.title)}</strong> (${escapeHtml(ev.date)}). ✏️ marks what changed.</p>${emailTable(rows)}`, footer: "Open Admin → Event attendees to see everyone." })); }
+            return jsonResponse({ ok: true, answers: gchk.answers }, 200, corsHeaders);
+          }
           if (ev.form) { // ANY event with a form can be filled in without an account
             if (calMatch[2] === "/form" && M === "POST") {
               if (!ideaRateOk(ideaIp)) return jsonResponse({ error: "Slow down a little — try again in a minute" }, 429, corsHeaders);
@@ -2844,7 +2863,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
               const stG = await calSpotStatus(env, ev, gid);
               await calAddRsvp(env, ev.id, { id: gid, name: nm, email: gEmail, status: stG, at: Date.now(), guest: true, viaForm: true, ...(fb.paidClaim === true && ev.form.payment ? { claimedPaid: Date.now() } : {}) }); // shows in the attendee list too
               notifyAdminOfFormSignup(env, ctx, ev, { name: nm, contact: contact + (gEmail ? " · " + gEmail : "") }, chk.answers, calAddonSelection(ev.form, fb && fb.addons));
-              { const sel = calAddonSelection(ev.form, fb && fb.addons); calConfirmEmail(env, ctx, ev, { answers: chk.answers, name: nm, email: gEmail, status: stG, total: sel.total, addons: ((ev.form.payment || {}).addons || []).filter((a) => sel.ids.includes(a.id)).map((a) => a.label) }); }
+              { const sel = calAddonSelection(ev.form, fb && fb.addons); calConfirmEmail(env, ctx, ev, { gid, answers: chk.answers, name: nm, email: gEmail, status: stG, total: sel.total, addons: ((ev.form.payment || {}).addons || []).filter((a) => sel.ids.includes(a.id)).map((a) => a.label) }); }
               return jsonResponse({ ok: true, eventStatus: stG, ...(ev.form.payment && stG === "going" ? { payId: gid, payTok: await calGuestPayTok(env, ev.id, gid) } : {}), ...(ev.placePrivate && stG === "going" ? { place: ev.place || "", mapUrl: ev.mapUrl || "" } : {}) }, 200, corsHeaders);
             }
             if (calMatch[2] === "/checkout" && M === "POST") { // a guest (no account) paying right after signing up
@@ -2890,6 +2909,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           { const sel = calAddonSelection(ev.form, fb && fb.addons); map = await calFormPut(env, ev.id, uid, { name: who.name, ...(mEmail ? { email: mEmail } : {}), answers: chk.answers, at: Date.now(), ...(sel.ids.length ? { addons: sel.ids } : {}), ...(sel.total != null ? { total: sel.total } : {}) }); }
           // Submitting the form IS the RSVP: club members are going at once, people from other clubs wait for approval.
           let status = wasIn ? wasIn.status : null;
+          if (wasIn) { const rowsM = ((ev.form && ev.form.fields) || []).filter((f) => f.type !== "agree" && chk.answers[f.id] !== undefined).map((f) => { const vv = (v) => Array.isArray(v) ? v.join(", ") : (v && typeof v === "object" ? String(v.address || "") : (/^data:image\//.test(String(v)) ? "(signed)" : String(v))); return emailRow(escapeHtml(calPlain(f.label)), escapeHtml(vv(chk.answers[f.id]))); }).join(""); sendAdminEmail(env, ctx, `Answers changed: ${ev.title} — ${who.name}`, emailShell(env, { emoji: "✏️", title: "A registration was changed", preheader: `${who.name} · ${ev.title}`, body: `<p style="margin:0 0 10px"><strong>${escapeHtml(who.name)}</strong> updated their answers for <strong>${escapeHtml(ev.title)}</strong> (${escapeHtml(ev.date)}).</p>${emailTable(rowsM)}`, footer: "Open Admin → Event attendees to see everyone." })); }
           if (!wasIn) {
             status = await calSpotStatus(env, ev, uid); // a form sign-up is open to everyone: filling it in IS the RSVP (past the limit = waitlist)
             { const c1 = await calAddRsvp(env, ev.id, { id: uid, name: who.name, ...(mEmail ? { email: mEmail } : {}), status, at: Date.now(), viaForm: true, ...(fb.paidClaim === true && ev.form.payment ? { claimedPaid: Date.now() } : {}) }); if (c1) ev.rsvps = c1.rsvps; }
