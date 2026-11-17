@@ -6995,6 +6995,7 @@ async function calLoadUsers(){
 function clubCalManage(ev){
   let usersCache = Array.isArray(state.cmAdminAllUsers) ? state.cmAdminAllUsers : null;
   const { wrap, close } = ideaPopup('');
+  admRememberOpen(wrap, 'manage:' + ev.id);
   { const c = wrap.querySelector('.mem-pop-card'); c.classList.add('adm-wide'); }
   let tab = state.calMgTab || 'edit';
   const tabsHtml = () => `<div class="cal-mtabs"><button type="button" class="cal-mt${tab === 'edit' ? ' on' : ''}" data-mt="edit">✏️ Edit event</button><button type="button" class="cal-mt${tab === 'people' ? ' on' : ''}" data-mt="people">👥 People &amp; payments (${(ev.rsvps || []).filter(r => r.status === 'going').length})</button></div>`;
@@ -11963,6 +11964,7 @@ function openAttendeesPopup(ev){
   state.admFormSel = ev.id; state.admFormQ = ''; state.admFormFilter = 'all'; state.admFormData = null;
   const html = admFormsHtml(); if(!html.includes('afmBack')) return;
   const { wrap, close } = ideaPopup(html);
+  admRememberOpen(wrap, 'attendees:' + ev.id);
   wrap.querySelector('.mem-pop-card').style.maxWidth = 'min(96vw, 960px)';
   wireAdmForms();
   const back = wrap.querySelector('#afmBack'); if(back){ const nb = back.cloneNode(true); back.replaceWith(nb); nb.textContent = '✕ Close'; nb.addEventListener('click', close); }
@@ -14570,13 +14572,26 @@ function wireClubAdminPanel(){
 
 
 // After a refresh: if the event editor was open, bring the admin back to it (on the Admin page, not the home page).
+// Remember which admin screen is open so a refresh reopens it (cleared when it is closed).
+function admRememberOpen(wrap, key){
+  try { localStorage.setItem('evEditOpen', key); } catch {}
+  const mo = new MutationObserver(() => { if(!wrap.isConnected){ mo.disconnect(); try { if(localStorage.getItem('evEditOpen') === key) localStorage.removeItem('evEditOpen'); } catch {} } });
+  mo.observe(document.body, { childList:true, subtree:true });
+}
 async function calResumeEditor(){
-  let id = ''; try { id = localStorage.getItem('evEditOpen') || ''; } catch {}
-  if(!id || !adminUiOn() || document.querySelector('.fb-page') || state._resumedEd) return; state._resumedEd = true;
-  if(!state.clubCal || state.clubCalIsAdminData !== calIsAdmin()){ try { clubCalLoad(true); } catch {} }
+  let raw = ''; try { raw = localStorage.getItem('evEditOpen') || ''; } catch {}
+  if(!raw || !adminUiOn() || document.querySelector('.fb-page') || state._resumedEd) return; state._resumedEd = true;
+  const m = raw.match(/^(manage|attendees):(.+)$/), kind = m ? m[1] : 'edit', id = m ? m[2] : raw;
+  state.clubCal = state.clubCal || null;
+  try { await clubCalLoad(true); } catch {}
   for(let i = 0; i < 30; i++){
-    const ev = (state.clubCal || []).find(e => e.id === id);
-    if(ev){ if(state.tab !== 'admin'){ state.tab = 'admin'; try { render(); } catch {} } clubCalForm(ev); return; }
+    const ev = (state.clubCal || []).concat(state.clubCalTbd || []).find(e => e.id === id);
+    if(ev){
+      if(state.tab !== 'admin'){ state.tab = 'admin'; try { render(); } catch {} }
+      if(kind === 'manage') clubCalManage(ev); else if(kind === 'attendees') openAttendeesPopup(ev); else clubCalForm(ev);
+      return;
+    }
+    if(i === 6 && !state.clubCalLoading){ try { await clubCalLoad(true); } catch {} }
     await new Promise(r => setTimeout(r, 300));
   }
   try { localStorage.removeItem('evEditOpen'); } catch {}
