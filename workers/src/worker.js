@@ -1768,6 +1768,36 @@ const PAY_REQ_MSG = "Payment is required — please pay using the details on the
 const calAddRsvp = (env, evId, entry) => calMutate(env, evId, (ev) => { ev.rsvps = (ev.rsvps || []).filter((r) => r.id !== entry.id).concat([entry]); }, (chk) => (chk.rsvps || []).some((r) => r.id === entry.id));
 const calDropRsvp = (env, evId, pid) => calMutate(env, evId, (ev) => { ev.rsvps = (ev.rsvps || []).filter((r) => r.id !== pid); }, (chk) => !(chk.rsvps || []).some((r) => r.id === pid));
 // A person's saved form answers live in one KV map per event; same fresh-write-verify treatment. Returns the merged map.
+// When the organiser renames a time slot / activity, move everyone's saved picks to the new wording (same position, or the closest wording).
+const calNorm = (t) => String(t || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const calSim = (a, b) => { const A = new Set(calNorm(a).split(" ").filter(Boolean)), B = new Set(calNorm(b).split(" ").filter(Boolean)); if (!A.size || !B.size) return 0; let n = 0; A.forEach((w) => { if (B.has(w)) n++; }); return n / Math.max(A.size, B.size); };
+const calMigrateAnswers = (env, evId, oldForm, newForm) => calWithLock(env, "calform:" + evId, async () => {
+  if (!oldForm || !newForm) return 0;
+  const maps = {};
+  for (const nf of newForm.fields || []) {
+    if (nf.type !== "choice" && nf.type !== "multi") continue;
+    const of = (oldForm.fields || []).find((x) => x.id === nf.id && x.type === nf.type); if (!of) continue;
+    const O = of.options || [], N = nf.options || [], gone = O.filter((o) => !N.includes(o)), fresh = N.filter((o) => !O.includes(o)); if (!gone.length || !fresh.length) continue;
+    const m = {}, used = new Set();
+    for (const o of gone) {
+      let to = "";
+      if (O.length === N.length && N[O.indexOf(o)] && fresh.includes(N[O.indexOf(o)])) to = N[O.indexOf(o)];
+      else { let best = 0; for (const c of fresh) { if (used.has(c)) continue; const sc = calSim(o, c); if (sc > best) { best = sc; to = c; } } if (best < 0.5) to = ""; }
+      if (to) { m[o] = to; used.add(to); }
+    }
+    if (Object.keys(m).length) maps[nf.id] = m;
+  }
+  if (!Object.keys(maps).length) return 0;
+  let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(evId))) || "{}") || {}; } catch {}
+  let n = 0;
+  for (const ent of Object.values(map)) for (const [fid, m] of Object.entries(maps)) {
+    const v = ent && ent.answers && ent.answers[fid]; if (v === undefined) continue;
+    if (Array.isArray(v)) { const nv = [...new Set(v.map((x) => m[x] || x))]; if (nv.join("|") !== v.join("|")) { ent.answers[fid] = nv; n++; } }
+    else if (m[v]) { ent.answers[fid] = m[v]; n++; }
+  }
+  if (n) await env.SITE_DATA.put(calFormKey(evId), JSON.stringify(map));
+  return n;
+});
 const calFormPut = (env, evId, pid, entry) => calWithLock(env, "calform:" + evId, () => calFormPutRaw(env, evId, pid, entry));
 const calFormPutRaw = async (env, evId, pid, entry) => {
   for (let i = 0; i < 5; i++) {
@@ -5546,6 +5576,22 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       }
       return jsonResponse({ ok: true, emailed, to: emailed ? email : "", event: ev }, 200, corsHeaders);
     }
+    const adminCalRemapMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/remap-answers\/?$/);
+    if (adminCalRemapMatch && request.method === "POST") { // move everyone who picked an old wording to another (current) option
+      const ev = (await readClubCal(env)).find((e) => e.id === adminCalRemapMatch[1]);
+      if (!ev || !ev.form || (leadCtx && !(Array.isArray(ev.formLeads) && ev.formLeads.includes(leadCtx.username)))) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
+      let b = {}; try { b = await request.json(); } catch {}
+      const f = ev.form.fields.find((x) => x.id === b.fieldId && (x.type === "choice" || x.type === "multi")); if (!f) return jsonResponse({ error: "Question not found" }, 404, corsHeaders);
+      const from = String(b.from || ""), to = String(b.to || ""); if (!from || !(f.options || []).includes(to)) return jsonResponse({ error: "Pick one of the current options" }, 400, corsHeaders);
+      const n = await calWithLock(env, "calform:" + ev.id, async () => {
+        let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
+        let c = 0;
+        for (const ent of Object.values(map)) { const v = ent && ent.answers && ent.answers[f.id]; if (Array.isArray(v) ? v.includes(from) : v === from) { ent.answers[f.id] = Array.isArray(v) ? [...new Set(v.map((x) => x === from ? to : x))] : to; c++; } }
+        if (c) await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map));
+        return c;
+      });
+      return jsonResponse({ ok: true, moved: n }, 200, corsHeaders);
+    }
     const adminCalResendMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/resend-confirm\/?$/);
     if (adminCalResendMatch && request.method === "POST") {
       const ev = (await readClubCal(env)).find((e) => e.id === adminCalResendMatch[1]);
@@ -5610,7 +5656,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (f.title.length < 3) return jsonResponse({ error: "Give the event a name (3+ letters)" }, 400, corsHeaders);
         const wantTbd = body.tbd !== undefined ? !!body.tbd : !!ev.tbd;
         if (wantTbd) { f.date = ""; f.rsvpBy = ""; } else if (!isValidDateString(f.date)) return jsonResponse({ error: "Pick a date" }, 400, corsHeaders);
-        const capBefore = calCap(ev), titleBefore = ev.title;
+        let migrated = 0; const capBefore = calCap(ev), titleBefore = ev.title;
+
         Object.assign(ev, f); calApplyDesign(ev, calDesignFields(body));
         if (ev.slug && ev.title !== titleBefore && !ev.slugCustom) { ev.oldSlugs = [...new Set([...(ev.oldSlugs || []), ev.slug])].slice(-5); ev.slug = ""; ev.slug = calMakeSlug(all, ev); } // renamed: new readable link, the old one still works
         if (typeof body.slug === "string" && body.slug.trim()) { // the admin typed their own page address
@@ -5621,7 +5668,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         if (body.form !== undefined) { // (a club admin without access never sees the form, so their edit of the event details must not touch it)
           const cf = sanitizeCalForm(body.form);
           if (cf) { if (cf.rsvpBy !== undefined && (canForm(ev) || !ev.form)) ev.rsvpBy = cf.rsvpBy; if (cf.desc !== undefined && (canForm(ev) || !ev.form)) ev.desc = cf.desc; delete cf.rsvpBy; delete cf.desc; }
-          if (canForm(ev)) { if (cf) ev.form = cf; else delete ev.form; }
+          if (canForm(ev)) { const oldForm = ev.form; if (cf) ev.form = cf; else delete ev.form; if (cf && oldForm) { try { migrated = await calMigrateAnswers(env, ev.id, oldForm, cf); } catch (e) { console.error('migrate answers', String(e && e.message || e)); } } }
           else if (!ev.form && cf) { ev.form = cf; ev.formLeads = [...new Set([...(ev.formLeads || []), leadCtx.username])]; } // they created the form, so it's theirs
         }
         if (body.formLeads !== undefined && !leadCtx) {
