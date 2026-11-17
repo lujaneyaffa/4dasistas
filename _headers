@@ -20,3 +20,11 @@
 /.well-known/apple-developer-merchantid-domain-association
   Content-Type: text/plain
   Cache-Control: public, max-age=3600
+
+# Basic browser protections for every page (no CSP yet: the site uses inline scripts)
+/*
+  Strict-Transport-Security: max-age=31536000
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(self), microphone=(), geolocation=(self), payment=(self)

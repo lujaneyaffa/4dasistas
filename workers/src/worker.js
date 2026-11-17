@@ -986,6 +986,8 @@ const touchMember = async (env, userId, login) => {
 const seenMap = async (env) => { const m = new Map(); try { if (await seenEnsure(env)) for (const r of (await env.DB.prepare("SELECT user_id, login_at, seen_at FROM member_seen").all()).results || []) m.set(r.user_id, { login: r.login_at || 0, seen: r.seen_at || 0 }); } catch {} return m; };
 const seenOf = (m, u) => ({ lastLoginAt: Math.max(u.lastLoginAt || 0, (m.get(u.id) || {}).login || 0), lastSeenAt: Math.max(u.lastSeenAt || 0, (m.get(u.id) || {}).seen || 0) });
 // attempt counters: returns the NEW count for this key (D1), or null when D1 isn't available
+// Brute-force guard for the main admin password (one shared secret = the keys to everything): at most 15 tries per connection per hour.
+const adminLoginBlocked = async (env, request) => { const ip = request.headers.get("CF-Connecting-IP") || "unknown"; const n = await rateTouch(env, `adminlogin:ip:${ip}:${Math.floor(Date.now() / 3600000)}`, 3700); return n !== null && n > 15; };
 const rateTouch = async (env, key, ttlSec) => { try { if (!(await seenEnsure(env))) return null; const r = await env.DB.prepare("INSERT INTO rate_limits (k, n, exp) VALUES (?, 1, ?) ON CONFLICT(k) DO UPDATE SET n = CASE WHEN exp < ? THEN 1 ELSE n + 1 END, exp = CASE WHEN exp < ? THEN excluded.exp ELSE exp END RETURNING n").bind(key, Date.now() + ttlSec * 1000, Date.now(), Date.now()).first(); return r ? r.n : null; } catch { return null; } };
 // The four former squads are community groups (WhatsApp chat + events), NOT idea/vote/availability clubs: they never count towards who's "waiting to vote" or whose availability is shown.
 const COMMUNITY_CLUBS = new Set(["club-quran", "club-badminton", "club-cowork", "club-steps"]);
@@ -4065,9 +4067,10 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         headers.set("Location", "/editor?error=2");
         return new Response(null, { status: 302, headers });
       }
+      if (await adminLoginBlocked(env, request)) return new Response("Too many attempts. Try again in an hour.", { status: 429, headers: corsHeaders });
       const formData = await request.formData();
       const password = formData.get("password");
-      if (password && password === ADMIN_PASSWORD) {
+      if (password && sameSig(String(password), ADMIN_PASSWORD)) {
         const token = await createSession();
         const headers = new Headers(corsHeaders);
         headers.set("Set-Cookie", setSessionCookie(token));
@@ -4098,7 +4101,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!ADMIN_PASSWORD) return jsonResponse({ error: "Server misconfigured: ADMIN_PASSWORD is not set" }, 500, corsHeaders);
       let body;
       try { body = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
-      if (String(body.password || "") !== ADMIN_PASSWORD) return jsonResponse({ error: "Incorrect password" }, 401, corsHeaders);
+      if (await adminLoginBlocked(env, request)) return jsonResponse({ error: "Too many attempts — please try again in an hour" }, 429, corsHeaders);
+      if (!sameSig(String(body.password || ""), ADMIN_PASSWORD)) return jsonResponse({ error: "Incorrect password" }, 401, corsHeaders);
       const token = await createSession();
       const headers = new Headers({ "Content-Type": "application/json", ...corsHeaders });
       headers.set("Set-Cookie", setSessionCookie(token));
@@ -4291,7 +4295,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
             await env.SITE_DATA.put(`bmcoach:${tok}`, "1", { expirationTtl: 43200 });
             return jsonResponse({ session: { user: { id: "coach", email: BM_COACH_EMAIL }, access_token: tok } }, 200, corsHeaders);
           }
-          if (!env.ADMIN_PASSWORD || pw !== env.ADMIN_PASSWORD) return bmErr("Invalid login credentials", 401); // "Owner admin" = the 4DS main admin password
+          if (await adminLoginBlocked(env, request)) return bmErr("Too many attempts — please try again in an hour", 429);
+          if (!env.ADMIN_PASSWORD || !sameSig(String(pw || ""), env.ADMIN_PASSWORD)) return bmErr("Invalid login credentials", 401); // "Owner admin" = the 4DS main admin password
           const tok = await createSession(), headers = new Headers({ "Content-Type": "application/json", ...corsHeaders });
           headers.set("Set-Cookie", setSessionCookie(tok));
           return new Response(JSON.stringify({ session: { user: { id: BM_OWNER_ID, email: "owner" }, access_token: "owner" } }), { status: 200, headers });
