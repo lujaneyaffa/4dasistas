@@ -12049,6 +12049,20 @@ function admFormsHtml(){
     ${list.length > N ? `<button type="button" class="club-guide-btn" id="afmMore" style="width:100%;text-align:center;margin-top:8px;">Load more (${list.length - N} left)</button>` : ''}`;
 }
 // Seats left in the event + spots left in every limited time slot / activity
+// Editable reminder / update email: write your own message ({name} = their first name); their own time slot & activity are added automatically.
+function admEmailEditor(ev, people, mode, onDone){
+  const rem = mode === 'reminder', n = people.length;
+  const defMsg = rem ? 'Salam {name},\n\nA quick reminder about ' + ev.title + ' — we can\u2019t wait to see you! Your time slot and activity are listed below.\n\nSee you soon,\n4DASISTAS' : 'Salam {name},\n\nWe updated your registration for ' + ev.title + '. Your new time slot and activity are listed below.\n\n4DASISTAS';
+  const { wrap, close } = ideaPopup(`<h3 style="margin:0 0 4px;">${rem ? '⏰ Reminder email' : '✏️ Update email'}</h3><p class="ideas-hint" style="text-align:left;margin:0 0 8px;">To: ${n === 1 ? escapeCm(people[0].name) : n + ' people'}. Edit anything below. <b>{name}</b> becomes their first name. Their own time slot, activity and answers are added automatically under your message.</p><label style="font-size:12px;color:#776867;">Subject</label><input id="emSub" maxlength="150" value="${escapeCm((rem ? 'Reminder: ' : 'Updated: ') + ev.title)}" style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;margin-bottom:8px;"><label style="font-size:12px;color:#776867;">Message</label><textarea id="emMsg" rows="8" maxlength="3000" style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);font:inherit;font-size:15px;">${escapeCm(defMsg)}</textarea><div style="margin-top:6px;padding:8px 10px;border-radius:10px;background:#fef7f4;border:1px solid #f2d8d7;font-size:13px;">📋 Auto-added: their event details + <b>Your plan</b> (their time slot / activity) + their answers.</div><button type="button" class="fb-mini" id="emGo" style="margin-top:10px;background:#76220b;color:#fff;">✉️ Send${n > 1 ? ' to ' + n + ' people' : ''}</button> <button type="button" class="fb-mini" id="emX">Cancel</button><div id="emMsgOut" style="font-size:13px;min-height:18px;margin-top:6px;"></div>`);
+  wrap.querySelector('#emX').addEventListener('click', close);
+  wrap.querySelector('#emGo').addEventListener('click', async e => {
+    const out = wrap.querySelector('#emMsgOut'), message = wrap.querySelector('#emMsg').value, subject = wrap.querySelector('#emSub').value;
+    e.target.disabled = true; let ok = 0, skip = 0, last = '';
+    for(let i = 0; i < n; i++){ out.style.color = '#776867'; out.textContent = 'Sending ' + (i + 1) + '/' + n + '…'; try { const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/resend-confirm', 'POST', { userId: people[i].id, mode, message, subject }); ok++; last = j.to || ''; } catch(er){ skip++; last = er.message; } }
+    out.style.color = ok ? '#2a7a4a' : '#c00'; out.textContent = ok ? '✓ Sent to ' + (n === 1 ? last : ok + ' people') + (skip ? ' · skipped ' + skip + ' (no email)' : '') : last;
+    if(!ok) e.target.disabled = false; else if(onDone) onDone();
+  });
+}
 function admSpotsLeftHtml(ev, fields, rs){
   const going = (ev.rsvps || []).filter(r => r.status === 'going').length, cap = Number(ev.capacity) || 0;
   const col = n => n <= 0 ? '#b3261e' : (n <= 2 ? '#b36b00' : '#2a7a4a');
@@ -12070,15 +12084,11 @@ async function wireAdmForms(){
   const ev = (state.clubCal || []).find(e => e.id === state.admFormSel); if(!ev || !document.getElementById('afmBack')) return;
   document.getElementById('afmBack').addEventListener('click', () => { state.admFormSel = null; state.admFormData = null; render(); });
   document.getElementById('afmEdit').addEventListener('click', () => clubCalForm(ev));
-  { const ra = document.getElementById('afmRemAll'); if(ra) ra.addEventListener('click', async () => {
+  { const ra = document.getElementById('afmRemAll'); if(ra) ra.addEventListener('click', () => {
     const going = (ev.rsvps || []).filter(x => x.status === 'going' && x.id);
     if(!going.length) return alert('Nobody is marked as going yet.');
-    if(!confirm('Email a reminder (with their own activity / time slot and answers) to all ' + going.length + ' people going?\n\nPeople we have no email for are skipped.')) return;
-    ra.disabled = true; let ok = 0, skip = 0;
-    for(let i = 0; i < going.length; i++){ ra.textContent = 'Sending ' + (i + 1) + '/' + going.length + '…'; try { await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/resend-confirm', 'POST', { userId: going[i].id, mode: 'reminder' }); ok++; } catch(e){ skip++; } }
-    ra.disabled = false; ra.textContent = '⏰ Email reminder to everyone going'; alert('✓ Reminder sent to ' + ok + (skip ? ' · skipped ' + skip + ' (no email)' : '') + '.');
-  }); }
-  document.getElementById('afmManage').addEventListener('click', () => clubCalManage(ev));
+    admEmailEditor(ev, going.map(x => ({ id: x.id, name: x.name })), 'reminder');
+  }); }  document.getElementById('afmManage').addEventListener('click', () => clubCalManage(ev));
   document.querySelectorAll('.adm-profile-link').forEach(b => { b.onclick = () => openAdminProfile(b.dataset.userId); });
   document.getElementById('afmInvite').addEventListener('click', async e => {
     const btn = e.currentTarget; btn.disabled = true; const users = await calLoadUsers(); btn.disabled = false;
@@ -12215,12 +12225,7 @@ async function wireAdmForms(){
         const first = String(r.name || '').split(' ')[0] || '';
         admWaPrompt('💬 Message ' + (r.name || ''), r.name, phone, `Salam ${first}, for your registration in ${ev.title} I want to ask `, 'this message');
       });
-      [['#afmUpd','updated','Email ' + r.name + ' that their registration was updated (with their current answers)?'],['#afmRem','reminder','Email ' + r.name + ' a reminder with their event details and answers?']].forEach(([sel, mode, q]) => rp.wrap.querySelector(sel).addEventListener('click', async e => {
-        const m = rp.wrap.querySelector('#afmResendMsg'); if(!confirm(q)) return;
-        e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Sending…';
-        try { const j = await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/resend-confirm', 'POST', { userId: r.userId, mode }); m.style.color = '#2a7a4a'; m.textContent = '✓ Sent to ' + (j.to || 'them'); }
-        catch(err){ m.style.color = '#c00'; m.textContent = err.message; } e.target.disabled = false;
-      }));
+      [['#afmUpd','updated'],['#afmRem','reminder']].forEach(([sel, mode]) => rp.wrap.querySelector(sel).addEventListener('click', () => admEmailEditor(ev, [{ id: r.userId, name: r.name }], mode)));
       rp.wrap.querySelector('#afmResend').addEventListener('click', async e => {
         const m = rp.wrap.querySelector('#afmResendMsg'); if(!confirm('Email ' + r.name + ' their confirmation again, with all their answers?')) return;
         e.target.disabled = true; m.style.color = '#776867'; m.textContent = 'Sending…';
