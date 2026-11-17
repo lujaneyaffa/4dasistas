@@ -8161,7 +8161,7 @@ function calPageEditorOld(ev, opts){
     if(q('#cfRepeat') && q('#cfRepeat').value && !g.tbd && !repDates().length) return fail(q('#cfRepeat').value === 'pick' ? 'Add the other dates for the repeat (or set Repeat back to “' + (isNew ? 'Just once' : 'No extra dates') + '”).' : 'Pick the last date for the repeat — it must be after the first date.', 'pgS2');
     return true;
   };
-  const close = force => { if(!force && dirty && !confirm('Close without saving your changes?')) return; if(!inline){ host.remove(); document.body.style.overflow = prevOv; } };
+  const close = force => { if(!force && dirty && !confirm('Close without saving your changes?')) return; if(!inline){ host.remove(); document.body.style.overflow = prevOv; try { localStorage.removeItem('evEditOpen'); } catch {} } };
   const preview = () => {
     const g = gather(), form = g.form, w = document.createElement('div'); w.className = 'fb-page'; w.style.zIndex = '10001';
     const d = { ...g, form, clubTitle: '', clubId: (g.clubIds || [])[0] };
@@ -8339,6 +8339,7 @@ function calEventEditor(ev, opts){
   if(!inline){ host.className = 'fb-page'; document.body.appendChild(host); }
   const prevOv = document.body.style.overflow; if(!inline) document.body.style.overflow = 'hidden';
   let dirty = false, saving = false;
+  if(!inline && ev && ev.id){ try { localStorage.setItem('evEditOpen', ev.id); } catch {} } // so a refresh reopens this editor instead of dumping you on the home page
   const nid = () => Math.random().toString(36).slice(2, 10), upCtx = { evId: ev ? ev.id : '' };
   const F = 'width:100%;padding:11px 12px;margin-bottom:8px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;font-family:inherit;background:#fff;';
   const lab = t => `<label style="display:block;font-size:13px;font-weight:700;color:#776867;margin:0 0 3px;">${t}</label>`;
@@ -8558,7 +8559,7 @@ function calEventEditor(ev, opts){
     if(q('#cfRepeat').value && !g.tbd && !repDates().length) return fail(q('#cfRepeat').value === 'pick' ? 'Add the other dates for the repeat (or set Repeat back).' : 'Pick the last date for the repeat — after the first date.', 'eeDetails');
     return true;
   };
-  const close = force => { if(!force && dirty && !confirm('Close without saving your changes?')) return; if(!inline){ host.remove(); document.body.style.overflow = prevOv; } };
+  const close = force => { if(!force && dirty && !confirm('Close without saving your changes?')) return; if(!inline){ host.remove(); document.body.style.overflow = prevOv; try { localStorage.removeItem('evEditOpen'); } catch {} } };
   const preview = () => {
     const g = gather(), w = document.createElement('div'); w.className = 'fb-page'; w.style.zIndex = '10090';
     const d = { ...g, clubTitle: '', clubId: g.clubIds[0] };
@@ -14539,6 +14540,18 @@ function wireClubAdminPanel(){
 }
 
 
+// After a refresh: if the event editor was open, bring the admin back to it (on the Admin page, not the home page).
+async function calResumeEditor(){
+  let id = ''; try { id = localStorage.getItem('evEditOpen') || ''; } catch {}
+  if(!id || !adminUiOn() || document.querySelector('.fb-page') || state._resumedEd) return; state._resumedEd = true;
+  if(!state.clubCal || state.clubCalIsAdminData !== calIsAdmin()){ try { clubCalLoad(true); } catch {} }
+  for(let i = 0; i < 30; i++){
+    const ev = (state.clubCal || []).find(e => e.id === id);
+    if(ev){ if(state.tab !== 'admin'){ state.tab = 'admin'; try { render(); } catch {} } clubCalForm(ev); return; }
+    await new Promise(r => setTimeout(r, 300));
+  }
+  try { localStorage.removeItem('evEditOpen'); } catch {}
+}
 function renderFooterLogout(){
   const btn = document.getElementById('footerLogoutBtn');
   if(!btn) return;
@@ -14567,6 +14580,7 @@ async function checkAdminSession(){
     state.cmLead = data.lead || null;
   } catch { state.cmAdminLoggedIn = false; }
   render();
+  calResumeEditor();
 }
 
 // render() never lets one bad piece of data kill the whole page: if drawing throws, clean up whatever may be blocking taps, fall back to a safe tab and try once more (a half-drawn page is what made every button look dead).
