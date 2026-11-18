@@ -9661,7 +9661,11 @@ function homeFeaturedInner(){
   const snip = t => String(t || '').replace(/\s+/g, ' ').trim();
   const evCard = (id, title, when, sub, desc) => `<button type="button" class="hf-card" data-id="${escapeCm(id)}"><span class="hf-when">${escapeCm(when)}</span><strong>${escapeCm(title)}</strong>${sub ? `<span class="hf-sub">📍 ${escapeCm(sub)}</span>` : ''}${snip(desc) ? `<span class="hf-sub hf-clamp">${escapeCm(snip(desc))}</span>` : ''}<span class="hf-more">View details →</span></button>`;
   const F = state.featured;
-  const pubSrc = F ? F.public.map(x => homeFeatPubEntry(x.id)).filter(Boolean) : homeFeaturedEvents();
+  const pubSrc = (() => { // pinned by the admin first; then what's on TODAY; if there is nothing today, the next upcoming ones
+    const out = F ? F.public.filter(x => x.pinned).map(x => homeFeatPubEntry(x.id)).filter(Boolean) : [];
+    for(const e of homeFeaturedEvents()){ if(out.length >= 2) break; if(!out.some(o => String(o.item.id) === String(e.item.id))) out.push(e); }
+    return out.slice(0, 2);
+  })();
   const hostedSrc = F ? F.hosted.map(x => (CLUB_CAL_ITEMS || []).find(e => e.id === 'clubcal:' + x.id)).filter(Boolean) : homeFeaturedHosted();
   const bizSrc = F ? F.biz.map(x => (resourcesData || []).find(r => String(r.id) === String(x.id))).filter(Boolean) : homeBusinessesOfDay();
   const pub = pubSrc.map(({ item, when }) => evCard(item.id, emojiTitle(item), when + (eventTimeLabel(item) && eventTimeLabel(item) !== 'All day' ? ' · ' + eventTimeLabel(item) : ''), cityLabel(item) || '', item.desc));
