@@ -12139,7 +12139,7 @@ async function wireAdmForms(){
     try { d = await clubCalAdminCall('/' + encodeURIComponent(ev.id) + '/responses', 'GET'); state.admFormData = { id: ev.id, d }; }
     catch(err){ tbl.innerHTML = `<p class="av-msg" style="color:#c00;">${escapeCm(err.message)}</p>`; return; }
   }
-  const form = d.form || ev.form, fields = (form && form.fields) || [], pay = !!(form && form.payment), sym = pay ? calMoneyParts(form).sym : '';
+  const form = d.form || ev.form, fields = ((form && form.fields) || []).filter(f => f.type !== 'agree' && f.type !== 'signature'), pay = !!(form && form.payment) /* terms & signature are required to submit, so no need to show them */, sym = pay ? calMoneyParts(form).sym : '';
   const rs = d.responses || [];
   const aoLabel = r => (r.addons || []).map(id => (((form.payment || {}).addons || []).find(a => a.id === id) || {}).label || '').filter(Boolean).join(', ');
   const stLabel = r => r.status === 'waitlist' ? '⏳ Waitlist' : r.status === 'going' ? '✅ Going' : escapeCm(r.status || '');
