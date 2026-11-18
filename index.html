@@ -3143,6 +3143,7 @@ function renderResourceMap(){
     </div>
     <div id="resourceMapContainer" class="resource-map"></div>
   </div>
+    <div id="resNoPin"></div>
     <div class="map-legend">
       ${legendItems.map(f => `<span><i style="background:${categoryColors[f.key]}"></i> ${f.label}</span>`).join('')}
     </div>
@@ -3179,6 +3180,13 @@ function renderResourceMap(){
   map.fitBounds(group.getBounds().pad(0.15));
   }
 
+  { // listed businesses that have no street address (so no map pin) must still be visible here
+    const noPin = filtered.filter(r => !(typeof r.lat === 'number' && typeof r.lng === 'number')), np = document.getElementById('resNoPin');
+    if(np && noPin.length){
+      np.innerHTML = `<h4 style="margin:18px 0 8px;">📍 Also in the directory <small style="font-weight:400;color:#776867;">(no street address, so not on the map) · ${noPin.length}</small></h4><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;">${noPin.map(r => `<button type="button" class="fb-card resNoPinCard" data-id="${escapeCm(String(r.id))}" style="text-align:left;cursor:pointer;font:inherit;box-shadow:none;margin:0;"><strong>${escapeCm(r.title)}</strong><br><small style="color:#776867;">${escapeCm(r.type || '')}${r.location ? ' · ' + escapeCm(r.location) : ''}</small>${r.desc ? `<div style="font-size:13px;margin-top:4px;" class="hf-clamp">${escapeCm(String(r.desc).slice(0, 140))}</div>` : ''}</button>`).join('')}</div>`;
+      np.querySelectorAll('.resNoPinCard').forEach(c => c.addEventListener('click', () => { const found = allResourceItems.find(r => String(r.id) === c.dataset.id); if(found) renderDetail(found.id || found.title); }));
+    }
+  }
   const sideList = document.getElementById('resourceSideList');
   const sideListTitle = document.getElementById('sideListTitle');
   const sideListContent = document.getElementById('sideListContent');
