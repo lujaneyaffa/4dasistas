@@ -12035,7 +12035,7 @@ function admFormsHtml(){
       <button type="button" class="fb-mini" id="afmBack">← All events</button>
       <h3 style="margin:10px 0 2px;overflow-wrap:break-word;">${escapeCm(sel.title)}</h3>
       <p class="ideas-hint" style="text-align:left;margin:0 0 8px;">📅 ${escapeCm(calDateLabel(sel.date))}${sel.time ? ' · ⏰ ' + escapeCm(sel.time) : ''}${sel.place ? ' · 📍 ' + escapeCm(sel.place) : ''}</p>
-      <div class="fb-row" style="margin-bottom:8px;"><button type="button" class="fb-mini" id="afmEdit">✏️ Edit event &amp; form</button><button type="button" class="fb-mini" id="afmInvite" style="background:#25a244;color:#fff;">💬 Invite a member</button><button type="button" class="fb-mini" id="afmRemAll">⏰ Email reminder to everyone going</button>${sel.form ? '<button type="button" class="fb-mini" id="afmCsv">⬇️ Download CSV</button>' : ''}</div>
+      <div class="fb-row" style="margin-bottom:8px;"><button type="button" class="fb-mini" id="afmEdit">✏️ Edit event &amp; form</button><button type="button" class="fb-mini" id="afmInvite" style="background:#25a244;color:#fff;">💬 Invite a member</button><button type="button" class="fb-mini" id="afmRemAll">⏰ Email reminder to everyone going</button>${sel.form ? '<button type="button" class="fb-mini" id="afmPrintBtn" style="background:#76220b;color:#fff;">🖨️ Printable check-in list</button><button type="button" class="fb-mini" id="afmCsv">⬇️ Download CSV</button>' : ''}</div>
       ${!sel.form ? `<div class="fb-card" style="box-shadow:none;"><p style="margin:0 0 6px;font-weight:800;">👥 ${(sel.rsvps || []).filter(r => r.status === 'going').length} ${sel.date < today ? 'attended' : 'going'}</p>${admSpotsLeftHtml(sel, [], [])}${(sel.rsvps || []).filter(r => r.status === 'going').sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })).map(r => `<div style="padding:6px 0;border-top:1px solid rgba(0,0,0,.08);">${r.id && !r.guest ? `<button type="button" class="adm-profile-link" data-user-id="${escapeCm(r.id)}" style="border:none;background:none;padding:0;font:inherit;text-decoration:underline;cursor:pointer;">${escapeCm(r.name)}</button>` : escapeCm(r.name)}${r.guest ? ' <small style="color:#776867;">(guest)</small>' : ''}</div>`).join('') || '<p class="av-msg">Nobody yet — tap “Manage attendees” to add people.</p>'}</div>` : `<div id="afmSum"></div>
       <input id="afmQ" type="search" placeholder="Search names or answers…" value="${escapeCm(state.admFormQ || '')}" autocomplete="off" style="width:100%;box-sizing:border-box;padding:11px;border-radius:12px;border:2px solid var(--brand-brown);font:inherit;font-size:16px;margin:4px 0 8px;">
       <div id="afmTable"><p class="av-msg">Loading answers…</p></div>`}
@@ -12073,6 +12073,70 @@ function admEmailEditor(ev, people, mode, onDone){
     out.style.color = ok ? '#2a7a4a' : '#c00'; out.textContent = ok ? '✓ Sent to ' + (n === 1 ? last : ok + ' people') + (skip ? ' · skipped ' + skip + ' (no email)' : '') : last;
     if(!ok) e.target.disabled = false; else if(onDone) onDone();
   });
+}
+// 🖨️ Printable check-in list: group by any time-slot / craft question, colour or black & white, no logo. Opens as a full-screen sheet with a Print button.
+function admPrintSheet(ev, fields, rs, form){
+  const cf = fields.filter(f => f.type === 'choice' || f.type === 'multi'), pay = !!(form && form.payment);
+  const o = { by: cf.length ? cf[0].id : '', mono: false, wait: false, page: false, sort: 'name', others: true, signed: false, paid: pay, notes: true };
+  if(!document.getElementById('prSheetCss')){
+    const st = document.createElement('style'); st.id = 'prSheetCss';
+    st.textContent = '@media print{body>*:not(#prSheetWrap){display:none!important}html,body{height:auto!important;overflow:visible!important;background:#fff!important}#prSheetWrap{position:static!important;overflow:visible!important;background:#fff!important;padding:0!important;height:auto!important}.pr-bar{display:none!important}.pr-paper{box-shadow:none!important;margin:0!important;max-width:none!important;width:auto!important;padding:0!important}@page{margin:12mm}}'
+      + '.pr-paper{-webkit-print-color-adjust:exact;print-color-adjust:exact}.pr-bar label{font-size:13px;display:inline-flex;gap:4px;align-items:center;margin:0 10px 6px 0}';
+    document.head.appendChild(st);
+  }
+  document.querySelectorAll('#prSheetWrap').forEach(x => x.remove());
+  const wrap = document.createElement('div'); wrap.id = 'prSheetWrap';
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#e9e4e2;overflow:auto;padding:10px;';
+  const sel = (id, opts, v) => `<select id="${id}" style="padding:8px;border-radius:10px;border:2px solid #76220b;font:inherit;font-size:14px;max-width:100%;">${opts.map(([k, t]) => `<option value="${escapeCm(k)}"${k === v ? ' selected' : ''}>${escapeCm(t)}</option>`).join('')}</select>`;
+  wrap.innerHTML = `<div class="pr-bar" style="max-width:820px;margin:0 auto 10px;background:#fff;border:2px solid #76220b;border-radius:14px;padding:10px 12px;font-family:system-ui,sans-serif;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;"><button type="button" id="prPrint" style="padding:10px 18px;border-radius:12px;border:0;background:#76220b;color:#fff;font:inherit;font-weight:800;font-size:16px;">🖨️ Print</button><button type="button" id="prClose" style="padding:10px 14px;border-radius:12px;border:2px solid #76220b;background:#fff;font:inherit;font-weight:700;">✕ Close</button>
+      <span style="display:inline-flex;border:2px solid #76220b;border-radius:12px;overflow:hidden;"><button type="button" id="prCol" style="padding:9px 12px;border:0;font:inherit;font-weight:700;">🎨 Colour</button><button type="button" id="prBw" style="padding:9px 12px;border:0;font:inherit;font-weight:700;">⚫ Black &amp; white</button></span></div>
+    <div style="margin-bottom:6px;font-size:13px;"><b>Group by</b> ${sel('prBy', cf.map(f => [f.id, richPlain(f.label).slice(0, 50)]).concat([['', 'Everyone (one list)']]), o.by)} &nbsp;<b>Sort names</b> ${sel('prSort', [['name', 'A–Z'], ['at', 'Signed up (earliest first)']], o.sort)}</div>
+    <div><label><input type="checkbox" id="prOthers" checked> Show other choices</label><label><input type="checkbox" id="prSigned"> Signed-up time</label>${pay ? '<label><input type="checkbox" id="prPaid" checked> Paid</label>' : ''}<label><input type="checkbox" id="prNotes" checked> Notes line</label><label><input type="checkbox" id="prWait"> Include waitlist</label><label><input type="checkbox" id="prPage"> One group per page</label></div></div>
+    <div class="pr-paper" id="prDoc" style="max-width:820px;margin:0 auto;background:#fff;padding:26px 28px;box-shadow:0 2px 14px rgba(0,0,0,.18);"></div>`;
+  document.body.appendChild(wrap);
+  const atNum = r => { const n = Number(r.at); if(Number.isFinite(n) && n > 0) return n; const t = Date.parse(r.at || ''); return Number.isFinite(t) ? t : 0; };
+  const cmpN = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+  const cmpT = (a, b) => { const x = atNum(a), y = atNum(b); return (!x && !y) ? cmpN(a, b) : !x ? 1 : !y ? -1 : (x - y) || cmpN(a, b); };
+  function render(){
+    const C = o.mono ? { ink: '#000', soft: '#000', band: '#fff', bandInk: '#000', line: '#000', zebra: '#fff', rule: '2px solid #000', box: '2px solid #000', head: '#000', tag: '#000', hbord: '2px solid #000' }
+                     : { ink: '#373d3b', soft: '#776867', band: '#f7e6e4', bandInk: '#76220b', line: '#e9cfcc', zebra: '#fdf6f5', rule: '3px double #ce8491', box: '2px solid #ce8491', head: '#76220b', tag: '#ce8491', hbord: '0' };
+    const list = rs.filter(r => r.status === 'going' || (o.wait && r.status === 'waitlist'));
+    const by = cf.find(f => f.id === o.by), others = cf.filter(f => !by || f.id !== by.id), cmp = o.sort === 'at' ? cmpT : cmpN;
+    let groups;
+    if(by){
+      const opts = (by.options || []).slice(), extra = {};
+      list.forEach(r => { const v = (r.answers || {})[by.id], arr = Array.isArray(v) ? v : (v ? [v] : []); (arr.length ? arr : ['(no choice)']).forEach(x => { if(x !== '(no choice)' && !opts.includes(x)) opts.push(x); }); });
+      if(list.some(r => { const v = (r.answers || {})[by.id]; return !(Array.isArray(v) ? v.length : v); })) opts.push('(no choice)');
+      groups = opts.map(opt => ({ title: opt, rows: list.filter(r => { const v = (r.answers || {})[by.id], arr = Array.isArray(v) ? v : (v ? [v] : []); return opt === '(no choice)' ? !arr.length : arr.includes(opt); }).sort(cmp) })).filter(g => g.rows.length);
+    } else groups = [{ title: 'Everyone', rows: list.slice().sort(cmp) }];
+    const cols = [];
+    if(o.others) others.forEach(f => cols.push({ h: richPlain(f.label).slice(0, 28), f: r => admFormFmt((r.answers || {})[f.id]) }));
+    if(o.signed) cols.push({ h: 'Signed up', f: r => admWhen(r.at) });
+    if(pay && o.paid) cols.push({ h: 'Paid', f: r => r.paid ? 'Paid' : '' });
+    const th = `padding:5px 8px;text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:${C.soft};font-weight:700;border-bottom:${o.mono ? '2px solid #000' : '1px solid ' + C.line};`;
+    const grp = (g, i) => `<section style="${o.page && i ? 'break-before:page;page-break-before:always;' : ''}margin:0 0 20px;break-inside:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;background:${C.band};color:${C.bandInk};border:${C.hbord};border-radius:${o.mono ? '0' : '12px'};padding:9px 14px;break-after:avoid;"><span style="font-family:Georgia,'Times New Roman',serif;font-size:19px;font-weight:700;">${escapeCm(g.title)}</span><span style="font-size:13px;font-weight:700;">${g.rows.length} ${g.rows.length === 1 ? 'person' : 'people'}</span></div>
+      <table style="width:100%;border-collapse:collapse;margin-top:2px;"><thead><tr><th style="${th}width:34px;"></th><th style="${th}">Name</th>${cols.map(c => `<th style="${th}">${escapeCm(c.h)}</th>`).join('')}${o.notes ? `<th style="${th}width:30%;">Notes</th>` : ''}</tr></thead><tbody>${g.rows.map((r, k) => `<tr style="break-inside:avoid;background:${k % 2 ? C.zebra : '#fff'};"><td style="padding:8px;border-bottom:1px solid ${C.line};"><span style="display:inline-block;width:20px;height:20px;border:${C.box};border-radius:${o.mono ? '2px' : '6px'};vertical-align:middle;"></span></td><td style="padding:8px;border-bottom:1px solid ${C.line};font-weight:700;font-size:15px;color:${C.ink};">${escapeCm(r.name)}${r.guest ? ' <span style="font-weight:400;font-size:12px;color:' + C.soft + ';">(guest)</span>' : ''}${r.status === 'waitlist' ? ' <span style="font-weight:400;font-size:12px;color:' + C.soft + ';">(waitlist)</span>' : ''}</td>${cols.map(c => `<td style="padding:8px;border-bottom:1px solid ${C.line};font-size:13px;color:${C.ink};">${escapeCm(c.f(r))}</td>`).join('')}${o.notes ? `<td style="padding:8px;border-bottom:1px solid ${C.line};"></td>` : ''}</tr>`).join('')}</tbody></table></section>`;
+    document.getElementById('prDoc').innerHTML = `<div style="text-align:center;padding-bottom:12px;margin-bottom:16px;border-bottom:${C.rule};color:${C.ink};font-family:system-ui,-apple-system,sans-serif;">
+      <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:${C.soft};">Check-in list</div>
+      <div style="font-family:Georgia,'Times New Roman',serif;font-size:30px;font-weight:700;color:${C.head};margin:4px 0;overflow-wrap:break-word;">${escapeCm(ev.title)}</div>
+      <div style="font-size:14px;color:${C.soft};">${escapeCm(calDateLabel(ev.date))}${ev.time ? ' · ' + escapeCm(ev.time) : ''}${ev.place ? ' · ' + escapeCm(ev.place) : ''}</div>
+      <div style="font-size:13px;margin-top:4px;color:${C.ink};"><b>${list.length}</b> ${list.length === 1 ? 'person' : 'people'}${by ? ' · grouped by ' + escapeCm(richPlain(by.label).slice(0, 40)) : ''} · tick the box as each guest arrives</div></div>
+      <div style="font-family:system-ui,-apple-system,sans-serif;">${groups.map(grp).join('') || '<p style="text-align:center;color:' + C.soft + ';">Nobody to list yet.</p>'}</div>
+      <div style="text-align:center;font-size:11px;color:${C.soft};margin-top:10px;font-family:system-ui,sans-serif;">Printed ${escapeCm(new Date().toLocaleString('en-CA', { dateStyle: 'medium', timeStyle: 'short' }))}</div>`;
+    const on = 'background:#76220b;color:#fff;', off = 'background:#fff;color:#76220b;';
+    wrap.querySelector('#prCol').style.cssText = 'padding:9px 12px;border:0;font:inherit;font-weight:700;' + (o.mono ? off : on);
+    wrap.querySelector('#prBw').style.cssText = 'padding:9px 12px;border:0;font:inherit;font-weight:700;' + (o.mono ? on : off);
+  }
+  wrap.querySelector('#prClose').addEventListener('click', () => wrap.remove());
+  wrap.querySelector('#prPrint').addEventListener('click', () => window.print());
+  wrap.querySelector('#prCol').addEventListener('click', () => { o.mono = false; render(); });
+  wrap.querySelector('#prBw').addEventListener('click', () => { o.mono = true; render(); });
+  wrap.querySelector('#prBy').addEventListener('change', e => { o.by = e.target.value; render(); });
+  wrap.querySelector('#prSort').addEventListener('change', e => { o.sort = e.target.value; render(); });
+  [['prOthers', 'others'], ['prSigned', 'signed'], ['prPaid', 'paid'], ['prNotes', 'notes'], ['prWait', 'wait'], ['prPage', 'page']].forEach(([id, k]) => { const el = wrap.querySelector('#' + id); if(el) el.addEventListener('change', () => { o[k] = el.checked; render(); }); });
+  render();
 }
 function admWhen(at){ if(!at) return ''; try { return new Date(at).toLocaleString('en-CA', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit', timeZone:'America/Toronto' }); } catch { return ''; } }
 function admSpotsLeftHtml(ev, fields, rs){
@@ -12250,6 +12314,7 @@ async function wireAdmForms(){
     tbl.querySelectorAll('.afm-row').forEach(tr => tr.addEventListener('click', () => openPerson(rs[Number(tr.dataset.i)])));
   }
   paint();
+  { const pb = document.getElementById('afmPrintBtn'); if(pb) pb.addEventListener('click', () => admPrintSheet(ev, fields, rs, form)); }
   document.getElementById('afmCsv').addEventListener('click', () => {
     const esc = v => '"' + String(v).replace(/"/g, '""') + '"';
     const rows = [['Name', 'Contact', 'Status'].concat(pay ? ['Paid', 'Add-ons', 'Total due'] : []).concat(fields.map(x => richPlain(x.label)))].concat(shown().map(r => [r.name, r.contact || '', r.status === 'waitlist' ? 'Waitlist' : r.status === 'going' ? 'Going' : (r.status || '')].concat(pay ? [r.paid ? 'Yes' : 'No', aoLabel(r), r.total != null ? r.total : ''] : []).concat(fields.map(x => admFormFmt((r.answers || {})[x.id])))));
