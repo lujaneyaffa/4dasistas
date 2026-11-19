@@ -12077,7 +12077,8 @@ function admEmailEditor(ev, people, mode, onDone){
 // 🖨️ Printable check-in list: group by any time-slot / craft question, colour or black & white, no logo. Opens as a full-screen sheet with a Print button.
 function admPrintSheet(ev, fields, rs, form){
   const cf = fields.filter(f => f.type === 'choice' || f.type === 'multi'), pay = !!(form && form.payment);
-  const o = { by: cf.length ? cf[0].id : '', mono: false, wait: false, page: false, sort: 'name', others: true, signed: false, paid: pay, notes: true };
+  const slotF = cf.find(f => /time|slot|session|when/i.test(richPlain(f.label))), craftF = cf.find(f => f !== slotF && /craft|activit|workshop|table|class/i.test(richPlain(f.label))) || cf.find(f => f !== slotF);
+  const o = { by: (slotF || cf[0] || {}).id || '', then: (slotF && craftF) ? craftF.id : '', mono: false, wait: false, page: false, sort: 'name', others: true, signed: false, paid: pay, notes: true };
   if(!document.getElementById('prSheetCss')){
     const st = document.createElement('style'); st.id = 'prSheetCss';
     st.textContent = '@media print{body>*:not(#prSheetWrap){display:none!important}html,body{height:auto!important;overflow:visible!important;background:#fff!important}#prSheetWrap{position:static!important;overflow:visible!important;background:#fff!important;padding:0!important;height:auto!important}.pr-bar{display:none!important}.pr-paper{box-shadow:none!important;margin:0!important;max-width:none!important;width:auto!important;padding:0!important}@page{margin:12mm}}'
@@ -12091,7 +12092,7 @@ function admPrintSheet(ev, fields, rs, form){
   wrap.innerHTML = `<div class="pr-bar" style="max-width:820px;margin:0 auto 10px;background:#fff;border:2px solid #76220b;border-radius:14px;padding:10px 12px;font-family:system-ui,sans-serif;">
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;"><button type="button" id="prPrint" style="padding:10px 18px;border-radius:12px;border:0;background:#76220b;color:#fff;font:inherit;font-weight:800;font-size:16px;">🖨️ Print</button><button type="button" id="prClose" style="padding:10px 14px;border-radius:12px;border:2px solid #76220b;background:#fff;font:inherit;font-weight:700;">✕ Close</button>
       <span style="display:inline-flex;border:2px solid #76220b;border-radius:12px;overflow:hidden;"><button type="button" id="prCol" style="padding:9px 12px;border:0;font:inherit;font-weight:700;">🎨 Colour</button><button type="button" id="prBw" style="padding:9px 12px;border:0;font:inherit;font-weight:700;">⚫ Black &amp; white</button></span></div>
-    <div style="margin-bottom:6px;font-size:13px;"><b>Group by</b> ${sel('prBy', cf.map(f => [f.id, richPlain(f.label).slice(0, 50)]).concat([['', 'Everyone (one list)']]), o.by)} &nbsp;<b>Sort names</b> ${sel('prSort', [['name', 'A–Z'], ['at', 'Signed up (earliest first)']], o.sort)}</div>
+    <div style="margin-bottom:6px;font-size:13px;"><b>Group by</b> ${sel('prBy', cf.map(f => [f.id, richPlain(f.label).slice(0, 50)]).concat([['', 'Everyone (one list)']]), o.by)} &nbsp;${cf.length > 1 ? `<b>then by</b> ${sel('prThen', [['', 'Nothing'], ...cf.map(f => [f.id, richPlain(f.label).slice(0, 50)])], o.then)} &nbsp;` : ''}<b>Sort names</b> ${sel('prSort', [['name', 'A–Z'], ['at', 'Signed up (earliest first)']], o.sort)}</div>
     <div><label><input type="checkbox" id="prOthers" checked> Show other choices</label><label><input type="checkbox" id="prSigned"> Signed-up time</label>${pay ? '<label><input type="checkbox" id="prPaid" checked> Paid</label>' : ''}<label><input type="checkbox" id="prNotes" checked> Notes line</label><label><input type="checkbox" id="prWait"> Include waitlist</label><label><input type="checkbox" id="prPage"> One group per page</label></div></div>
     <div class="pr-paper" id="prDoc" style="max-width:820px;margin:0 auto;background:#fff;padding:26px 28px;box-shadow:0 2px 14px rgba(0,0,0,.18);"></div>`;
   document.body.appendChild(wrap);
@@ -12102,7 +12103,7 @@ function admPrintSheet(ev, fields, rs, form){
     const C = o.mono ? { ink: '#000', soft: '#000', band: '#fff', bandInk: '#000', line: '#000', zebra: '#fff', rule: '2px solid #000', box: '2px solid #000', head: '#000', tag: '#000', hbord: '2px solid #000' }
                      : { ink: '#373d3b', soft: '#776867', band: '#f7e6e4', bandInk: '#76220b', line: '#e9cfcc', zebra: '#fdf6f5', rule: '3px double #ce8491', box: '2px solid #ce8491', head: '#76220b', tag: '#ce8491', hbord: '0' };
     const list = rs.filter(r => r.status === 'going' || (o.wait && r.status === 'waitlist'));
-    const by = cf.find(f => f.id === o.by), others = cf.filter(f => !by || f.id !== by.id), cmp = o.sort === 'at' ? cmpT : cmpN;
+    const by = cf.find(f => f.id === o.by), others = cf.filter(f => (!by || f.id !== by.id) && f.id !== o.then), cmp = o.sort === 'at' ? cmpT : cmpN;
     let groups;
     if(by){
       const opts = (by.options || []).slice(), extra = {};
@@ -12110,14 +12111,21 @@ function admPrintSheet(ev, fields, rs, form){
       if(list.some(r => { const v = (r.answers || {})[by.id]; return !(Array.isArray(v) ? v.length : v); })) opts.push('(no choice)');
       groups = opts.map(opt => ({ title: opt, rows: list.filter(r => { const v = (r.answers || {})[by.id], arr = Array.isArray(v) ? v : (v ? [v] : []); return opt === '(no choice)' ? !arr.length : arr.includes(opt); }).sort(cmp) })).filter(g => g.rows.length);
     } else groups = [{ title: 'Everyone', rows: list.slice().sort(cmp) }];
+    const th2 = cf.find(f => f.id === o.then && (!by || f.id !== by.id));
+    if(th2) groups.forEach(g => {
+      const vals = r => { const v = (r.answers || {})[th2.id]; const a = Array.isArray(v) ? v : (v ? [v] : []); return a.length ? a : ['(no choice)']; };
+      const order = (th2.options || []).slice(); g.rows.forEach(r => vals(r).forEach(x => { if(!order.includes(x)) order.push(x); }));
+      g.subs = order.map(t => ({ title: t, rows: g.rows.filter(r => vals(r).includes(t)) })).filter(x => x.rows.length);
+    });
     const cols = [];
     if(o.others) others.forEach(f => cols.push({ h: richPlain(f.label).slice(0, 28), f: r => admFormFmt((r.answers || {})[f.id]) }));
     if(o.signed) cols.push({ h: 'Signed up', f: r => admWhen(r.at) });
     if(pay && o.paid) cols.push({ h: 'Paid', f: r => r.paid ? 'Paid' : '' });
     const th = `padding:5px 8px;text-align:left;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:${C.soft};font-weight:700;border-bottom:${o.mono ? '2px solid #000' : '1px solid ' + C.line};`;
+    const tblH = rows => `<table style="width:100%;border-collapse:collapse;margin-top:2px;"><thead><tr><th style="${th}width:34px;"></th><th style="${th}">Name</th>${cols.map(c => `<th style="${th}">${escapeCm(c.h)}</th>`).join('')}${o.notes ? `<th style="${th}width:30%;">Notes</th>` : ''}</tr></thead><tbody>${rows.map((r, k) => `<tr style="break-inside:avoid;background:${k % 2 ? C.zebra : '#fff'};"><td style="padding:8px;border-bottom:1px solid ${C.line};"><span style="display:inline-block;width:20px;height:20px;border:${C.box};border-radius:${o.mono ? '2px' : '6px'};vertical-align:middle;"></span></td><td style="padding:8px;border-bottom:1px solid ${C.line};font-weight:700;font-size:15px;color:${C.ink};">${escapeCm(r.name)}${r.guest ? ' <span style="font-weight:400;font-size:12px;color:' + C.soft + ';">(guest)</span>' : ''}${r.status === 'waitlist' ? ' <span style="font-weight:400;font-size:12px;color:' + C.soft + ';">(waitlist)</span>' : ''}</td>${cols.map(c => `<td style="padding:8px;border-bottom:1px solid ${C.line};font-size:13px;color:${C.ink};">${escapeCm(c.f(r))}</td>`).join('')}${o.notes ? `<td style="padding:8px;border-bottom:1px solid ${C.line};"></td>` : ''}</tr>`).join('')}</tbody></table>`;
     const grp = (g, i) => `<section style="${o.page && i ? 'break-before:page;page-break-before:always;' : ''}margin:0 0 20px;break-inside:auto;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;background:${C.band};color:${C.bandInk};border:${C.hbord};border-radius:${o.mono ? '0' : '12px'};padding:9px 14px;break-after:avoid;"><span style="font-family:Georgia,'Times New Roman',serif;font-size:19px;font-weight:700;">${escapeCm(g.title)}</span><span style="font-size:13px;font-weight:700;">${g.rows.length} ${g.rows.length === 1 ? 'person' : 'people'}</span></div>
-      <table style="width:100%;border-collapse:collapse;margin-top:2px;"><thead><tr><th style="${th}width:34px;"></th><th style="${th}">Name</th>${cols.map(c => `<th style="${th}">${escapeCm(c.h)}</th>`).join('')}${o.notes ? `<th style="${th}width:30%;">Notes</th>` : ''}</tr></thead><tbody>${g.rows.map((r, k) => `<tr style="break-inside:avoid;background:${k % 2 ? C.zebra : '#fff'};"><td style="padding:8px;border-bottom:1px solid ${C.line};"><span style="display:inline-block;width:20px;height:20px;border:${C.box};border-radius:${o.mono ? '2px' : '6px'};vertical-align:middle;"></span></td><td style="padding:8px;border-bottom:1px solid ${C.line};font-weight:700;font-size:15px;color:${C.ink};">${escapeCm(r.name)}${r.guest ? ' <span style="font-weight:400;font-size:12px;color:' + C.soft + ';">(guest)</span>' : ''}${r.status === 'waitlist' ? ' <span style="font-weight:400;font-size:12px;color:' + C.soft + ';">(waitlist)</span>' : ''}</td>${cols.map(c => `<td style="padding:8px;border-bottom:1px solid ${C.line};font-size:13px;color:${C.ink};">${escapeCm(c.f(r))}</td>`).join('')}${o.notes ? `<td style="padding:8px;border-bottom:1px solid ${C.line};"></td>` : ''}</tr>`).join('')}</tbody></table></section>`;
+${g.subs ? g.subs.map(x => `<div style="margin:10px 0 0;padding:5px 12px;font-weight:700;font-size:14px;color:${C.bandInk};border-bottom:${o.mono ? '2px solid #000' : '2px solid ' + C.tag};display:flex;justify-content:space-between;break-after:avoid;"><span>${escapeCm(x.title)}</span><span style="font-size:12px;">${x.rows.length}</span></div>${tblH(x.rows)}`).join('') : tblH(g.rows)}</section>`;
     document.getElementById('prDoc').innerHTML = `<div style="text-align:center;padding-bottom:12px;margin-bottom:16px;border-bottom:${C.rule};color:${C.ink};font-family:system-ui,-apple-system,sans-serif;">
       <div style="font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:${C.soft};">Check-in list</div>
       <div style="font-family:Georgia,'Times New Roman',serif;font-size:30px;font-weight:700;color:${C.head};margin:4px 0;overflow-wrap:break-word;">${escapeCm(ev.title)}</div>
@@ -12134,6 +12142,7 @@ function admPrintSheet(ev, fields, rs, form){
   wrap.querySelector('#prCol').addEventListener('click', () => { o.mono = false; render(); });
   wrap.querySelector('#prBw').addEventListener('click', () => { o.mono = true; render(); });
   wrap.querySelector('#prBy').addEventListener('change', e => { o.by = e.target.value; render(); });
+  { const t = wrap.querySelector('#prThen'); if(t) t.addEventListener('change', e => { o.then = e.target.value; render(); }); }
   wrap.querySelector('#prSort').addEventListener('change', e => { o.sort = e.target.value; render(); });
   [['prOthers', 'others'], ['prSigned', 'signed'], ['prPaid', 'paid'], ['prNotes', 'notes'], ['prWait', 'wait'], ['prPage', 'page']].forEach(([id, k]) => { const el = wrap.querySelector('#' + id); if(el) el.addEventListener('change', () => { o[k] = el.checked; render(); }); });
   render();
