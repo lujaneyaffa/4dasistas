@@ -3364,7 +3364,6 @@ function setupFallSignupForm(){
     if(!/^\d{4}$/.test(enteredPin)) missing.push('choose a 4-digit PIN');
     else if(enteredPin !== (document.getElementById('fallPin2').value || '').trim()) missing.push("type the same PIN twice (the two PINs don't match)");
     if(checkedClubCount !== 2) missing.push('select exactly 2 clubs above');
-    if(!form.whatsapp.value.trim()) missing.push('add your WhatsApp number');
     if(!form.terms.checked) missing.push('agree to the community terms & conditions');
 
     if(missing.length){
@@ -4068,7 +4067,7 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
             <p class="fall-hint" style="margin:8px 0 0;">Forgot your PIN? No stress — an admin can reset it for you.</p>
           </div>
           <div class="fall-section">
-            <h3>WhatsApp number</h3>
+            <h3>WhatsApp number <span class="fall-hint">(optional — only if you'd like organizers to reach you there)</span></h3>
             <input type="tel" name="whatsapp" placeholder="e.g. 416-555-0123" class="fall-text-input">
           </div>
           <div class="fall-section">
@@ -4368,8 +4367,8 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
             <input type="text" name="name" required style="width:100%; padding:10px 12px; border:1.5px solid var(--brand-brown); border-radius:8px; font-size:14px; box-sizing:border-box;">
           </div>
           <div>
-            <label style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Phone Number</label>
-            <input type="tel" name="phone" required style="width:100%; padding:10px 12px; border:1.5px solid var(--brand-brown); border-radius:8px; font-size:14px; box-sizing:border-box;">
+            <label style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Phone Number <span style="font-weight:400;color:#776867;">(optional)</span></label>
+            <input type="tel" name="phone" style="width:100%; padding:10px 12px; border:1.5px solid var(--brand-brown); border-radius:8px; font-size:14px; box-sizing:border-box;">
           </div>
           <div>
             <label style="display:block; font-size:13px; font-weight:600; margin-bottom:4px;">Email</label>
@@ -6744,7 +6743,7 @@ async function clubCalPublicCard(box, id){
         <div style="display:none;"><button type="button" class="club-guide-btn pfModeGuest" style="flex:1;min-width:140px;min-height:48px;text-align:center;">⚡ Continue as a guest</button><button type="button" class="club-guide-btn pfModeIn" style="flex:1;min-width:140px;min-height:48px;text-align:center;">👤 Sign in</button></div>
         <div class="pfGuestBox" style="display:none;">
           <div class="fb-q"><label>Your full name <span class="req">*</span></label><input ${inp} data-base="name" type="text" maxlength="60" autocomplete="name" placeholder="First and last name"></div>
-          <div class="fb-q"><label>Phone / WhatsApp number <span class="req">*</span></label><input ${inp} data-base="phone" type="tel" maxlength="25" autocomplete="tel" inputmode="tel"></div>
+          <div class="fb-q"><label>Phone / WhatsApp number <small style="font-weight:400;color:#776867;">(optional)</small></label><input ${inp} data-base="phone" type="tel" maxlength="25" autocomplete="tel" inputmode="tel"></div>
           <div class="fb-q" style="grid-column:1 / -1;"><label>Email <span class="req">*</span> <small style="font-weight:400;color:#776867;">(we send your confirmation here)</small></label><input ${inp} data-base="email" type="email" maxlength="120" autocomplete="email" inputmode="email" autocapitalize="none" placeholder="you@example.com"></div></div>
         <div class="pfInBox" style="display:none;margin-top:12px;">
           <div class="pfFind">
@@ -6755,7 +6754,7 @@ async function clubCalPublicCard(box, id){
           <p style="margin:8px 0 0;font-size:14px;">No account yet? <button type="button" class="pfModeNew" style="border:none;background:none;color:#76220b;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;padding:6px 2px;">Create one</button></p></div>
         <div class="pfNewBox" style="display:none;margin-top:12px;"><p style="margin:0 0 8px;font-weight:700;">New here? Fill in your details — this creates your 4DASISTAS account.</p>
           <div class="fb-q"><label>Your full name <span class="req">*</span></label><input ${inp} data-base="name" type="text" maxlength="60" autocomplete="name" placeholder="First and last name"></div>
-          <div class="fb-q"><label>Phone / WhatsApp number <span class="req">*</span></label><input ${inp} data-base="phone" type="tel" maxlength="25" autocomplete="tel" inputmode="tel"></div>
+          <div class="fb-q"><label>Phone / WhatsApp number <small style="font-weight:400;color:#776867;">(optional)</small></label><input ${inp} data-base="phone" type="tel" maxlength="25" autocomplete="tel" inputmode="tel"></div>
           <div class="fb-q"><label>Create a 4-digit PIN <span class="req">*</span></label><input ${inp} data-base="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"></div>
           <div class="fb-q"><label>Confirm your PIN <span class="req">*</span></label><input ${inp} data-base="pin2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"></div>
           <div class="fb-q"><label>Which clubs are you interested in? <small style="font-weight:400;color:#776867;">(optional)</small></label><div class="pfClubs" style="display:flex;flex-wrap:wrap;gap:8px;">${clubsData.map(c => `<label style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:2px solid var(--brand-brown);background:#fff;font-size:14px;"><input type="checkbox" class="pfClub" value="${escapeCm(c.id)}" style="width:18px;height:18px;"> ${escapeCm(c.title)}</label>`).join('')}</div></div>
@@ -6815,7 +6814,6 @@ async function clubCalPublicCard(box, id){
       if(!mode || mode === 'in'){ m.textContent = mode === 'in' ? 'Find yourself and enter your PIN above first — or tap “Continue as a guest”.' : 'Choose “Continue as a guest” or “Sign in” above first.'; return; }
       const quick = mode === 'guest';
       if(base('name').trim().split(/\s+/).length < 2){ m.textContent = 'Please enter your first and last name.'; return; }
-      if(!base('phone').trim()){ m.textContent = 'Please add your phone / WhatsApp number.'; return; }
       if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(base('email').trim())){ m.textContent = 'Please add your email — your confirmation is sent there.'; return; }
       try { localStorage.setItem('ev_email', base('email').trim()); } catch {}
       if(!quick && !/^\d{4}$/.test(base('pin'))){ m.textContent = 'Choose a 4-digit PIN.'; return; }
@@ -8941,7 +8939,7 @@ function pushGateMode(){
 }
 async function maybeShowPushGate(){
   const sessNow = getCmSession();
-  if(sessNow && state.meLoadedFor === sessNow.token && state.phoneConfirmed === false){ renderPhoneGate(); return; } // phone first, then notifications
+  if(sessNow && state.meLoadedFor === sessNow.token && state.phoneConfirmed === false && !isNativeApp() && !phoneGateSkipped()){ renderPhoneGate(); return; } // phone first, then notifications
   const gate = document.getElementById('pushGate');
   let mode = pushGateMode();
   // Permission already granted on this device but the server doesn't know about it yet (new login, new device): register quietly.
@@ -8953,6 +8951,7 @@ async function maybeShowPushGate(){
 }
 
 // Required once for every member: confirm (or add) your phone number so it's saved on your profile.
+function phoneGateSkipped(){ try { return localStorage.getItem('phoneGateSkip') === '1'; } catch { return false; } }
 function renderPhoneGate(note){
   let gate = document.getElementById('pushGate');
   if(!gate){
@@ -8964,10 +8963,11 @@ function renderPhoneGate(note){
   gate.innerHTML = `<div style="max-width:480px;margin:0 auto;">
       <div style="font-size:44px;text-align:center;">📞</div>
       <h2 style="text-align:center;margin:8px 0 6px;color:#76220b;">${had ? 'Confirm your phone number' : 'Add your phone number'}</h2>
-      <p style="text-align:center;margin:0 0 14px;line-height:1.5;">${had ? 'Is this still your number?' : "We don't have your number yet."} The admins only use it to reach you about your clubs and events. You'll only be asked once.</p>
+      <p style="text-align:center;margin:0 0 14px;line-height:1.5;">${had ? 'Is this still your number?' : 'This is optional.'} If you add it, the admins only use it to reach you about your clubs and events. You can skip this and add it later.</p>
       <input id="phoneGateInput" type="tel" inputmode="tel" autocomplete="tel" placeholder="e.g. 416-555-0123" value="${escapeCm(state.myPhone || '')}" style="width:100%;padding:14px;border-radius:14px;border:2px solid var(--brand-brown);font-size:18px;box-sizing:border-box;text-align:center;">
       <div id="phoneGateNote" style="min-height:20px;text-align:center;margin-top:10px;font-size:14px;color:#b3261e;" aria-live="polite">${note ? escapeCm(note) : ''}</div>
       <button type="button" id="phoneGateSave" style="width:100%;min-height:54px;border-radius:999px;border:2px solid #76220b;background:#ce8491;color:#fff;font-size:17px;font-weight:700;cursor:pointer;margin-top:6px;">${had ? 'Yes, that\'s my number' : 'Save my number'}</button>
+      <button type="button" id="phoneGateSkip" style="width:100%;min-height:48px;border-radius:999px;border:2px solid #76220b;background:#fff;color:#76220b;font-size:16px;font-weight:700;cursor:pointer;margin-top:10px;">Skip for now</button>
       <p style="text-align:center;font-size:13px;color:#776867;margin-top:18px;">Stuck? <a href="${IG_DM_URL}" target="_blank" rel="noopener">Message an admin</a> · <button type="button" id="phoneGateLogout" class="av-link" style="font-size:13px;">Log out</button></p></div>`;
   const input = gate.querySelector('#phoneGateInput'), noteEl = gate.querySelector('#phoneGateNote'), save = gate.querySelector('#phoneGateSave');
   save.addEventListener('click', async () => {
@@ -8982,6 +8982,7 @@ function renderPhoneGate(note){
       maybeShowPushGate(); // next requirement (home screen + notifications), if any
     } catch(err){ noteEl.textContent = err.message; save.disabled = false; save.textContent = had ? "Yes, that's my number" : 'Save my number'; }
   });
+  gate.querySelector('#phoneGateSkip').addEventListener('click', () => { try { localStorage.setItem('phoneGateSkip', '1'); } catch {} gate.remove(); document.body.style.overflow = ''; maybeShowPushGate(); });
   gate.querySelector('#phoneGateLogout').addEventListener('click', async () => { gate.remove(); document.body.style.overflow = ''; await cmMemberSignOut(); });
   setTimeout(() => input.focus(), 80);
 }

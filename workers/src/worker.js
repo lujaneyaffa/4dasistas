@@ -628,7 +628,6 @@ const createMemberFromForm = async (env, ctx, ip, input) => {
   const username = await generateUniqueUsername(env, name);
   if (!username) return { status: 400, error: "Please enter your first name and last name (or initial)" };
   if (!/^\d{4}$/.test(pin)) return { status: 400, error: "Your PIN must be exactly 4 digits" };
-  if (!phone) return { status: 400, error: "Please add your phone / WhatsApp number" };
   if (username !== usernameBaseFromName(name)) {
     const norm = (n) => String(n || "").toLowerCase().replace(/[^a-z0-9]/g, "");
     if ((await listAllUsers(env)).some((u) => norm(u.name) === norm(name))) return { status: 409, error: `There's already a profile for ${name}. Tap “Already a member?” above, find yourself and enter your PIN.` };
