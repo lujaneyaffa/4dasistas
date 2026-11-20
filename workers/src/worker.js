@@ -1825,6 +1825,22 @@ const calPromote = async (env, ctx, evId) => {
     for (const id of moved) if (!String(id).startsWith("g:") && ev) ctx.waitUntil(sendPushToUser(env, id, { title: "A spot opened up! 🎉", body: `You're now going to ${ev.title} (${ev.date}).`, url: `/#/form/${ev.slug || ev.id}`, cat: "events" }).catch(() => {}));
   } catch (e) { console.error("calPromote failed", String(e && e.message)); }
 };
+// ❌ A member cancelled their spot: keep their sign-up marked "cancelled", tell the main admin with an on-screen notice (until she taps Got it) AND an email.
+const ADMIN_NOTES_KEY = "adminnotes";
+const readAdminNotes = async (env) => { try { const a = JSON.parse((await env.SITE_DATA.get(ADMIN_NOTES_KEY)) || "[]"); return Array.isArray(a) ? a : []; } catch { return []; } };
+const calNoteCancel = async (env, ctx, ev, uid, prev) => {
+  try {
+    if (!prev) return; // wasn't signed up: nothing was cancelled
+    let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
+    const name = String((map[uid] && map[uid].name) || prev.name || "Someone");
+    if (map[uid]) { map[uid].cancelledAt = Date.now(); await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map)); }
+    const notes = await readAdminNotes(env);
+    notes.unshift({ id: crypto.randomUUID(), at: Date.now(), kind: "cancel", evId: ev.id, evTitle: ev.title || "", evDate: ev.date || "", name, was: prev.status || "going" });
+    await env.SITE_DATA.put(ADMIN_NOTES_KEY, JSON.stringify(notes.slice(0, 100)));
+    const origin = env.SITE_ORIGIN || "https://4dasistas.ca";
+    sendAdminEmail(env, ctx, `Cancelled: ${name} → ${ev.title}`, emailShell(env, { emoji: "❌", title: "Registration cancelled", preheader: `${name} → ${ev.title}`, body: `<p style="margin:0 0 6px"><strong>${escapeHtml(name)}</strong> cancelled ${prev.status === "waitlist" ? "their waitlist spot" : "their spot"} for</p><p style="margin:0 0 14px"><strong>${escapeHtml(ev.title)}</strong>${ev.date ? " · " + escapeHtml(ev.date) : ""}</p>${emailBtn(`${origin}/#/admin`, "Open the attendee list")}`, footer: "They are shown as Cancelled in the attendee list. If there was a waitlist, the next person moves up automatically." }));
+  } catch (e) { console.error("calNoteCancel failed", String(e && e.message)); }
+};
 const calAfterRemoval = async (env, ctx, evId, pid) => { await calReleaseSpot(env, evId, pid); await calPromote(env, ctx, evId); };
 // Automatic reminders (run from the hourly cron): 2 days before and the morning of (Toronto 8am–8pm), plus ~2 hours before the start
 // when the event has a time like "6:30 PM" — to everyone going who has the app/push on.
@@ -3029,7 +3045,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
           if (M === "POST" && false /* RSVP-by dates were removed (Nov 2026) */) return jsonResponse({ error: "RSVPs for this event are closed" }, 400, corsHeaders);
           if (M === "POST" && (ev.endDate || ev.date) < new Date().toISOString().slice(0, 10)) return jsonResponse({ error: "This event has already happened" }, 400, corsHeaders);
           let status = null;
-          if (M === "DELETE") { const c2 = await calDropRsvp(env, ev.id, uid); ev.rsvps = c2 ? c2.rsvps : (ev.rsvps || []).filter((r) => r.id !== uid); ctx.waitUntil(calAfterRemoval(env, ctx, ev.id, uid)); }
+          if (M === "DELETE") { const prevR = (ev.rsvps || []).find((r) => r.id === uid); ctx.waitUntil(calNoteCancel(env, ctx, ev, uid, prevR)); const c2 = await calDropRsvp(env, ev.id, uid); ev.rsvps = c2 ? c2.rsvps : (ev.rsvps || []).filter((r) => r.id !== uid); ctx.waitUntil(calAfterRemoval(env, ctx, ev.id, uid)); }
           else {
             status = inClub ? await calSpotStatus(env, ev, uid) : "pending";
             const c3 = await calAddRsvp(env, ev.id, { id: uid, name: who.name, status, at: Date.now() }); ev.rsvps = c3 ? c3.rsvps : (ev.rsvps || []).filter((r) => r.id !== uid).concat([{ id: uid, name: who.name, status, at: Date.now() }]);
@@ -5545,7 +5561,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const ev = (await readClubCal(env)).find((e) => e.id === adminCalRespMatch[1]);
       if (!ev || (leadCtx && !(Array.isArray(ev.formLeads) && ev.formLeads.includes(leadCtx.username)))) return jsonResponse({ error: leadCtx && ev ? "Ask the main admin to give you access to this event's form" : "Event not found" }, leadCtx && ev ? 403 : 404, corsHeaders);
       let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
-      return jsonResponse({ form: ev.form || null, responses: Object.keys(map).map((uid) => ({ userId: uid, name: map[uid].name, contact: map[uid].contact || "", guest: !!map[uid].guest, paid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).paid, claimedPaid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).claimedPaid, status: ((ev.rsvps || []).find((x) => x.id === uid) || {}).status || "", addons: map[uid].addons || [], total: map[uid].total ?? null, answers: map[uid].answers, at: map[uid].at })).sort((a, b) => a.at - b.at) }, 200, corsHeaders);
+      return jsonResponse({ form: ev.form || null, responses: Object.keys(map).map((uid) => ({ userId: uid, name: map[uid].name, contact: map[uid].contact || "", guest: !!map[uid].guest, paid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).paid, claimedPaid: !!((ev.rsvps || []).find((x) => x.id === uid) || {}).claimedPaid, status: ((ev.rsvps || []).find((x) => x.id === uid) || {}).status || (map[uid].cancelledAt ? "cancelled" : ""), cancelledAt: map[uid].cancelledAt || 0, addons: map[uid].addons || [], total: map[uid].total ?? null, answers: map[uid].answers, at: map[uid].at })).sort((a, b) => a.at - b.at) }, 200, corsHeaders);
     }
     const adminCalEditAnsMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/edit-answers\/?$/);
     if (adminCalEditAnsMatch && request.method === "POST") { // the organiser changes someone's time slot / activity picks (any limits are the organiser's call)
@@ -5628,6 +5644,11 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         return c;
       });
       return jsonResponse({ ok: true, moved: n }, 200, corsHeaders);
+    }
+    if (path === "/api/admin/club-cal-notices") {
+      if (leadCtx) return jsonResponse({ notes: [] }, 200, corsHeaders); // club admins don't get these; the main admin does
+      if (request.method === "GET") return jsonResponse({ notes: await readAdminNotes(env) }, 200, corsHeaders);
+      if (request.method === "POST") { let b = {}; try { b = await request.json(); } catch {} const ids = new Set((Array.isArray(b.ids) ? b.ids : []).map(String)); const keep = (await readAdminNotes(env)).filter((n) => !ids.has(n.id)); await env.SITE_DATA.put(ADMIN_NOTES_KEY, JSON.stringify(keep)); return jsonResponse({ ok: true }, 200, corsHeaders); }
     }
     const adminCalQMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/email-queue(?:\/([^/]+))?\/?$/);
     if (adminCalQMatch) {
