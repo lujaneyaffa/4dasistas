@@ -622,7 +622,7 @@ function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) =>
   .mem-pop{ position:fixed; inset:0; z-index:300; background:rgba(33,30,28,0.5); display:flex; align-items:center; justify-content:center; padding:calc(20px + env(safe-area-inset-top, 0px)) calc(20px + env(safe-area-inset-right, 0px)) calc(20px + env(safe-area-inset-bottom, 0px)) calc(20px + env(safe-area-inset-left, 0px)); }
   .mem-pop-card{ max-height:calc(100vh - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); max-height:calc(100dvh - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y:auto; -webkit-overflow-scrolling:touch; }
   .mem-pop-card{ position:relative; width:min(340px,100%); background:var(--cream); border:2px solid var(--charcoal); border-radius:18px; padding:22px 18px 18px; text-align:center; }
-  .mem-pop-close{ position:absolute; top:8px; right:10px; border:none; background:none; font-size:20px; cursor:pointer; }
+  .mem-pop-close{ position:sticky; top:0; float:right; z-index:6; width:38px; height:38px; margin:-14px -8px 0 8px; border:none; background:var(--cream); border-radius:50%; font-size:20px; line-height:1; cursor:pointer; box-shadow:0 0 0 3px var(--cream); }
   .mem-pop-photo{ width:110px; height:110px; border-radius:50%; object-fit:cover; border:2px solid var(--charcoal); }
   .mem-pop-clubs{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
   .cp-box{ border:2px dashed var(--charcoal); border-radius:14px; padding:12px; margin:14px 0; }
@@ -10890,6 +10890,7 @@ function openAvatarMaker(welcome){
     } catch(err){ msg.textContent = 'Could not save: ' + err.message; b.disabled = false; b.textContent = 'Save my avatar'; }
   });
 }
+document.addEventListener('keydown', e => { if(e.key !== 'Escape') return; const pops = document.querySelectorAll('.mem-pop'); if(pops.length){ pops[pops.length - 1].remove(); } });
 function ideaPopup(html){
   const wrap = document.createElement('div');
   wrap.className = 'mem-pop';
@@ -12074,6 +12075,7 @@ function admEmailEditor(ev, people, mode, onDone){
     <label style="font-size:12px;color:#776867;">Subject</label><input id="emSub" maxlength="150" value="${escapeCm((rem ? 'Reminder: ' : 'Updated: ') + ev.title)}" style="${inp}margin-bottom:8px;"><label style="font-size:12px;color:#776867;">Message</label><textarea id="emMsg" rows="7" maxlength="3000" style="${inp}font-size:15px;">${escapeCm(defMsg)}</textarea>
     <div style="margin-top:6px;padding:8px 10px;border-radius:10px;background:#fef7f4;border:1px solid #f2d8d7;font-size:13px;">📋 Auto-added: their event details + <b>Your plan</b> (their time slot / activity) + their answers.</div>
     <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;"><button type="button" class="fb-mini" id="emGo" style="background:#76220b;color:#fff;">✉️ Send now</button><button type="button" class="fb-mini" id="emSave">💾 Save draft (don't send)</button><button type="button" class="fb-mini" id="emX">Cancel</button></div>
+    <div style="margin-top:8px;padding:8px 10px;border-radius:10px;border:2px solid #25a244;"><b style="font-size:14px;">💬 Also send on WhatsApp</b><div style="font-size:12px;color:#776867;margin:2px 0 6px;">Uses the message above and the people ticked. WhatsApp doesn't let a website message many people at once, so this opens each person's chat with the message ready and you tap Send in WhatsApp.</div><button type="button" class="fb-mini" id="emWa" style="background:#25a244;color:#fff;">💬 Show WhatsApp list</button><div id="emWaList" style="margin-top:6px;"></div></div>
     <div style="margin-top:8px;padding:8px 10px;border-radius:10px;border:2px dashed #ce8491;"><b style="font-size:14px;">🗓️ Schedule it</b><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px;"><input id="emWhen" type="datetime-local" style="${inp}width:auto;flex:1;min-width:190px;"><button type="button" class="fb-mini" id="emSched" style="background:#ce8491;color:#fff;">Schedule send</button></div><div style="font-size:12px;color:#776867;margin-top:4px;">Scheduled emails go out within about an hour after the time you pick (on the next hourly check).</div></div>
     <div id="emMsgOut" style="font-size:13px;min-height:18px;margin-top:6px;"></div>`);
   const out = wrap.querySelector('#emMsgOut'), chks = () => [...wrap.querySelectorAll('.em-chk')], picked = () => chks().filter(c => c.checked).map(c => c.value);
@@ -12084,6 +12086,20 @@ function admEmailEditor(ev, people, mode, onDone){
   wrap.querySelector('#emNone').addEventListener('click', () => { chks().forEach(c => { c.checked = false; }); upd(); });
   { const f = wrap.querySelector('#emFind'); if(f) f.addEventListener('input', () => { const q = f.value.trim().toLowerCase(); wrap.querySelectorAll('.em-row').forEach(r => { r.style.display = !q || r.dataset.n.includes(q) ? 'flex' : 'none'; }); }); }
   wrap.querySelector('#emX').addEventListener('click', close);
+  wrap.querySelector('#emWa').addEventListener('click', async e => {
+    const box = wrap.querySelector('#emWaList'), ids = picked(), digits = v => String(v || '').replace(/\D/g, '');
+    if(!ids.length){ box.innerHTML = '<span style="color:#c00;font-size:13px;">Tick at least one person first.</span>'; return; }
+    e.target.disabled = true; box.textContent = 'Finding numbers…';
+    let users = []; try { users = await calLoadUsers(); } catch {}
+    const resp = (state.admFormData && state.admFormData.d && state.admFormData.d.responses) || [];
+    const phoneOf = id => { const r = resp.find(x => x.userId === id), u = users.find(x => x.id === id); const c = r && r.contact && !String(r.contact).includes('@') ? r.contact : ''; return (u && u.phone) || c || ''; };
+    const nameOf = id => (people.find(x => x.id === id) || {}).name || '';
+    const msg = id => wrap.querySelector('#emMsg').value.replace(/\{name\}/g, nameOf(id).split(/\s+/)[0] || '');
+    const rows = ids.map(id => ({ id, name: nameOf(id), phone: phoneOf(id) })), have = rows.filter(r => digits(r.phone).length >= 10), none = rows.filter(r => digits(r.phone).length < 10);
+    e.target.disabled = false; e.target.textContent = '🔄 Refresh WhatsApp list';
+    box.innerHTML = (have.length ? have.map((r, i) => `<div style="display:flex;gap:8px;align-items:center;padding:5px 0;border-top:1px solid rgba(0,0,0,.07);font-size:14px;"><span style="flex:1;min-width:0;"><b>${escapeCm(r.name)}</b> <small style="color:#776867;">${escapeCm(r.phone)}</small></span><a class="fb-mini em-wa" data-i="${i}" href="${escapeCm(admWhatsAppLink(r.phone, msg(r.id)))}" target="_blank" rel="noopener" style="text-decoration:none;background:#25a244;color:#fff;">Open WhatsApp</a></div>`).join('') : '<span style="font-size:13px;color:#c00;">None of the ticked people have a phone number on file.</span>') + (none.length ? `<div style="font-size:12px;color:#776867;margin-top:6px;">No number for: ${none.map(r => escapeCm(r.name)).join(', ')}</div>` : '');
+    box.querySelectorAll('.em-wa').forEach(a => a.addEventListener('click', () => { a.textContent = '✓ Opened'; a.style.background = '#776867'; }));
+  });
   const body = a => ({ id: draftId, action: a, subject: wrap.querySelector('#emSub').value, message: wrap.querySelector('#emMsg').value, mode, userIds: picked() });
   const fmt = t => new Date(t).toLocaleString('en-CA', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   const loadQ = async () => {
@@ -12129,7 +12145,7 @@ function admPrintSheet(ev, fields, rs, form){
   const wrap = document.createElement('div'); wrap.id = 'prSheetWrap';
   wrap.style.cssText = 'position:fixed;inset:0;z-index:100000;background:#e9e4e2;overflow:auto;padding:10px;';
   const sel = (id, opts, v) => `<select id="${id}" style="padding:8px;border-radius:10px;border:2px solid #76220b;font:inherit;font-size:14px;max-width:100%;">${opts.map(([k, t]) => `<option value="${escapeCm(k)}"${k === v ? ' selected' : ''}>${escapeCm(t)}</option>`).join('')}</select>`;
-  wrap.innerHTML = `<div class="pr-bar" style="max-width:820px;margin:0 auto 10px;background:#fff;border:2px solid #76220b;border-radius:14px;padding:10px 12px;font-family:system-ui,sans-serif;">
+  wrap.innerHTML = `<div class="pr-bar" style="position:sticky;top:0;z-index:5;max-width:820px;margin:0 auto 10px;background:#fff;border:2px solid #76220b;border-radius:14px;padding:10px 12px;font-family:system-ui,sans-serif;">
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;"><button type="button" id="prPrint" style="padding:10px 18px;border-radius:12px;border:0;background:#76220b;color:#fff;font:inherit;font-weight:800;font-size:16px;">🖨️ Print</button><button type="button" id="prClose" style="padding:10px 14px;border-radius:12px;border:2px solid #76220b;background:#fff;font:inherit;font-weight:700;">✕ Close</button>
       <span style="display:inline-flex;border:2px solid #76220b;border-radius:12px;overflow:hidden;"><button type="button" id="prCol" style="padding:9px 12px;border:0;font:inherit;font-weight:700;">🎨 Colour</button><button type="button" id="prBw" style="padding:9px 12px;border:0;font:inherit;font-weight:700;">⚫ Black &amp; white</button></span></div>
     <div style="margin-bottom:6px;font-size:13px;"><b>Group by</b> ${sel('prBy', cf.map(f => [f.id, richPlain(f.label).slice(0, 50)]).concat([['', 'Everyone (one list)']]), o.by)} &nbsp;${cf.length > 1 ? `<b>then by</b> ${sel('prThen', [['', 'Nothing'], ...cf.map(f => [f.id, richPlain(f.label).slice(0, 50)])], o.then)} &nbsp;` : ''}<b>Sort names</b> ${sel('prSort', [['name', 'A–Z'], ['at', 'Signed up (earliest first)']], o.sort)}</div>
