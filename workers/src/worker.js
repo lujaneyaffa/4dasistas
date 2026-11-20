@@ -1829,6 +1829,37 @@ const calAfterRemoval = async (env, ctx, evId, pid) => { await calReleaseSpot(en
 // Automatic reminders (run from the hourly cron): 2 days before and the morning of (Toronto 8am–8pm), plus ~2 hours before the start
 // when the event has a time like "6:30 PM" — to everyone going who has the app/push on.
 // A few people per run (each push costs several subrequests) with progress kept in KV, so a big event is covered within a few hours.
+// 📧 Custom emails to attendees: save as a draft, schedule, or send. Kept per event in KV `emailq:<eventId>`; the hourly cron sends the scheduled ones that are due.
+const emailQKey = (id) => `emailq:${id}`;
+const readEmailQ = async (env, id) => { try { const a = JSON.parse((await env.SITE_DATA.get(emailQKey(id))) || "[]"); return Array.isArray(a) ? a : []; } catch { return []; } };
+const sendEventEmailOne = async (env, ctx, ev, map, uid, o) => {
+  const ent = map[uid], r = (ev.rsvps || []).find((x) => x.id === uid);
+  if (!ent || !r) return { error: "That sign-up wasn't found" };
+  let email = okEmail(ent.email) || okEmail(ent.contact);
+  if (!email && !String(uid).startsWith("g:")) { const u = await readUser(env, uid); email = okEmail(u && u.email); }
+  if (!email) return { error: "We don't have an email address for them" };
+  const pay = (ev.form && ev.form.payment) || {};
+  calConfirmEmail(env, ctx, ev, { mode: ["updated", "reminder"].includes(o.mode) ? o.mode : "", customMsg: String(o.message || "").slice(0, 3000), subject: String(o.subject || "").replace(/[\r\n]+/g, " ").trim(), changes: [], answers: ent.answers, name: ent.name, email, status: r.status, paid: !!r.paid, total: ent.total, addons: (pay.addons || []).filter((a) => (ent.addons || []).includes(a.id)).map((a) => a.label) });
+  return { ok: true, to: email };
+};
+const emailQRun = async (env, ctx) => {
+  let keys = []; try { keys = (await env.SITE_DATA.list({ prefix: "emailq:" })).keys || []; } catch { return; }
+  if (!keys.length) return;
+  const events = await readClubCal(env), now = Date.now();
+  for (const k of keys) {
+    const evId = k.name.slice(7); let q = await readEmailQ(env, evId);
+    const due = q.filter((x) => x.status === "scheduled" && x.sendAt && x.sendAt <= now);
+    if (!due.length) continue;
+    due.forEach((x) => { x.status = "sending"; }); await env.SITE_DATA.put(emailQKey(evId), JSON.stringify(q)); // claim first, so a second cron run can't send it twice
+    const ev = events.find((e) => e.id === evId); let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(evId))) || "{}") || {}; } catch {}
+    for (const x of due) {
+      let sent = 0, skipped = 0;
+      if (ev) for (const uid of (x.userIds || []).slice(0, 300)) { const r = await sendEventEmailOne(env, ctx, ev, map, String(uid), x).catch(() => ({ error: "failed" })); if (r.ok) sent++; else skipped++; }
+      x.status = "sent"; x.sentAt = Date.now(); x.sent = sent; x.skipped = skipped;
+    }
+    await env.SITE_DATA.put(emailQKey(evId), JSON.stringify(q));
+  }
+};
 const calSendReminders = async (env, ctx) => {
   const hr = Number(new Date().toLocaleString("en-CA", { timeZone: "America/Toronto", hour: "2-digit", hour12: false })) % 24;
   const daytime = hr >= 8 && hr < 20;
@@ -5598,6 +5629,27 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       });
       return jsonResponse({ ok: true, moved: n }, 200, corsHeaders);
     }
+    const adminCalQMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/email-queue(?:\/([^/]+))?\/?$/);
+    if (adminCalQMatch) {
+      const ev = (await readClubCal(env)).find((e) => e.id === adminCalQMatch[1]);
+      if (!ev || (leadCtx && !(Array.isArray(ev.formLeads) && ev.formLeads.includes(leadCtx.username)))) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
+      let q = await readEmailQ(env, ev.id);
+      if (request.method === "GET") return jsonResponse({ items: q.filter((x) => x.status !== "sending").sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)) }, 200, corsHeaders);
+      if (request.method === "DELETE") { q = q.filter((x) => x.id !== adminCalQMatch[2] || x.status === "sending"); await env.SITE_DATA.put(emailQKey(ev.id), JSON.stringify(q)); return jsonResponse({ ok: true }, 200, corsHeaders); }
+      if (request.method === "POST") {
+        let b = {}; try { b = await request.json(); } catch {}
+        const subject = String(b.subject || "").replace(/[\r\n]+/g, " ").trim().slice(0, 150), message = String(b.message || "").slice(0, 3000), userIds = [...new Set((Array.isArray(b.userIds) ? b.userIds : []).map(String))].slice(0, 300);
+        const schedule = b.action === "schedule", sendAt = schedule ? Math.round(Number(b.sendAt)) : 0;
+        if (!message.trim()) return jsonResponse({ error: "Write a message first" }, 400, corsHeaders);
+        if (schedule) { if (!userIds.length) return jsonResponse({ error: "Pick at least one person" }, 400, corsHeaders); if (!(sendAt > Date.now() + 30000)) return jsonResponse({ error: "Pick a time in the future" }, 400, corsHeaders); }
+        const id = String(b.id || ""), cur = q.find((x) => x.id === id && x.status !== "sending" && x.status !== "sent");
+        const item = { id: cur ? cur.id : crypto.randomUUID(), subject, message, mode: ["updated", "reminder"].includes(b.mode) ? b.mode : "", userIds, sendAt: schedule ? sendAt : 0, status: schedule ? "scheduled" : "draft", createdAt: cur ? cur.createdAt : Date.now(), updatedAt: Date.now() };
+        q = cur ? q.map((x) => (x.id === cur.id ? item : x)) : [item, ...q].slice(0, 50);
+        await env.SITE_DATA.put(emailQKey(ev.id), JSON.stringify(q));
+        return jsonResponse({ ok: true, item }, 200, corsHeaders);
+      }
+      return jsonResponse({ error: "Not allowed" }, 405, corsHeaders);
+    }
     const adminCalResendMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/resend-confirm\/?$/);
     if (adminCalResendMatch && request.method === "POST") {
       const ev = (await readClubCal(env)).find((e) => e.id === adminCalResendMatch[1]);
@@ -6259,6 +6311,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
   async scheduled(controller, env, ctx) {
     if (controller.cron === "23 * * * *") { // hourly: event reminders (a few people per run), then refresh everyone who gets steps from Google Health, so the leaderboard is current even if they don't open the app
       ctx.waitUntil(calSendReminders(env, ctx).catch((e) => console.log("event reminders failed", String(e && e.message))));
+      ctx.waitUntil(emailQRun(env, ctx).catch((e) => console.log("scheduled emails failed", String(e && e.message))));
       ctx.waitUntil((async () => { try { let n = 0; let items = []; try { const rr = await fetchSiteFile(env, "/data/resources.json"); const j = rr && rr.ok ? await rr.json() : {}; items = Array.isArray(j.items) ? j.items : []; } catch {} for (const r of items) { const m = String((r && r.instagram) || "").match(/instagram\.com\/([A-Za-z0-9._]{1,30})/); if (!m) continue; const u = m[1].toLowerCase(); if (await env.SITE_DATA.get(`igok:${u}`)) continue; await igCheck(env, u); if (++n >= 8) break; } } catch {} })()); // keep the "Instagram works" list fresh for the business of the day
       ctx.waitUntil((async () => { try { if (!(await ghEnsure(env)) || !(await stepsEnsure(env))) return; const rows = (await env.DB.prepare("SELECT g.user_id AS u FROM gh_tokens g JOIN step_sources s ON s.user_id = g.user_id AND s.source = 'googlehealth'").all()).results || []; for (const r of rows.slice(0, 40)) { try { await ghSync(env, r.u); } catch (e) { console.log("gh hourly", String(e && e.message)); } } _stepsPublicMemo = { at: 0, data: null }; } catch (e) { console.log("gh hourly failed", String(e && e.message)); } })());
       return;
