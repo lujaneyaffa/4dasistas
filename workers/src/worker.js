@@ -5617,7 +5617,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!email && !uid.startsWith("g:")) { const u = await readUser(env, uid); email = okEmail(u && u.email); }
       const reason = String(b.reason || "").replace(/[\x00-\x08\x0b-\x1f\x7f<>]/g, " ").trim().slice(0, 500);
       if (r) ev.rsvps = ev.rsvps.filter((x) => x.id !== uid);
-      if (ent) { delete map[uid]; await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map)); }
+      if (ent) { map[uid].cancelledAt = Date.now(); map[uid].cancelledBy = "admin"; await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map)); } // kept (marked Cancelled), not erased, so the attendee list still counts and shows them
       await writeClubCal(env, all);
       ctx.waitUntil(calAfterRemoval(env, ctx, ev.id, uid));
       let emailed = false;
