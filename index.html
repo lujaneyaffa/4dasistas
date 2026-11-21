@@ -12205,10 +12205,13 @@ function admPrintSheet(ev, fields, rs, form){
     };
     const ln = (w) => `<span style="display:inline-block;width:${w}px;border-bottom:${o.mono ? '1.5px solid #000' : '1.5px solid ' + C.tag};height:16px;vertical-align:bottom;"></span>`;
     const bx = () => `<span style="display:inline-block;width:15px;height:15px;border:${C.box};border-radius:${o.mono ? '2px' : '5px'};vertical-align:middle;margin-right:4px;"></span>`;
-    const walkFoot = (title, left) => o.walk ? `<div style="margin:6px 0 0;padding:8px 12px;border:${o.mono ? '1.5px dashed #000' : '1.5px dashed ' + C.tag};border-radius:${o.mono ? '0' : '10px'};font-size:12.5px;color:${C.ink};break-inside:avoid;">
-      <div>⏱ <b>${escapeCm(title)} starts → wait ${o.mins} min.</b> After ${o.mins} minutes, any empty spot is offered to the waitlist.</div>
-      <div style="margin-top:6px;">No-shows (tick each): ${[1, 2, 3, 4, 5, 6].map(bx).join('')}&nbsp; <b>Total ${ln(30)}</b></div>
-      <div style="margin-top:6px;"><b>Walk-in spots:</b> ${left === null ? '' : `<b>${Math.max(0, left)}</b> unfilled + `}no-shows ${ln(26)} = ${ln(30)} <span style="color:${C.soft};">(fill from the waitlist below)</span></div></div>` : '';
+    const walkFoot = (title, left) => { if(!o.walk) return ''; const bd = o.mono ? '1.5px solid #000' : '1.5px solid ' + C.tag, cellS = `flex:1;text-align:center;padding:6px 4px;border:${bd};border-radius:${o.mono ? '0' : '8px'};`, op = t => `<span style="font-size:18px;font-weight:700;align-self:center;">${t}</span>`, lab = t => `<div style="font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:${C.soft};">${t}</div>`, big = v => `<div style="font-size:20px;font-weight:700;min-height:26px;">${v}</div>`;
+      return `<div style="margin:8px 0 0;break-inside:avoid;font-size:12.5px;color:${C.ink};">
+      <div style="display:flex;gap:6px;align-items:stretch;max-width:430px;">
+        <div style="${cellS}">${lab('Empty spots')}${big(left === null ? '&nbsp;' : Math.max(0, left))}</div>${op('+')}
+        <div style="${cellS}">${lab('No-shows')}${big('&nbsp;')}</div>${op('=')}
+        <div style="${cellS}">${lab('Spots to give out')}${big('&nbsp;')}</div></div>
+      <div style="margin-top:5px;color:${C.soft};">${o.mins} min after this slot starts, give any open spots to the people on the waitlist (list at the end).</div></div>`; };
     const waitBox = () => {
       if(!o.walk) return '';
       const slotKey = (slotF || by || {}).id, ws = rs.filter(r => r.status === 'waitlist').sort(cmpT);
