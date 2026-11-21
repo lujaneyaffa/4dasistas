@@ -5671,6 +5671,29 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       }
       return jsonResponse({ error: "Not allowed" }, 405, corsHeaders);
     }
+    const adminCalMarkCxMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/mark-cancelled\/?$/);
+    if (adminCalMarkCxMatch && request.method === "POST") { // main admin only: record people who were cancelled earlier (before cancellations were kept) so the attendee list counts them
+      if (leadCtx) return jsonResponse({ error: "Main admin only" }, 403, corsHeaders);
+      const ev = (await readClubCal(env)).find((e) => e.id === adminCalMarkCxMatch[1]);
+      if (!ev) return jsonResponse({ error: "Event not found" }, 404, corsHeaders);
+      let b = {}; try { b = await request.json(); } catch {}
+      const people = (Array.isArray(b.people) ? b.people : []).slice(0, 60);
+      const added = await calWithLock(env, "calform:" + ev.id, async () => {
+        let map = {}; try { map = JSON.parse((await env.SITE_DATA.get(calFormKey(ev.id))) || "{}") || {}; } catch {}
+        let n = 0;
+        for (const p of people) {
+          const name = sanitizePersonName(p && p.name); if (!name) continue;
+          const uid = p.userId && !(ev.rsvps || []).some((r) => r.id === String(p.userId) && r.status) ? String(p.userId) : "";
+          if (uid && map[uid]) { if (!map[uid].cancelledAt && !(ev.rsvps || []).some((r) => r.id === uid)) { map[uid].cancelledAt = Number(p.at) || Date.now(); map[uid].cancelledBy = "admin"; n++; } continue; }
+          const key = uid || `g:cx${crypto.randomUUID().slice(0, 8)}`;
+          if (!uid && Object.values(map).some((x) => x && x.cancelledAt && String(x.name || "").toLowerCase() === name.toLowerCase())) continue; // already recorded
+          map[key] = { name, answers: {}, at: Number(p.at) || Date.now(), cancelledAt: Number(p.at) || Date.now(), cancelledBy: "admin" }; n++;
+        }
+        if (n) await env.SITE_DATA.put(calFormKey(ev.id), JSON.stringify(map));
+        return n;
+      });
+      return jsonResponse({ ok: true, added }, 200, corsHeaders);
+    }
     const adminCalResendMatch = path.match(/^\/api\/admin\/club-cal\/([^/]+)\/resend-confirm\/?$/);
     if (adminCalResendMatch && request.method === "POST") {
       const ev = (await readClubCal(env)).find((e) => e.id === adminCalResendMatch[1]);
