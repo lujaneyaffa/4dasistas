@@ -13051,7 +13051,8 @@ async function admNotifPoll(){
   admNotif.lastPoll = Date.now();
   const get = async u => { try { const r = await fetch(u, { credentials:'include' }); return r.ok ? await r.json() : null; } catch { return null; } };
   const [j, e, rs] = await Promise.all([get('/api/admin/join-requests'), get('/api/admin/event-suggestions'), get('/api/admin/resource-suggestions')]);
-  if(!j && !e && !rs) return;
+  if(!j && !e && !rs){ admNotif.failed = true; if(state.tab === 'admin') render(); return; }
+  admNotif.failed = false; admNotif.done = true;
   const items = [];
   ((j && j.requests) || []).forEach(r => items.push({ kind:'join', id:`j:${r.clubId}:${r.userId}`, at:r.at || 0, r }));
   ((e && e.suggestions) || []).forEach(x => items.push({ kind:'event', id:`e:${x.id}`, at:x.at || 0, x }));
@@ -13713,11 +13714,12 @@ async function admNeedsLoad(){
   try { const r = await fetch('/api/admin/needs', { credentials:'include', cache:'no-store' }); state.admNeeds = r.ok ? await r.json() : { pendingRsvps:0, unpaid:0, tbdKeen:0, stayTodo:0 }; } catch { state.admNeeds = { pendingRsvps:0, unpaid:0, tbdKeen:0, stayTodo:0 }; }
   state.admNeedsLoading = false; if(state.tab === 'admin') render();
 }
+document.addEventListener('click', async e => { const b = e.target.closest('#admNeedsRefresh'); if(!b) return; b.disabled = true; b.textContent = 'Checking…'; admNotif.done = false; state.admNeeds = null; try { await admNotifPoll(); } catch {} admNeedsLoad(); setTimeout(() => { if(state.tab === 'admin') render(); }, 400); });
 function admNeedsHtml(){
   if(!state.admNeeds){ admNeedsLoad(); return ''; }
   const n = state.admNeeds, inbox = admInboxCount();
   const chips = [[admSubCount(), '📥', 'submissions to approve', 'todo'], [admJoinCount(), '🙋', 'club join requests', 'clubs'], [n.pendingRsvps, '⏳', 'RSVPs to approve', 'events'], [n.tbdKeen, '🕒', 'undated events with interest', 'events']].filter(c => c[0] > 0);
-  return `<div class="cp-box" style="margin:10px 0;padding:10px 12px;"><p style="margin:0 0 6px;font-weight:800;">${chips.length ? '🔔 Needs you' : '✅ Nothing needs you right now'}</p>${chips.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">${chips.map(([c, ic, l, g]) => `<button type="button" class="filter-chip adm-need" data-needgroup="${g}" style="min-height:40px;">${ic} <b>${c}</b> ${l}</button>`).join('')}</div>` : ''}<button type="button" class="adm-need-refresh" style="margin-top:6px;border:none;background:none;color:#776867;font-size:12px;text-decoration:underline;cursor:pointer;">↻ refresh</button></div>`;
+  return `<div class="cp-box" style="margin:10px 0;padding:10px 12px;"><p style="margin:0 0 6px;font-weight:800;">${chips.length ? '🔔 Needs you' : !admNotif.done ? (admNotif.failed ? '⚠️ Couldn\'t check just now. Tap Refresh.' : '⏳ Checking what needs you…') : '✅ Nothing needs you right now'} <button type="button" class="fb-mini" id="admNeedsRefresh" style="float:right;font-weight:600;">🔄 Refresh</button></p>${chips.length ? `<div style="display:flex;flex-wrap:wrap;gap:6px;">${chips.map(([c, ic, l, g]) => `<button type="button" class="filter-chip adm-need" data-needgroup="${g}" style="min-height:40px;">${ic} <b>${c}</b> ${l}</button>`).join('')}</div>` : ''}<button type="button" class="adm-need-refresh" style="margin-top:6px;border:none;background:none;color:#776867;font-size:12px;text-decoration:underline;cursor:pointer;">↻ refresh</button></div>`;
 }
 function admGroupTilesHtml(lead, cur){
   const tile = (id, icon, title, hint, badge) => `<button type="button" class="adm-tile${cur === id ? ' on' : ''}" data-group="${id}" aria-pressed="${cur === id}"><span class="adm-tile-ic">${icon}</span><span class="adm-tile-t">${title}</span><span class="adm-tile-h">${hint}</span>${badge ? `<span class="adm-badge adm-tile-b">${badge}</span>` : ''}</button>`;
