@@ -1,0 +1,30 @@
+{
+  "section": "functions",
+  "title": "Community Fest",
+  "audienceType": [
+    "Family Event"
+  ],
+  "emoji": "",
+  "organizedBy": "Masjid Elezz",
+  "eventDate": "2026-12-12",
+  "endDate": "2026-12-12",
+  "time": "",
+  "endTime": "",
+  "allDay": false,
+  "days": [],
+  "recurFrequency": "",
+  "monthlyType": "weekday",
+  "monthlyWeek": "1",
+  "monthlyDay": "sat",
+  "monthlyDate": "",
+  "recurStart": "",
+  "recurEnd": "",
+  "extraDates": [],
+  "virtual": false,
+  "location": "Masjid ElEzz",
+  "link": "https://www.instagram.com/p/DgBR1ttiaJT/",
+  "desc": "",
+  "sportKey": "",
+  "alsoSportKeys": [],
+  "alsoShowIn": []
+}
