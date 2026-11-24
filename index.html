@@ -12952,7 +12952,7 @@ function verifyCardHtml(){
   if(v.status === 'pending') return `<div class="av-waitlist" style="background:#fff8e8;">🕓 Your ID check was sent — an admin will look at it soon. <button type="button" data-verify-open style="margin-left:6px;border:none;background:none;text-decoration:underline;cursor:pointer;font:inherit;color:inherit;">Details</button></div>`;
   if(verifyDismissed() && v.status !== 'declined') return '';
   return `<div class="av-waitlist" style="background:#e6f4ff;text-align:left;"><div style="font-weight:800;margin-bottom:4px;">${vBadge({ verified:true }, true)} Get your Verified badge <span style="font-weight:500;font-size:12px;">(optional)</span></div>
-    <div style="font-size:13.5px;line-height:1.5;margin-bottom:8px;">${v.status === 'declined' ? `We couldn't verify your last photos${v.note ? ' — ' + escapeCm(v.note) : ''}. You're welcome to try again. ` : ''}Verified sisters show a ✓ so clubs know every member is a real woman. Only the main admin ever sees your photos, and they're deleted right after she checks them.</div>
+    <div style="font-size:13.5px;line-height:1.5;margin-bottom:8px;">${v.status === 'declined' ? `We couldn't verify your last photos${v.note ? ' — ' + escapeCm(v.note) : ''}. You're welcome to try again. ` : ''}Verified sisters show a ✓ so clubs know every member is a real woman. The check is done securely by Persona — 4DS never sees or keeps your ID.</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="club-guide-btn" data-verify-open style="flex:1;min-height:44px;">Verify me</button><button type="button" data-verify-later style="flex:0 0 auto;min-height:44px;padding:0 14px;border-radius:999px;border:2px solid var(--brand-brown);background:#fff;font-weight:700;cursor:pointer;">Maybe later</button></div></div>`;
 }
 document.addEventListener('click', e => {
@@ -12967,34 +12967,42 @@ async function openVerifyDialog(){
   const info = await verifyLoadInfo(true) || {};
   if(info.verified){ card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 8px;">${vBadge({ verified:true }, true)} You're verified</h3><p class="ideas-hint" style="text-align:left;">Thank you — your badge is on your profile.</p>`; return; }
   if(info.status === 'pending'){
-    card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 8px;">🕓 Waiting for review</h3><p class="ideas-hint" style="text-align:left;">Your photos were sent. An admin will check them and you'll get a notification. You can take them back any time.</p><button type="button" id="vWithdraw" class="club-guide-btn" style="width:100%;background:#fff;color:var(--brand-brown);border:2px solid var(--brand-brown);">Withdraw my photos</button>`;
+    card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 8px;">🕓 Waiting for review</h3><p class="ideas-hint" style="text-align:left;">Your ID check went through and an admin is taking a quick look. You'll get a notification.</p>`;
     card.querySelector('#vWithdraw').addEventListener('click', async () => { try { await cmApiRaw('/api/me/verify', { method:'DELETE', headers: ideaHeaders() }); state.verifyInfo = null; close(); render(); } catch(err){ alert(err.message); } });
     return;
   }
-  const box = 'border:2px dashed var(--brand-brown);border-radius:12px;padding:12px;margin:0 0 10px;background:#fff;';
   card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
     <h3 style="margin:0 0 6px;">${vBadge({ verified:true }, true)} Get verified <span style="font-weight:500;font-size:13px;">(optional)</span></h3>
-    <p class="ideas-hint" style="text-align:left;margin:0 0 10px;">So every club knows its members are real women. <strong>Only the main admin can see these photos</strong>, and they're <strong>deleted as soon as she checks them</strong> — we keep only your ✓.</p>
-    <div style="${box}"><div style="font-weight:700;margin-bottom:4px;">1. A selfie</div><div style="font-size:12.5px;color:#776867;margin-bottom:6px;">Your face, clearly visible, good light.</div><input type="file" id="vSelfie" accept="image/*" capture="user" style="width:100%;"><img id="vSelfiePrev" alt="" style="display:none;max-width:100%;max-height:150px;border-radius:10px;margin-top:8px;"></div>
-    <div style="${box}"><div style="font-weight:700;margin-bottom:4px;">2. Your photo ID</div><div style="font-size:12.5px;color:#776867;margin-bottom:6px;">Driver's licence, passport, or health card. We only need your <strong>photo and name</strong> — you can cover the ID number and address.</div><input type="file" id="vId" accept="image/*" style="width:100%;"><img id="vIdPrev" alt="" style="display:none;max-width:100%;max-height:150px;border-radius:10px;margin-top:8px;"></div>
+    <p class="ideas-hint" style="text-align:left;margin:0 0 10px;">So every club knows its members are real women. Verification is done by <strong>Persona</strong>, a secure ID-check service: you'll take a photo of your government ID and a quick selfie. <strong>4DS never sees or keeps your ID</strong> — we only get a yes or no.</p>
+    ${info.status === 'declined' ? '<p style="color:#b3261e;font-size:13px;margin:0 0 8px;">Your last check didn\'t go through. You\'re welcome to try again.</p>' : ''}
     <div id="vStatus" style="font-size:13px;color:#c00;min-height:18px;margin-bottom:6px;" aria-live="polite"></div>
-    <button type="button" id="vSend" class="club-guide-btn" style="width:100%;min-height:48px;">Send for review</button>`;
-  const imgs = {};
-  const pick = (inpId, prevId, key) => card.querySelector('#' + inpId).addEventListener('change', async e => {
-    const f = e.target.files && e.target.files[0]; if(!f) return;
-    try { imgs[key] = await verifyReadImg(f); const p = card.querySelector('#' + prevId); p.src = imgs[key]; p.style.display = 'block'; card.querySelector('#vStatus').textContent = ''; }
-    catch(err){ imgs[key] = null; card.querySelector('#vStatus').textContent = err.message; }
-  });
-  pick('vSelfie', 'vSelfiePrev', 'selfie'); pick('vId', 'vIdPrev', 'idphoto');
+    <button type="button" id="vSend" class="club-guide-btn" style="width:100%;min-height:48px;">Verify with ID + selfie</button>`;
   card.querySelector('#vSend').addEventListener('click', async () => {
     const st = card.querySelector('#vStatus'), btn = card.querySelector('#vSend');
-    if(!imgs.selfie || !imgs.idphoto){ st.style.color = '#c00'; st.textContent = 'Please add both photos first.'; return; }
-    btn.disabled = true; btn.textContent = 'Sending…';
-    try { await cmApiRaw('/api/me/verify', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ selfie: imgs.selfie, idphoto: imgs.idphoto }) }); state.verifyInfo = { status:'pending', verified:false };
-      card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 8px;">✓ Sent!</h3><p class="ideas-hint" style="text-align:left;">An admin will check your photos and you'll get a notification. You can keep using 4DS in the meantime.</p>`; try { render(); } catch {} }
-    catch(err){ st.style.color = '#c00'; st.textContent = err.message; btn.disabled = false; btn.textContent = 'Send for review'; }
+    btn.disabled = true; btn.textContent = 'Opening…';
+    try { const r = await cmApiRaw('/api/me/persona/start', { method:'POST', headers: ideaHeaders(), body: '{}' }); location.href = r.url; }
+    catch(err){ st.style.color = '#c00'; st.textContent = err.message; btn.disabled = false; btn.textContent = 'Verify with ID + selfie'; }
   });
 }
+// Coming back from Persona (…/?persona=done&inquiry-id=inq_…): ask the server whether it passed, then tell her.
+async function personaReturnCheck(){
+  let id = ''; try { id = new URLSearchParams(location.search).get('inquiry-id') || ''; } catch {}
+  if(!id || !getCmSession()) return;
+  try { history.replaceState(null, '', location.pathname + location.hash); } catch {}
+  const { wrap } = ideaPopup('<p class="av-msg">Checking your verification…</p>');
+  const card = wrap.querySelector('.idea-pop-card');
+  const show = (h, t) => { card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 8px;">${h}</h3><p class="ideas-hint" style="text-align:left;">${t}</p>`; };
+  try {
+    const r = await cmApiRaw('/api/me/persona/check', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ inquiryId: id }) });
+    state.verifyInfo = null;
+    if(r.status === 'verified') show(vBadge({ verified:true }, true) + " You're verified!", 'Thank you — your ✓ badge is now on your profile.');
+    else if(r.status === 'pending') show('🕓 Almost there', 'Your ID went through and an admin needs to take a quick look. You\'ll get a notification once you\'re verified.');
+    else if(r.status === 'declined') show("We couldn't verify you", 'Persona could not confirm the ID. You\'re welcome to try again from the Clubs page.');
+    else show('Not finished yet', 'It looks like the check was not completed. You can start again any time from the Clubs page.');
+    try { render(); } catch {}
+  } catch(err){ show('Something went wrong', escapeCm(err.message)); }
+}
+setTimeout(personaReturnCheck, 1200);
 // ADMIN: the ID-check queue (main admin only).
 async function openIdChecks(){
   const { wrap } = ideaPopup('<p class="av-msg">Loading…</p>');
@@ -13010,6 +13018,11 @@ async function openIdChecks(){
     card.innerHTML = '<button type="button" class="mem-pop-close" aria-label="Close">✕</button><p class="av-msg">Loading photos…</p>';
     try {
       const r = await cmApiRaw('/api/admin/verify/' + encodeURIComponent(uid), { credentials:'include' });
+      if(r.persona){ card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 4px;">${escapeCm(r.name)}</h3><div style="font-size:12.5px;color:#776867;margin-bottom:8px;">${escapeCm(r.username)}. Persona checked her ID but wants a human to look${r.detail ? ' — ' + escapeCm(r.detail) : ''}. Open the inquiry in Persona, then decide.</div>
+        <a href="https://app.withpersona.com/dashboard/inquiries/${escapeCm(r.inquiryId)}" target="_blank" rel="noopener" class="club-guide-btn" style="display:block;text-align:center;text-decoration:none;margin-bottom:10px;">Open in Persona ↗</a>
+        <input id="vcNote" placeholder="Reason if declining (she'll see this)" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;margin-bottom:8px;">
+        <div style="display:flex;gap:8px;"><button type="button" id="vcYes" class="club-guide-btn" style="flex:1;min-height:46px;background:#d9f0d8;color:var(--charcoal);">✓ Approve</button><button type="button" id="vcNo" class="club-guide-btn" style="flex:1;min-height:46px;background:#b3261e;">Decline</button></div>`; }
+      else
       card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 4px;">${escapeCm(r.name)}</h3><div style="font-size:12.5px;color:#776867;margin-bottom:8px;">${escapeCm(r.username)}. Does the selfie match the ID, and is she a woman? Her photos are deleted as soon as you press a button.</div>
         <div style="font-weight:700;font-size:13px;">Selfie</div><img src="${r.selfie}" alt="" style="width:100%;border-radius:10px;margin:4px 0 10px;"><div style="font-weight:700;font-size:13px;">ID</div><img src="${r.idphoto}" alt="" style="width:100%;border-radius:10px;margin:4px 0 10px;">
         <input id="vcNote" placeholder="Reason if declining (she'll see this)" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;margin-bottom:8px;">
@@ -13981,7 +13994,7 @@ function renderClubAdminPanel(){
     <div style="margin:14px 0 26px;">${renderAdminAllMembersPanels()}</div>
     <h3 style="margin:18px 0 6px;">Tools</h3>
     ${(lead || !/[?&]importforms/.test(location.search)) ? '' : admSec('formimport', '📥 Import sign-up forms (from your email)', formImportHtml(), false)}
-    ${lead ? '' : admSec('idchecks', '🪪 ID checks (optional member verification)' + ((state.admNeeds || {}).verifyPending ? ` <span class="adm-badge">${state.admNeeds.verifyPending}</span>` : ''), `<div class="cp-box"><p style="font-size:12px;color:#776867;margin:0 0 8px;">Members can choose to send a selfie + ID photo. Only you can see them, and they're deleted when you approve or decline. You can also give the ✓ badge by hand: open anyone's profile → "Give Verified badge".</p><button type="button" class="club-guide-btn" id="admIdChecksBtn" style="width:100%;min-height:46px;">Review ID checks</button></div>`, true)}
+    ${lead ? '' : admSec('idchecks', '🪪 ID checks (optional member verification)' + ((state.admNeeds || {}).verifyPending ? ` <span class="adm-badge">${state.admNeeds.verifyPending}</span>` : ''), `<div class="cp-box"><p style="font-size:12px;color:#776867;margin:0 0 8px;">Members can choose to verify with Persona (government ID + selfie) — it approves them automatically. Anything Persona or the site wants a human to check shows up here. You can also give the ✓ badge by hand: open anyone's profile → "Give Verified badge".</p><button type="button" class="club-guide-btn" id="admIdChecksBtn" style="width:100%;min-height:46px;">Review ID checks</button></div>`, true)}
     ${admSec('newprofile', '➕ Create a profile', `
     <div class="cp-box">
       <h4 style="margin:0 0 6px;">Create a profile</h4>

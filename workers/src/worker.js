@@ -3572,11 +3572,44 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const row = await env.DB.prepare("SELECT status, at, note FROM id_checks WHERE user_id = ?").bind(me.id).first();
       if (request.method === "GET") return jsonResponse({ verified: !!me.verified, status: me.verified ? "verified" : (row ? row.status : "none"), note: row && row.status === "declined" ? (row.note || "") : "" }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
       if (request.method === "DELETE") { await env.DB.prepare("DELETE FROM id_checks WHERE user_id = ?").bind(me.id).run(); return jsonResponse({ ok: true }, 200, corsHeaders); }
+      return jsonResponse({ error: "ID photos are now checked by Persona — use the Verify button" }, 410, corsHeaders);
+    }
+    // Persona (withpersona.com) does the actual ID + selfie check. /start gives the member the hosted-flow link; when she comes back, /check asks Persona
+    // (server to server, with our secret key) whether THAT inquiry belongs to HER and passed — so nobody can fake it from the browser.
+    if ((path === "/api/me/persona/start" || path === "/api/me/persona/check") && request.method === "POST") {
+      const meId = await memberIdFromRequest();
+      const me = meId ? await readUser(env, meId) : null;
+      if (!me) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
+      if (!env.PERSONA_API_KEY || !env.PERSONA_TEMPLATE_ID) return jsonResponse({ error: "ID verification isn't switched on yet — the site owner is finishing setting it up." }, 503, corsHeaders);
       if (me.verified) return jsonResponse({ ok: true, status: "verified" }, 200, corsHeaders);
+      if (path === "/api/me/persona/start") {
+        const u = new URL("https://inquiry.withpersona.com/verify");
+        u.searchParams.set("inquiry-template-id", env.PERSONA_TEMPLATE_ID);
+        if (env.PERSONA_ENVIRONMENT_ID) u.searchParams.set("environment-id", env.PERSONA_ENVIRONMENT_ID);
+        u.searchParams.set("reference-id", me.id);
+        u.searchParams.set("redirect-uri", `${env.SITE_ORIGIN || "https://4dasistas.ca"}/?persona=done`);
+        return jsonResponse({ url: u.toString() }, 200, corsHeaders);
+      }
       let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
-      if (!verImgOk(b.selfie) || !verImgOk(b.idphoto)) return jsonResponse({ error: "Please add both photos (a selfie and your ID) — JPEG or PNG." }, 400, corsHeaders);
-      await env.DB.prepare("INSERT OR REPLACE INTO id_checks (user_id, selfie, idphoto, status, at, note) VALUES (?, ?, ?, 'pending', ?, '')").bind(me.id, b.selfie, b.idphoto, Date.now()).run();
-      return jsonResponse({ ok: true, status: "pending" }, 200, corsHeaders);
+      const inqId = String(b.inquiryId || "");
+      if (!/^inq_[A-Za-z0-9]+$/.test(inqId)) return jsonResponse({ error: "Invalid verification reference" }, 400, corsHeaders);
+      const pr = await fetch(`https://api.withpersona.com/api/v1/inquiries/${inqId}`, { headers: { Authorization: "Bearer " + env.PERSONA_API_KEY, "Key-Inflection": "kebab", Accept: "application/json" } });
+      if (!pr.ok) return jsonResponse({ error: "Persona couldn't find that verification (" + pr.status + ")" }, 502, corsHeaders);
+      const pj = await pr.json().catch(() => ({})); const at = (pj.data && pj.data.attributes) || {};
+      if (at["reference-id"] !== me.id) return jsonResponse({ error: "That verification belongs to a different account" }, 403, corsHeaders);
+      const status = String(at.status || "");
+      if (status === "declined" || status === "failed" || status === "expired") return jsonResponse({ ok: false, status: "declined" }, 200, corsHeaders);
+      if (status !== "approved" && status !== "completed" && status !== "needs_review") return jsonResponse({ ok: false, status: "incomplete" }, 200, corsHeaders);
+      // This is a women's community: if the ID says it's NOT an "F", don't auto-approve — send it to the main admin to look at instead of rejecting her outright.
+      let sex = "";
+      try { const r2 = await fetch(`https://api.withpersona.com/api/v1/inquiries/${inqId}?include=documents`, { headers: { Authorization: "Bearer " + env.PERSONA_API_KEY, "Key-Inflection": "kebab", Accept: "application/json" } });
+        if (r2.ok) { const j2 = await r2.json(); for (const x of (j2.included || [])) { const s = x && x.attributes && x.attributes.sex; if (s) { sex = String(s).trim().toUpperCase(); break; } } } } catch {}
+      if (status === "needs_review" || (sex && sex !== "F" && sex !== "FEMALE")) {
+        if (await verEnsure(env)) await env.DB.prepare("INSERT OR REPLACE INTO id_checks (user_id, selfie, idphoto, status, at, note) VALUES (?, '', '', 'pending', ?, ?)").bind(me.id, Date.now(), "persona:" + inqId + (sex ? " (ID says: " + sex + ")" : "")).run();
+        return jsonResponse({ ok: false, status: "pending" }, 200, corsHeaders);
+      }
+      me.verified = true; me.verifiedAt = Date.now(); me.verifiedBy = "persona"; me.personaInquiry = inqId; await writeUser(env, me);
+      return jsonResponse({ ok: true, status: "verified" }, 200, corsHeaders);
     }
     // "Delete my account" (in the app's Edit profile): needs their PIN; removes the profile and everything linked to it.
     if (path === "/api/me/delete-account" && request.method === "POST") {
@@ -5420,8 +5453,9 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!(await verEnsure(env))) return jsonResponse({ error: "Not available" }, 503, corsHeaders);
       const u = await readUser(env, uid); if (!u) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
       if (request.method === "GET") {
-        const r = await env.DB.prepare("SELECT selfie, idphoto, status, at FROM id_checks WHERE user_id = ?").bind(uid).first();
+        const r = await env.DB.prepare("SELECT selfie, idphoto, status, at, note FROM id_checks WHERE user_id = ?").bind(uid).first();
         if (!r || r.status !== "pending") return jsonResponse({ error: "No pending check for her" }, 404, corsHeaders);
+        if (String(r.note || "").startsWith("persona:")) { const m = String(r.note).match(/^persona:(inq_[A-Za-z0-9]+)\s*(.*)$/) || []; return jsonResponse({ name: u.name, username: u.username, persona: true, inquiryId: m[1] || "", detail: m[2] || "", at: r.at }, 200, { ...corsHeaders, "Cache-Control": "no-store" }); }
         return jsonResponse({ name: u.name, username: u.username, photo: u.photo || null, selfie: r.selfie, idphoto: r.idphoto, at: r.at }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
       }
       let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
