@@ -6039,7 +6039,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // Admin: read/edit a Resources/Small-Business listing
     const adminResourceMatch = path.match(/^\/api\/admin\/resource\/([^/]+)\/?$/);
-    if (adminResourceMatch && (request.method === "GET" || request.method === "PUT")) {
+    if (adminResourceMatch && (request.method === "GET" || request.method === "PUT" || request.method === "DELETE")) {
       if (!env.GITHUB_TOKEN) return jsonResponse({ error: "Server misconfigured: GITHUB_TOKEN is not set" }, 500, corsHeaders);
       const id = decodeURIComponent(adminResourceMatch[1]);
       if (!CALENDAR_ID_RE.test(id)) return jsonResponse({ error: "Invalid resource id" }, 400, corsHeaders);
@@ -6048,6 +6048,14 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
         const resolved = await resolveResourceFile(env, id);
         if (!resolved) return jsonResponse({ error: "Resource source file not found" }, 404, corsHeaders);
         return jsonResponse(resolved.file.content, 200, corsHeaders);
+      }
+
+      if (request.method === "DELETE") {
+        const resolvedDel = await resolveResourceFile(env, id);
+        if (!resolvedDel) return jsonResponse({ error: "Resource source file not found" }, 404, corsHeaders);
+        const delRes = await githubDeleteFile(env, resolvedDel.path, resolvedDel.file.sha, `Delete "${resolvedDel.file.content.title || id}" via site admin editor`);
+        if (!delRes.ok) return jsonResponse({ error: "GitHub delete failed", detail: await delRes.text().catch(() => "") }, 502, corsHeaders);
+        return jsonResponse({ ok: true, deleted: id }, 200, corsHeaders);
       }
 
       let body;
