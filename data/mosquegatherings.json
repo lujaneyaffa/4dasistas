@@ -828,6 +828,40 @@
     },
     {
       "section": "mosqueprograms",
+      "title": "Qur’an Classes",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "Ist sisters",
+      "eventDate": "2026-11-17",
+      "endDate": "2026-11-17",
+      "time": "10:00",
+      "endTime": "11:00",
+      "allDay": false,
+      "days": [
+        "tue",
+        "thu"
+      ],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "Masjid darrussalam",
+      "link": "https://www.instagram.com/p/DfnnY33Bsu6/",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "quran-classes"
+    },
+    {
+      "section": "mosqueprograms",
       "title": "Rebelling Against Oppression",
       "audienceType": [],
       "emoji": "",
