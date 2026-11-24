@@ -751,7 +751,7 @@ root.addEventListener('change',async e=>{if(e.target.id!=='rotFile')return;const
 else if(a==='unlock'){const v=($('rotKey')||{}).value||'';if(kNorm(v).length<4)return toast('Type the password');const r=await kRpc('kiosk_ping',{p_key:v});if(r.error)return toast(kFriendly(r.error.message));if(r.data!==true)return toast('That password is not right');kSetKey(kNorm(v));rotRender(true)}});rotRender()}
 async function init(){try{const c=JSON.parse(localStorage.getItem('bmc:'+LEAGUE)||'null');if(c&&Date.now()-c.at<864e5)loadFrom({p:{data:c.p},g:{data:c.g},a:{data:c.a},pp:{data:c.pp},rs:{data:[]},ti:{data:[]}})}catch(e){}const s=await db.auth.getSession();session=s.data?.session||null;bind();try{lgUi()}catch(e){}try{rotSetup()}catch(e){console.error(e)}kioskInit();$('attDate').value=dateKey();schedule();renderScheduleCompact();setInterval(()=>{if(viewFromHash()!=='kiosk'&&!document.hidden)schedule()},1000);await load()}
 init();
-window.__bm={rot:ROT,rotRank:()=>ROT?rotRank():[],league:LEAGUE,leagues:LEAGUES,timeTxt:LG.timeTxt,lgName:LG.name,load:()=>load(),get players(){return players},get games(){return games},points:points,gp:gp,gw:gw,fp:fp,name:name,heartFor:heartFor,fmtPts:fmtPts,esc:esc,arr:arr,sessions:SEASON_DATES};
+window.__bm={rot:ROT,reveal:()=>ROT&&rotReveal(),rotRank:()=>ROT?rotRank():[],league:LEAGUE,leagues:LEAGUES,timeTxt:LG.timeTxt,lgName:LG.name,load:()=>load(),get players(){return players},get games(){return games},points:points,gp:gp,gw:gw,fp:fp,name:name,heartFor:heartFor,fmtPts:fmtPts,esc:esc,arr:arr,sessions:SEASON_DATES};
 })();
 </script>
 
