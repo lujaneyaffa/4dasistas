@@ -5258,7 +5258,7 @@ function placesAllowed(){
 }
 // 📋 "Paste from clipboard" button under every link box (phones make press-and-hold Paste hard when the page scrolls on tap).
 function addPasteButtons(root){
-  (root || document).querySelectorAll('input[type=url], input[placeholder*="link" i], input[placeholder*="Instagram" i], input[placeholder*="https" i], input[placeholder*="http" i]').forEach(inp => {
+  (root || document).querySelectorAll('input[type=url], input[id*="link" i], input[id*="url" i], input[name*="link" i], input[placeholder*="link" i], input[placeholder*="Instagram" i], input[placeholder*="https" i], input[placeholder*="http" i]').forEach(inp => {
     if(inp.dataset.pasteBtn || inp.type === 'hidden' || inp.readOnly || inp.disabled || inp.closest('.hp-field') || inp.getAttribute('aria-hidden') === 'true' || inp.offsetParent === null) return;
     inp.dataset.pasteBtn = '1';
     const b = document.createElement('button'); b.type = 'button'; b.className = 'fb-mini paste-btn'; b.textContent = '📋 Paste from clipboard';
