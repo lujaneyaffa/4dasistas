@@ -5317,19 +5317,34 @@ function addPasteButtons(root){
 // Nominatim is best at exact street numbers. Results show as soon as the first one answers, then merge. Used while Google's search is blocked.
 const _geoCache = {};
 function osmAttach(input, opts){
-  if(!input || input.dataset.osm) return; input.dataset.osm = '1';
-  const world = !!(opts && opts.world), list = document.createElement('div');
+  if(!input) return;
+  if(input.dataset.osm){ if(input._osmSetWorld) input._osmSetWorld(!!(opts && opts.world)); return; } // already attached: just update whether it searches the whole world (Trips) or Canada only
+  input.dataset.osm = '1';
+  let world = !!(opts && opts.world); input._osmSetWorld = v => { world = !!v; const l = input._osmList; if(l) l.style.display = 'none'; };
+  const list = document.createElement('div'); input._osmList = list;
   list.style.cssText = 'border:2px solid var(--brand-brown);border-radius:12px;background:#fff;margin:4px 0;display:none;max-height:260px;overflow:auto;text-align:left;';
   input.parentNode.insertBefore(list, input.nextSibling);
-  let t = null, seq = 0, ctrl = null;
+  let t = null, seq = 0, ctrl = null, pressing = false, pending = null, skipNext = false;
+  // One listener on the whole list (the buttons get redrawn as results arrive). Picking fills the box, closes the list and does NOT search again.
+  list.addEventListener('pointerdown', e => { if(e.target.closest('button')){ pressing = true; e.preventDefault(); } });
+  const release = () => { if(!pressing) return; pressing = false; if(pending){ const p = pending; pending = null; draw(p[0], p[1]); } };
+  list.addEventListener('pointerup', () => setTimeout(release, 0)); list.addEventListener('pointercancel', release); list.addEventListener('pointerleave', release);
+  list.addEventListener('click', e => {
+    const b = e.target.closest('button[data-i]'); if(!b) return; pressing = false; pending = null;
+    const v = (list._rows || [])[Number(b.dataset.i)]; if(!v) return;
+    clearTimeout(t); seq++; if(ctrl) ctrl.abort(); skipNext = true;
+    input.value = v; input.dispatchEvent(new Event('input', { bubbles:true })); input.dispatchEvent(new Event('change', { bubbles:true }));
+    skipNext = false; list.style.display = 'none'; try { input.blur(); } catch {}
+  });
   const lbl = f => { const p = f.properties || {}; const st = [p.housenumber, p.street].filter(Boolean).join(' '); return [p.name && p.name !== p.street ? p.name : '', st, p.city || p.town || p.village || p.district || '', p.state || '', p.countrycode && p.countrycode !== 'CA' ? p.country : ''].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(', '); };
   const photon = (q, sig) => fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(q) + '&limit=10&lang=en&lat=43.68&lon=-79.6' + (world ? '' : '&bbox=-141,41.6,-52,84'), { signal: sig }).then(r => r.json()).then(j => (j.features || []).filter(f => world || !f.properties || !f.properties.countrycode || f.properties.countrycode === 'CA').map(lbl).filter(Boolean)).catch(() => []);
   const ABBR = { blvd:'boulevard', ave:'avenue', rd:'road', st:'street', dr:'drive', cres:'crescent', hwy:'highway', ct:'court', pkwy:'parkway', cir:'circle', ln:'lane', pl:'place', trl:'trail' };
   const nomin = (q, sig) => fetch('https://nominatim.openstreetmap.org/search?format=json&limit=8&q=' + encodeURIComponent(q.replace(/\b([a-z]{2,5})\b\.?/gi, (m, w) => ABBR[w.toLowerCase()] || m)) + (world ? '' : '&countrycodes=ca&viewbox=-80.2,44.1,-78.9,43.3'), { signal: sig, headers:{ 'Accept-Language':'en' } }).then(r => r.json()).then(j => j.map(x => String(x.display_name || '').split(', ').filter(z => !/^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/.test(z)).join(', ')).filter(Boolean)).catch(() => []);
   const draw = (items, done) => {
     const seen = new Set(), rows = items.filter(x => { const k = x.toLowerCase(); if(seen.has(k)) return false; seen.add(k); return true; }).slice(0, 9);
+    if(pressing){ pending = [items, done]; return; } // don't swap the buttons out from under a finger that is mid-tap
     list.innerHTML = rows.length ? rows.map((x, i) => `<button type="button" data-i="${i}" style="display:block;width:100%;text-align:left;padding:11px 12px;border:0;border-bottom:1px solid #eee;background:#fff;font:inherit;font-size:14px;cursor:pointer;">📍 ${escapeCm(x)}</button>`).join('') + (done ? '' : '<div style="padding:6px 12px;font-size:12px;color:#776867;">Looking for more…</div>') : (done ? '<div style="padding:10px;font-size:13px;color:#776867;">No match. Try the street and city, or type the address yourself.</div>' : '<div style="padding:10px;font-size:13px;color:#776867;">Searching…</div>');
-    list.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { input.value = rows[Number(b.dataset.i)]; input.dispatchEvent(new Event('input', { bubbles:true })); input.dispatchEvent(new Event('change', { bubbles:true })); list.style.display = 'none'; seq++; }));
+    list._rows = rows;
   };
   const run = async () => {
     const q = input.value.trim(); if(q.length < 2){ list.style.display = 'none'; return; }
@@ -5340,7 +5355,7 @@ function osmAttach(input, opts){
     const fin = () => { if(my !== seq) return; n++; const all = a.concat(b); draw(all, n >= 2); if(n >= 2 && all.length) _geoCache[key] = all; };
     photon(q, sig).then(r => { a = r; fin(); }); nomin(q, sig).then(r => { b = r; fin(); });
   };
-  input.addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 220); });
+  input.addEventListener('input', () => { if(skipNext) return; clearTimeout(t); t = setTimeout(run, 220); });
 }
 function loadGoogleMaps(){
   const ready = () => !!(window.google && window.google.maps && typeof google.maps.importLibrary === 'function');
@@ -5426,7 +5441,7 @@ async function mountEventLocationSearch(){
     console.error('Address search unavailable, using plain text:', err);
     if(seq !== evLocMountSeq) return;
     hidden.type = 'text';
-    hidden.placeholder = 'Type the address';
+    hidden.placeholder = isTrip ? 'Search anywhere in the world…' : 'Search an address in Canada…';
     chosen.style.display = 'none';
     hidden.style.cssText = 'width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;';
     osmAttach(hidden, { world: isTrip });
