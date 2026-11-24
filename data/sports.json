@@ -259,6 +259,37 @@
     },
     {
       "section": "sports",
+      "title": "Fitness Bootcamp",
+      "audienceType": [],
+      "emoji": "",
+      "organizedBy": "MNN",
+      "eventDate": "2026-11-22",
+      "endDate": "2026-11-10",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [
+        "sun"
+      ],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "2027-01-10",
+      "extraDates": [],
+      "virtual": false,
+      "location": "MNN Masjid, 3520 Odyssey Dr, Mississauga, ON L5M 0Y9",
+      "link": "https://www.instagram.com/p/Df8_GxTT3ie/",
+      "desc": "",
+      "sportKey": "fitness",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "fitness-bootcamp"
+    },
+    {
+      "section": "sports",
       "title": "Fitness & Pilates",
       "audienceType": [
         "Muslim Women"
