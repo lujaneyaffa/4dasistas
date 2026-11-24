@@ -5293,6 +5293,7 @@ let googleMapsLoading = null;
 // Is the Places search allowed for our key? (If Google answers 403, the search box would just sit there empty.) Checked once.
 let placesOkP = null;
 function placesAllowed(){
+  if(!window._USE_GOOGLE_PLACES) return Promise.resolve(false); // Google's search needs a paid billing account; the free OpenStreetMap search below is used everywhere (flip this flag to bring Google back)
   if(!placesOkP) placesOkP = fetch('https://places.googleapis.com/v1/places:autocomplete?key=AIzaSyCNNUYMc_ZfoPllM182cVMZ8tRs_EzUhoM', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ input: 'Toronto', includedRegionCodes: ['ca'] }) }).then(r => r.status !== 403 && r.status !== 401 && r.status !== 429).catch(() => true);
   return placesOkP;
 }
@@ -5331,23 +5332,24 @@ function osmAttach(input, opts){
   list.addEventListener('pointerup', () => setTimeout(release, 0)); list.addEventListener('pointercancel', release); list.addEventListener('pointerleave', release);
   list.addEventListener('click', e => {
     const b = e.target.closest('button[data-i]'); if(!b) return; pressing = false; pending = null;
-    const v = (list._rows || [])[Number(b.dataset.i)]; if(!v) return;
+    const rw = (list._rows || [])[Number(b.dataset.i)]; if(!rw) return; const v = rw.full;
     clearTimeout(t); seq++; if(ctrl) ctrl.abort(); skipNext = true;
     input.value = v; input.dispatchEvent(new Event('input', { bubbles:true })); input.dispatchEvent(new Event('change', { bubbles:true }));
     skipNext = false; list.style.display = 'none'; try { input.blur(); } catch {}
   });
-  const lbl = f => { const p = f.properties || {}; const st = [p.housenumber, p.street].filter(Boolean).join(' '); return [p.name && p.name !== p.street ? p.name : '', st, p.city || p.town || p.village || p.district || '', p.state || '', p.countrycode && p.countrycode !== 'CA' ? p.country : ''].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(', '); };
+  const mk = parts => { const a = parts.filter(Boolean).filter((x, i, arr) => arr.indexOf(x) === i); return a.length ? { main: a[0], sub: a.slice(1).join(', '), full: a.join(', ') } : null; };
+  const lbl = f => { const p = f.properties || {}; const st = [p.housenumber, p.street].filter(Boolean).join(' '); return mk([p.name && p.name !== p.street ? p.name : '', st, p.city || p.town || p.village || p.district || '', p.state || '', p.countrycode && p.countrycode !== 'CA' ? p.country : '']); };
   const photon = (q, sig) => fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(q) + '&limit=10&lang=en&lat=43.68&lon=-79.6' + (world ? '' : '&bbox=-141,41.6,-52,84'), { signal: sig }).then(r => r.json()).then(j => (j.features || []).filter(f => world || !f.properties || !f.properties.countrycode || f.properties.countrycode === 'CA').map(lbl).filter(Boolean)).catch(() => []);
   const ABBR = { blvd:'boulevard', ave:'avenue', rd:'road', st:'street', dr:'drive', cres:'crescent', hwy:'highway', ct:'court', pkwy:'parkway', cir:'circle', ln:'lane', pl:'place', trl:'trail' };
-  const nomin = (q, sig) => fetch('https://nominatim.openstreetmap.org/search?format=json&limit=8&q=' + encodeURIComponent(q.replace(/\b([a-z]{2,5})\b\.?/gi, (m, w) => ABBR[w.toLowerCase()] || m)) + (world ? '' : '&countrycodes=ca&viewbox=-80.2,44.1,-78.9,43.3'), { signal: sig, headers:{ 'Accept-Language':'en' } }).then(r => r.json()).then(j => j.map(x => String(x.display_name || '').split(', ').filter(z => !/^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/.test(z)).join(', ')).filter(Boolean)).catch(() => []);
+  const nomin = (q, sig) => fetch('https://nominatim.openstreetmap.org/search?format=json&limit=8&q=' + encodeURIComponent(q.replace(/\b([a-z]{2,5})\b\.?/gi, (m, w) => ABBR[w.toLowerCase()] || m)) + (world ? '' : '&countrycodes=ca&viewbox=-80.2,44.1,-78.9,43.3'), { signal: sig, headers:{ 'Accept-Language':'en' } }).then(r => r.json()).then(j => j.map(x => mk(String(x.display_name || '').split(', ').filter(z => !/^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/.test(z)))).filter(Boolean)).catch(() => []);
   const draw = (items, done) => {
-    const seen = new Set(), rows = items.filter(x => { const k = x.toLowerCase(); if(seen.has(k)) return false; seen.add(k); return true; }).slice(0, 9);
+    const seen = new Set(), rows = items.filter(x => { const k = x.full.toLowerCase(), k2 = (x.main + '|' + x.sub.split(', ')[0]).toLowerCase(); if(seen.has(k) || seen.has(k2)) return false; seen.add(k); seen.add(k2); return true; }).slice(0, 8);
     if(pressing){ pending = [items, done]; return; } // don't swap the buttons out from under a finger that is mid-tap
-    list.innerHTML = rows.length ? rows.map((x, i) => `<button type="button" data-i="${i}" style="display:block;width:100%;text-align:left;padding:11px 12px;border:0;border-bottom:1px solid #eee;background:#fff;font:inherit;font-size:14px;cursor:pointer;">📍 ${escapeCm(x)}</button>`).join('') + (done ? '' : '<div style="padding:6px 12px;font-size:12px;color:#776867;">Looking for more…</div>') : (done ? '<div style="padding:10px;font-size:13px;color:#776867;">No match. Try the street and city, or type the address yourself.</div>' : '<div style="padding:10px;font-size:13px;color:#776867;">Searching…</div>');
+    list.innerHTML = rows.length ? rows.map((x, i) => `<button type="button" data-i="${i}" style="display:block;width:100%;text-align:left;padding:11px 12px;border:0;border-bottom:1px solid #eee;background:#fff;font:inherit;font-size:14px;cursor:pointer;"><span style="font-weight:700;">📍 ${escapeCm(x.main)}</span>${x.sub ? `<span style="display:block;font-size:12.5px;color:#776867;margin:2px 0 0 22px;">${escapeCm(x.sub)}</span>` : ''}</button>`).join('') + (done ? '' : '<div style="padding:6px 12px;font-size:12px;color:#776867;">Looking for more…</div>') : (done ? '<div style="padding:10px;font-size:13px;color:#776867;">No match. Try the street and city, or type the address yourself.</div>' : '<div style="padding:10px;font-size:13px;color:#776867;">Searching…</div>');
     list._rows = rows;
   };
   const run = async () => {
-    const q = input.value.trim(); if(q.length < 2){ list.style.display = 'none'; return; }
+    const q = input.value.trim(); if(q.length < 3){ list.style.display = 'none'; return; }
     const key = (world ? 'w:' : 'c:') + q.toLowerCase(), my = ++seq; list.style.display = 'block';
     if(_geoCache[key]){ draw(_geoCache[key], true); return; }
     if(ctrl) ctrl.abort(); ctrl = new AbortController(); const sig = ctrl.signal;
@@ -5355,7 +5357,7 @@ function osmAttach(input, opts){
     const fin = () => { if(my !== seq) return; n++; const all = a.concat(b); draw(all, n >= 2); if(n >= 2 && all.length) _geoCache[key] = all; };
     photon(q, sig).then(r => { a = r; fin(); }); nomin(q, sig).then(r => { b = r; fin(); });
   };
-  input.addEventListener('input', () => { if(skipNext) return; clearTimeout(t); t = setTimeout(run, 220); });
+  input.addEventListener('input', () => { if(skipNext) return; clearTimeout(t); t = setTimeout(run, 350); });
 }
 // If Google's search ever errors (daily limit used up, key problem…), switch every location box to the free search for the rest of this visit.
 function gmpFailover(el, redo){ el.addEventListener('gmp-error', () => { if(window._gmapsDead) return; window._gmapsDead = true; try { redo(); } catch {} }); }
