@@ -301,6 +301,37 @@
       "id": "from-conversation-to-commitment"
     },
     {
+      "section": "mosqueprograms",
+      "title": "Garden of the Qur'an",
+      "audienceType": [],
+      "emoji": "",
+      "organizedBy": "Jami Isna",
+      "eventDate": "2026-11-21",
+      "endDate": "2026-11-21",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [
+        "sun"
+      ],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "Jami Mosque, 56 Boustead Avenue, Toronto, Ontario",
+      "link": "https://www.instagram.com/p/Df4_NdIhtHm/",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "garden-of-the-quran"
+    },
+    {
       "id": "healing-hearts-muslim-survivors-group",
       "title": "Healing Hearts: Muslim Survivors Group",
       "type": "Support Group",
