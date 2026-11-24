@@ -1,0 +1,33 @@
+{
+  "section": "activities",
+  "title": "Winter Retreat",
+  "audienceType": [
+    "Muslim Women",
+    "All Women"
+  ],
+  "emoji": "",
+  "organizedBy": "MAA x Koraa",
+  "eventDate": "2027-01-29",
+  "endDate": "2027-01-31",
+  "time": "",
+  "endTime": "",
+  "allDay": false,
+  "days": [],
+  "recurFrequency": "",
+  "monthlyType": "weekday",
+  "monthlyWeek": "1",
+  "monthlyDay": "sat",
+  "monthlyDate": "",
+  "recurStart": "",
+  "recurEnd": "",
+  "extraDates": [],
+  "virtual": false,
+  "location": "Cedar Ridge Campsite",
+  "link": "https://www.instagram.com/p/Df8lcyim-qG/?img_index=2",
+  "desc": "",
+  "sportKey": "",
+  "alsoSportKeys": [],
+  "alsoShowIn": [
+    "trips"
+  ]
+}
