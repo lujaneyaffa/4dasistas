@@ -328,7 +328,7 @@ const deleteUser = async (env, userId) => {
 };
 
 const visibleWaitlist = (user, clubs) => (Array.isArray(user.waitlist) ? user.waitlist : []).filter((id) => !clubs.includes(id));
-const publicUser = (u) => ({ id: u.id, name: u.name, username: u.username, photo: u.photo || null, mustChangePin: !!u.mustChangePin });
+const publicUser = (u) => ({ id: u.id, name: u.name, username: u.username, photo: u.photo || null, mustChangePin: !!u.mustChangePin, verified: !!u.verified });
 
 // ---- Club membership: each club just holds a list of member userIds ----
 const clubMembersKey = (clubId) => `clubmembers:${clubId}`;
@@ -744,6 +744,16 @@ const sendPushToUser = async (env, userId, message) => {
   if (keep.length !== subs.length) await env.SITE_DATA.put(pushKey(userId), JSON.stringify(keep));
   return { sent, removed: subs.length - keep.length, devices: subs.length + ap.devices };
 };
+// ---- Optional "verified sister" check. A member can send a selfie + a photo of her ID; ONLY the main admin can open them. The photos are
+// deleted the moment the admin approves or declines (only the ✓ on her profile is kept). The admin can also hand out the ✓ by hand.
+let _verReady = null;
+const verEnsure = async (env) => {
+  if (!env.DB) return false;
+  if (!_verReady) _verReady = env.DB.prepare("CREATE TABLE IF NOT EXISTS id_checks (user_id TEXT PRIMARY KEY, selfie TEXT, idphoto TEXT, status TEXT, at INTEGER, note TEXT)").run().catch((e) => { _verReady = null; throw e; });
+  await _verReady; return true;
+};
+const verImgOk = (s) => typeof s === "string" && s.length < 700000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(s);
+
 // ---- Steps challenge: biweekly rounds, per-person daily steps (synced from Apple Health / Health Connect by the native app), per-1,000-step pledges for a charity. ----
 // Daily rows live in D1 (free plan: 100k writes/day) — an hourly sync per person would blow through KV's 1k writes/day. Rounds are one small KV doc.
 let _stepsReady = null;
@@ -951,6 +961,7 @@ const eraseUserEverywhere = async (env, user) => {
       if (e.form) { const raw = await env.SITE_DATA.get(calFormKey(e.id)); if (raw) { const m = JSON.parse(raw); if (m[userId]) { delete m[userId]; await env.SITE_DATA.put(calFormKey(e.id), JSON.stringify(m)); } } } }
     if (changed) await writeClubCal(env, cal);
   } catch {}
+  if (env.DB) { try { await verEnsure(env); await env.DB.prepare("DELETE FROM id_checks WHERE user_id = ?").bind(userId).run(); } catch {} }
   if (env.DB) { try { // steps + badminton: their step rows and pledges go; their badminton games stay as an anonymous "Former player" so other people's scores don't change
     await stepsEnsure(env); await env.DB.batch([env.DB.prepare("DELETE FROM steps_daily WHERE user_id = ?").bind(userId), env.DB.prepare("DELETE FROM step_pledges WHERE user_id = ?").bind(userId)]);
     await bmEnsure(env); const pr = await env.DB.prepare("SELECT id, data FROM bm_players WHERE uid = ?").bind(userId).first();
@@ -3552,6 +3563,21 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       })()) }, 200, corsHeaders);
     }
     // The member's customised home page: which optional sections they've hidden (their clubs always show). Kept on their account so it follows them between devices.
+    // Optional ID check — the member sends a selfie + ID photo (only the main admin can see them); GET shows where it stands; DELETE withdraws it.
+    if (path === "/api/me/verify" && (request.method === "GET" || request.method === "POST" || request.method === "DELETE")) {
+      const meId = await memberIdFromRequest();
+      const me = meId ? await readUser(env, meId) : null;
+      if (!me) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
+      if (!(await verEnsure(env))) return jsonResponse({ error: "Verification isn't available right now" }, 503, corsHeaders);
+      const row = await env.DB.prepare("SELECT status, at, note FROM id_checks WHERE user_id = ?").bind(me.id).first();
+      if (request.method === "GET") return jsonResponse({ verified: !!me.verified, status: me.verified ? "verified" : (row ? row.status : "none"), note: row && row.status === "declined" ? (row.note || "") : "" }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      if (request.method === "DELETE") { await env.DB.prepare("DELETE FROM id_checks WHERE user_id = ?").bind(me.id).run(); return jsonResponse({ ok: true }, 200, corsHeaders); }
+      if (me.verified) return jsonResponse({ ok: true, status: "verified" }, 200, corsHeaders);
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      if (!verImgOk(b.selfie) || !verImgOk(b.idphoto)) return jsonResponse({ error: "Please add both photos (a selfie and your ID) — JPEG or PNG." }, 400, corsHeaders);
+      await env.DB.prepare("INSERT OR REPLACE INTO id_checks (user_id, selfie, idphoto, status, at, note) VALUES (?, ?, ?, 'pending', ?, '')").bind(me.id, b.selfie, b.idphoto, Date.now()).run();
+      return jsonResponse({ ok: true, status: "pending" }, 200, corsHeaders);
+    }
     // "Delete my account" (in the app's Edit profile): needs their PIN; removes the profile and everything linked to it.
     if (path === "/api/me/delete-account" && request.method === "POST") {
       const meId = await memberIdFromRequest();
@@ -3700,7 +3726,8 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       for (const sid of Object.keys(SQUAD_TITLES)) for (const uid of await readSquadMemberIds(env, sid)) seen.add(uid);
       for (const uid of seen) { const u = await readUser(env, uid); if (u && !u.stayConfirmedAt) stayTodo++; }
       let stepsStuck = 0; try { if (await stepsEnsure(env)) stepsStuck = ((await env.DB.prepare("SELECT COUNT(*) AS n FROM step_participants q LEFT JOIN step_diag d ON d.user_id = q.user_id WHERE (d.ok = 0) OR (SELECT MAX(updated) FROM steps_daily WHERE user_id = q.user_id) IS NULL OR (SELECT MAX(updated) FROM steps_daily WHERE user_id = q.user_id) < ?").bind(Date.now() - 2 * 86400000).first()) || {}).n || 0; } catch {}
-      return jsonResponse({ pendingRsvps, unpaid, tbdKeen, stayTodo, stepsStuck }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      let verifyPending = 0; try { if (await verEnsure(env)) verifyPending = ((await env.DB.prepare("SELECT COUNT(*) AS n FROM id_checks WHERE status = 'pending'").first()) || {}).n || 0; } catch {}
+      return jsonResponse({ pendingRsvps, unpaid, tbdKeen, stayTodo, stepsStuck, verifyPending }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
     }
     // ---- Steps challenge ----
     if (path === "/api/steps/public" && request.method === "GET") {
@@ -4724,7 +4751,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
 
     // ---- Auth guard for editor and writes ----
 
-    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/club-cal") || path.startsWith("/api/admin/event-form") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/reviews") || path.startsWith("/api/admin/app-config") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup") || path.startsWith("/api/admin/wa-templates") || path.startsWith("/api/admin/email-preview") || path.startsWith("/api/admin/albums") || path.startsWith("/api/admin/reports");
+    const requiresAuth = path === "/editor" || (path.startsWith("/api/data/") && request.method === "POST") || path.startsWith("/api/admin/club-members") || path.startsWith("/api/admin/join-requests") || path.startsWith("/api/admin/event-suggestions") || path.startsWith("/api/admin/resource-suggestions") || path.startsWith("/api/admin/club-events") || path.startsWith("/api/admin/club-cal") || path.startsWith("/api/admin/event-form") || path === "/api/admin/users" || path.startsWith("/api/admin/users/") || path.startsWith("/api/admin/import-phones") || path.startsWith("/api/admin/remind-availability") || path.startsWith("/api/admin/push") || path.startsWith("/api/admin/reminders") || path.startsWith("/api/admin/squad") || path.startsWith("/api/admin/calendar-event") || path.startsWith("/api/admin/resource") || path.startsWith("/api/admin/sitetext") || path.startsWith("/api/admin/club-ideas") || path.startsWith("/api/admin/idea-availability") || path.startsWith("/api/admin/reviews") || path.startsWith("/api/admin/app-config") || path.startsWith("/api/admin/clubs") || path.startsWith("/api/admin/club-leads") || path.startsWith("/api/admin/labels") || path.startsWith("/api/admin/avail-period") || path.startsWith("/api/admin/d1-") || path.startsWith("/api/admin/backup") || path.startsWith("/api/admin/wa-templates") || path.startsWith("/api/admin/email-preview") || path.startsWith("/api/admin/albums") || path.startsWith("/api/admin/reports") || path.startsWith("/api/admin/verify");
 
     if (requiresAuth && !leadCtx) {
       const token = getSessionToken(request);
@@ -5380,6 +5407,45 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       return jsonResponse({ updated, alreadyHad, unmatched: unmatched.slice(0, 80), ambiguous: ambiguous.slice(0, 40), rows: rows.length }, 200, corsHeaders);
     }
     // Admin: one person's full profile (phone, joined, clubs, pending requests, last sign-in / activity)
+    // Admin (main admin only — club admins are blocked by the allow-list above): the ID-check queue, and the manual ✓ badge.
+    if (path === "/api/admin/verify" && request.method === "GET") {
+      if (!(await verEnsure(env))) return jsonResponse({ pending: [] }, 200, corsHeaders);
+      const rows = (await env.DB.prepare("SELECT user_id, at FROM id_checks WHERE status = 'pending' ORDER BY at").all()).results || [];
+      const pending = []; for (const r of rows) { const u = await readUser(env, r.user_id); if (u) pending.push({ userId: u.id, name: u.name, username: u.username, at: r.at }); }
+      return jsonResponse({ pending }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+    }
+    const adminVerifyMatch = path.match(/^\/api\/admin\/verify\/([^/]+)\/?$/);
+    if (adminVerifyMatch && (request.method === "GET" || request.method === "POST")) {
+      const uid = decodeURIComponent(adminVerifyMatch[1]);
+      if (!(await verEnsure(env))) return jsonResponse({ error: "Not available" }, 503, corsHeaders);
+      const u = await readUser(env, uid); if (!u) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
+      if (request.method === "GET") {
+        const r = await env.DB.prepare("SELECT selfie, idphoto, status, at FROM id_checks WHERE user_id = ?").bind(uid).first();
+        if (!r || r.status !== "pending") return jsonResponse({ error: "No pending check for her" }, 404, corsHeaders);
+        return jsonResponse({ name: u.name, username: u.username, photo: u.photo || null, selfie: r.selfie, idphoto: r.idphoto, at: r.at }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+      }
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      if (b.action === "approve") {
+        u.verified = true; u.verifiedAt = Date.now(); u.verifiedBy = "id"; await writeUser(env, u);
+        await env.DB.prepare("DELETE FROM id_checks WHERE user_id = ?").bind(uid).run(); // the photos are gone as soon as she is approved
+        ctx.waitUntil(sendPushToUser(env, uid, { title: "You're verified ✓", body: "Thank you — your 4DS Verified badge is on your profile.", url: "/#/profile" }).catch(() => {}));
+        return jsonResponse({ ok: true }, 200, corsHeaders);
+      }
+      if (b.action === "decline") {
+        await env.DB.prepare("UPDATE id_checks SET status = 'declined', selfie = '', idphoto = '', note = ? WHERE user_id = ?").bind(String(b.note || "").slice(0, 200), uid).run(); // photos deleted
+        return jsonResponse({ ok: true }, 200, corsHeaders);
+      }
+      return jsonResponse({ error: "Unknown action" }, 400, corsHeaders);
+    }
+    const adminVerifiedMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/verified\/?$/);
+    if (adminVerifiedMatch && request.method === "PUT") {
+      const u = await readUser(env, decodeURIComponent(adminVerifiedMatch[1])); if (!u) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
+      let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
+      if (b.verified) { u.verified = true; u.verifiedAt = Date.now(); u.verifiedBy = "admin"; } else { delete u.verified; delete u.verifiedAt; delete u.verifiedBy; }
+      await writeUser(env, u);
+      try { if (await verEnsure(env)) await env.DB.prepare("DELETE FROM id_checks WHERE user_id = ?").bind(u.id).run(); } catch {}
+      return jsonResponse({ ok: true, verified: !!u.verified }, 200, corsHeaders);
+    }
     const adminUserProfileMatch = path.match(/^\/api\/admin\/users\/([^/]+)\/profile\/?$/);
     if (adminUserProfileMatch && request.method === "GET") {
       const SEEN = await seenMap(env);
@@ -5388,7 +5454,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       if (!user) return jsonResponse({ error: "Not found" }, 404, corsHeaders);
       return jsonResponse({
         id: user.id, name: user.name, username: user.username, photo: user.photo || null,
-        phone: user.phone || "", createdAt: user.createdAt || 0, ...seenOf(SEEN, user), archived: user.archived || null, form: user.form || null,
+        phone: user.phone || "", createdAt: user.createdAt || 0, ...seenOf(SEEN, user), archived: user.archived || null, form: user.form || null, verified: !!user.verified, verifiedBy: user.verifiedBy || "",
         stayClubs: await legacySquadClubsOf(env, user.id), stayAt: user.stayConfirmedAt || 0,
         clubs: await allClubIdsContaining(env, user.id), pending: await pendingClubIdsFor(env, user.id), waitlist: Array.isArray(user.waitlist) ? user.waitlist : [],
       }, 200, corsHeaders);

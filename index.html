@@ -6072,6 +6072,7 @@ function getCmSession(){
 // log out / log in on the same browser, the next person would see — and could even re-save — the previous
 // person's data (that is exactly how Lujane's schedule ended up on Sannah's account).
 function resetUserScopedState(){
+  state.verifyInfo = null; state.verifyLoading = false;
   try { clearTimeout(iavSaveTimer); } catch {} // (declared further down — try/catch keeps an early call safe)
   Object.assign(state, {
     ideaAvail:null, ideaAvailNo:{}, ideaAvailSubmitted:false, ideaAvailOwner:null, ideaAvailLoadedFor:null, ideaAvailLoading:false, ideaAvailError:'',
@@ -6182,7 +6183,7 @@ function clubsWelcomeNoticeHtml(session){
     ? `<div class="av-welcome"><span>You're in! Your username is <strong>${escapeCm(state.availWelcome)}</strong> — use it with your PIN to log in next time.</span><button type="button" class="av-link" id="avWelcomeClose">Got it</button></div>`
     : '';
   const noticeHtml = state.clubsNotice ? `<div class="av-waitlist" style="background:#fbe9e7;">${escapeCm(state.clubsNotice)}</div>` : '';
-  return welcomeHtml + noticeHtml + waitHtml;
+  return welcomeHtml + noticeHtml + verifyCardHtml() + waitHtml;
 }
 
 // Admin-created profiles all start on PIN 1234 — this prompt is shown right after they sign in until
@@ -6229,7 +6230,7 @@ function renderAvailabilityPanel(session){
     ? `<div class="av-welcome"><span>You're in! Your username is <strong>${escapeCm(state.availWelcome)}</strong> — use it with your PIN to log in next time.</span><button type="button" class="av-link" id="avWelcomeClose">Got it</button></div>`
     : '';
   const noticeHtml = state.clubsNotice ? `<div class="av-waitlist" style="background:#fbe9e7;">${escapeCm(state.clubsNotice)}</div>` : '';
-  const heading = welcomeHtml + noticeHtml + `<div class="av-headrow"><p class="av-heading">You're a member of the <strong>${escapeCm(avClubTitle(clubId))}</strong></p><button type="button" class="av-signout" id="avSignOutBtn">Sign out</button></div>` + waitHtml;
+  const heading = welcomeHtml + noticeHtml + verifyCardHtml() + `<div class="av-headrow"><p class="av-heading">You're a member of the <strong>${escapeCm(avClubTitle(clubId))}</strong></p><button type="button" class="av-signout" id="avSignOutBtn">Sign out</button></div>` + waitHtml;
   const chips = clubs.length > 1
     ? `<div class="av-clubs" aria-label="Switch club">${clubs.map(id => `<button type="button" class="av-club-chip${id === clubId ? ' active' : ''}" data-avclub="${escapeCm(id)}">${escapeCm(avClubTitle(id))}</button>`).join('')}</div>`
     : '';
@@ -12917,6 +12918,113 @@ function admProfileEdit(wrap, u){
   });
 }
 
+/* ============================================================
+   OPTIONAL "VERIFIED SISTER" CHECK
+   A member can send a selfie + a photo of her ID (only the main admin can ever open them; they are deleted the moment she is approved or
+   declined). The main admin can also hand out the ✓ by hand from anyone's profile. Joining clubs is NOT blocked — the ✓ just tells leads she's real.
+   ============================================================ */
+const vBadge = (u, big) => (u && u.verified) ? `<span title="Verified sister" aria-label="Verified" style="display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;margin-left:5px;width:${big ? 20 : 16}px;height:${big ? 20 : 16}px;border-radius:50%;background:#1d9bf0;color:#fff;font-size:${big ? 13 : 11}px;font-weight:800;line-height:1;">✓</span>` : '';
+function verifyReadImg(file, maxDim){
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onerror = () => reject(new Error('That photo could not be read — please try another.'));
+    fr.onload = () => { const im = new Image();
+      im.onerror = () => reject(new Error('That photo could not be read — please try another (a normal JPEG or PNG).'));
+      im.onload = () => { const k = Math.min(1, (maxDim || 1100) / Math.max(im.width, im.height)), w = Math.round(im.width * k), h = Math.round(im.height * k), c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(im, 0, 0, w, h); resolve(c.toDataURL('image/jpeg', 0.72)); };
+      im.src = fr.result; };
+    fr.readAsDataURL(file);
+  });
+}
+async function verifyLoadInfo(force){
+  if(!getCmSession()) return null;
+  if(state.verifyInfo && !force) return state.verifyInfo;
+  if(state.verifyLoading) return null; state.verifyLoading = true;
+  try { state.verifyInfo = await cmApiRaw('/api/me/verify', { headers: ideaHeaders() }); } catch { state.verifyInfo = { status:'none', verified:false, unavailable:true }; }
+  state.verifyLoading = false; return state.verifyInfo;
+}
+function verifyDismissed(){ try { return localStorage.getItem('4ds_verify_later') === '1'; } catch { return false; } }
+// The little invitation card shown on the Clubs page to anyone who isn't verified yet (optional — "Maybe later" hides it on this device).
+function verifyCardHtml(){
+  if(!getCmSession() || state.cmAdminLoggedIn === true) return '';
+  const v = state.verifyInfo;
+  if(!v){ verifyLoadInfo().then(() => { try { if(state.tab === 'clubs') render(); } catch {} }); return ''; }
+  if(v.unavailable || v.verified) return v.verified ? `<div class="av-waitlist" style="background:#e6f4ff;">${vBadge({ verified:true }, true)} <strong>You're a Verified sister.</strong> Thank you!</div>` : '';
+  if(v.status === 'pending') return `<div class="av-waitlist" style="background:#fff8e8;">🕓 Your ID check was sent — an admin will look at it soon. <button type="button" data-verify-open style="margin-left:6px;border:none;background:none;text-decoration:underline;cursor:pointer;font:inherit;color:inherit;">Details</button></div>`;
+  if(verifyDismissed() && v.status !== 'declined') return '';
+  return `<div class="av-waitlist" style="background:#e6f4ff;text-align:left;"><div style="font-weight:800;margin-bottom:4px;">${vBadge({ verified:true }, true)} Get your Verified badge <span style="font-weight:500;font-size:12px;">(optional)</span></div>
+    <div style="font-size:13.5px;line-height:1.5;margin-bottom:8px;">${v.status === 'declined' ? `We couldn't verify your last photos${v.note ? ' — ' + escapeCm(v.note) : ''}. You're welcome to try again. ` : ''}Verified sisters show a ✓ so clubs know every member is a real woman. Only the main admin ever sees your photos, and they're deleted right after she checks them.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="club-guide-btn" data-verify-open style="flex:1;min-height:44px;">Verify me</button><button type="button" data-verify-later style="flex:0 0 auto;min-height:44px;padding:0 14px;border-radius:999px;border:2px solid var(--brand-brown);background:#fff;font-weight:700;cursor:pointer;">Maybe later</button></div></div>`;
+}
+document.addEventListener('click', e => {
+  if(e.target.closest('[data-verify-open]')){ e.preventDefault(); openVerifyDialog(); }
+  else if(e.target.closest('#admIdChecksBtn')){ e.preventDefault(); openIdChecks(); }
+  else if(e.target.closest('[data-verify-later]')){ try { localStorage.setItem('4ds_verify_later', '1'); } catch {} try { render(); } catch {} }
+});
+async function openVerifyDialog(){
+  if(!getCmSession()){ goToTab('clubs'); return; }
+  const { wrap, close } = ideaPopup('<p class="av-msg">Loading…</p>');
+  const card = wrap.querySelector('.idea-pop-card');
+  const info = await verifyLoadInfo(true) || {};
+  if(info.verified){ card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 8px;">${vBadge({ verified:true }, true)} You're verified</h3><p class="ideas-hint" style="text-align:left;">Thank you — your badge is on your profile.</p>`; return; }
+  if(info.status === 'pending'){
+    card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 8px;">🕓 Waiting for review</h3><p class="ideas-hint" style="text-align:left;">Your photos were sent. An admin will check them and you'll get a notification. You can take them back any time.</p><button type="button" id="vWithdraw" class="club-guide-btn" style="width:100%;background:#fff;color:var(--brand-brown);border:2px solid var(--brand-brown);">Withdraw my photos</button>`;
+    card.querySelector('#vWithdraw').addEventListener('click', async () => { try { await cmApiRaw('/api/me/verify', { method:'DELETE', headers: ideaHeaders() }); state.verifyInfo = null; close(); render(); } catch(err){ alert(err.message); } });
+    return;
+  }
+  const box = 'border:2px dashed var(--brand-brown);border-radius:12px;padding:12px;margin:0 0 10px;background:#fff;';
+  card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
+    <h3 style="margin:0 0 6px;">${vBadge({ verified:true }, true)} Get verified <span style="font-weight:500;font-size:13px;">(optional)</span></h3>
+    <p class="ideas-hint" style="text-align:left;margin:0 0 10px;">So every club knows its members are real women. <strong>Only the main admin can see these photos</strong>, and they're <strong>deleted as soon as she checks them</strong> — we keep only your ✓.</p>
+    <div style="${box}"><div style="font-weight:700;margin-bottom:4px;">1. A selfie</div><div style="font-size:12.5px;color:#776867;margin-bottom:6px;">Your face, clearly visible, good light.</div><input type="file" id="vSelfie" accept="image/*" capture="user" style="width:100%;"><img id="vSelfiePrev" alt="" style="display:none;max-width:100%;max-height:150px;border-radius:10px;margin-top:8px;"></div>
+    <div style="${box}"><div style="font-weight:700;margin-bottom:4px;">2. Your photo ID</div><div style="font-size:12.5px;color:#776867;margin-bottom:6px;">Driver's licence, passport, or health card. We only need your <strong>photo and name</strong> — you can cover the ID number and address.</div><input type="file" id="vId" accept="image/*" style="width:100%;"><img id="vIdPrev" alt="" style="display:none;max-width:100%;max-height:150px;border-radius:10px;margin-top:8px;"></div>
+    <div id="vStatus" style="font-size:13px;color:#c00;min-height:18px;margin-bottom:6px;" aria-live="polite"></div>
+    <button type="button" id="vSend" class="club-guide-btn" style="width:100%;min-height:48px;">Send for review</button>`;
+  const imgs = {};
+  const pick = (inpId, prevId, key) => card.querySelector('#' + inpId).addEventListener('change', async e => {
+    const f = e.target.files && e.target.files[0]; if(!f) return;
+    try { imgs[key] = await verifyReadImg(f); const p = card.querySelector('#' + prevId); p.src = imgs[key]; p.style.display = 'block'; card.querySelector('#vStatus').textContent = ''; }
+    catch(err){ imgs[key] = null; card.querySelector('#vStatus').textContent = err.message; }
+  });
+  pick('vSelfie', 'vSelfiePrev', 'selfie'); pick('vId', 'vIdPrev', 'idphoto');
+  card.querySelector('#vSend').addEventListener('click', async () => {
+    const st = card.querySelector('#vStatus'), btn = card.querySelector('#vSend');
+    if(!imgs.selfie || !imgs.idphoto){ st.style.color = '#c00'; st.textContent = 'Please add both photos first.'; return; }
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try { await cmApiRaw('/api/me/verify', { method:'POST', headers: ideaHeaders(), body: JSON.stringify({ selfie: imgs.selfie, idphoto: imgs.idphoto }) }); state.verifyInfo = { status:'pending', verified:false };
+      card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 8px;">✓ Sent!</h3><p class="ideas-hint" style="text-align:left;">An admin will check your photos and you'll get a notification. You can keep using 4DS in the meantime.</p>`; try { render(); } catch {} }
+    catch(err){ st.style.color = '#c00'; st.textContent = err.message; btn.disabled = false; btn.textContent = 'Send for review'; }
+  });
+}
+// ADMIN: the ID-check queue (main admin only).
+async function openIdChecks(){
+  const { wrap } = ideaPopup('<p class="av-msg">Loading…</p>');
+  const card = wrap.querySelector('.idea-pop-card');
+  const draw = async () => {
+    try {
+      const d = await cmApiRaw('/api/admin/verify', { credentials:'include' });
+      card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 8px;">🪪 ID checks waiting (${d.pending.length})</h3>` + (d.pending.length ? d.pending.map(p => `<button type="button" class="fb-card vc-open" data-id="${escapeCm(p.userId)}" style="display:block;width:100%;text-align:left;cursor:pointer;font:inherit;margin:0 0 6px;"><b>${escapeCm(p.name)}</b> <small style="color:#776867;">${escapeCm(p.username)} · sent ${escapeCm(admAgo(p.at))}</small></button>`).join('') : '<p class="ideas-hint">Nothing waiting. 🎉</p>');
+      card.querySelectorAll('.vc-open').forEach(b => b.addEventListener('click', () => review(b.dataset.id)));
+    } catch(err){ card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><p style="color:#c00;">${escapeCm(err.message)}</p>`; }
+  };
+  const review = async (uid) => {
+    card.innerHTML = '<button type="button" class="mem-pop-close" aria-label="Close">✕</button><p class="av-msg">Loading photos…</p>';
+    try {
+      const r = await cmApiRaw('/api/admin/verify/' + encodeURIComponent(uid), { credentials:'include' });
+      card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button><h3 style="margin:0 0 4px;">${escapeCm(r.name)}</h3><div style="font-size:12.5px;color:#776867;margin-bottom:8px;">${escapeCm(r.username)}. Does the selfie match the ID, and is she a woman? Her photos are deleted as soon as you press a button.</div>
+        <div style="font-weight:700;font-size:13px;">Selfie</div><img src="${r.selfie}" alt="" style="width:100%;border-radius:10px;margin:4px 0 10px;"><div style="font-weight:700;font-size:13px;">ID</div><img src="${r.idphoto}" alt="" style="width:100%;border-radius:10px;margin:4px 0 10px;">
+        <input id="vcNote" placeholder="Reason if declining (she'll see this)" style="width:100%;padding:10px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;margin-bottom:8px;">
+        <div style="display:flex;gap:8px;"><button type="button" id="vcYes" class="club-guide-btn" style="flex:1;min-height:46px;background:#d9f0d8;color:var(--charcoal);">✓ Approve</button><button type="button" id="vcNo" class="club-guide-btn" style="flex:1;min-height:46px;background:#b3261e;">Decline</button></div>`;
+      const act = async action => { try { await cmApiRaw('/api/admin/verify/' + encodeURIComponent(uid), { method:'POST', credentials:'include', body: JSON.stringify({ action, note: (card.querySelector('#vcNote').value || '').trim() }) }); if(state.admNeeds) state.admNeeds.verifyPending = Math.max(0, (state.admNeeds.verifyPending || 1) - 1); admAvail.people = null; draw(); } catch(err){ alert(err.message); } };
+      card.querySelector('#vcYes').addEventListener('click', () => act('approve'));
+      card.querySelector('#vcNo').addEventListener('click', () => act('decline'));
+    } catch(err){ alert(err.message); draw(); }
+  };
+  draw();
+}
+async function admSetVerified(u, on, wrap){
+  try { await cmApiRaw('/api/admin/users/' + encodeURIComponent(u.id) + '/verified', { method:'PUT', credentials:'include', body: JSON.stringify({ verified: on }) }); admAvail.people = null; wrap.remove(); openAdminProfile(u.id); } catch(err){ alert(err.message); }
+}
+
 async function openAdminProfile(userId){
   const { wrap } = ideaPopup('<p class="av-msg">Loading profile…</p>');
   try {
@@ -12928,7 +13036,7 @@ async function openAdminProfile(userId){
     const avatar = u.photo ? `<img src="${escapeCm(u.photo)}" alt="" style="width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid var(--brand-brown);">` : `<div class="monogram" style="width:84px;height:84px;font-size:32px;margin:0 auto;">${escapeCm((u.name || '?').charAt(0).toUpperCase())}</div>`;
     const card = wrap.querySelector('.idea-pop-card');
     card.innerHTML = `<button type="button" class="mem-pop-close" aria-label="Close">✕</button>
-      <div style="text-align:center;margin-bottom:8px;">${avatar}<h3 style="margin:10px 0 0;">${escapeCm(u.name)}</h3><div style="font-size:13px;color:var(--muted);">${escapeCm(u.username)}</div></div>
+      <div style="text-align:center;margin-bottom:8px;">${avatar}<h3 style="margin:10px 0 0;">${escapeCm(u.name)}${vBadge(u, true)}</h3><div style="font-size:13px;color:var(--muted);">${escapeCm(u.username)}</div></div>
       ${row('📞 Phone', u.phone ? `<a href="tel:${escapeCm(u.phone.replace(/[^\d+]/g, ''))}" style="font-weight:700;">${escapeCm(u.phone)}</a>` : '<span style="color:var(--muted);">No phone on file</span>')}
       ${row('Joined', u.createdAt ? `${escapeCm(admFmtDate(u.createdAt))}<br><span style="font-size:12px;color:var(--muted);">${escapeCm(admAgo(u.createdAt))}</span>` : '<span style="color:var(--muted);">Before records began</span>')}
       ${row('Last active', admLastActive(u) ? `${escapeCm(admFmtDate(admLastActive(u)))}<br><span style="font-size:12px;color:var(--muted);">${escapeCm(admAgo(admLastActive(u)))}</span>` : '<span style="color:var(--muted);">Not recorded yet</span>')}
@@ -12954,6 +13062,8 @@ async function openAdminProfile(userId){
     card.querySelector('#admProfEditBtn').insertAdjacentHTML('afterend', ` <button type="button" id="admProfArchiveBtn" style="min-height:46px;padding:11px 22px;border-radius:999px;border:2px solid var(--brand-brown);background:#fff3cf;color:var(--brand-brown);font-weight:700;font-size:15px;cursor:pointer;margin-left:6px;">${admIsArchived(u) ? '♻️ Restore' : '📦 Archive'}</button>`);
     card.querySelector('#admProfArchiveBtn').addEventListener('click', () => admArchiveDialog(u, wrap));
     if(state.cmAdminLoggedIn === true){
+      card.querySelector('#admProfEditBtn').parentElement.insertAdjacentHTML('beforebegin', `<div style="margin-top:12px;text-align:center;"><button type="button" id="admProfVerifyBtn" style="min-height:44px;padding:10px 22px;border-radius:999px;border:2px solid #1d9bf0;background:${u.verified ? '#fff' : '#e6f4ff'};color:#0b5fa5;font-weight:700;font-size:14px;cursor:pointer;">${u.verified ? 'Remove Verified badge' : '✓ Give Verified badge (I know her)'}</button></div>`);
+      card.querySelector('#admProfVerifyBtn').addEventListener('click', () => admSetVerified(u, !u.verified, wrap));
       card.querySelector('#admProfArchiveBtn').insertAdjacentHTML('afterend', `<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px;"><button type="button" id="admProfMergeBtn" style="min-height:46px;padding:11px 22px;border-radius:999px;border:2px solid var(--brand-brown);background:#e9e3f7;color:var(--brand-brown);font-weight:700;font-size:15px;cursor:pointer;">🧬 Merge with another account</button><button type="button" id="admProfDelBtn" style="min-height:46px;padding:11px 22px;border-radius:999px;border:2px solid #b3261e;background:#fdecea;color:#b3261e;font-weight:700;font-size:15px;cursor:pointer;">🗑 Delete</button></div>`);
       card.querySelector('#admProfMergeBtn').addEventListener('click', () => admMergeDialog(u, wrap));
       card.querySelector('#admProfDelBtn').addEventListener('click', async () => { await cmAdminDeleteProfile(u.id, u.name || u.username); });
@@ -13871,6 +13981,7 @@ function renderClubAdminPanel(){
     <div style="margin:14px 0 26px;">${renderAdminAllMembersPanels()}</div>
     <h3 style="margin:18px 0 6px;">Tools</h3>
     ${(lead || !/[?&]importforms/.test(location.search)) ? '' : admSec('formimport', '📥 Import sign-up forms (from your email)', formImportHtml(), false)}
+    ${lead ? '' : admSec('idchecks', '🪪 ID checks (optional member verification)' + ((state.admNeeds || {}).verifyPending ? ` <span class="adm-badge">${state.admNeeds.verifyPending}</span>` : ''), `<div class="cp-box"><p style="font-size:12px;color:#776867;margin:0 0 8px;">Members can choose to send a selfie + ID photo. Only you can see them, and they're deleted when you approve or decline. You can also give the ✓ badge by hand: open anyone's profile → "Give Verified badge".</p><button type="button" class="club-guide-btn" id="admIdChecksBtn" style="width:100%;min-height:46px;">Review ID checks</button></div>`, true)}
     ${admSec('newprofile', '➕ Create a profile', `
     <div class="cp-box">
       <h4 style="margin:0 0 6px;">Create a profile</h4>
@@ -14008,7 +14119,7 @@ function admGroupTilesHtml(lead, cur){
     ${lead ? '' : tile('calendar', '📅', 'Public Calendar', 'Add &amp; edit public events', '')}
     ${tile('clubs', '🏛️', 'Clubs', lead ? 'Requests · availability' : 'Clubs · availability · club admins', lead ? admJoinCount() : '')}
     ${lead ? '' : tile('signups', '📝', 'Sign ups', 'Club requests · sign-up &amp; log-in form', admJoinCount())}
-    ${tile('people', '👥', 'People', lead ? 'Profiles' : 'Profiles · messages', '')}
+    ${tile('people', '👥', 'People', lead ? 'Profiles' : 'Profiles · ID checks · messages', lead ? '' : (n.verifyPending || ''))}
     ${lead ? '' : tile('badminton', '🏸', 'Badminton', 'Leaderboards · players · kiosk', '')}
     ${lead ? '' : tile('steps', '👟', 'Steps', 'Rounds · pledges · leaderboard', n.stepsStuck || '')}
     ${lead ? '' : tile('settings', '⚙️', 'Site settings', 'Featured · club links · public links · labels', '')}
