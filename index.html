@@ -4917,7 +4917,9 @@ function closeEventEdit(returnToDetail){
 
 // New events need at least 4 days' notice — today plus the next 3 days aren't selectable, so the
 // soonest a brand-new event can be scheduled is 4 days out. Editing an already-scheduled event is untouched.
+const admAnyDate = () => state.cmAdminLoggedIn === true; // the main admin can schedule any day, past or this week
 function minNewEventDate(){
+  if(admAnyDate()) return '1970-01-01';
   const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 4);
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 }
@@ -4988,8 +4990,8 @@ function renderEventEditView(){
       </label>
       <div style="display:flex;flex-wrap:wrap;gap:10px;">
         <label style="${rowLabelStyle}">Event date${createMode ? ' <span style="color:#c00;">*</span>' : ''}${missing.includes('Date') ? ' <span style="color:#c00;">— missing</span>' : ''}
-          <input id="editEventDate" type="date" value="${d.eventDate||''}" ${createMode ? `min="${minNewEventDate()}"` : ''} style="${fieldStyle}${missing.includes('Date') ? missingBorder : ''}">
-          ${createMode ? `<span style="font-size:11px;color:var(--muted);display:block;margin-top:3px;">New events need at least 4 days' notice — soonest is ${minNewEventDateLabel()}.</span>` : ''}
+          <input id="editEventDate" type="date" value="${d.eventDate||''}" ${createMode && !admAnyDate() ? `min="${minNewEventDate()}"` : ''} style="${fieldStyle}${missing.includes('Date') ? missingBorder : ''}">
+          ${createMode ? (admAnyDate() ? '' : `<span style="font-size:11px;color:var(--muted);display:block;margin-top:3px;">New events need at least 4 days' notice — soonest is ${minNewEventDateLabel()}.</span>`) : ''}
         </label>
         <label style="${rowLabelStyle}">End date
           <input id="editEndDate" type="date" value="${d.endDate||''}" style="${fieldStyle}">
@@ -5248,10 +5250,35 @@ function collectEventFormFields(){
    location-autocomplete widget). Falls back silently to the plain text input if Maps
    can't load — the input stays the source of truth, the search just fills it in. */
 let googleMapsLoading = null;
+// Is the Places search allowed for our key? (If Google answers 403, the search box would just sit there empty.) Checked once.
+let placesOkP = null;
+function placesAllowed(){
+  if(!placesOkP) placesOkP = fetch('https://places.googleapis.com/v1/places:autocomplete?key=AIzaSyCNNUYMc_ZfoPllM182cVMZ8tRs_EzUhoM', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ input: 'Toronto', includedRegionCodes: ['ca'] }) }).then(r => r.status !== 403 && r.status !== 401).catch(() => true);
+  return placesOkP;
+}
+// Free fallback (OpenStreetMap): a dropdown of address matches under any text box. Used only when Google's search is blocked.
+function osmAttach(input, opts){
+  if(!input || input.dataset.osm) return; input.dataset.osm = '1';
+  const world = !!(opts && opts.world), list = document.createElement('div');
+  list.style.cssText = 'border:2px solid var(--brand-brown);border-radius:12px;background:#fff;margin:4px 0;display:none;max-height:240px;overflow:auto;text-align:left;';
+  input.parentNode.insertBefore(list, input.nextSibling);
+  let t = null, seq = 0;
+  const run = async () => {
+    const q = input.value.trim(); if(q.length < 3){ list.style.display = 'none'; return; }
+    const my = ++seq; list.style.display = 'block'; list.innerHTML = '<div style="padding:10px;font-size:13px;color:#776867;">Searching…</div>';
+    try {
+      const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=6&addressdetails=0' + (world ? '' : '&countrycodes=ca') + '&q=' + encodeURIComponent(q), { headers:{ 'Accept-Language':'en' } });
+      const j = await r.json(); if(my !== seq) return;
+      list.innerHTML = j.length ? j.map((x, i) => `<button type="button" data-i="${i}" style="display:block;width:100%;text-align:left;padding:10px 12px;border:0;border-bottom:1px solid #eee;background:#fff;font:inherit;font-size:14px;cursor:pointer;">📍 ${escapeCm(x.display_name)}</button>`).join('') : '<div style="padding:10px;font-size:13px;color:#776867;">No match. Try the street and city, or type the address yourself.</div>';
+      list.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { input.value = j[Number(b.dataset.i)].display_name; input.dispatchEvent(new Event('input', { bubbles:true })); input.dispatchEvent(new Event('change', { bubbles:true })); list.style.display = 'none'; }));
+    } catch { if(my === seq) list.innerHTML = '<div style="padding:10px;font-size:13px;color:#c00;">Search unavailable. Type the address instead.</div>'; }
+  };
+  input.addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 600); });
+}
 function loadGoogleMaps(){
   const ready = () => !!(window.google && window.google.maps && typeof google.maps.importLibrary === 'function');
   if(googleMapsLoading) return googleMapsLoading;
-  googleMapsLoading = new Promise((resolve, reject) => {
+  googleMapsLoading = placesAllowed().then(ok => ok ? null : Promise.reject(new Error('Google Places search is not allowed for this key'))).then(() => new Promise((resolve, reject) => {
     if(!ready() && !document.getElementById('gmapsScript')){
       const sc = document.createElement('script');
       sc.id = 'gmapsScript';
@@ -5265,7 +5292,7 @@ function loadGoogleMaps(){
       if(ready()){ clearInterval(iv); resolve(); }
       else if((waited += 100) > 8000){ clearInterval(iv); googleMapsLoading = null; reject(new Error('Google Maps did not load in time')); }
     }, 100);
-  });
+  }));
   return googleMapsLoading;
 }
 async function attachLocationSearch(inputId, onPlace){
@@ -5334,6 +5361,8 @@ async function mountEventLocationSearch(){
     hidden.type = 'text';
     hidden.placeholder = 'Type the address';
     chosen.style.display = 'none';
+    hidden.style.cssText = 'width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;';
+    osmAttach(hidden, { world: isTrip });
   }
 }
 function wireEventLocation(){ mountEventLocationSearch(); }
@@ -7851,7 +7880,7 @@ async function calMountLocations(root){
     });
   } catch(err){
     // Google Maps couldn't load: a plain address box (no map pin) so the form still works
-    boxes.forEach(box => { const slot = box.querySelector('.calLocSlot'); slot.innerHTML = '<input class="fb-in calLocText" type="text" maxlength="200" placeholder="Type the address">'; slot.querySelector('.calLocText').addEventListener('input', e => setVal(box, e.target.value.trim() ? { address: e.target.value.trim() } : null)); });
+    boxes.forEach(box => { const slot = box.querySelector('.calLocSlot'); slot.innerHTML = '<input class="fb-in calLocText" type="text" maxlength="200" placeholder="Type the address">'; slot.querySelector('.calLocText').addEventListener('input', e => setVal(box, e.target.value.trim() ? { address: e.target.value.trim() } : null)); osmAttach(slot.querySelector('.calLocText')); });
   }
 }
 function openFormBuilder(initial, onDone, opts){
@@ -8051,7 +8080,7 @@ async function mountClubCalPlace(wrap){
     });
   } catch(err){
     console.error('Address search unavailable, using plain text:', err);
-    hidden.type = 'text'; hidden.placeholder = 'Type the place or address'; hidden.maxLength = 200; hidden.style.cssText = 'width:100%;padding:10px;margin-bottom:8px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;'; chosen.style.display = 'none';
+    hidden.type = 'text'; hidden.placeholder = 'Type the place or address'; hidden.maxLength = 200; hidden.style.cssText = 'width:100%;padding:10px;margin-bottom:8px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;'; chosen.style.display = 'none'; osmAttach(hidden);
   }
 }
 // ================= The one-page event editor: everything about an event (hosts, details, cover/text/photos, sign-up form, who's going, sharing) in ONE scrolling page, in the same order as the page people see. =================
