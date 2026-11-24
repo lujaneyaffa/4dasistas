@@ -887,6 +887,37 @@
     },
     {
       "section": "sports",
+      "title": "Step & Social",
+      "audienceType": [],
+      "emoji": "",
+      "organizedBy": "muslimgirlstoronto",
+      "eventDate": "2026-11-29",
+      "endDate": "2026-11-29",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "Toronto, Ontario",
+      "link": "https://www.instagram.com/p/DfSapV0pE3r/",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [
+        "walking"
+      ],
+      "alsoShowIn": [],
+      "id": "step-social"
+    },
+    {
+      "section": "sports",
       "title": "Swim Lessons",
       "audienceType": [
         "Muslim Women"
