@@ -301,6 +301,38 @@
       "tag": "🍗Community BBQ "
     },
     {
+      "section": "functions",
+      "title": "Community Fest",
+      "audienceType": [
+        "Family Event"
+      ],
+      "emoji": "",
+      "organizedBy": "Masjid Elezz",
+      "eventDate": "2026-12-12",
+      "endDate": "2026-12-12",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "Masjid ElEzz",
+      "link": "https://www.instagram.com/p/DgBR1ttiaJT/",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "community-fest",
+      "tag": "Community Fest"
+    },
+    {
       "eventDate": "2026-11-22",
       "date": "November 22, 2026 · 1 PM",
       "desc": "Toronto Book Club session studying 'Because I Want Jannah' by H. Abdulhakim, part of this quarter's theme 'Love of Allah & Longing for Jannah'. Members free, non-members $15.",
