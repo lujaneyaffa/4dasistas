@@ -5293,7 +5293,7 @@ let googleMapsLoading = null;
 // Is the Places search allowed for our key? (If Google answers 403, the search box would just sit there empty.) Checked once.
 let placesOkP = null;
 function placesAllowed(){
-  if(!placesOkP) placesOkP = fetch('https://places.googleapis.com/v1/places:autocomplete?key=AIzaSyCNNUYMc_ZfoPllM182cVMZ8tRs_EzUhoM', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ input: 'Toronto', includedRegionCodes: ['ca'] }) }).then(r => r.status !== 403 && r.status !== 401).catch(() => true);
+  if(!placesOkP) placesOkP = fetch('https://places.googleapis.com/v1/places:autocomplete?key=AIzaSyCNNUYMc_ZfoPllM182cVMZ8tRs_EzUhoM', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ input: 'Toronto', includedRegionCodes: ['ca'] }) }).then(r => r.status !== 403 && r.status !== 401 && r.status !== 429).catch(() => true);
   return placesOkP;
 }
 // 📋 "Paste from clipboard" button under every link box (phones make press-and-hold Paste hard when the page scrolls on tap).
@@ -5357,7 +5357,10 @@ function osmAttach(input, opts){
   };
   input.addEventListener('input', () => { if(skipNext) return; clearTimeout(t); t = setTimeout(run, 220); });
 }
+// If Google's search ever errors (daily limit used up, key problem…), switch every location box to the free search for the rest of this visit.
+function gmpFailover(el, redo){ el.addEventListener('gmp-error', () => { if(window._gmapsDead) return; window._gmapsDead = true; try { redo(); } catch {} }); }
 function loadGoogleMaps(){
+  if(window._gmapsDead) return Promise.reject(new Error('Google search unavailable'));
   const ready = () => !!(window.google && window.google.maps && typeof google.maps.importLibrary === 'function');
   if(googleMapsLoading) return googleMapsLoading;
   googleMapsLoading = placesAllowed().then(ok => ok ? null : Promise.reject(new Error('Google Places search is not allowed for this key'))).then(() => new Promise((resolve, reject) => {
@@ -5391,6 +5394,7 @@ async function attachLocationSearch(inputId, onPlace){
     const el = new lib.PlaceAutocompleteElement();
     wrap.appendChild(el);
     input.parentNode.insertBefore(wrap, input);
+    gmpFailover(el, () => { wrap.remove(); input.dataset.locSearch = ''; osmAttach(input); });
     el.addEventListener('gmp-select', async ev => {
       const place = ev.placePrediction && ev.placePrediction.toPlace();
       if(!place) return;
@@ -5425,6 +5429,7 @@ async function mountEventLocationSearch(){
     slot.innerHTML = `<div style="font-size:11px;color:var(--muted);margin:3px 0;">${isTrip ? 'Search anywhere in the world (Trips):' : 'Search for an address in Canada:'}</div>`;
     const el = isTrip ? new lib.PlaceAutocompleteElement() : new lib.PlaceAutocompleteElement({ includedRegionCodes:['ca'] });
     slot.appendChild(el);
+    gmpFailover(el, () => mountEventLocationSearch());
     el.addEventListener('gmp-select', async ev => {
       const place = ev.placePrediction && ev.placePrediction.toPlace();
       if(!place) return;
@@ -5440,6 +5445,7 @@ async function mountEventLocationSearch(){
   } catch(err){
     console.error('Address search unavailable, using plain text:', err);
     if(seq !== evLocMountSeq) return;
+    slot.innerHTML = '';
     hidden.type = 'text';
     hidden.placeholder = isTrip ? 'Search anywhere in the world…' : 'Search an address in Canada…';
     chosen.style.display = 'none';
@@ -7955,6 +7961,7 @@ async function calMountLocations(root){
       const slot = box.querySelector('.calLocSlot'); if(!slot || slot.dataset.m) return; slot.dataset.m = '1';
       const el = new lib.PlaceAutocompleteElement({ includedRegionCodes:['ca'] });
       slot.appendChild(el);
+      gmpFailover(el, () => calMountLocations(root));
       el.addEventListener('gmp-select', async evt => {
         const place = evt.placePrediction && evt.placePrediction.toPlace(); if(!place) return;
         try {
@@ -8155,6 +8162,7 @@ async function mountClubCalPlace(wrap){
     slot.innerHTML = '<div style="font-size:11px;color:var(--muted);margin:3px 0;">Search for a place in Canada:</div>';
     const el = new lib.PlaceAutocompleteElement({ includedRegionCodes:['ca'] });
     slot.appendChild(el);
+    gmpFailover(el, () => mountClubCalPlace(wrap));
     el.addEventListener('gmp-select', async evt => {
       const place = evt.placePrediction && evt.placePrediction.toPlace();
       if(!place) return;
@@ -8166,6 +8174,7 @@ async function mountClubCalPlace(wrap){
     });
   } catch(err){
     console.error('Address search unavailable, using plain text:', err);
+    try { slot.innerHTML = ''; } catch {}
     hidden.type = 'text'; hidden.placeholder = 'Type the place or address'; hidden.maxLength = 200; hidden.style.cssText = 'width:100%;padding:10px;margin-bottom:8px;border-radius:10px;border:2px solid var(--brand-brown);box-sizing:border-box;font-size:16px;'; chosen.style.display = 'none'; osmAttach(hidden);
   }
 }
