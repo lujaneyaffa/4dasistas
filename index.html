@@ -3530,13 +3530,13 @@ function stepsPageHtml(){
   const m = d.mine || {};
   const synced = m.lastSync ? new Date(m.lastSync).toLocaleString('en-CA', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '';
   const native = stepsIsNativeApp(), plat = native && window.Capacitor.getPlatform ? Capacitor.getPlatform() : '';
-  const src = m.source || '', srcBtn = (k, l) => `<button type="button" class="steps-src filter-chip${src === k ? ' active' : ''}" data-src="${k}" style="min-height:44px;flex:1;">${l}</button>`;
+  const src = m.source === 'googlehealth' ? '' : (m.source || ''), srcBtn = (k, l) => `<button type="button" class="steps-src filter-chip${src === k ? ' active' : ''}" data-src="${k}" style="min-height:44px;flex:1;">${l}</button>`;
   const joinBox = m.joined ? `<p style="margin:0 0 8px;color:#2a7a4a;font-weight:700;">✅ You're in this challenge${r.status !== 'finished' ? ` <button type="button" id="stepsLeave" style="border:none;background:none;text-decoration:underline;cursor:pointer;color:#776867;font-weight:400;">Leave</button>` : ''}</p>`
     : r.status === 'finished' ? '' : r.mode === 'invite' ? `<p style="margin:0 0 8px;color:#776867;">🔒 This challenge is invite-only — ask an admin to add you.</p>`
     : `<button type="button" class="club-guide-btn" id="stepsJoin" style="width:100%;min-height:48px;margin-bottom:10px;background:var(--brand-rose);color:#fff;">🙋 Join this challenge</button>`;
   const wk = state.stepsHist && state.stepsHist[''], wkTotal = wk && wk.days ? wk.days.reduce((a, x) => a + x.steps, 0) : null, goal = m.goal || 10000, gp = Math.min(100, Math.round((m.today || 0) / goal * 100));
   const srcLabel = src === 'googlehealth' ? '🟢 Google Health' : src === 'apple' ? '🍎 Apple Health' : src === 'google' ? '🤖 Health Connect' : '';
-  const chooser = `<div style="display:flex;gap:8px;flex-wrap:wrap;">${srcBtn('apple', '🍎 Apple Health')}${srcBtn('googlehealth', '🟢 Google Health')}${/android/i.test(plat) ? srcBtn('google', '🤖 Health Connect') : ''}</div>
+  const chooser = `<div style="display:flex;gap:8px;flex-wrap:wrap;">${srcBtn('apple', '🍎 Apple Health')}${/android/i.test(plat) ? srcBtn('google', '🤖 Health Connect') : ''}</div>
     <p class="ideas-hint" style="margin:8px 0 0;text-align:left;">Pick ONE — only that source counts, so steps are never doubled or mixed. <strong>Apple Health</strong> = what your iPhone / Apple Watch records. <strong>Google Health</strong> = Fitbit, Pixel Watch or your Google account (works on an iPhone too).</p>
     ${src === 'googlehealth' ? `<button type="button" id="stepsFitbit" class="adm-need-refresh" style="border:none;background:none;text-decoration:underline;cursor:pointer;padding:6px 0;">${m.ghConnected ? 'Reconnect Google Health' : 'Connect Google Health'}</button>` : ''}
     ${native && ((src === 'apple' && !/ios/i.test(plat)) || (src === 'google' && /ios/i.test(plat))) ? `<p class="ideas-hint" style="margin:6px 0 0;color:#a8505f;">⚠️ ${src === 'apple' ? 'Apple Health only exists on an iPhone' : 'Health Connect only exists on an Android phone'} — pick the one that matches this phone.</p>` : ''}`;
