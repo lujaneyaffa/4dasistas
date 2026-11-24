@@ -4481,23 +4481,23 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       <div class="rules-content" style="max-width:560px;margin:0 auto;">
         <p class="rules-lead">Send us something to add 💛</p>
         ${submitKindHtml('event')}
-        <p style="margin-bottom:12px;">Send it to us — everything below is required, and an admin reviews every submission.</p>
+        <p style="margin-bottom:12px;">Fields marked <span style="color:#c00;font-weight:700;">*</span> are required. An admin reviews every submission and we'll email you the result.</p>
         <div id="esIntro"></div>
         <form id="eventSubForm" novalidate style="display:flex;flex-direction:column;gap:10px;">
-          <input id="esLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="Link to the event (https://…)" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
-          <input id="esName" type="text" maxlength="120" placeholder="Event name" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
-          <input id="esDate" type="date" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
-          <select id="esGenre" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;background:#fff;">
+          <div>${subLabel("Event link (Instagram post, Eventbrite, website…)", true)}<input id="esLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="https://…" style="width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;"></div>
+          <div>${subLabel("Event name", true)}<input id="esName" type="text" maxlength="120" placeholder="e.g. Sisters' Hike Day" style="width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;"></div>
+          <div>${subLabel("Date of the event", true)}<input id="esDate" type="date" style="width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;"></div>
+          <div>${subLabel("What kind of event is it?", true)}<select id="esGenre" style="width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;background:#fff;">
             <option value="">Genre of event…</option>
             ${[['sports','Sports','sports'],['activities','Activities','activities'],['functions','Community function (market, festival, gathering)','functions'],['trips','Trip','trips'],['knowledge','Knowledge (class, talk, mosque program)','mosqueprograms']].map(([k, l, lk]) => `<option value="${k}">${escapeCm(LABELS.event[lk] || l)}</option>`).join('')}
             <option value="other">Other (type it in)</option>
-          </select>
-          <input id="esGenreOther" type="text" maxlength="40" placeholder="What kind of event is it?" style="display:none;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
-          <input id="esCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
+          </select></div>
+          <input id="esGenreOther" type="text" maxlength="40" placeholder="Type the kind of event" style="display:none;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
+          <div>${subLabel("City", true)}<input id="esCity" type="text" maxlength="60" placeholder="e.g. Mississauga" style="width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;"></div>
           <label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:44px;"><input id="esVirtual" type="checkbox" style="width:22px;height:22px;"> It's a virtual event (no city)</label>
           <div id="esExtra"></div>
-          <input id="esEmail" type="email" maxlength="120" required inputmode="email" autocapitalize="none" autocorrect="off" placeholder="Your email (required) — we'll tell you if it's accepted" autocomplete="email" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;">
-          <textarea id="esComments" rows="3" maxlength="600" placeholder="Comments (optional) — anything we should know?" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;"></textarea>
+          <div>${subLabel("Your email (we'll tell you if it's accepted)", true)}<input id="esEmail" type="email" maxlength="120" required inputmode="email" autocapitalize="none" autocorrect="off" placeholder="you@example.com" autocomplete="email" style="width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;"></div>
+          <div>${subLabel("Anything else we should know?", false)}<textarea id="esComments" rows="3" maxlength="600" placeholder="Price, who it's for, how to sign up…" style="width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;"></textarea></div>
           <input id="esWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;">
           <div id="esStatus" style="min-height:18px;font-size:13px;color:#c00;" aria-live="polite"></div>
           <button type="submit" class="club-guide-btn" id="esSubmit" style="background:#ce8491;color:#fff;width:100%;text-align:center;min-height:46px;">Submit event</button>
@@ -4510,26 +4510,26 @@ el.innerHTML = `${getCmSession() ? '' : `<div class="clubs-top-actions" style="j
       <div class="rules-content" style="max-width:560px;margin:0 auto;">
         <p class="rules-lead">Send us something to add 💛</p>
         ${submitKindHtml('resource')}
-        <p style="margin-bottom:12px;">Recommend it to us. An admin reviews every submission.</p>
+        <p style="margin-bottom:12px;">Fields marked <span style="color:#c00;font-weight:700;">*</span> are required. An admin reviews every submission and we'll email you the result.</p>
         <form id="resSubForm" novalidate style="display:flex;flex-direction:column;gap:10px;">
-          <input id="rsTitle" type="text" maxlength="120" placeholder="Name of the business / resource" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
-          <select id="rsType" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;background:#fff;">
+          <div>${subLabel("Name of the business or resource", true)}<input id="rsTitle" type="text" maxlength="120" placeholder="e.g. Noor Bakery" style="width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;"></div>
+          <div>${subLabel("Type of resource", true)}<select id="rsType" style="width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;background:#fff;">
             <option value="">Type of resource…</option>
             ${RESOURCE_CATEGORIES.map(([k, l]) => `<option value="${k}">${escapeCm(l)}</option>`).join('')}
             <option value="other">Other (type it in)</option>
-          </select>
+          </select></div>
           <input id="rsTypeOther" type="text" maxlength="40" placeholder="What kind of resource is it?" style="display:none;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
           <div style="border:2px dashed #f2d8d7;border-radius:12px;padding:10px;background:#fef7f4;">
-            <div style="font-size:14px;font-weight:700;margin-bottom:6px;">📸 Find their Instagram</div>
+            <div style="font-size:14px;font-weight:700;margin-bottom:6px;">📸 Find their Instagram <span style="color:#c00;">*</span></div>
             <div style="display:flex;gap:8px;"><input id="rsIg" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="@username" style="flex:1;min-width:0;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;"><button type="button" id="rsIgFind" class="club-guide-btn" style="padding:10px 16px;">🔍 Find</button></div>
             <div id="rsIgPrev"></div>
             <div style="font-size:13px;color:#776867;margin:8px 0 4px;">No Instagram? Paste a WhatsApp link instead:</div>
             <input id="rsLink" type="url" inputmode="url" autocapitalize="none" autocorrect="off" placeholder="Instagram or WhatsApp link" style="width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
           </div>
-          <input id="rsCity" type="text" maxlength="60" placeholder="City" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;">
+          <div>${subLabel("City", true)}<input id="rsCity" type="text" maxlength="60" placeholder="e.g. Brampton" style="width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;"></div>
           <label style="display:flex;align-items:center;gap:10px;font-size:15px;min-height:44px;"><input id="rsVirtual" type="checkbox" style="width:22px;height:22px;"> It's virtual / online only (no city)</label>
-          <textarea id="rsComments" rows="3" maxlength="600" placeholder="Why do you recommend it? (optional)" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;"></textarea>
-          <input id="rsEmail" type="email" maxlength="120" required inputmode="email" autocapitalize="none" autocorrect="off" placeholder="Your email (required) — we'll tell you if it's accepted" autocomplete="email" style="padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;">
+          <div>${subLabel("Why do you recommend it?", false)}<textarea id="rsComments" rows="3" maxlength="600" placeholder="What makes it great?" style="width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;"></textarea></div>
+          <div>${subLabel("Your email (we'll tell you if it's accepted)", true)}<input id="rsEmail" type="email" maxlength="120" required inputmode="email" autocapitalize="none" autocorrect="off" placeholder="you@example.com" autocomplete="email" style="width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:2px solid var(--brand-brown);font-size:16px;font-family:inherit;"></div>
           <input id="rsWebsite" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;opacity:0;height:0;width:0;">
           <div id="rsStatus" style="min-height:18px;font-size:13px;color:#c00;" aria-live="polite"></div>
           <button type="submit" class="club-guide-btn" id="rsSubmit" style="background:#ce8491;color:#fff;width:100%;text-align:center;min-height:46px;">Recommend it</button>
@@ -4544,6 +4544,23 @@ function wireVirtualToggle(cityId, virtualId){
   const city = document.getElementById(cityId), v = document.getElementById(virtualId);
   v.addEventListener('change', () => { city.disabled = v.checked; city.style.opacity = v.checked ? '.45' : '1'; if(v.checked) city.value = ''; });
 }
+
+function subFail(st, input, msg){
+  st.style.color = '#c00'; st.textContent = msg;
+  if(input){ input.style.borderColor = '#c00'; input.style.background = '#fff4f4'; try { input.scrollIntoView({ behavior:'smooth', block:'center' }); } catch {} try { input.focus({ preventScroll:true }); } catch {}
+    const clear = () => { input.style.borderColor = ''; input.style.background = ''; input.removeEventListener('input', clear); input.removeEventListener('change', clear); };
+    input.addEventListener('input', clear); input.addEventListener('change', clear); }
+  return false;
+}
+function subThanks(form, msg, again){
+  const card = document.createElement('div');
+  card.style.cssText = 'text-align:center;padding:22px 16px;border-radius:16px;background:#f1faf4;border:2px solid #2a7a4a;';
+  card.innerHTML = `<div style="font-size:42px;">🎉</div><div style="font-size:20px;font-weight:800;margin:6px 0;">Thank you!</div><p style="margin:0 0 14px;">${msg}</p><button type="button" class="club-guide-btn" style="min-height:46px;">${again}</button>`;
+  form.style.display = 'none'; form.insertAdjacentElement('afterend', card);
+  card.querySelector('button').addEventListener('click', () => { card.remove(); form.style.display = 'flex'; try { form.scrollIntoView({ behavior:'smooth', block:'start' }); } catch {} });
+  try { card.scrollIntoView({ behavior:'smooth', block:'center' }); } catch {}
+}
+function subLabel(text, req){ return `<label class="sub-l" style="display:block;font-size:13px;font-weight:700;color:#776867;margin:0 0 4px;">${text}${req ? ' <span style="color:#c00;">*</span>' : ' <span style="font-weight:400;">(optional)</span>'}</label>`; }
 function setupEventSubmitForm(){
   const form = document.getElementById('eventSubForm');
   if(!form) return;
@@ -4565,19 +4582,20 @@ function setupEventSubmitForm(){
     const st = document.getElementById('esStatus'), btn = document.getElementById('esSubmit');
     const virtual = document.getElementById('esVirtual').checked;
     const body = { link: document.getElementById('esLink').value.trim(), name: document.getElementById('esName').value.trim(), date: dateEl.value, city: document.getElementById('esCity').value.trim(), virtual, genre: gSel.value, genreOther: gOther.value.trim(), email: (document.getElementById('esEmail') || {}).value.trim() || '', comments: document.getElementById('esComments').value.trim(), website: document.getElementById('esWebsite').value, extra: extraForm ? calFormCollect(document.getElementById('esExtra'), extraForm) : {} };
+    const $e = id => document.getElementById(id);
+    if(!/^https?:\/\/\S+\.\S+/i.test(body.link)) return subFail(st, $e('esLink'), 'Please add the link to the event (starting with https://).');
+    if(body.name.length < 3) return subFail(st, $e('esName'), "Please add the event's name.");
+    if(!body.date) return subFail(st, $e('esDate'), "Please pick the event's date.");
+    if(!body.genre) return subFail(st, $e('esGenre'), 'Please pick what kind of event it is.');
+    if(body.genre === 'other' && body.genreOther.length < 2) return subFail(st, $e('esGenreOther'), 'Please type what kind of event it is.');
+    if(!virtual && body.city.length < 2) return subFail(st, $e('esCity'), 'Please add the city, or tick "virtual event".');
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(body.email)) return subFail(st, $e('esEmail'), "Please add your email so we can tell you if it's accepted.");
     st.style.color = '#c00';
-    if(!/^https?:\/\/\S+\.\S+/i.test(body.link)){ st.textContent = 'Please add the link to the event (starting with https://).'; return; }
-    if(body.name.length < 3){ st.textContent = "Please add the event's name."; return; }
-    if(!body.date){ st.textContent = "Please pick the event's date."; return; }
-    if(!body.genre){ st.textContent = 'Please pick the genre of the event.'; return; }
-    if(body.genre === 'other' && body.genreOther.length < 2){ st.textContent = 'Please type what kind of event it is.'; return; }
-    if(!virtual && body.city.length < 2){ st.textContent = 'Please add the city, or tick "virtual event".'; return; }
-    if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(body.email)){ st.textContent = "Please add your email so we can tell you if it's accepted."; return; }
     btn.disabled = true; st.textContent = '';
     try {
       await cmApiRaw('/api/event-suggestions', { method:'POST', headers: getCmSession() ? cmAuthHeaders() : { 'Content-Type':'application/json' }, body: JSON.stringify(body) });
       form.reset(); paintExtra(); gOther.style.display = 'none'; document.getElementById('esCity').disabled = false; document.getElementById('esCity').style.opacity = '1';
-      st.style.color = '#2a7a4a'; st.textContent = 'Thank you! Your event was sent — we will email you once an admin has reviewed it.';
+      st.textContent = ''; subThanks(form, 'Your event was sent. We\'ll email you once an admin has reviewed it.', 'Send another event');
     } catch(err){ st.textContent = err.message; }
     btn.disabled = false;
   });
@@ -4607,18 +4625,19 @@ function setupResourceSubmitForm(){
     const st = document.getElementById('rsStatus'), btn = document.getElementById('rsSubmit');
     const virtual = document.getElementById('rsVirtual').checked;
     const body = { title: document.getElementById('rsTitle').value.trim(), type: tSel.value, typeOther: tOther.value.trim(), link: document.getElementById('rsLink').value.trim(), city: document.getElementById('rsCity').value.trim(), virtual, comments: document.getElementById('rsComments').value.trim(), email: document.getElementById('rsEmail').value.trim(), website: document.getElementById('rsWebsite').value };
+    const $e = id => document.getElementById(id);
+    if(body.title.length < 2) return subFail(st, $e('rsTitle'), 'Please add the name of the business or resource.');
+    if(!body.type) return subFail(st, $e('rsType'), 'Please pick the type of resource.');
+    if(body.type === 'other' && body.typeOther.length < 2) return subFail(st, $e('rsTypeOther'), 'Please type what kind of resource it is.');
+    if(!/(instagram\.com|wa\.me|whatsapp\.com)/i.test(body.link)) return subFail(st, $e('rsIg'), 'Please find their Instagram (type the @name, tap 🔍 Find, then ✅ Yes) or paste a WhatsApp link below.');
+    if(!virtual && body.city.length < 2) return subFail(st, $e('rsCity'), 'Please add the city, or tick "virtual / online only".');
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(body.email)) return subFail(st, $e('rsEmail'), "Please add your email so we can tell you if it's accepted.");
     st.style.color = '#c00';
-    if(body.title.length < 2){ st.textContent = 'Please add the name of the business or resource.'; return; }
-    if(!body.type){ st.textContent = 'Please pick the type of resource.'; return; }
-    if(body.type === 'other' && body.typeOther.length < 2){ st.textContent = 'Please type what kind of resource it is.'; return; }
-    if(!/(instagram\.com|wa\.me|whatsapp\.com)/i.test(body.link)){ st.textContent = 'Please find their Instagram (tap 🔍 Find, then ✅ Yes) or paste a WhatsApp link.'; return; }
-    if(!virtual && body.city.length < 2){ st.textContent = 'Please add the city, or tick "virtual / online only".'; return; }
-    if(!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(body.email)){ st.textContent = "Please add your email so we can tell you if it's accepted."; return; }
     btn.disabled = true; st.textContent = '';
     try {
       await cmApiRaw('/api/resource-suggestions', { method:'POST', headers: getCmSession() ? cmAuthHeaders() : { 'Content-Type':'application/json' }, body: JSON.stringify(body) });
       form.reset(); igPrev.innerHTML = ''; tOther.style.display = 'none'; document.getElementById('rsCity').disabled = false; document.getElementById('rsCity').style.opacity = '1';
-      st.style.color = '#2a7a4a'; st.textContent = 'Thank you! It was sent — we will email you once an admin has reviewed it.';
+      st.textContent = ''; subThanks(form, 'It was sent. We\'ll email you once an admin has reviewed it.', 'Recommend another');
     } catch(err){ st.textContent = err.message; }
     btn.disabled = false;
   });
