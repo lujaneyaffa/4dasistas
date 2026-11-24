@@ -1207,6 +1207,37 @@
       "alsoSportKeys": [],
       "alsoShowIn": [],
       "id": "when-it-feels-unbearable-halaqah"
+    },
+    {
+      "section": "mosqueprograms",
+      "title": "Youth Halaqa",
+      "audienceType": [
+        "Muslim Women"
+      ],
+      "emoji": "",
+      "organizedBy": "Yms Brampton",
+      "eventDate": "2026-11-27",
+      "endDate": "2026-11-27",
+      "time": "",
+      "endTime": "",
+      "allDay": false,
+      "days": [],
+      "recurFrequency": "",
+      "monthlyType": "weekday",
+      "monthlyWeek": "1",
+      "monthlyDay": "sat",
+      "monthlyDate": "",
+      "recurStart": "",
+      "recurEnd": "",
+      "extraDates": [],
+      "virtual": false,
+      "location": "Brampton, Ontario",
+      "link": "https://www.instagram.com/p/Df0b7Z4tBL8/",
+      "desc": "",
+      "sportKey": "",
+      "alsoSportKeys": [],
+      "alsoShowIn": [],
+      "id": "youth-halaqa"
     }
   ]
 }
