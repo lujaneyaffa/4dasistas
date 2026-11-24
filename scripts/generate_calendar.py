@@ -171,6 +171,8 @@ def event_to_ics(item, category):
         weekday_index = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}.get(first_day, 0)
         epoch = datetime(2024, 1, 1)  # a Monday
         cal_date = (epoch + timedelta(days=(weekday_index - epoch.weekday()) % 7)).strftime("%Y-%m-%d")
+    if days and str(item.get("recurEvery") or "1") == "2" and item.get("recurStart"):
+        cal_date = parse_date(item.get("recurStart")) or cal_date
     if not cal_date:
         return None
 
@@ -183,7 +185,8 @@ def event_to_ics(item, category):
         byday = ",".join(DAY_MAP.get(d.lower(), d.upper()) for d in days if DAY_MAP.get(d.lower()))
         if byday:
             lines.append(f"DTSTART;VALUE=DATE:{cal_date.replace('-', '')}")
-            lines.append(f"RRULE:FREQ=WEEKLY;BYDAY={byday}")
+            interval = ";INTERVAL=2;WKST=SU" if str(item.get("recurEvery") or "1") == "2" else ""
+            lines.append(f"RRULE:FREQ=WEEKLY{interval};BYDAY={byday}")
     else:
         lines.append(f"DTSTART;VALUE=DATE:{cal_date.replace('-', '')}")
         if item.get("recurFrequency") == "monthly":

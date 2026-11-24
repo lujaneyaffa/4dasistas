@@ -2081,6 +2081,14 @@ const eventIsOnDate = (item, dateString) => {
   if (!Array.isArray(item.days) || !item.days.length) return false;
   if (item.recurStart && dateString < item.recurStart) return false;
   if (item.recurEnd && dateString > item.recurEnd) return false;
+  const every = Number(item.recurEvery) || 1;
+  if (every > 1) {
+    const anchor = item.recurStart || item.eventDate || item.calDate || "";
+    if (anchor) {
+      const wk = (ds) => Math.floor((Date.parse(`${ds}T00:00:00Z`) / 86400000 + 4) / 7);
+      if ((((wk(dateString) - wk(anchor)) % every) + every) % every !== 0) return false;
+    }
+  }
   return item.days.some(day => weekdayNumbers[String(day).toLowerCase()] === weekdayForDate(dateString));
 };
 
@@ -3348,6 +3356,30 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const u = String(new URL(request.url).searchParams.get("u") || "").toLowerCase(); if (!/^[a-z0-9._]{1,30}$/.test(u)) return jsonResponse({ ok: false }, 200, corsHeaders);
       const ck = `igok:${u}`, c = await env.SITE_DATA.get(ck); if (c) return jsonResponse({ ok: c === "1" }, 200, { ...corsHeaders, "Cache-Control": "public, max-age=3600" });
       const ok = await igCheck(env, u); return jsonResponse({ ok }, 200, { ...corsHeaders, "Cache-Control": "public, max-age=3600" });
+    }
+    if (path === "/api/ig-posts" && request.method === "GET") { // the 3 newest posts of an Instagram profile (read from its public embed page); cached 12h so Instagram is hardly ever asked
+      const u = String(new URL(request.url).searchParams.get("u") || "").toLowerCase(); if (!/^[a-z0-9._]{1,30}$/.test(u)) return jsonResponse({ posts: [] }, 200, corsHeaders);
+      const ck = `igposts:${u}`; let c = null; try { c = JSON.parse((await env.SITE_DATA.get(ck)) || "null"); } catch {}
+      if (c) return jsonResponse(c, 200, { ...corsHeaders, "Cache-Control": "public, max-age=1800" });
+      const out = { posts: [] };
+      try {
+        const r = await fetch(`https://www.instagram.com/${u}/embed/`, { headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15" } });
+        const t = r.ok ? await r.text() : "";
+        const seen = new Set();
+        for (const m of t.matchAll(/\\"shortcode\\":\\"([A-Za-z0-9_-]{5,20})\\"/g)) {
+          if (seen.has(m[1])) continue;
+          const seg = t.slice(m.index, m.index + 6000);
+          if (!/\\"taken_at_timestamp\\":\d+/.test(seg.slice(0, 2500)) && !/\\"taken_at_timestamp\\":\d+/.test(seg)) continue; // carousel children have no timestamp of their own — only real posts count
+          const d = seg.match(/\\"display_url\\":\\"(.*?)\\"/); if (!d) continue;
+          const img = d[1].replace(/\\+\//g, "/").replace(/\\+u0026/g, "&").replace(/\\+u0025/g, "%");
+          if (!/^https:\/\/[a-z0-9.-]+\.(cdninstagram\.com|fbcdn\.net)\//i.test(img)) continue;
+          const ty = t.slice(Math.max(0, m.index - 300), m.index).match(/\\"__typename\\":\\"(\w+)\\"/);
+          seen.add(m[1]); out.posts.push({ code: m[1], img, video: !!(ty && ty[1] === "GraphVideo") });
+          if (out.posts.length >= 3) break;
+        }
+      } catch {}
+      try { await env.SITE_DATA.put(ck, JSON.stringify(out), { expirationTtl: out.posts.length ? 12 * 3600 : 3 * 3600 }); } catch {}
+      return jsonResponse(out, 200, { ...corsHeaders, "Cache-Control": "public, max-age=1800" });
     }
     if (path === "/api/cal-terms" && request.method === "GET") { let terms = []; try { terms = JSON.parse((await env.SITE_DATA.get("cal:terms")) || "[]"); } catch {} return jsonResponse({ terms: Array.isArray(terms) ? terms : [] }, 200, { ...corsHeaders, "Cache-Control": "no-store" }); }
     if (path === "/api/event-suggestions" && request.method === "POST") {

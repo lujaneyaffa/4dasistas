@@ -729,6 +729,7 @@ function loadLib(url){ return _libs[url] = _libs[url] || new Promise((ok, no) =>
   .fb-agree .fbAgreeLbl{ font-weight:700; margin-top:6px; } .fb-agree .fbAgreeLbl input{ width:22px; height:22px; }
   .hf-hosts{ display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin:6px 0 2px; } .hf-host{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; background:#fff; border:1.5px solid #f2d8d7; overflow:hidden; font-size:15px; flex:none; } .hf-host img{ width:100%; height:100%; object-fit:contain; } .hf-hostn{ font-size:12px; color:#776867; font-weight:600; margin-left:2px; }
   .hf-ig{ width:100%; flex:1 1 auto; min-height:0; border:0; border-radius:10px; margin:2px 0; background:#fff; display:block; }
+  .hf-igp{ display:flex; flex-direction:column; gap:6px; margin-top:6px; width:100%; } .hf-igph a{ font-size:12px; font-weight:700; color:var(--brand-brown); text-decoration:none; } .hf-igpg{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; } .hf-igpg a{ position:relative; display:block; aspect-ratio:1; border-radius:10px; overflow:hidden; background:#f3eeeb; } .hf-igpg img{ width:100%; height:100%; object-fit:cover; display:block; } .hf-igpg i{ position:absolute; right:5px; top:4px; font-style:normal; font-size:12px; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.6); }
   .hf-igslot{ display:contents; } .hf-tall.hf-hasig{ justify-content:flex-start; padding:10px 10px 8px; gap:3px; } .hf-tall.hf-hasig .hf-when{ white-space:nowrap !important; overflow:hidden; text-overflow:ellipsis; max-width:100%; } .hf-tall.hf-hasig strong{ font-size:17px !important; } .hf-tall.hf-hasig > *:not(.hf-igslot){ flex-shrink:0; } .hf-tall.hf-hasig .hf-ig{ flex:1 1 0; min-height:120px; } .hf-tall.hf-hasig strong{ -webkit-line-clamp:1 !important; } .hf-hasig .hf-links{ margin-top:2px; }
   .hf-tall.hf-hasig{ height:auto !important; flex:0 0 auto !important; } .hf-tall.hf-hasig .hf-ig, .hf-hasig .hf-ig{ flex:0 0 auto !important; height:640px; min-height:640px; } /* the profile embed needs its full height or you only see a sliver of the header */
   @media (max-width:799px){ .hf-tall.hf-hasig .hf-ig{ height:600px; min-height:600px; } }
@@ -1823,7 +1824,7 @@ applySiteText();
         item.date = monthlyRuleLabel(item);
       } else if(!item.eventDate && !item.date && item.days && item.days.length){
         const dayLabels = item.days.map(d => dayLabelsShort[dayOrder.indexOf(d)]).join(', ');
-        item.date = `Every ${dayLabels}`;
+        item.date = (Number(item.recurEvery) === 2 ? 'Every other ' : 'Every ') + dayLabels;
       }
     });
   });
@@ -2459,6 +2460,16 @@ function monthlyDatesInMonth(item, year, month){
   return [dateStr];
 }
 
+/* Biweekly: weekly repeats can be "every 2 weeks" (recurEvery:2). Counted in Sunday-start weeks from the repeat's start date
+   (Repeat starts, else the event date) — only weeks an even number of weeks after that one count. */
+function weekIdx(ds){ const [y, m, d] = ds.split('-').map(Number); const t = Date.UTC(y, m - 1, d); return Math.floor((t / 86400000 + 4) / 7); }
+function everyOkOnDate(item, ds){
+  const n = Number(item && item.recurEvery) || 1;
+  if(n <= 1) return true;
+  const anchor = item.recurStart || item.eventDate || item.calDate || '';
+  if(!anchor) return true;
+  return ((weekIdx(ds) - weekIdx(anchor)) % n + n) % n === 0;
+}
 function occurrencesInMonth(item, year, month){
   let base = [];
   if(item.days && item.days.length){
@@ -2468,6 +2479,7 @@ function occurrencesInMonth(item, year, month){
       const dateStr = `${year}-${pad(month+1)}-${pad(d)}`;
       if(item.recurStart && dateStr < item.recurStart) continue;
       if(item.recurEnd && dateStr > item.recurEnd) continue;
+      if(!everyOkOnDate(item, dateStr)) continue;
       const dt = new Date(year, month, d);
       if(dayNums.includes(dt.getDay())) base.push(dateStr);
     }
@@ -4697,7 +4709,7 @@ function generateCustomICS(){
     if(item.days && item.days.length){
       const dayMap = {sun:'SU',mon:'MO',tue:'TU',wed:'WE',thu:'TH',fri:'FR',sat:'SA'};
       const byday = item.days.map(d => dayMap[d] || d.toUpperCase()).join(',');
-      ics += 'RRULE:FREQ=WEEKLY;BYDAY=' + byday + '\n';
+      ics += 'RRULE:FREQ=WEEKLY;' + (Number(item.recurEvery) === 2 ? 'INTERVAL=2;WKST=SU;' : '') + 'BYDAY=' + byday + '\n';
     } else if(isMonthlyItem(item)){
       const dm = {sun:'SU',mon:'MO',tue:'TU',wed:'WE',thu:'TH',fri:'FR',sat:'SA'};
       if(item.monthlyType === 'date') ics += 'RRULE:FREQ=MONTHLY;BYMONTHDAY=' + (Number(item.monthlyDate) || 1) + '\n';
@@ -4877,7 +4889,7 @@ const EVENT_EDIT_WEEKDAYS = [['sun','Sun'],['mon','Mon'],['tue','Tue'],['wed','W
 const EVENT_EDIT_AUDIENCE = ['Muslim Women','Muslim Youth','Hijabi Friendly','Family Event','All Women'];
 const EVENT_EDIT_SECTIONS = [['sports','Sports'],['activities','Activities'],['functions','Functions'],['trips','Trips'],['mosqueprograms','Knowledge']];
 const EVENT_EDIT_ALSOSHOWIN = [['sports','Sports'],['activities','Activities'],['functions','Functions'],['trips','Trips'],['mosqueprograms','Knowledge']];
-const EVENT_CREATE_DEFAULTS = { section:'', title:'', audienceType:[], emoji:'', organizedBy:'', eventDate:'', endDate:'', time:'', endTime:'', allDay:false, days:[], recurFrequency:'', monthlyType:'weekday', monthlyWeek:'1', monthlyDay:'sat', monthlyDate:'', recurStart:'', recurEnd:'', extraDates:[], virtual:false, location:'', link:'', desc:'', sportKey:'', alsoSportKeys:[], alsoShowIn:[] };
+const EVENT_CREATE_DEFAULTS = { section:'', title:'', audienceType:[], emoji:'', organizedBy:'', eventDate:'', endDate:'', time:'', endTime:'', allDay:false, days:[], recurEvery:1, recurFrequency:'', monthlyType:'weekday', monthlyWeek:'1', monthlyDay:'sat', monthlyDate:'', recurStart:'', recurEnd:'', extraDates:[], virtual:false, location:'', link:'', desc:'', sportKey:'', alsoSportKeys:[], alsoShowIn:[] };
 
 async function openEventEdit(id){
   state.eventEditOpen = true;
@@ -5035,7 +5047,14 @@ function renderEventEditView(){
         </label>
       </div>
       <div id="recurWeeklyBox" style="display:${recurFreq==='weekly'?'block':'none'};">
-        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">Every week on</div>
+        <label style="${labelStyle}">How often
+          <select id="editRecurEvery" style="${fieldStyle}">
+            <option value="1" ${Number(d.recurEvery)!==2?'selected':''}>Every week</option>
+            <option value="2" ${Number(d.recurEvery)===2?'selected':''}>Every 2 weeks (biweekly)</option>
+          </select>
+        </label>
+        <div id="recurEveryNote" style="font-size:12px;color:var(--muted);margin:4px 0 8px;display:${Number(d.recurEvery)===2?'block':'none'};">Counts from the "Repeat starts" date below (or the event date if that's empty). The first one is that week.</div>
+        <div style="font-size:12px;font-weight:700;margin-bottom:4px;">On these days</div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;">
           ${EVENT_EDIT_WEEKDAYS.map(([v,l]) => `<label style="font-size:12px;display:flex;align-items:center;gap:4px;"><input type="checkbox" class="editDay" value="${v}" ${days.includes(v)?'checked':''}>${l}</label>`).join('')}
         </div>
@@ -5165,6 +5184,7 @@ function renderEventEditView(){
     const f = document.getElementById('editRecurFreq').value;
     const mt = document.getElementById('editMonthlyType').value;
     document.getElementById('recurWeeklyBox').style.display = f === 'weekly' ? 'block' : 'none';
+    const evN = document.getElementById('recurEveryNote'); if(evN) evN.style.display = document.getElementById('editRecurEvery').value === '2' ? 'block' : 'none';
     document.getElementById('recurMonthlyBox').style.display = f === 'monthly' ? 'flex' : 'none';
     document.getElementById('recurRangeRow').style.display = f === 'none' ? 'none' : 'flex';
     document.getElementById('monthlyWeekdayRow').style.display = mt === 'weekday' ? 'flex' : 'none';
@@ -5174,7 +5194,7 @@ function renderEventEditView(){
       monthlyType: mt, monthlyWeek: document.getElementById('editMonthlyWeek').value,
       monthlyDay: document.getElementById('editMonthlyDay').value, monthlyDate: document.getElementById('editMonthlyDate').value }) || '') : '';
   };
-  ['editRecurFreq','editMonthlyType','editMonthlyWeek','editMonthlyDay','editMonthlyDate'].forEach(id => {
+  ['editRecurFreq','editRecurEvery','editMonthlyType','editMonthlyWeek','editMonthlyDay','editMonthlyDate'].forEach(id => {
     const el = document.getElementById(id);
     el.addEventListener('change', updateRecurUi); el.addEventListener('input', updateRecurUi);
   });
@@ -5246,6 +5266,7 @@ function collectEventFormFields(){
     endTime: document.getElementById('editEndTime').value,
     allDay: document.getElementById('editAllDay').checked,
     days: freq === 'weekly' ? days : [],
+    recurEvery: freq === 'weekly' && document.getElementById('editRecurEvery').value === '2' ? 2 : 1,
     recurFrequency: freq === 'monthly' ? 'monthly' : '',
     monthlyType: document.getElementById('editMonthlyType').value,
     monthlyWeek: document.getElementById('editMonthlyWeek').value,
@@ -5440,6 +5461,10 @@ async function saveEventEdit(){
   const createMode = state.eventCreateMode;
   const fields = collectEventFormFields();
   Object.assign(state.eventEditData, fields);
+  if(Number(fields.recurEvery) === 2 && !(fields.recurStart || fields.eventDate)){
+    state.eventEditError = 'For an every-2-weeks event, please fill in "Repeat starts" (or the event date) so we know which weeks count.';
+    state.eventEditSaved = false; renderEventEditView(); return;
+  }
   if(fields.recurFrequency === 'monthly' && fields.monthlyType === 'date'){
     const n = Number(fields.monthlyDate);
     if(!(Number.isInteger(n) && n >= 1 && n <= 31)){
@@ -9772,10 +9797,17 @@ function homeFeaturedInner(){
 }
 // The server decides what's featured (admin pins first, then a daily random pick); this turns those ids into the items the page already has.
 // Business of the day: show its Instagram profile (photos!) once we know the profile embed works; otherwise keep the text.
-const IG_OK = {};
+const IG_OK = {}, IG_POSTS = {};
 function hfIgMount(){
   document.querySelectorAll('.hf-igslot:not([data-done])').forEach(async sl => {
     sl.dataset.done = '1'; const u = sl.dataset.ig;
+    // First choice: the 3 newest posts as pictures (the profile embed often shows only the header and blank space).
+    if(IG_POSTS[u] === undefined){ try { IG_POSTS[u] = ((await (await fetch('/api/ig-posts?u=' + encodeURIComponent(u))).json()).posts || []).slice(0, 3); } catch { IG_POSTS[u] = []; } }
+    if(IG_POSTS[u].length && sl.isConnected){
+      const card = sl.closest('.hf-card'); if(card) card.classList.add('hf-hasig', 'hf-hasposts');
+      sl.innerHTML = `<span class="hf-igp"><span class="hf-igph"><a href="https://www.instagram.com/${encodeURIComponent(u)}/" target="_blank" rel="noopener">📸 Latest on Instagram · @${escapeCm(u)}</a></span><span class="hf-igpg">${IG_POSTS[u].map(p => `<a href="https://www.instagram.com/p/${escapeCm(p.code)}/" target="_blank" rel="noopener" aria-label="Open this post on Instagram"><img src="${escapeCm(p.img)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.closest('a').style.visibility='hidden'">${p.video ? '<i>▶</i>' : ''}</a>`).join('')}</span></span>`;
+      return;
+    }
     if(IG_OK[u] === undefined){ try { IG_OK[u] = !!(await (await fetch('/api/ig-ok?u=' + encodeURIComponent(u))).json()).ok; } catch { IG_OK[u] = false; } }
     if(!IG_OK[u] || !sl.isConnected) return;
     sl.innerHTML = `<iframe class="hf-ig" src="https://www.instagram.com/${encodeURIComponent(u)}/embed/" title="${escapeCm(sl.dataset.t)} on Instagram" loading="lazy" scrolling="no"></iframe>`;
