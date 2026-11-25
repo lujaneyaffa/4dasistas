@@ -776,7 +776,6 @@ const STEP_ROUNDS_KEY = "steprounds", STEP_MAX_PER_DAY = 60000;
 // ---- Google Health (the cloud account behind Fitbit / Pixel Watch / Google Health app): works on any phone, even an iPhone. OAuth 2.0 + the Google Health API; the owner sets the Worker secrets GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET. ----
 let _ghReady = null;
 const ghEnsure = async (env) => {
-  return false; // Google Health sync is switched off for good (it needed a Google Cloud project); steps come from Apple Health / Health Connect via the app
   if (!env.DB || !env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) return false;
   if (!_ghReady) _ghReady = env.DB.prepare("CREATE TABLE IF NOT EXISTS gh_tokens (user_id TEXT PRIMARY KEY, access TEXT, refresh TEXT, exp INTEGER, at INTEGER)").run().catch((e) => { _ghReady = null; throw e; });
   await _ghReady;
@@ -3922,7 +3921,7 @@ if(PRE==='deny')$('btnDeny').scrollIntoView({block:'center'});if(PRE==='edit')$(
       const meId = await memberIdFromRequest();
       if (!meId) return jsonResponse({ error: "Please log in first" }, 401, corsHeaders);
       let b; try { b = await request.json(); } catch { return jsonResponse({ error: "Invalid request" }, 400, corsHeaders); }
-      const source = b.source === "apple" ? "apple" : b.source === "google" ? "google" : "";
+      const source = b.source === "apple" ? "apple" : b.source === "google" ? "google" : b.source === "googlehealth" ? "googlehealth" : "";
       if (!source || !(await stepsEnsure(env))) return jsonResponse({ error: "Choose Apple Health or Google Health Connect" }, 400, corsHeaders);
       await env.DB.prepare("INSERT INTO step_sources (user_id, source, at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET source = excluded.source, at = excluded.at").bind(meId, source, Date.now()).run();
       // switching source: the last two weeks from any OTHER source are removed, so a day is never a mix (the new source refills them right away)
